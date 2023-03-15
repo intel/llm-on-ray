@@ -27,8 +27,7 @@ class _TorchAccelerator(Accelerator):
         #         "GPUs."
         #     )
         parallel_strategy_kwargs = {
-                "device_ids": [device],
-                "output_device": device,
+                "device_id": device,
                 **parallel_strategy_kwargs,
         }
         DataParallel = FullyShardedDataParallel
