@@ -58,6 +58,7 @@ from transformers.utils.versions import require_version
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
+from raydp.torch.config import TorchConfig
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.26.0.dev0")
@@ -304,6 +305,7 @@ def train_func(config: Dict[str, Any]):
     elif args.model_name_or_path:
         config = AutoConfig.from_pretrained(args.model_name_or_path)
     else:
+        from transformers import CONFIG_MAPPING
         config = CONFIG_MAPPING[args.model_type]()
         logger.warning("You are instantiating a new config instance from scratch.")
 
@@ -533,7 +535,9 @@ def main():
             "FSDP_MIN_NUM_PARAMS": "1000000", 
             "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
             "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
-            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT", 
+            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
+            "CCL_WORKER_COUNT": "1",
+            "WORLD_SIZE": str(args.num_workers),
         }
     }
 
@@ -544,12 +548,14 @@ def main():
         else:
             # Connect to a Ray cluster for distributed training.
             ray.init(address="auto", _node_ip_address=args.address, runtime_env=runtime_env)
+        torch_config = TorchConfig(backend="ccl")
         trainer = TorchTrainer(
             train_func,
             train_loop_config=config,
             scaling_config=ScalingConfig(
                 num_workers=args.num_workers
             ),
+            torch_config=torch_config,
         )
         print("start training....")
         results = trainer.fit()
