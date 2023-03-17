@@ -1,16 +1,53 @@
 ## Accelerate + Ray 
-(This still has bugs to be fixed)
 ### 1. Prepare environment
 Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune)
 
-### 2. Install Ray dependency
+### 2. Install Ray Raydp dependency
 ```bash
 pip install ray
+pip install --pre raydp
 ```
-### 3. Test ray TorchTrainer example
+### 3. Enable torch_ccl
+```python
+from raydp.torch.config import TorchConfig
+
+def train_fashion_mnist(...):
+    torch_config = TorchConfig(backend="ccl")       # enable ccl
+    trainer = TorchTrainer(
+        train_loop_per_worker=train_func,
+        train_loop_config={"lr": 1e-3, "batch_size": 64, "epochs": 4},
+        scaling_config=ScalingConfig(num_workers=num_workers, use_gpu=use_gpu),
+        torch_config=torch_config,      # pass to TorchTrainer
+    )
+    ...
+```
+
+### 4. Set parameters
+Todo: hard coding now, need to get from accelerate config.yaml file.
+```python
+runtime_env = {
+      "env_vars": {
+          "OMP_NUM_THREADS": "18", 
+          "ACCELERATE_USE_CPU": "True", 
+          "ACCELERATE_USE_FSDP": "true", 
+          "FSDP_SHARDING_STRATEGY": "1", 
+          "FSDP_OFFLOAD_PARAMS": "false", 
+          "FSDP_MIN_NUM_PARAMS": "1000000", 
+          "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
+          "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
+          "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
+          # enable ccl and multi-process
+          "CCL_WORKER_COUNT": "1",
+          "WORLD_SIZE": str(args.num_workers),
+      }
+  }
+```
+
+### 5. Test Ray TorchTrainer example
 ```bash
 python -u examples/pytorch/language-modeling/run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.0.2.140 --num_workers 2
 ```
+
 
 ## FSDP_CPU + Ray
 ### 1. Enable fsdp_cpu in Ray
@@ -44,7 +81,7 @@ def train_func(config: Dict):
 ```bash
 pip install --pre raydp
 ```
-The codes that need to add:
+The codes that need to be added:
 ```python
 from raydp.torch.config import TorchConfig
 
