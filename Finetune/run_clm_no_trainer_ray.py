@@ -402,9 +402,6 @@ def train_func(config: Dict[str, Any]):
 
     train_dataset = lm_datasets["train"]
     eval_dataset = lm_datasets["validation"]
-    sample_num = 8
-    train_dataset = train_dataset.select(range(sample_num))
-    eval_dataset = eval_dataset.select(range(sample_num))
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -527,17 +524,20 @@ def main():
     # hard coding, todo: get from config.yaml
     runtime_env = {
         "env_vars": {
+            "OMP_NUM_THREADS": "56", 
             "ACCELERATE_USE_CPU": "True", 
-            "OMP_NUM_THREADS": "18", 
-            "ACCELERATE_USE_FSDP": "true", 
+            "ACCELERATE_USE_FSDP": "true",  # FSDP setting
             "FSDP_SHARDING_STRATEGY": "1", 
             "FSDP_OFFLOAD_PARAMS": "false", 
             "FSDP_MIN_NUM_PARAMS": "1000000", 
             "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
             "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
             "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
-            "CCL_WORKER_COUNT": "1",
-            "WORLD_SIZE": str(args.num_workers),
+            "ACCELERATE_MIXED_PRECISION": "no",
+            "CCL_WORKER_COUNT": "1",        # CCL setting
+            "WORLD_SIZE": str(args.num_workers),    # Enable multi-process
+            # "FI_PROVIDER": "tcp",         # Network setting
+            # "FI_TCP_IFACE": "***",
         }
     }
 
@@ -553,8 +553,13 @@ def main():
             train_func,
             train_loop_config=config,
             scaling_config=ScalingConfig(
-                num_workers=args.num_workers
+                num_workers=args.num_workers,
+                resources_per_worker={"CPU": 56},
+                placement_strategy="SPREAD"
             ),
+            # scaling_config=ScalingConfig(
+            #     num_workers=args.num_workers
+            # ),
             torch_config=torch_config,
         )
         print("start training....")

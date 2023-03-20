@@ -27,18 +27,20 @@ Todo: hard coding now, need to get from accelerate config.yaml file.
 ```python
 runtime_env = {
       "env_vars": {
-          "OMP_NUM_THREADS": "18", 
+          "OMP_NUM_THREADS": "56", 
           "ACCELERATE_USE_CPU": "True", 
-          "ACCELERATE_USE_FSDP": "true", 
+          "ACCELERATE_USE_FSDP": "true",  # FSDP setting
           "FSDP_SHARDING_STRATEGY": "1", 
           "FSDP_OFFLOAD_PARAMS": "false", 
           "FSDP_MIN_NUM_PARAMS": "1000000", 
           "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
           "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
           "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
-          # enable ccl and multi-process
-          "CCL_WORKER_COUNT": "1",
-          "WORLD_SIZE": str(args.num_workers),
+          "ACCELERATE_MIXED_PRECISION": "no",
+          "CCL_WORKER_COUNT": "1",        # CCL setting
+          "WORLD_SIZE": str(args.num_workers),  # Enable multi-process
+          # "FI_PROVIDER": "tcp",         # Network setting
+          # "FI_TCP_IFACE": "***", 
       }
   }
 ```
