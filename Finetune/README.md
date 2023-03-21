@@ -128,3 +128,9 @@ RuntimeError: no support for _allgather_base in Gloo process group
 ```python
 python run_minist_fsdp.py
 ```
+
+## Memory Status
+Reference to Applied Machine Learning team ([intel-sandbox/HuggingFace](https://github.com/intel-sandbox/HuggingFace/tree/main/test/memory))
+- First run finetune code and get the pid of a Ray worker process.
+- Run memory_collect_ray.py to generate memory csv results.
+- Run csv_analysis.py to generate comparison result.
