@@ -59,6 +59,9 @@ import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from raydp.torch.config import TorchConfig
+from ray.air import session
+from ray.air.checkpoint import Checkpoint
+from ray.air import RunConfig, FailureConfig
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.26.0.dev0")
@@ -195,13 +198,26 @@ def parse_args():
     
     # Ray arguments.
     parser.add_argument(
-        "--start_local", action="store_true", help="Starts Ray on local machine."
+        "--start_local", action="store_true", help="Start Ray on local machine."
     )
     parser.add_argument(
         "--address", type=str, default=None, help="Ray address to connect to."
     )
     parser.add_argument(
         "--num_workers", type=int, default=1, help="Number of workers to use."
+    )
+    parser.add_argument(
+        "--ray_results_path", type=str, default=None, help="Where to save ray results, default is '~/ray_results'."
+    )
+    parser.add_argument(
+        "--ray_fault_tolerance", type=int, default=0, help="Whether to enable ray fault tolerance. Set to 0 will disable it; \
+        set to -1 will lead to infinite recovery retries; set to n will recover a run at least n times."
+    )
+    parser.add_argument(
+        "--checkpoint_hdfs_path", type=str, default=None, help="Where to save the checkpoints."
+    )
+    parser.add_argument(
+        "--ray_debug_error", action="store_true", help="Whether to enable ray post mortem debugging."
     )
     args = parser.parse_args()
 
@@ -221,6 +237,7 @@ def parse_args():
 
 def train_func(config: Dict[str, Any]):
     args = config["args"]
+    checkpoint_hdfs_path = args.checkpoint_hdfs_path
     # Initialize the accelerator. We will let the accelerator handle device placement for us in this example.
     accelerator = Accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps)
 
@@ -474,7 +491,37 @@ def train_func(config: Dict[str, Any]):
     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     completed_steps = 0
 
-    for epoch in range(args.num_train_epochs):
+    # resume from hdfs checkpoint
+    if checkpoint_hdfs_path is not None:
+        starting_epoch = 0
+        rank_num = session.get_world_rank()
+        checkpoint_path = os.path.join(checkpoint_hdfs_path, "rank_"+str(rank_num))
+        print("checkpoint_path", checkpoint_path)
+        resume_from_checkpoint = False
+        try:
+            checkpoint_dict = Checkpoint.from_uri(checkpoint_path).to_dict()
+            resume_from_checkpoint = True
+        except Exception:
+            print("Training from scratch.")
+            pass
+        if resume_from_checkpoint:
+            # update model status
+            model_state = checkpoint_dict["model"]
+            model.load_state_dict(model_state)
+            # update optimizer status
+            optimizer_state = checkpoint_dict["optimizer_state_dict"]
+            optimizer.load_state_dict(optimizer_state)
+            # update lr_scheduler status
+            scheduler_state = checkpoint_dict["lr_scheduler"]
+            lr_scheduler.load_state_dict(scheduler_state)
+            # update current epoch
+            checkpoint_epoch = checkpoint_dict["epoch"]
+            starting_epoch = checkpoint_epoch + 1
+            # update the progress_bar if load from checkpoint
+            progress_bar.update(starting_epoch * num_update_steps_per_epoch)
+            completed_steps = starting_epoch * num_update_steps_per_epoch
+
+    for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(model):
@@ -508,6 +555,19 @@ def train_func(config: Dict[str, Any]):
 
         logger.info(f"epoch {epoch}: perplexity: {perplexity} eval_loss: {eval_loss}")
 
+        if checkpoint_hdfs_path is not None:
+            unwrapped_model = accelerator.unwrap_model(model)
+            checkpoint = Checkpoint.from_dict(
+                {
+                    "epoch": epoch,
+                    "rank": rank_num,
+                    "model": unwrapped_model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "lr_scheduler": lr_scheduler.state_dict(),
+                }
+            )
+            Checkpoint.to_uri(checkpoint, checkpoint_path)
+
     if args.output_dir is not None:
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
@@ -518,7 +578,6 @@ def train_func(config: Dict[str, Any]):
 
 def main():
     args = parse_args()
-
     config = {"args": args}
 
     # hard coding, todo: get from config.yaml
@@ -532,14 +591,19 @@ def main():
             "FSDP_MIN_NUM_PARAMS": "1000000", 
             "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
             "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
-            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
+            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT", 
             "ACCELERATE_MIXED_PRECISION": "no",
             "CCL_WORKER_COUNT": "1",        # CCL setting
             "WORLD_SIZE": str(args.num_workers),    # Enable multi-process
             # "FI_PROVIDER": "tcp",         # Network setting
             # "FI_TCP_IFACE": "***",
+            "JAVA_HOME": os.getenv("JAVA_HOME"),
+            "CLASSPATH": os.getenv("CLASSPATH"),
+            "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
         }
     }
+    if args.ray_debug_error:
+        runtime_env["env_vars"]["RAY_PDB"] = 1
 
     if args.start_local or args.address or args.num_workers > 1:
         if args.start_local:
@@ -561,6 +625,12 @@ def main():
             #     num_workers=args.num_workers
             # ),
             torch_config=torch_config,
+            run_config = RunConfig(
+                local_dir=args.ray_results_path,
+                failure_config=FailureConfig(
+                    max_failures=args.ray_fault_tolerance
+                )
+            )
         )
         print("start training....")
         results = trainer.fit()
@@ -568,7 +638,6 @@ def main():
     else:
         # Run training locally.
         train_func(config)
-
 
 if __name__ == "__main__":
     main()
