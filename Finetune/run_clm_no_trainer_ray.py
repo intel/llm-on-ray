@@ -603,7 +603,7 @@ def main():
         }
     }
     if args.ray_debug_error:
-        runtime_env["env_vars"]["RAY_PDB"] = 1
+        runtime_env["env_vars"]["RAY_PDB"] = "1"
 
     if args.start_local or args.address or args.num_workers > 1:
         if args.start_local:
