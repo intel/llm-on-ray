@@ -134,3 +134,12 @@ Reference to Applied Machine Learning team ([intel-sandbox/HuggingFace](https://
 - First run finetune code and get the pid of a Ray worker process.
 - Run memory_collect_ray.py to generate memory csv results.
 - Run csv_analysis.py to generate comparison result.
+
+## Fault tolerance
+The parameter `ray_fault_tolerance` is used to set Ray fault tolerance, this can allow training to recover from failures. The default value 0 is to disable it, -1 will lead to infinite recovery retries, and n will recover a run at least n times. Now, Ray's default checkpoint mechanism can only support ddp training mode. So we use HDFS to support fault tolerance of FSDP training mode. Please set the parameter `checkpoint_hdfs_path`, and also make sure `JAVA_HOME`, `CLASSPATH`, `ARROW_LIBHDFS_DIR` can be taken from env.
+
+## Ray debugging
+- You can set parameter `ray_debug_error` to enable Ray post mortem debugging. It can help you debug code when an error happens.
+- You can add breakpoint() everywhere in train_func(), then you'll drop into a PDB session to use Ray debugger when this breakpoint is hit.
+
+Please refer to [Ray Debugger](https://docs.ray.io/en/master/ray-observability/ray-debugging.html) for more details.
