@@ -491,9 +491,9 @@ def train_func(config: Dict[str, Any]):
     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     completed_steps = 0
 
+    starting_epoch = 0
     # resume from hdfs checkpoint
     if checkpoint_hdfs_path is not None:
-        starting_epoch = 0
         rank_num = session.get_world_rank()
         checkpoint_path = os.path.join(checkpoint_hdfs_path, "rank_"+str(rank_num))
         print("checkpoint_path", checkpoint_path)
