@@ -56,7 +56,7 @@ from transformers.utils import check_min_version, get_full_repo_name, send_examp
 from transformers.utils.versions import require_version
 
 import ray
-from ray.train.torch import TorchTrainer
+from ray.train.huggingface.accelerate import AccelerateTrainer
 from ray.air.config import ScalingConfig
 from raydp.torch.config import TorchConfig
 from ray.air import session
@@ -580,26 +580,13 @@ def main():
     args = parse_args()
     config = {"args": args}
 
-    # hard coding, todo: get from config.yaml
     runtime_env = {
         "env_vars": {
-            "OMP_NUM_THREADS": "56", 
-            "ACCELERATE_USE_CPU": "True", 
-            "ACCELERATE_USE_FSDP": "true",  # FSDP setting
-            "FSDP_SHARDING_STRATEGY": "1", 
-            "FSDP_OFFLOAD_PARAMS": "false", 
-            "FSDP_MIN_NUM_PARAMS": "1000000", 
-            "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
-            "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
-            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT", 
-            "ACCELERATE_MIXED_PRECISION": "no",
-            "CCL_WORKER_COUNT": "1",        # CCL setting
-            "WORLD_SIZE": str(args.num_workers),    # Enable multi-process
             # "FI_PROVIDER": "tcp",         # Network setting
             # "FI_TCP_IFACE": "***",
-            "JAVA_HOME": os.getenv("JAVA_HOME"),
-            "CLASSPATH": os.getenv("CLASSPATH"),
-            "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
+            # "JAVA_HOME": os.getenv("JAVA_HOME"),
+            # "CLASSPATH": os.getenv("CLASSPATH"),
+            # "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
         }
     }
     if args.ray_debug_error:
@@ -613,17 +600,15 @@ def main():
             # Connect to a Ray cluster for distributed training.
             ray.init(address="auto", _node_ip_address=args.address, runtime_env=runtime_env)
         torch_config = TorchConfig(backend="ccl")
-        trainer = TorchTrainer(
+        trainer = AccelerateTrainer(
             train_func,
             train_loop_config=config,
+            accelerate_config=None,
             scaling_config=ScalingConfig(
                 num_workers=args.num_workers,
                 resources_per_worker={"CPU": 56},
                 placement_strategy="SPREAD"
             ),
-            # scaling_config=ScalingConfig(
-            #     num_workers=args.num_workers
-            # ),
             torch_config=torch_config,
             run_config = RunConfig(
                 local_dir=args.ray_results_path,

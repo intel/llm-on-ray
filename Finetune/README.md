@@ -1,11 +1,13 @@
 ## Accelerate + Ray 
 ### 1. Prepare environment
-Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune)
-
+Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune).
+Please change ``huggingface accelerate`` repo to: [huggingface accelerate](https://github.com/KepingYan/accelerate)  branch: FSDP_CPU
 ### 2. Install Ray Raydp dependency
 ```bash
-pip install ray
+# Install Ray nightly: https://docs.ray.io/en/latest/ray-overview/installation.html
+pip install -U "ray[default] @ LINK_TO_WHEEL.whl"
 pip install --pre raydp
+pip install "ray[tune]" tabulate tensorboard
 ```
 ### 3. Enable torch_ccl
 ```python
@@ -23,27 +25,36 @@ def train_fashion_mnist(...):
 ```
 
 ### 4. Set parameters
-Todo: hard coding now, need to get from accelerate config.yaml file.
-```python
-runtime_env = {
-      "env_vars": {
-          "OMP_NUM_THREADS": "56", 
-          "ACCELERATE_USE_CPU": "True", 
-          "ACCELERATE_USE_FSDP": "true",  # FSDP setting
-          "FSDP_SHARDING_STRATEGY": "1", 
-          "FSDP_OFFLOAD_PARAMS": "false", 
-          "FSDP_MIN_NUM_PARAMS": "1000000", 
-          "FSDP_AUTO_WRAP_POLICY": "SIZE_BASED_WRAP", 
-          "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE", 
-          "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",  
-          "ACCELERATE_MIXED_PRECISION": "no",
-          "CCL_WORKER_COUNT": "1",        # CCL setting
-          "WORLD_SIZE": str(args.num_workers),  # Enable multi-process
-          # "FI_PROVIDER": "tcp",         # Network setting
-          # "FI_TCP_IFACE": "***", 
-      }
-  }
-```
+- FSDP parameters 
+  ```python
+  trainer = AccelerateTrainer(
+              ...
+              # accelerate_config = None,
+              accelerate_config={
+                "distributed_type": "MULTI_CPU", 
+                "fsdp_config": {}, 
+                "num_machines": 1, 
+                "num_processes": 2, 
+                "use_cpu": "true"
+              },
+              ...
+            )
+  …
+  ```
+  You can config FSDP via accelerate_config parameter. It can be a path to a file generated with ``accelerate config``,  a configuration dict or None, in which case it will load the configuration file from the default location as defined by Accelerate.
+
+- Network and fault tolerance parameters can be set in runtime_env
+  ```python
+  runtime_env = {
+        "env_vars": {
+            "FI_PROVIDER": "tcp",         # Network setting
+            "FI_TCP_IFACE": "***", 
+            "JAVA_HOME": os.getenv("JAVA_HOME"),    # HDFS setting
+            "CLASSPATH": os.getenv("CLASSPATH"),
+            "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
+        }
+    }
+  ```
 
 ### 5. Test Ray TorchTrainer example
 ```bash
