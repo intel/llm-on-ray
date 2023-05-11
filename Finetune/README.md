@@ -1,14 +1,24 @@
 ## Accelerate + Ray 
 ### 1. Prepare environment
-Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune).
-Please change ``huggingface accelerate`` repo to: [huggingface accelerate](https://github.com/KepingYan/accelerate)  branch: FSDP_CPU
-### 2. Install Ray Raydp dependency
 ```bash
-# Install Ray nightly: https://docs.ray.io/en/latest/ray-overview/installation.html
-pip install -U "ray[default] @ LINK_TO_WHEEL.whl"
-pip install --pre raydp
-pip install "ray[tune]" tabulate tensorboard
+# on head node 
+git clone https://github.com/intel-sandbox/llm-ray.git
+cd llm-ray 
+./build-image.sh 
+docker save -o ray-image.tar ray-llm:latest
+# on worker node   
+docker load -i ray-image.tar 
 ```
+
+### 2. Start the containers 
+```bash 
+# on head node 
+./run.sh head 
+
+# on worker node 
+./run.sh worker
+```
+
 ### 3. Enable torch_ccl
 ```python
 from raydp.torch.config import TorchConfig
