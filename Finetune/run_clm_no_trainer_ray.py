@@ -603,7 +603,13 @@ def main():
         trainer = AccelerateTrainer(
             train_func,
             train_loop_config=config,
-            accelerate_config=None,
+            accelerate_config={
+              "distributed_type": "MULTI_CPU",
+              "fsdp_config": {},
+              "num_machines": 1,
+              "num_processes": 2,
+              "use_cpu": "true"
+            },
             scaling_config=ScalingConfig(
                 num_workers=args.num_workers,
                 resources_per_worker={"CPU": 56},
