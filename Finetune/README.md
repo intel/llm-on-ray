@@ -68,7 +68,7 @@ def train_fashion_mnist(...):
 
 ### 5. Test Ray TorchTrainer example
 ```bash
-python -u examples/pytorch/language-modeling/run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.0.2.140 --num_workers 2
+python -u run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.165.9.166 --num_workers 2
 ```
 
 

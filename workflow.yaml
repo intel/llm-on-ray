@@ -1,0 +1,18 @@
+nodes:
+  - node: 10.165.9.53
+    type: head
+    image: ray-llm:latest
+    cores: 0-87
+    model_dir: /home/fanlilin/.cache/huggingface
+    tmp_dir: /home/fanlilin/tmp
+    workspace_dir: /home/fanlilin/workspace/llm-ray-fanli/Finetune
+
+  - node: 10.165.9.51
+    type: worker
+    image: ray-llm:latest
+    cores: 0-95 
+    user: fanlilin
+    password: Intel123
+    model_dir: /home/fanlilin/.cache/huggingface
+    tmp_dir: /home/fanlilin/tmp
+    workspace_dir: /home/fanlilin/workspace/llm-ray-fanli/Finetune
