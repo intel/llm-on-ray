@@ -42,8 +42,10 @@ RUN git clone https://github.com/huggingface/transformers && \
     git checkout 8fb4d0e4b46282d96386c229b9fb18bf7c80c25a && \
     pip install .
 
+# install ray-related libs
 RUN pip install -U "ray[default]" && pip install --pre raydp && pip install "ray[tune]" tabulate tensorboard
 
+# enable password-less ssh
 RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' && \
     cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
     sed -i 's/#   Port 22/Port 12345/' /etc/ssh/ssh_config && \
