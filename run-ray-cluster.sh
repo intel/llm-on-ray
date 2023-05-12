@@ -103,8 +103,8 @@ if [[ $run_type = "startup_head" ]]; then
                 --shm-size ${shm_size} \
                 --cpuset-cpus=${cores_range} \
                 --name ray-llm-head ${image}
-        
-        docker exec ray-llm-head /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=8265 --ray-debugger-external --temp-dir=/home/user/tmp"
+
+        docker exec ray-llm-head /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=9999 --ray-debugger-external --temp-dir=/home/user/tmp"
         
         #docker exec -it ray-llm-head /bin/bash
 

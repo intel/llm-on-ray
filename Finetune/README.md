@@ -10,16 +10,12 @@ docker save -o ray-image.tar ray-llm:latest
 docker load -i ray-image.tar 
 ```
 
-### 2. Start the containers 
+### 2. Start containers with running ray cluster  
 ```bash 
-# on head node 
-./run.sh head 
-
-# on worker node 
-./run.sh worker
+python launch_workflow.py -w workflow.yaml
 ```
 
-### 3. Enable torch_ccl
+### 3. Enable torch_ccl [optional]
 ```python
 from raydp.torch.config import TorchConfig
 
@@ -34,7 +30,7 @@ def train_fashion_mnist(...):
     ...
 ```
 
-### 4. Set parameters
+### 4. Set parameters [optional]
 - FSDP parameters 
   ```python
   trainer = AccelerateTrainer(
@@ -68,7 +64,8 @@ def train_fashion_mnist(...):
 
 ### 5. Test Ray TorchTrainer example
 ```bash
-python -u run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.165.9.166 --num_workers 2
+oneccl_bindings_for_pytorch_path=$(python -c "from oneccl_bindings_for_pytorch import cwd; print(cwd)") && source $oneccl_bindings_for_pytorch_path/env/setvars.sh
+python -u run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.165.9.53 --num_workers 2
 ```
 
 
