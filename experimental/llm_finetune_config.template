@@ -33,13 +33,16 @@
     },
     "trainer": {
         "type": "DefaultTrainer",
+        "dataprocesser": {
+            "type": "DefaultDataProcesser"
+        }
     },
     "ray_config": {
         "init": {
             "runtime_env": {
                 "env_vars": {
                     "OMP_NUM_THREADS": "56", 
-                    "ACCELERATE_USE_CPU": "true", 
+                    "ACCELERATE_USE_CPU": "True", 
                     "ACCELERATE_USE_FSDP": "true",  # FSDP setting
                     "FSDP_SHARDING_STRATEGY": "1", 
                     "FSDP_OFFLOAD_PARAMS": "false", 
@@ -70,7 +73,9 @@
         },
         "scaling_config": {
             "num_workers": 2,
-            "resources_per_worker": {"CPU": 56},
+            "resources_per_worker": {
+                "CPU": 56
+            },
             "placement_strategy": "SPREAD"
         },
         "torch_config": {
