@@ -45,6 +45,26 @@ RUN git clone https://github.com/huggingface/transformers && \
 # install ray-related libs
 RUN pip install -U "ray[default]" && pip install --pre raydp && pip install "ray[tune]" tabulate tensorboard
 
+# install java
+RUN wget --no-check-certificate -q https://repo.huaweicloud.com/java/jdk/8u201-b09/jdk-8u201-linux-x64.tar.gz && \
+    tar -zxvf jdk-8u201-linux-x64.tar.gz && \
+    mv jdk1.8.0_201 /opt/jdk1.8.0_201 && \
+    rm jdk-8u201-linux-x64.tar.gz
+
+# install hadoop 3.3.3
+RUN wget --no-check-certificate -q https://dlcdn.apache.org/hadoop/common/hadoop-3.3.3/hadoop-3.3.3.tar.gz && \
+    tar -zxvf hadoop-3.3.3.tar.gz && \
+    mv hadoop-3.3.3 /opt/hadoop-3.3.3 && \
+    rm hadoop-3.3.3.tar.gz
+
+ENV HADOOP_HOME=/opt/hadoop-3.3.3
+ENV JAVA_HOME=/opt/jdk1.8.0_201
+ENV JRE_HOME=$JAVA_HOME/jre
+ENV PATH=$PATH:$JAVA_HOME/bin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+ENV HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+ENV HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=$HADOOP_HOME/lib/native"
+ENV LD_LIBRARY_PATH=$HADOOP_HOME/lib/native
+
 # enable password-less ssh
 RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' && \
     cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
