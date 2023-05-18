@@ -38,7 +38,6 @@ class RMDataProcesser(DefaultDataProcesser):
                 max_length=block_size,
                 truncation=True,
                 padding="max_length",
-                return_tensors="np",
             )
             examples["rejected_input_ids"] = rejected["input_ids"]
             examples["rejected_attention_mask"] = rejected["attention_mask"]
