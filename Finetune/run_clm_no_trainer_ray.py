@@ -461,12 +461,11 @@ def train_func(config: Dict[str, Any]):
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
 
-    print("----------------------------------")
     # Prepare everything with our `accelerator`.
     model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
-    print("========================================")
+
     # On TPU, the tie weights in our model have been disconnected, so we need to restore the ties.
     if accelerator.distributed_type == DistributedType.TPU:
         model.tie_weights()
@@ -583,10 +582,10 @@ def main():
 
     runtime_env = {
         "env_vars": {
-            "OMP_NUM_THREADS": "48",
-            "CCL_LOG_LEVEL": "info",
-            "FI_PROVIDER": "tcp",         # Network setting
-            "FI_TCP_IFACE": "ens39f0",
+            # "OMP_NUM_THREADS": "48",
+            # "CCL_LOG_LEVEL": "info",
+            # "FI_PROVIDER": "tcp",         # Network setting
+            # "FI_TCP_IFACE": "ens39f0",
             # "JAVA_HOME": os.getenv("JAVA_HOME"),
             # "CLASSPATH": os.getenv("CLASSPATH"),
             # "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
@@ -606,13 +605,7 @@ def main():
         trainer = AccelerateTrainer(
             train_func,
             train_loop_config=config,
-            # accelerate_config={
-            #   "distributed_type": "MULTI_CPU",
-            #   "fsdp_config": {},
-            #   "num_machines": 1,
-            #   "num_processes": 2,
-            #   "use_cpu": "true"
-            # },
+            accelerate_config=None,
             scaling_config=ScalingConfig(
                 num_workers=args.num_workers,
                 resources_per_worker={"CPU": 48},
