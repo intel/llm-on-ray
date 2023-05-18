@@ -102,17 +102,15 @@ if [[ $run_type = "startup_head" ]]; then
                 -w /home/user/workspace \
                 --shm-size ${shm_size} \
                 --cpuset-cpus=${cores_range} \
-                --name ray-llm-head ${image}
+                --name ray-leader ${image}
 
-        docker exec ray-llm-head /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=9999 --ray-debugger-external --temp-dir=/home/user/tmp"
+        docker exec ray-leader /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=9999 --ray-debugger-external --temp-dir=/home/user/tmp/ray"
         
-        #docker exec -it ray-llm-head /bin/bash
-
 elif [[ $run_type = "startup_worker" ]]; then
 
         echo "cores_range = ${cores_range}"
 
-        worker_name='ray-worker-'${post_fix}
+        worker_name='ray-worker'
 
         head_address=${head_address}':6379'
         
@@ -125,6 +123,7 @@ elif [[ $run_type = "startup_worker" ]]; then
                 -v ${tmp_dir}:${TMP_DIR} \
                 --cpuset-cpus=${cores_range} \
                 --network host \
+                -w /home/user/workspace \
                 --shm-size ${shm_size} \
                 -e http_proxy=${http_proxy} \
                 -e https_proxy=${https_proxy} \
@@ -132,7 +131,7 @@ elif [[ $run_type = "startup_worker" ]]; then
 EOF
 
         sshpass -p $password ssh -o StrictHostKeychecking=no $user@$worker_ip bash << EOF
-        docker exec $worker_name /bin/bash -c "ray start --address=${head_address} --ray-debugger-external"
+        docker exec $worker_name /bin/bash -c "ray start --address=${head_address} --ray-debugger-external --temp-dir=/home/user/tmp/ray"
 EOF
 
 elif [[ $run_type = "stop_ray" ]]; then

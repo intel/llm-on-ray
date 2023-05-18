@@ -18,7 +18,7 @@
     <property>
         <!--if there is no namenode and datanode directories configured in hdfs-site.xml, then use this one -->
         <name>hadoop.tmp.dir</name>
-        <value>/workspace/tmp/hdfs/tmp</value>
+        <value>/home/user/tmp/hdfs/tmp</value>
     </property>
     <property>
         <!-- NameNode hostname -->
