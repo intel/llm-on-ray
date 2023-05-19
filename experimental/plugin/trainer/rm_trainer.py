@@ -9,6 +9,7 @@ from ray.air.checkpoint import Checkpoint
 
 from .. import dataprocesser
 from .default_trainer import DefaultTrainer
+from ..logging import logger
 
 class RMTrainer(DefaultTrainer):
 
@@ -54,9 +55,10 @@ class RMTrainer(DefaultTrainer):
         return (loss, result) if return_outputs else loss
 
     def train(self):
-        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 4)
-        epoch = self.config.get("epoch", 1)
-        for idx in range(epoch):
+        num_train_epochs = self.config.get("num_train_epochs", 1)
+        log_step = self.config.get("log_step", 1)
+        for idx in range(num_train_epochs):
+            logger.info(f"start train epoch {idx}")
             self.model.train()
             start = time.time()
             for step, batch in enumerate(self.train_dataloader):
@@ -65,38 +67,28 @@ class RMTrainer(DefaultTrainer):
                     loss = self.compute_loss(batch)
                     self.accelerator.backward(loss)
                     self.optimizer.step()
-                    self.lr_scheduler.step()
+                    if self.lr_scheduler is not None:
+                        self.lr_scheduler.step()
                     self.optimizer.zero_grad()
-                    print("train epoch:[%s/%s]\tstep:[%s/%s]\tloss:[%s]\tppl:[%s]\ttime:[%s]" % \
-                        (idx, epoch, step,len(self.train_dataloader),loss, math.exp(loss), time.time()-start))
+                    if step % log_step == 0:
+                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        start = time.time()
+
+            if self.eval_dataloader:
+                logger.info(f"start eval epoch {idx}")
+                self.model.eval()
                 start = time.time()
-
-            self.model.eval()
-            losses = []
-            for step, batch in enumerate(self.eval_dataloader):
-                with torch.no_grad():
-                    outputs = self.model(**batch)
-                loss = outputs.loss
-                losses.append(self.accelerator.gather_for_metrics(loss.repeat(per_device_eval_batch_size)))
-
-            losses = torch.cat(losses)
-            try:
-                eval_loss = torch.mean(losses)
-                perplexity = math.exp(eval_loss)
-            except OverflowError:
-                perplexity = float("inf")
-            print("eval epoch:[%s/%s]\tloss:[%s]\tppl:[%s]\ttime:[%s]" % \
-                        (idx, epoch, eval_loss, perplexity, time.time()-start))
-
-            if checkpoint_hdfs_path is not None:
-                unwrapped_model = self.accelerator.unwrap_model(self.model)
-                checkpoint = Checkpoint.from_dict(
-                    {
-                        "epoch": epoch,
-                        "rank": rank_num,
-                        "model": unwrapped_model.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict(),
-                        "lr_scheduler": self.lr_scheduler.state_dict(),
-                    }
-                )
-                Checkpoint.to_uri(checkpoint, checkpoint_path)
+                losses = []
+                for step, batch in enumerate(self.eval_dataloader):
+                    with torch.no_grad():
+                        outputs = self.model(**batch)
+                    loss = outputs.loss
+                    losses.append(self.accelerator.gather_for_metrics(loss.repeat(2)))
+                losses = torch.cat(losses)
+                try:
+                    eval_loss = torch.mean(losses)
+                    perplexity = math.exp(eval_loss)
+                except OverflowError:
+                    eval_loss = float("inf")
+                    perplexity = float("inf")
+                logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")

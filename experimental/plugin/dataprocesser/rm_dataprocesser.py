@@ -5,18 +5,31 @@ from itertools import chain
 import torch
 import transformers
 
-from .default_dataprocesser import DefaultDataProcesser
+from .dataprocesser import DataProcesser
+from ..logging import logger
 
-class RMDataProcesser(DefaultDataProcesser):
+class RMDataProcesser(DataProcesser):
 
-    def prepare_dataset(self, dataset, tokenizer):
+    def prepare(self, tokenizer, dataset):
 
         block_size = self.config.get("block_size")
+        
+        
         if block_size is None:
+            block_size = tokenizer.model_max_length
+            if block_size > 1024:
+                logger.warning(
+                    "The chosen tokenizer supports a `model_max_length` that is longer than the default `block_size` value"
+                    " of 1024. If you would like to use a longer `block_size` up to `tokenizer.model_max_length` you can"
+                    " override this default with `--block_size xxx`."
+                )
             block_size = 1024
         else:
             if block_size > tokenizer.model_max_length:
-                pass
+                logger.warning(
+                    f"The block_size passed ({block_size}) is larger than the maximum length for the model"
+                    f"({tokenizer.model_max_length}). Using block_size={tokenizer.model_max_length}."
+                )
             block_size = min(block_size, tokenizer.model_max_length)
         
         def tokenize_function(examples):
