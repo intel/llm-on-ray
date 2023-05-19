@@ -2,79 +2,59 @@
 
 import os
 import time
-import logging
+import traceback
 from typing import Any, Dict
 
-import torch
 import accelerate
-from accelerate.logging import get_logger
 
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
-from ray.air.checkpoint import Checkpoint
 
 import plugin
 
 def train_func(config: Dict[str, Any]):
-    torch_thread_num = config.get("torch_thread_num")
-    if torch_thread_num is not None:
-        torch.set_num_threads(torch_thread_num)
-    seed = config.get("seed")
-    if seed is not None:
-        accelerate.utils.set_seed(seed)
 
-    accelerator = accelerate.Accelerator(**config.get("accelerator"))
-    try:
-        dataset = plugin.load_dataset(config.get("dataset"))
-        if dataset is None:
-            raise ValueError("dataset return type error")
-    except:
-        exit()
+    plugin.init(config)
+    try :
+        accelerator_config = config.get("accelerator")
+        plugin.logger.info(f"accelerator_config: {accelerator_config}")
+        accelerator = accelerate.Accelerator(**accelerator_config)
+    except Exception as e:
+        plugin.logger.critical(e, exc_info=True)
+        exit(1)
+    plugin.logger.info(f"accelerator generate finish")
 
-    try:
-        tokenizer = plugin.load_tokenizer(config.get("tokenizer"))
-        if tokenizer is None:
-            raise ValueError("tokenizer return type error")
-    except:
-        print("tokenizer error")
-        exit()
+    datasets = plugin.load_dataset(config.get("datasets"))
+    tokenizer = plugin.load_tokenizer(config.get("tokenizer"))
+    model = plugin.load_model(config.get("model"))
+    optimizer = plugin.load_optimizer(model, config.get("optimizer"))
+    trainer = plugin.get_trainer(config.get("trainer"))
 
-    try:
-        model = plugin.load_model(config.get("model"))
-        if model is None:
-            raise ValueError("model return type error")
-    except:
-        print("model error")
-        exit()
+    try :
+        plugin.logger.info(f"trainer prepare start")
+        trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
+    except Exception as e:
+        plugin.logger.critical(e, exc_info=True)
+        exit(1)
+    plugin.logger.info(f"trainer prepare finish")
 
-    try:
-        optimizer = plugin.load_optimizer(model, config.get("optimizer"))
-        if optimizer is None:
-            raise ValueError("optimizer return type error")
-    except:
-        print("optimizer error")
-        exit()
-
-
-    try:
-        trainer = plugin.get_trainer(config.get("trainer"))
-        if trainer is None:
-            raise ValueError("trainer return type error")
-    except:
-        print("trainer error")
-        exit()
-
-    trainer.prepare(model, tokenizer, dataset, optimizer, accelerator)
-    trainer.train()
+    try :
+        plugin.logger.info(f"train start")
+        trainer.train()
+    except Exception as e:
+        plugin.logger.critical(e, exc_info=True)
+        exit(1)
+    plugin.logger.info(f"train finish")
 
 def main():
-    config = plugin.config.parse_config()
+    config = plugin.Config()
     if config.get("run_mode") == "standalone":
         train_func(config)
     elif config.get("run_mode") == "ray":
+        # todo: ray init logging
         ray_config = config.get("ray_config")
         ray.init(**ray_config.get("init", {}))
 

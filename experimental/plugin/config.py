@@ -17,21 +17,19 @@ def parse_config():
     with open(args.config_path) as f:
         config = eval(f.read())
     return config
+
+def _singleton(cls):
+    _instance = {}
+    def inner():
+        if cls not in _instance:
+            _instance[cls] = cls()
+        return _instance[cls]
+    return inner
     
-    #comp config
-#    "TorchTrainer": {
-#        train_loop_config={},
-#        scaling_config=ScalingConfig(
-#            num_workers:args.num_workers,
-#            resources_per_worker={"CPU": 56},
-#            placement_strategy="SPREAD"
-#        ),
-#        torch_config=torch_config,
-#        run_config = RunConfig(
-#            local_dir=args.ray_results_path,
-#            failure_config=FailureConfig(
-#                max_failures=args.ray_fault_tolerance
-#            )
-#        )
-#    }
-#torch_config = TorchConfig(backend="ccl")
+@_singleton
+class Config(dict):
+    def __init__(self):
+        dict.__init__(self)
+        _config = parse_config()
+        for key, value in _config.items():
+            self.__setitem__(key, value)
