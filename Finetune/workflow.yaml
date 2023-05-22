@@ -1,0 +1,32 @@
+general:
+  run_ray_cluster: True
+  run_hdfs: True
+  run_training_job: False
+  model_dir: /home/fanlilin/.cache/huggingface # all folders are NFS-shared across nodes 
+  tmp_dir: /home/fanlilin/tmp
+  workspace_dir: /home/fanlilin/workspace/llm-ray-fanli
+  image_name: ray-llm:latest
+
+nodes:
+  - node: 10.165.9.53
+    type: head
+    cores: 0-95
+
+  - node: 10.165.9.51
+    type: worker
+    cores: 0-95
+    user: fanlilin
+    password: Intel123
+
+training_spec:
+  task_name: clm  
+  model_name: EleutherAI/gpt-j-6B
+  dataset_name: wikitext
+  dataset_config: wikitext-2-raw-v1
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 4 
+  num_train_epochs: 1
+
+
+
+  

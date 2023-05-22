@@ -582,8 +582,10 @@ def main():
 
     runtime_env = {
         "env_vars": {
+            # "OMP_NUM_THREADS": "48",
+            # "CCL_LOG_LEVEL": "info",
             # "FI_PROVIDER": "tcp",         # Network setting
-            # "FI_TCP_IFACE": "***",
+            # "FI_TCP_IFACE": "ens39f0",
             # "JAVA_HOME": os.getenv("JAVA_HOME"),
             # "CLASSPATH": os.getenv("CLASSPATH"),
             # "ARROW_LIBHDFS_DIR": os.getenv("ARROW_LIBHDFS_DIR"),
@@ -606,7 +608,7 @@ def main():
             accelerate_config=None,
             scaling_config=ScalingConfig(
                 num_workers=args.num_workers,
-                resources_per_worker={"CPU": 56},
+                resources_per_worker={"CPU": 48},
                 placement_strategy="SPREAD"
             ),
             torch_config=torch_config,
