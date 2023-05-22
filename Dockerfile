@@ -27,8 +27,11 @@ RUN git clone https://github.com/sywangyi/pytorch && cd pytorch && \
     python setup.py install
 
 # build torch-ccl
-COPY frameworks.ai.pytorch.torch-ccl /home/user/frameworks.ai.pytorch.torch-ccl
-RUN cd frameworks.ai.pytorch.torch-ccl && python setup.py install
+RUN git clone https://github.com/intel/torch-ccl.git && cd torch-ccl && \ 
+    git checkout ccl_torch1.13.100 && \ 
+    git submodule sync && \ 
+    git submodule update --init --recursive && \ 
+    python setup.py install
 
 # build accelerate
 RUN git clone https://github.com/KepingYan/accelerate && \
