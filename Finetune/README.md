@@ -1,21 +1,32 @@
 ## Accelerate + Ray 
 ### 1. Prepare environment
+### Bare-metal  
+Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune).
+Please change ``huggingface accelerate`` repo to: [huggingface accelerate](https://github.com/KepingYan/accelerate)  branch: FSDP_CPU
+
+Install Ray Raydp dependency
+```bash
+# Install Ray nightly: https://docs.ray.io/en/latest/ray-overview/installation.html
+pip install -U "ray[default] @ LINK_TO_WHEEL.whl"
+pip install --pre raydp
+pip install "ray[tune]" tabulate tensorboard
+```
+
+### Using Docker 
 ```bash
 # on head node 
 git clone https://github.com/intel-sandbox/llm-ray.git
-cd llm-ray 
+cd llm-ray/Finetune
 ./build-image.sh 
+# save docker image
 docker save -o ray-image.tar ray-llm:latest
-# on worker node   
+# copy over to worker nodes, this is an optional step if all your cluster nodes are NFS-shared
+scp ray-image.tar <worker_node_ip>:<destination_path_on_worker_node>
+# on worker nodes   
 docker load -i ray-image.tar 
 ```
 
-### 2. Start containers with running ray cluster  
-```bash 
-python launch_workflow.py -w workflow.yaml
-```
-
-### 3. Enable torch_ccl [optional]
+### 2. Enable torch_ccl [optional]
 ```python
 from raydp.torch.config import TorchConfig
 
@@ -30,7 +41,7 @@ def train_fashion_mnist(...):
     ...
 ```
 
-### 4. Set parameters [optional]
+### 3. Set parameters [optional]
 - FSDP parameters 
   ```python
   trainer = AccelerateTrainer(
@@ -63,11 +74,15 @@ def train_fashion_mnist(...):
   ```
 
 ### 5. Test Ray TorchTrainer example
+#### Bare-metal
 ```bash
 oneccl_bindings_for_pytorch_path=$(python -c "from oneccl_bindings_for_pytorch import cwd; print(cwd)") && source $oneccl_bindings_for_pytorch_path/env/setvars.sh
 python -u run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.165.9.53 --num_workers 2
 ```
-
+#### Using Docker
+```bash 
+python launch_workflow.py -w workflow.yaml
+```
 
 ## FSDP_CPU + Ray
 ### 1. Enable fsdp_cpu in Ray
