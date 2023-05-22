@@ -5,5 +5,5 @@
     - open http://10.165.54.55:8081/
 
 - Scaling Gradio app with Ray Serve (GradioIngress)
-    - serve run Ray_gradio.chat_bot:app -h 10.165.54.55 -p 8000
+    - serve run ray_gradio_inte.chat_bot:app -h 10.165.54.55 -p 8000
     - open http://10.165.54.55:8000/
