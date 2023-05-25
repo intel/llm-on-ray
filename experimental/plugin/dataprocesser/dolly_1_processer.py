@@ -71,7 +71,7 @@ class Dolly1Processer(DataProcesser):
         _preprocessing_function = partial(preprocess_batch, max_length=max_length, tokenizer=tokenizer)
         dataset = dataset.map(
             _preprocessing_function,
-            num_proc=preprocessing_num_workers
+            num_proc=preprocessing_num_workers,
             batched=True,
             batch_size=batch_size,
             remove_columns=["instruction", "input", "output", "text"],

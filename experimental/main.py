@@ -16,7 +16,6 @@ from ray.air import RunConfig, FailureConfig
 import plugin
 
 def train_func(config: Dict[str, Any]):
-
     plugin.init(config)
     try :
         accelerator_config = config.get("accelerator")
@@ -51,17 +50,34 @@ def train_func(config: Dict[str, Any]):
 
 def main():
     config = plugin.Config()
+    args = plugin.parse_args()
     if config.get("run_mode") == "standalone":
         train_func(config)
     elif config.get("run_mode") == "ray":
-        # todo: ray init logging
         ray_config = config.get("ray_config")
-        ray.init(**ray_config.get("init", {}))
+        ray_init_config = ray_config.get("init", {})
+        plugin.logger.info(f"ray init config: {ray_init_config}")
+
+        runtime_env = ray_init_config.get("runtime_env")
+        if runtime_env is None:
+            ray_init_config["runtime_env"] = {}
+        env_vars = ray_init_config["runtime_env"].get("env_vars")
+        if env_vars is None:
+            ray_init_config["runtime_env"]["env_vars"] = {}
+        ray_init_config["runtime_env"]["env_vars"]["CONFIG_PATH"] = os.path.abspath(args.config_path)
+        ray.init(**ray_init_config)
 
         scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
+        plugin.logger.info(f"ray scaling config: {scaling_config}")
+
         torch_config = TorchConfig(**ray_config.get("torch_config", {}))
+        plugin.logger.info(f"ray torch config: {torch_config}")
+
         failure_config = FailureConfig(**ray_config.get("failure_config", {}))
+        plugin.logger.info(f"ray failure config: {failure_config}")
+
         run_config = RunConfig(**ray_config.get("run_config", {}), failure_config=failure_config)
+        plugin.logger.info(f"ray run config: {run_config}")
 
         trainer = TorchTrainer(
             train_func,
@@ -73,5 +89,6 @@ def main():
         results = trainer.fit()
     else:
         pass
+
 if __name__ == "__main__":
     main()
