@@ -21,34 +21,34 @@ class DefaultTrainer(Trainer):
         if Factory is None:
             raise ValueError(f"there is no {dataprocesser_type} dataprocesser.")
         self.dataprocesser = Factory(dataprocesser_config)
+        self.starting_epoch = 0
 
-    # def recovery(self, checkpoint_path, accelerator, model, optimizer, lr_scheduler):
-    #     rank_num = self.rank
-    #     local_checkpoint_path = os.path.join(checkpoint_path, "rank_"+str(rank_num))
-    #     print("checkpoint_path", checkpoint_path)
-    #     resume_from_checkpoint = False
-    #     try:
-    #         checkpoint_dict = Checkpoint.from_uri(checkpoint_path).to_dict()
-    #         resume_from_checkpoint = True
-    #     except Exception:
-    #         print("Training from scratch.")
-    #         pass
-    #     if resume_from_checkpoint:
-    #         # update model status
-    #         model_state = checkpoint_dict["model"]
-    #         model.load_state_dict(model_state)
-    #         # update optimizer status
-    #         optimizer_state = checkpoint_dict["optimizer_state_dict"]
-    #         optimizer.load_state_dict(optimizer_state)
-    #         # update lr_scheduler status
-    #         scheduler_state = checkpoint_dict["lr_scheduler"]
-    #         lr_scheduler.load_state_dict(scheduler_state)
-    #         # update current epoch
-    #         checkpoint_epoch = checkpoint_dict["epoch"]
-    #         starting_epoch = checkpoint_epoch + 1
-    #         # update the progress_bar if load from checkpoint
-    #         progress_bar.update(starting_epoch * num_update_steps_per_epoch)
-    #         completed_steps = starting_epoch * num_update_steps_per_epoch
+    def recovery(self, config):
+        if config is None or config is {}:
+            logger.warning(f"checkpoint is empty, skip")
+        root_path = config.get("root_path")
+        model_name = config.get("model_name", "")
+        if root_path is None:
+            logger.warning(f"checkpoint root_path is empty, skip")
+        local_checkpoint_path = self._get_local_path(root_path, model_name)
+        try:
+            logger.info(f"start recovery from {local_checkpoint_path}")
+            checkpoint_dict = Checkpoint.from_directory(local_checkpoint_path).to_dict()
+            model_state = checkpoint_dict["model"]
+            self.model.load_state_dict(model_state)
+            # update optimizer status
+            optimizer_state = checkpoint_dict["optimizer_state_dict"]
+            self.optimizer.load_state_dict(optimizer_state)
+            # update lr_scheduler status
+            if "lr_scheduler" in checkpoint_dict and hasattr(self, "lr_scheduler"):
+                scheduler_state = checkpoint_dict["lr_scheduler"]
+                self.lr_scheduler.load_state_dict(scheduler_state)
+            # update current epoch
+            checkpoint_epoch = checkpoint_dict["epoch"]
+            self.starting_epoch = checkpoint_epoch + 1
+            logger.info(f"recovery to epoch {self.starting_epoch}")
+        except Exception as e:
+            logger.warning(f"recovery error", exc_info=True)
 
     def _coordinate(self, accelerator):
         self.accelerator = accelerator
@@ -108,15 +108,15 @@ class DefaultTrainer(Trainer):
             train_dataloader, eval_dataloader,
         )
 
-        # checkpoint_config = self.config.get("checkpoint")
-        # if checkpoint_path is not None:
-        #     model, optimizer, lr_scheduler = self.recovery(checkpoint_path, model, optimizer)
-        # print(self.train_dataloader, self.eval_dataloader, )
+        checkpoint = self.config.get("checkpoint")
+        if checkpoint is not None:
+            self.recovery(checkpoint)
 
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
+        checkpoint = self.config.get("checkpoint")
         log_step = self.config.get("log_step", 1)
-        for idx in range(num_train_epochs):
+        for idx in range(self.starting_epoch, num_train_epochs, 1):
             logger.info(f"start train epoch {idx}")
             self.model.train()
             start = time.time()
@@ -132,6 +132,8 @@ class DefaultTrainer(Trainer):
                     if step % log_step == 0:
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
                         start = time.time()
+                if step == 0:
+                    break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -143,6 +145,9 @@ class DefaultTrainer(Trainer):
                         outputs = self.model(**batch)
                     loss = outputs.loss
                     losses.append(self.accelerator.gather_for_metrics(loss.repeat(2)))
+                    if step == 0:
+                        break
+
                 losses = torch.cat(losses)
                 try:
                     eval_loss = torch.mean(losses)
@@ -152,15 +157,42 @@ class DefaultTrainer(Trainer):
                     perplexity = float("inf")
                 logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")
 
-            # if checkpoint_hdfs_path is not None:
-            #     unwrapped_model = self.accelerator.unwrap_model(self.model)
-            #     checkpoint = Checkpoint.from_dict(
-            #         {
-            #             "epoch": epoch,
-            #             "rank": rank_num,
-            #             "model": unwrapped_model.state_dict(),
-            #             "optimizer_state_dict": self.optimizer.state_dict(),
-            #             "lr_scheduler": self.lr_scheduler.state_dict(),
-            #         }
-            #     )
-            #     Checkpoint.to_uri(checkpoint, checkpoint_path)
+            if checkpoint is not None:
+                self.save(checkpoint, idx)
+            self.accelerator.wait_for_everyone()
+
+        output = self.config.get("output", "./output")
+        if output is not None:
+            logger.info(f"start save model to {output}")
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            unwrapped_model.save_pretrained(
+                output, is_main_process=self.accelerator.is_main_process, save_function=self.accelerator.save
+            )
+            logger.info(f"finish save model to {output}")
+        self.accelerator.wait_for_everyone()
+
+    def _get_local_path(self, root_path, model_name):
+        return f"{root_path}/{model_name}_{self.rank}-of-{self.size}"
+
+    def save(self, config, epoch = 0):
+        if config is None or config is {}:
+            logger.warning(f"checkpoint is empty, skip")
+        root_path = config.get("root_path")
+        model_name = config.get("model_name", "")
+        if root_path is None:
+            logger.warning(f"checkpoint root_path is empty, skip")
+        local_checkpoint_path = self._get_local_path(root_path, model_name)
+
+        logger.info(f"save checkpoint to {local_checkpoint_path}")
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        status = {
+            "epoch": epoch,
+            "model": unwrapped_model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+        }
+        if self.lr_scheduler:
+            status["lr_scheduler"] = self.lr_scheduler.state_dict()
+        checkpoint = Checkpoint.from_dict(status)
+        Checkpoint.to_directory(checkpoint, local_checkpoint_path)
+        logger.info(f"save checkpoint finish")
+
