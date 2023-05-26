@@ -1,12 +1,36 @@
-## Finetune LLM models on Ray
-This `Finetune` folder contains code for fine-tuning large language model on top of Ray cluster. 
+# LLM on Ray Workflow
 
-### Getting Started 
-#### 0. Prerequisites
-Please make sure that the following softwares are installed on all your cluster nodes
+## Introduction
+There are many reasons that you may want to build and serve your own Large Language Models(LLMs) instead of using an online LLM such as OpenAI’s chatGPT. Those LLMs are trained on dataset before a specific date so they are not aware of the events happened after it. A common practice is to provide additional information as context at query time. However this increases the cost as pricing are usually based on the number of tokens sent and generated. There is also consideration on data security as you may not want to send internal documents or codes to a public LLM API. With more high quality open source models released, it becomes possible to finetune a LLM with your own data. It is also more flexible to serve the model yourself to meet the latency requirement of your application.
+
+However, finetuning a LLM is not a simple task as it involves many different technologies such as PyTorch, Huggingface, Deepspeed and more. It becomes more complex when scaling to a cluster as you also need to take care of infrastructure management, fault tolerance, etc. Serving a small LLM model on a single node might be simple. But deploying a production level online inference service is also challenging.
+
+In this workflow, we show how you can finetune your own LLM with your proprietary data and deploy an online inference service easily on an Intel CPU cluster. 
+
+
+## Solution Technical Overview
+Ray is a leading solution for scaling AI workloads, allowing people to train and deploy models faster and more efficiently. Ray is used by leading AI organizations to train LLMs at scale (e.g., by OpenAI to train ChatGPT, Cohere to train their models, EleutherAI to train GPT-J). Ray provides the ability to recover from training failure and auto scale the cluster resource. Ray is developer friendly with the ability to debug remote tasks easily. In this workload, we run LLM finetuning and serving on Ray to leverage all the benefits provided by Ray. Meanwhile we also integrate LLM optimizations from Intel such as IPEX.
+
+
+## Solution Technical Details
+
+
+## Hardware and Software requirements
+
+
+### Hardware Requirements
+
+
+### Software Requirements
 - Docker 
 - NFS 
 - Python3
+
+
+## Run this reference
+
+### Finetuning Workflow
+This `Finetune` folder contains code for fine-tuning large language model on top of Ray cluster. 
 
 #### 1. Prepare Env
 ```bash
@@ -30,5 +54,13 @@ modify the `workflow.yaml` based on your needs
 ```python
 python launch_workflow.sh -w workflow.yaml
 ```
+
+
+### Inference Workflow
+
+## How to customize this reference
+
+
+
 
 
