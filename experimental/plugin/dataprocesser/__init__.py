@@ -1,7 +1,9 @@
+import os
 from .dataprocesser import DataProcesser
-from . import rm_dataprocesser
-from . import wikitext_processer
-from . import dolly_2_processer
-from . import dolly_1_processer
+from ..common import import_all_module
+
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+import_all_module(basedir, "plugin.dataprocesser")
 
 __all__ =  ["DataProcesser"]
