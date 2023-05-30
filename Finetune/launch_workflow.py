@@ -94,22 +94,9 @@ class Workflow :
     def run_training(self):
         
         if self.training_spec['task_name'] == 'clm':
-            model_name = self.training_spec['model_name']
-            dataset_name = self.training_spec['dataset_name']
-            dataset_config = self.training_spec['dataset_config']
-            per_device_train_batch_size = self.training_spec['per_device_train_batch_size']
-            per_device_eval_batch_size = self.training_spec['per_device_eval_batch_size']
-            num_train_epochs = self.training_spec['num_train_epochs']
+            config_path = self.training_spec["config_path"]
 
-            ret = os.system(f'docker exec ray-leader python -u Finetune/run_clm_no_trainer_ray.py \
-                            --model_name_or_path {model_name} \
-                            --dataset_name {dataset_name} \
-                            --dataset_config_name {dataset_config} \
-                            --per_device_train_batch_size {per_device_train_batch_size} \
-                            --per_device_eval_batch_size {per_device_eval_batch_size} \
-                            --num_train_epochs {num_train_epochs} \
-                            --address {self.head_ip} \
-                            --num_workers {self.num_nodes}')
+            ret = os.system(f'docker exec ray-leader python -u Finetune/main.py --config_path {config_path}')
 
             if ret == 0:
                 print("Training Job finished!")
