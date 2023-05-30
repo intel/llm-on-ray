@@ -132,8 +132,6 @@ class DefaultTrainer(Trainer):
                     if step % log_step == 0:
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
                         start = time.time()
-                if step == 0:
-                    break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -145,8 +143,6 @@ class DefaultTrainer(Trainer):
                         outputs = self.model(**batch)
                     loss = outputs.loss
                     losses.append(self.accelerator.gather_for_metrics(loss.repeat(2)))
-                    if step == 0:
-                        break
 
                 losses = torch.cat(losses)
                 try:
@@ -195,4 +191,3 @@ class DefaultTrainer(Trainer):
         checkpoint = Checkpoint.from_dict(status)
         Checkpoint.to_directory(checkpoint, local_checkpoint_path)
         logger.info(f"save checkpoint finish")
-
