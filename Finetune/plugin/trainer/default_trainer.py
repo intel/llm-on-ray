@@ -116,6 +116,8 @@ class DefaultTrainer(Trainer):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         log_step = self.config.get("log_step", 1)
+        max_train_step = self.config.get("max_train_step")
+        max_eval_step = self.config.get("max_eval_step")
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             logger.info(f"start train epoch {idx}")
             self.model.train()
@@ -132,6 +134,9 @@ class DefaultTrainer(Trainer):
                     if step % log_step == 0:
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
                         start = time.time()
+                if max_train_step is not None:
+                    if step >= max_train_step:
+                        break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -143,6 +148,9 @@ class DefaultTrainer(Trainer):
                         outputs = self.model(**batch)
                     loss = outputs.loss
                     losses.append(self.accelerator.gather_for_metrics(loss.repeat(2)))
+                    if max_eval_step is not None:
+                        if step >= max_eval_step:
+                            break
 
                 losses = torch.cat(losses)
                 try:
