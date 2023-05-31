@@ -13,7 +13,8 @@ Ray is a leading solution for scaling AI workloads, allowing people to train and
 ## Solution Technical Details
 To finetune a LLM, usually you start with selecting an open source base model. In rare case, you can also train the base model yourself and we plan to provide a pretraining workflow as well in the future.  Next, you can prepare your proprietary data and training configurations and feed them to the finetuning workflow. After the training is completed, a finetuned model will be generated. The serving workflow can take the new model and deploy it on Ray as an online inference service. You will get a model endpoint that can be used to integrate with your own application such as a chatbot.
 
-![image](https://github.com/intel-sandbox/llm-ray/assets/9278199/11f07b52-d42d-4aeb-9693-ccb54fd20fc0)
+![image](https://github.com/intel-sandbox/llm-ray/assets/9278199/addd7a7f-83ef-43ae-b3ac-dd81cc2570e4)
+
 
 
 ## Hardware and Software requirements
