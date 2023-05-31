@@ -1,11 +1,9 @@
 # LLM on Ray Workflow
 
 ## Introduction
-There are many reasons that you may want to build and serve your own Large Language Models(LLMs) instead of using an online LLM such as OpenAI’s chatGPT. Those LLMs are trained on dataset before a specific date so they are not aware of the events happened after it. A common practice is to provide additional information as context at query time. However this increases the cost as pricing are usually based on the number of tokens sent and generated. There is also consideration on data security as you may not want to send internal documents or codes to a public LLM API. With more high quality open source models released, it becomes possible to finetune a LLM with your own data. It is also more flexible to serve the model yourself to meet the latency requirement of your application.
+There are many reasons that you may want to build and serve your own Large Language Models(LLMs) such as cost, latency, data security, etc. With more high quality open source models being released, it becomes possible to finetune a LLM to meet your specific needs. However, finetuning a LLM is not a simple task as it involves many different technologies such as PyTorch, Huggingface, Deepspeed and more. It becomes more complex when scaling to a cluster as you also need to take care of infrastructure management, fault tolerance, etc. Serving a small LLM model on a single node might be simple. But deploying a production level online inference service is also challenging.
+In this workflow, we show how you can finetune your own LLM with your proprietary data and deploy an online inference service easily on an Intel CPU cluster.
 
-However, finetuning a LLM is not a simple task as it involves many different technologies such as PyTorch, Huggingface, Deepspeed and more. It becomes more complex when scaling to a cluster as you also need to take care of infrastructure management, fault tolerance, etc. Serving a small LLM model on a single node might be simple. But deploying a production level online inference service is also challenging.
-
-In this workflow, we show how you can finetune your own LLM with your proprietary data and deploy an online inference service easily on an Intel CPU cluster. 
 
 
 ## Solution Technical Overview
@@ -13,6 +11,9 @@ Ray is a leading solution for scaling AI workloads, allowing people to train and
 
 
 ## Solution Technical Details
+To finetune a LLM, usually you start with selecting an open source base model. In rare case, you can also train the base model yourself and we plan to provide a pretraining workflow as well in the future.  Next, you can prepare your proprietary data and training configurations and feed them to the finetuning workflow. After the training is completed, a finetuned model will be generated. The serving workflow can take the new model and deploy it on Ray as an online inference service. You will get a model endpoint that can be used to integrate with your own application such as a chatbot.
+
+![image](https://github.com/intel-sandbox/llm-ray/assets/9278199/11f07b52-d42d-4aeb-9693-ccb54fd20fc0)
 
 
 ## Hardware and Software requirements
