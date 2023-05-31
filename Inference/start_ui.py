@@ -2,25 +2,22 @@ import requests
 from config import all_models, base_models
 import time
 import os
-
 from chat_process import ChatModelGptJ
-from model_finetune import finetune_func
 import torch
 from run_model_serve import PredictDeployment
 from ray import serve
 import ray
 import gradio as gr
 
-
 class ChatBotUI():
 
-    def __init__(self, all_models: dict, base_models: dict):
+    def __init__(self, all_models: dict, base_models: dict, finetune_model_path: str):
         self._all_models = all_models
         self._base_models = base_models
         self.ip_port = "http://127.0.0.1:8000"
         self.process_tool = ChatModelGptJ("### Instruction", "### Response", stop_words=["### Instruction", "# Instruction", "### Question", "##", " ="])
         self._init_ui()
-        self.finetuned_model_path = "/mnt/DP_disk3/ykp/model_save/finetuned"
+        self.finetuned_model_path = finetune_model_path
 
     @staticmethod
     def history_to_messages(history):
@@ -75,11 +72,25 @@ class ChatBotUI():
 
     def finetune(self, model_name, dataset, new_model_name):
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
+        tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         finetuned_model_path = os.path.join(self.finetuned_model_path, new_model_name)
-        finetune_func(origin_model_path, dataset, finetuned_model_path)
+        with open("./config/llm_finetune_template.conf", 'r') as f:
+            config = eval(f.read())
+        f.close()
+        config["datasets"]["name"]=dataset
+        config["tokenizer"]["name"]=tokenizer_path
+        config["model"]["name"]=origin_model_path
+        config["trainer"]["output"]=finetuned_model_path
+        with open("./config/llm_finetune.conf", "w") as f:
+            f.write(str(config))
+        f.close()
+        os.chdir("../Finetune/")
+        os.system("python main.py --config_path ../Inference/config/llm_finetune.conf") 
+        os.chdir("../Inference/")
 
         model_config = {
             "model_id_or_path": finetuned_model_path,
+            "tokenizer_name_or_path": tokenizer_path,
             "port": "8000",
             "name": new_model_name,
             "route_prefix": "/" + new_model_name
@@ -96,7 +107,7 @@ class ChatBotUI():
         model_config = self._all_models[model_name]
         print("Deploying model_id_or_path: ", model_config)
 
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
         return self.ip_port + model_config["route_prefix"]
 
@@ -190,6 +201,7 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
+    finetune_model_path = "/mnt/DP_disk3/ykp/model_save/finetuned"
     runtime_env = {
         "env_vars": {
             "OMP_NUM_THREADS": "24", 
@@ -203,5 +215,5 @@ if __name__ == "__main__":
     }
     ray.shutdown()
     ray.init(address="auto", runtime_env=runtime_env)
-    ui = ChatBotUI(all_models, base_models)
-    ui.gr_chat.launch(share=True, server_port=8082, server_name="0.0.0.0")
+    ui = ChatBotUI(all_models, base_models, finetune_model_path)
+    ui.gr_chat.launch(share=True, server_port=8080, server_name="0.0.0.0")

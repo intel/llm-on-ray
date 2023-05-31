@@ -24,7 +24,7 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 @serve.deployment()
 class PredictDeployment:
-    def __init__(self, model_id, amp_enabled, amp_dtype, stop_words):
+    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         model = AutoModelForCausalLM.from_pretrained(
@@ -32,7 +32,7 @@ class PredictDeployment:
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
