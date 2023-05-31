@@ -29,17 +29,14 @@ class ChatModel:
 
     def convert_output(self, output: str):
         """Convert the model output to final answer."""
-        # print("****output: ", output)
         bot_turn = output.split(self.human_id)[0]
         bot_turn = bot_turn.split(self.bot_id)[0]
-        # print("****bot_turn: ", bot_turn)
         for word in self.MEANINGLESS_WORDS:
             bot_turn = bot_turn.replace(word, "")
         text = bot_turn.strip()
         # remove partial human_id or bot id
         if '\n' in text and (self.human_id.startswith(text[text.rfind('\n')+1:]) or
                              self.bot_id.startswith(text[text.rfind('\n')+1])):
-            # print("pass here.....")
             text = text[:text.rfind('\n')]
         return text
 
@@ -50,8 +47,6 @@ class ChatModel:
         
 
 class ChatModelGptJ(ChatModel):
-
-
     def __init__(self, human_id, bot_id, stop_words, prompt_prefix="", generation_config=None):
         super().__init__(human_id, bot_id, stop_words, prompt_prefix, generation_config)
 
