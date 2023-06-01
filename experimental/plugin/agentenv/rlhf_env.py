@@ -1,9 +1,6 @@
 from typing import Any
 import gymnasium as gym
-# from ray.rllib.env.env_context import EnvContext
 
-import transformers
-import datasets
 import numpy as np
 import torch
 import tree
@@ -11,11 +8,7 @@ import tree
 from ray.rllib.utils.spaces.repeated import Repeated
 import gymnasium.spaces as sp
 
-
-
 from .agentenv import AgentEnv
-from ..model import HuggingFaceRewardModel
-from ..tokenizer import HuggingFaceTokenizer
 from ..load import load_dataset, load_model, load_tokenizer
 
 
@@ -90,7 +83,7 @@ class RLHFEnv(gym.Env, AgentEnv):
     def __init__(self, config):
 
         self.config = config
-        agentenv_config = config.get("agentenv")
+        agentenv_config = config.get("config")
 
         # Prompt dataset
         self.prompt_dataset  = load_dataset(agentenv_config.get("datasets"))
