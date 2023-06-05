@@ -9,16 +9,18 @@ from ray import serve
 import ray
 import gradio as gr
 import sys
+import argparse
 
 class ChatBotUI():
 
-    def __init__(self, all_models: dict, base_models: dict, finetune_model_path: str):
+    def __init__(self, all_models: dict, base_models: dict, finetune_model_path: str, config: dict):
         self._all_models = all_models
         self._base_models = base_models
         self.ip_port = "http://127.0.0.1:8000"
         self.process_tool = ChatModelGptJ("### Instruction", "### Response", stop_words=["### Instruction", "# Instruction", "### Question", "##", " ="])
-        self._init_ui()
         self.finetuned_model_path = finetune_model_path
+        self.config = config
+        self._init_ui()
 
     @staticmethod
     def history_to_messages(history):
@@ -74,17 +76,6 @@ class ChatBotUI():
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         finetuned_model_path = os.path.join(self.finetuned_model_path, new_model_name)
-        file_path = os.path.abspath(__file__)
-        infer_path = os.path.dirname(file_path)
-        finetune_path = os.path.abspath(infer_path + os.path.sep + "../Finetune")
-        config_path = os.path.join(infer_path, "conf_file/llm_finetune_template.conf")
-        if finetune_path not in sys.path:
-            sys.path.append(finetune_path)
-            ray.worker.global_worker.run_function_on_all_workers(lambda worker_info: sys.path.append(finetune_path))
-            from main import main
-        with open(os.path.join(config_path), 'r') as f:
-            config = eval(f.read())
-        f.close()
         config["datasets"]["name"]=dataset
         config["tokenizer"]["name"]=tokenizer_path
         config["model"]["name"]=origin_model_path
@@ -108,6 +99,7 @@ class ChatBotUI():
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         model_config = self._all_models[model_name]
+        print("model path: ", model_config["model_id_or_path"])
 
         deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
@@ -202,6 +194,30 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
-    finetune_model_path = "/mnt/DP_disk3/ykp/model_save/finetuned"
-    ui = ChatBotUI(all_models, base_models, finetune_model_path)
-    ui.gr_chat.launch(share=True, server_port=8080, server_name="0.0.0.0")
+    parser = argparse.ArgumentParser('Start UI', add_help=False)
+    parser.add_argument('--finetune_model_path', default='./', type=str, help="Where to save the finetune model.")
+    args = parser.parse_args()
+
+    file_path = os.path.abspath(__file__)
+    infer_path = os.path.dirname(file_path)
+    finetune_path = os.path.abspath(infer_path + os.path.sep + "../Finetune")
+    config_path = os.path.join(infer_path, "conf_file/llm_finetune_template.conf")
+
+    sys.path.append(finetune_path)
+    ray.worker.global_worker.run_function_on_all_workers(lambda worker_info: sys.path.append(finetune_path))
+    from main import main
+
+    with open(os.path.join(config_path), 'r') as f:
+        config = eval(f.read())
+    f.close()
+
+    ray_config = config.get("ray_config")
+    ray_init_config = ray_config.get("init", {})
+    ray.init(**ray_init_config)
+
+    finetune_model_path = args.finetune_model_path
+    if not os.path.isabs(finetune_model_path):
+        finetune_model_path = os.path.abspath(infer_path + os.path.sep + finetune_model_path)
+
+    ui = ChatBotUI(all_models, base_models, finetune_model_path, config)
+    ui.gr_chat.launch(share=True, server_port=8082, server_name="0.0.0.0")

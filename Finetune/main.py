@@ -82,6 +82,29 @@ def main(external_config = None):
             run_config = run_config
         )
         results = trainer.fit()
+    elif config.get("run_mode") == "initialized":
+        ray_config = config.get("ray_config")
+
+        scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
+        plugin.logger.info(f"ray scaling config: {scaling_config}")
+
+        torch_config = TorchConfig(**ray_config.get("torch_config", {}))
+        plugin.logger.info(f"ray torch config: {torch_config}")
+
+        failure_config = FailureConfig(**ray_config.get("failure_config", {}))
+        plugin.logger.info(f"ray failure config: {failure_config}")
+
+        run_config = RunConfig(**ray_config.get("run_config", {}), failure_config=failure_config)
+        plugin.logger.info(f"ray run config: {run_config}")
+
+        trainer = TorchTrainer(
+            train_func,
+            train_loop_config=config,
+            scaling_config=scaling_config,
+            torch_config = torch_config,
+            run_config = run_config
+        )
+        results = trainer.fit()
     else:
         pass
 
