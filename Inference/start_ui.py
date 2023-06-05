@@ -8,6 +8,7 @@ from run_model_serve import PredictDeployment
 from ray import serve
 import ray
 import gradio as gr
+import sys
 
 class ChatBotUI():
 
@@ -51,7 +52,6 @@ class ChatBotUI():
         # remove context
         output = output[len(prompt):]
         output = self.process_tool.convert_output(output)
-        print("response: ", output)
         return output
 
     def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
@@ -74,20 +74,23 @@ class ChatBotUI():
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         finetuned_model_path = os.path.join(self.finetuned_model_path, new_model_name)
-        with open("./config/llm_finetune_template.conf", 'r') as f:
+        file_path = os.path.abspath(__file__)
+        infer_path = os.path.dirname(file_path)
+        finetune_path = os.path.abspath(infer_path + os.path.sep + "../Finetune")
+        config_path = os.path.join(infer_path, "conf_file/llm_finetune_template.conf")
+        if finetune_path not in sys.path:
+            sys.path.append(finetune_path)
+            ray.worker.global_worker.run_function_on_all_workers(lambda worker_info: sys.path.append(finetune_path))
+            from main import main
+        with open(os.path.join(config_path), 'r') as f:
             config = eval(f.read())
         f.close()
         config["datasets"]["name"]=dataset
         config["tokenizer"]["name"]=tokenizer_path
         config["model"]["name"]=origin_model_path
         config["trainer"]["output"]=finetuned_model_path
-        with open("./config/llm_finetune.conf", "w") as f:
-            f.write(str(config))
-        f.close()
-        os.chdir("../Finetune/")
-        os.system("python main.py --config_path ../Inference/config/llm_finetune.conf") 
-        os.chdir("../Inference/")
-
+        main(config)
+        
         model_config = {
             "model_id_or_path": finetuned_model_path,
             "tokenizer_name_or_path": tokenizer_path,
@@ -105,7 +108,6 @@ class ChatBotUI():
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         model_config = self._all_models[model_name]
-        print("Deploying model_id_or_path: ", model_config)
 
         deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
@@ -197,23 +199,9 @@ class ChatBotUI():
             """
             gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ powerby_msg + "</h3>")
 
-
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
     finetune_model_path = "/mnt/DP_disk3/ykp/model_save/finetuned"
-    runtime_env = {
-        "env_vars": {
-            "OMP_NUM_THREADS": "24", 
-            "FI_PROVIDER": "tcp",         # Network setting
-            "FI_TCP_IFACE": "enp1s0",
-            "KMP_BLOCKTIME": "1",
-            "KMP_SETTINGS": "1",
-            "KMP_AFFINITY": "granularity=fine,compact,1,0",
-            "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
-        }
-    }
-    ray.shutdown()
-    ray.init(address="auto", runtime_env=runtime_env)
     ui = ChatBotUI(all_models, base_models, finetune_model_path)
     ui.gr_chat.launch(share=True, server_port=8080, server_name="0.0.0.0")

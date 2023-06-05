@@ -51,7 +51,7 @@ def train_func(config: Dict[str, Any]):
 def main(external_config = None):
     config = plugin.Config()
     if external_config is not None:
-        config.merge(externel_config)
+        config.merge(external_config)
     if config.get("run_mode") == "standalone":
         train_func(config)
     elif config.get("run_mode") == "ray":
