@@ -5,6 +5,7 @@ import time
 import traceback
 from typing import Any, Dict
 
+import ray
 from ray import air, tune
 from ray.rllib.algorithms.callbacks import DefaultCallbacks, make_multi_callbacks
 from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
@@ -23,13 +24,17 @@ class ValueFunctionInitializerCallback(DefaultCallbacks):
     def on_algorithm_init(self, *, algorithm, **kwargs) -> None:
         learner_group = algorithm.learner_group
 
+ray.init(local_mode=True)
 
 def main():
+    
     config = plugin.Config()
     # agentenv = plugin.get_agentenv(config.get("agentenv"))
 
     env_creator = lambda config: RLHFEnv(config)
     tune.register_env("RLHFEnv", env_creator)
+
+    # env = RLHFEnv(config.get("agentenv"))
 
     ppo_config = (
         PPOConfig(algo_class=PPORLHF)
@@ -55,7 +60,7 @@ def main():
             learner_class=RLHFPPOTorchLearner,
         )
         .rollouts(
-            num_rollout_workers=1,
+            num_rollout_workers=0,
         )
         .evaluation(
             evaluation_interval=1,
@@ -63,7 +68,7 @@ def main():
         )
         .experimental(
             _disable_preprocessor_api=True,
-            _disable_initialize_loss_from_dummy_batch=True,
+            # _disable_initialize_loss_from_dummy_batch=True,
         )
         .callbacks(
             callbacks_class=make_multi_callbacks([
@@ -74,6 +79,7 @@ def main():
 
 
     # ppo_algo = ppo_config.build()
+    # ppo_algo.train()
     tuner = tune.Tuner(
         PPORLHF,
         param_space=ppo_config,
