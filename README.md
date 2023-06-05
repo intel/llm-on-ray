@@ -18,51 +18,100 @@ To finetune a LLM, usually you start with selecting an open source base model. I
 
 
 ## Hardware and Software requirements
-
-
 ### Hardware Requirements
-
-
 ### Software Requirements
 - Docker 
 - NFS 
 - Python3
+### Validated Hardware Details
+There are workflow-specific hardware and software setup requirements depending on how the workflow is run. Bare metal development system and Docker image running locally have the same system requirements.
+
+|Recommended Hardware|Precision|
+|-|-|
+|Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processo | FP32|
+
+Workflow has been tested on Linux-4.18.0-408.el8.x86_64 and Ubuntu 22.04
+## How it work
+
+### Finetune
+This finetune workflow can be configured by the user using configuration files and it supports running in different ways:
+
++ Run single node bare metal
++ Run ray cluster
+The selection between these different modes can be done in the Finetune/llm_finetune_template.conf.
+
+Update Finetune/llm_finetune_template.conf.
+llm_finetune_template.conf is the main configuration file for the user to specify:
+
++ Runtime environment (i,e number of nodes in cluster, IPs, bare metal/docker, ...)
++ Directories for inputs, outputs and configuration files
+Configure what stages of the workflow to execute. A user may run all stages the first time but may want to skip building or partitioning a graph in later training experiments to save time.
+Please refer to the Finetune/llm_finetune_template.conf for a detailed description.
+
+### Inference
+todo
 
 
-## Run this reference
+## Get Started
+### Download the Workflow Repository
+Create a working directory for the workflow and clone the Main Repository repository into your working directory.
 
-### Finetuning Workflow
-This `Finetune` folder contains code for fine-tuning large language model on top of Ray cluster. 
-
-#### 1. Prepare Env
-```bash
-# on head node 
+mkdir ~/workspace && cd ~/workspace
 git clone https://github.com/intel-sandbox/llm-ray.git
-cd llm-ray/Finetune
-./build-image.sh 
-# save docker image
-docker save -o ray-image.tar ray-llm:latest
-# copy over to worker nodes, this is an optional step if all your cluster nodes are NFS-shared
-scp ray-image.tar <worker_node_ip>:<destination_path_on_worker_node>
-# on worker nodes   
-docker load -i ray-image.tar 
-```
+cd llm-ray
+git checkout main
 
-#### 2. Define workflow yaml file 
-modify the `workflow.yaml` based on your needs
+### Install dependencies
 
+pip install -r requirements.txt
+pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-stable-cpu
 
-#### 3. Start the workflow
-```python
-python launch_workflow.sh -w workflow.yaml
-```
+### Launch ray cluster
+#### head node
+ray start --head --node-ip-address $ray_node-ip-address --ray-debugger-external
+#### worker node
+ray start --address='$ray_node-ip-address:port' --ray-debugger-external
 
+If deploying a ray cluster on multiple nodes, please download the workflow repository on each node. More information about ray cluster, please refer to https://www.ray.io/
 
-### Inference Workflow
+### Run Workflow
+#### Finetune 
+Modify some configuration items, include `trainer.output` `checkpoint.root_path` `ray_config.init._node_ip_address`. The above configurations are related to the operating environment. So when the operating environment changes, it needs to be modified.
+Once the prerequisits have been met and the llm_finetune_template.conf files have been updated to execute the workflow, use these commands to run the workflow:
+python Finetune/main.py --config_path Finetune/llm_finetune_template.conf 
 
-## How to customize this reference
+#### Inference
+todo
 
+## Expected Output
+The successful execution of this stage will create the below contents under `output` and `checkpoint` directory.
+output/
+|-- config.json
+|-- generation_config.json
+|-- pytorch_model-00001-of-00003.bin
+|-- pytorch_model-00002-of-00003.bin
+|-- pytorch_model-00003-of-00003.bin
+`-- pytorch_model.bin.index.json
+checkpoint/
+|-- test_0-of-2
+|   `-- dict_checkpoint.pkl
+`-- test_1-of-2
+    `-- dict_checkpoint.pkl
+TorchTrainer_2023-06-05_08-50-46/
+|-- TorchTrainer_10273_00000_0_2023-06-05_08-50-47
+|   |-- events.out.tfevents.1685955047.localhost
+|   |-- params.json
+|   |-- params.pkl
+|   |-- rank_0
+|   |-- rank_1
+|   `-- result.json
+|-- basic-variant-state-2023-06-05_08-50-46.json
+|-- experiment_state-2023-06-05_08-50-46.json
+|-- trainable.pkl
+|-- trainer.pkl
+`-- tuner.pkl
 
-
-
+## Customize
+### Adopt to your dataset
+You can bring your own dataset to be used with this workflow. The dataprocesser is packaged into an independent module in Finetune/plugin/dataprocesser. So users can define data processing methods according to their own data format. If you want to process wikitext data in a different way, then you can follow the example of wikitextprocesser and rewrite a class. At the same time, set the new class name to llm_finetune_template.conf.
 
