@@ -5,12 +5,13 @@ import gymnasium as gym
 import torch
 from ray.rllib.algorithms.ppo.torch.ppo_torch_rl_module import PPOTorchRLModule
 from ray.rllib.core.rl_module.rl_module import RLModuleConfig
-from ray.rllib.examples.rlhf.ppo_ft.utils import masked_mean
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.models.torch.torch_distributions import TorchCategorical
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
 
 import transformers
+
+from .util import masked_mean
 
 
 class Critic(torch.nn.Module):

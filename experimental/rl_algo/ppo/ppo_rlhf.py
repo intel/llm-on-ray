@@ -5,13 +5,14 @@ from ray.rllib.algorithms import Algorithm, AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPO
 from ray.rllib.policy.sample_batch import SampleBatch, concat_samples, DEFAULT_POLICY_ID
 from ray.rllib.core.learner.learner_group import LearnerGroup
-from ray.rllib.examples.rlhf.ppo_ft.rlhf_env import generate_response
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.utils.metrics import (
     NUM_AGENT_STEPS_SAMPLED, NUM_ENV_STEPS_SAMPLED, LEARNER_STATS_KEY
 )
-from ray.rllib.examples.rlhf.ppo_ft.rlhf_buffer import Buffer, BufferItem
 from ray.rllib.evaluation.metrics import RolloutMetrics
+
+from plugin.agentenv.rlhf_env import generate_response
+from .rlhf_buffer import Buffer, BufferItem
 
 
 from ray.rllib.evaluation.metrics import (

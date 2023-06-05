@@ -92,8 +92,8 @@ class RLHFEnv(gym.Env, AgentEnv):
         # base tokenizer
         self.tokenizer = load_tokenizer(agentenv_config.get("tokenizer"))
         vocab_size = self.tokenizer.vocab_size
-        model_max_length = self.tokenizer.model_max_length
-        
+        model_max_length = min(agentenv_config['model_max_length'], self.tokenizer.model_max_length)
+
         # reward and sft model
         self.reward_model = load_model(agentenv_config.get("reward_model"))
         self.sft_model = load_model(agentenv_config.get("sft_model"))

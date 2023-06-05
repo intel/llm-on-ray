@@ -12,16 +12,12 @@ from ray.rllib.utils.typing import TensorType
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.models.torch.torch_distributions import TorchCategorical
 
+from .util import masked_mean
+
 torch, nn = try_import_torch()
 
 logger = logging.getLogger(__name__)
 
-def masked_mean(tensor: torch.Tensor, mask: torch.Tensor, dim: int = 1) -> torch.Tensor:
-    tensor = tensor * mask
-    tensor = tensor.sum(dim=dim)
-    mask_sum = mask.sum(dim=dim)
-    mean = tensor / (mask_sum + 1e-8)
-    return mean
 
 class RLHFPPOTorchLearner(PPOTorchLearner):
 
