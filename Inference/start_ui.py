@@ -17,7 +17,7 @@ class ChatBotUI():
         self._all_models = all_models
         self._base_models = base_models
         self.ip_port = "http://127.0.0.1:8000"
-        self.process_tool = ChatModelGptJ("### Instruction", "### Response", stop_words=["### Instruction", "# Instruction", "### Question", "##", " ="])
+        self.process_tool = None
         self.finetuned_model_path = finetune_model_path
         self.config = config
         self._init_ui()
@@ -101,6 +101,10 @@ class ChatBotUI():
         model_config = self._all_models[model_name]
         print("model path: ", model_config["model_id_or_path"])
 
+        chat_model = getattr(sys.modules[__name__], model_config["chat_model"], None)
+        if chat_model is None:
+            return model_name + " deployment failed. " + model_config["chat_model"] + " does not exist."
+        self.process_tool = chat_model(**model_config["prompt"])
         deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
         return self.ip_port + model_config["route_prefix"]
