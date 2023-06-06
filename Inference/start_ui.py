@@ -72,14 +72,22 @@ class ChatBotUI():
         time_spend = time_end - time_start
         return [history, time_spend, "model"] 
 
-    def finetune(self, model_name, dataset, new_model_name):
+    def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr):
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         finetuned_model_path = os.path.join(self.finetuned_model_path, new_model_name)
         config["datasets"]["name"]=dataset
         config["tokenizer"]["name"]=tokenizer_path
         config["model"]["name"]=origin_model_path
+        config["trainer"]["num_train_epochs"]=num_epochs
         config["trainer"]["output"]=finetuned_model_path
+        config["trainer"]["dataprocesser"]["batch_size"]=batch_size
+        config["optimizer"]["config"]["lr"]=lr
+        if max_train_step==0:
+            config["trainer"].pop("max_train_step", None)
+        else:
+            config["trainer"]["max_train_step"]=max_train_step
+
         main(config)
         
         model_config = {
@@ -127,6 +135,12 @@ class ChatBotUI():
                 base_model_dropdown = gr.Dropdown(base_models_list, value=base_models_list[0],
                                              label="Select Base Model")
 
+            with gr.Accordion("Parameters", open=False, visible=True):
+                batch_size = gr.Slider(0, 1000, 256, step=1, interactive=True, label="Batch Size")
+                num_epochs = gr.Slider(1, 100, 1, step=1, interactive=True, label="Epochs")
+                max_train_step = gr.Slider(0, 1000, 1, step=1, interactive=True, label="Step per Epoch", info="value 0 means use the entire dataset.")
+                lr = gr.Slider(0, 0.001, 0.00001, step=0.00001, interactive=True, label="Learning Rate")
+
             with gr.Row():
                 with gr.Column(scale=0.6):
                     data_url = gr.Text(label="Data URL",
@@ -136,7 +150,6 @@ class ChatBotUI():
                                      value="my_alpaca")
                 with gr.Column(scale=0.2, min_width=0):
                     finetune_btn = gr.Button("Start to Finetune")
-
 
             step2 = "Step2: Deploy the finetuned model as an online inference service"
             gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ step2 + "</h3>")
@@ -189,7 +202,7 @@ class ChatBotUI():
                            [chatbot, latency, model_used]
             )
 
-            finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name], [all_model_dropdown])
+            finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr], [all_model_dropdown])
             deploy_btn.click(self.deploy_func, [all_model_dropdown], [deployed_model_endpoint])
 
             powerby_msg = """
