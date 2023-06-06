@@ -10,4 +10,5 @@ class _EmptyTokenizer:
 
 class EmptyTokenizer(Tokenizer):
     def __call__(self, config):
-        return _EmptyTokenizer(**config)
+        tokenizer_config = config.get("config")
+        return _EmptyTokenizer(**tokenizer_config)
