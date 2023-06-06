@@ -38,39 +38,58 @@ This finetune workflow can be configured by the user using configuration files a
 
 + Run single node bare metal
 + Run ray cluster
+
 The selection between these different modes can be done in the Finetune/llm_finetune_template.conf.
 
 Update Finetune/llm_finetune_template.conf.
+
 llm_finetune_template.conf is the main configuration file for the user to specify:
 
 + Runtime environment (i,e number of nodes in cluster, IPs, bare metal/docker, ...)
 + Directories for inputs, outputs and configuration files
+
 Configure what stages of the workflow to execute. A user may run all stages the first time but may want to skip building or partitioning a graph in later training experiments to save time.
+
 Please refer to the Finetune/llm_finetune_template.conf for a detailed description.
 
 ### Inference
-todo
+The inference workflow provides two execution methods, deploying it by UI or terminal execution.
+#### Deploy by UI
+![image]()
 
+This method can launch a UI interface and deploy an online inference service with just a few simple clicks.
+- Update `Inference/conf_file/llm_finetune_template.conf` as described in [Finetune](#Finetune).
+- If a custom model needs to be added, please update `Inference/config.py`.
+#### Terminal Execution
+Ray serve is used to deploy model. First expose the model over HTTP using Deployment, then test it over HTTP request.
+
+Update `Inference/config.py` as needed. Or model can be deployed by specifying the model path and tokenizer path.
 
 ## Get Started
 ### Download the Workflow Repository
 Create a working directory for the workflow and clone the Main Repository repository into your working directory.
-
+```bash
 mkdir ~/workspace && cd ~/workspace
 git clone https://github.com/intel-sandbox/llm-ray.git
 cd llm-ray
 git checkout main
+```
 
 ### Install dependencies
-
+```bash
 pip install -r requirements.txt
 pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-stable-cpu
+```
 
 ### Launch ray cluster
 #### head node
+```bash
 ray start --head --node-ip-address $ray_node-ip-address --ray-debugger-external
+```
 #### worker node
+```bash
 ray start --address='$ray_node-ip-address:port' --ray-debugger-external
+```
 
 If deploying a ray cluster on multiple nodes, please download the workflow repository on each node. More information about ray cluster, please refer to https://www.ray.io/
 
@@ -78,10 +97,32 @@ If deploying a ray cluster on multiple nodes, please download the workflow repos
 #### Finetune 
 Modify some configuration items, include `trainer.output` `checkpoint.root_path` `ray_config.init._node_ip_address`. The above configurations are related to the operating environment. So when the operating environment changes, it needs to be modified.
 Once the prerequisits have been met and the llm_finetune_template.conf files have been updated to execute the workflow, use these commands to run the workflow:
+```bash
 python Finetune/main.py --config_path Finetune/llm_finetune_template.conf 
+```
 
 #### Inference
-todo
+**Deploy by UI**
+```bash
+python start_ui.py
+
+# Running on local URL:  http://0.0.0.0:8080
+# Running on public URL: https://180cd5f7c31a1cfd3c.gradio.live
+```
+Access url and deploy service in a few simple clicks.
+
+**Terminal Execution**
+
+You can deploy a custom model by passing parameters.
+```bash
+python run_model_serve.py --model $model --tokenizer $tokenizer
+
+# INFO - Deployment 'custom-model_PredictDeployment' is ready at `http://127.0.0.1:8000/custom-model`. component=serve deployment=custom-model_PredictDeployment
+# Service is deployed successfully
+
+python run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
+```
+Or you can deploy models configured in `Inference/config.py` without passing parameters.
 
 ## Expected Output
 The successful execution of this stage will create the below contents under `output` and `checkpoint` directory.

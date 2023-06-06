@@ -6,4 +6,7 @@ raydp==1.6.0b20230527.dev0
 torch==1.13.1
 transformers==4.26.0
 typing==3.7.4.3
+tabulate
 ray[tune]
+ray[serve]
+gradio
