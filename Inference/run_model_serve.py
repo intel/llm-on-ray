@@ -84,9 +84,11 @@ if __name__ == "__main__":
 
     # args
     import argparse
-    parser = argparse.ArgumentParser('Model Serve Script', add_help=False)
-    parser.add_argument('--precision', default='bf16', type=str, help="fp32 or bf16")
-    parser.add_argument('--model', default=None, type=str, help="model name or path")
+    parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
+    parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
+    parser.add_argument("--model", default=None, type=str, help="model name or path")
+    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+
     args = parser.parse_args()
 
     amp_enabled = True if args.precision != "fp32" else False
@@ -100,6 +102,7 @@ if __name__ == "__main__":
         model_list = {
             "custom_model": {
                 "model_id_or_path": args.model,
+                "tokenizer_name_or_path": args.tokenizer,
                 "port": "8000",
                 "name": "custom-model",
                 "route_prefix": "/custom-model"
@@ -108,6 +111,6 @@ if __name__ == "__main__":
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
     input("Service is deployed successfully")

@@ -87,7 +87,9 @@ class ChatBotUI():
             "tokenizer_name_or_path": tokenizer_path,
             "port": "8000",
             "name": new_model_name,
-            "route_prefix": "/" + new_model_name
+            "route_prefix": "/" + new_model_name,
+            "chat_model": self._base_models[model_name]["chat_model"],
+            "prompt": self._base_models[model_name]["prompt"]
         }
         self._all_models[new_model_name] = model_config
         return gr.Dropdown.update(choices=list(self._all_models.keys()))
@@ -198,8 +200,8 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser('Start UI', add_help=False)
-    parser.add_argument('--finetune_model_path', default='./', type=str, help="Where to save the finetune model.")
+    parser = argparse.ArgumentParser("Start UI", add_help=False)
+    parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     args = parser.parse_args()
 
     file_path = os.path.abspath(__file__)
@@ -224,4 +226,4 @@ if __name__ == "__main__":
         finetune_model_path = os.path.abspath(infer_path + os.path.sep + finetune_model_path)
 
     ui = ChatBotUI(all_models, base_models, finetune_model_path, config)
-    ui.gr_chat.launch(share=True, server_port=8082, server_name="0.0.0.0")
+    ui.gr_chat.launch(share=True, server_port=8080, server_name="0.0.0.0")
