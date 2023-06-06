@@ -24,17 +24,27 @@ class ValueFunctionInitializerCallback(DefaultCallbacks):
     def on_algorithm_init(self, *, algorithm, **kwargs) -> None:
         learner_group = algorithm.learner_group
 
-ray.init(local_mode=True)
 
 def main():
-    
+
     config = plugin.Config()
-    # agentenv = plugin.get_agentenv(config.get("agentenv"))
+    args = plugin.parse_args()
+
+    ray_config = config.get("ray_config")
+    ray_init_config = ray_config.get("init", {})
+    plugin.logger.info(f"ray init config: {ray_init_config}")
+
+    runtime_env = ray_init_config.get("runtime_env")
+    if runtime_env is None:
+        ray_init_config["runtime_env"] = {}
+    env_vars = ray_init_config["runtime_env"].get("env_vars")
+    if env_vars is None:
+        ray_init_config["runtime_env"]["env_vars"] = {}
+    ray_init_config["runtime_env"]["env_vars"]["CONFIG_PATH"] = os.path.abspath(args.config_path)
+    ray.init(**ray_init_config)
 
     env_creator = lambda config: RLHFEnv(config)
     tune.register_env("RLHFEnv", env_creator)
-
-    # env = RLHFEnv(config.get("agentenv"))
 
     ppo_config = (
         PPOConfig(algo_class=PPORLHF)
@@ -49,26 +59,21 @@ def main():
             rl_module_spec=SingleAgentRLModuleSpec
             (
                 RLHFPPOTorchRLModule,
-                model_config_dict=config.get("agent"),
+                model_config_dict=config.get("rl_module"),
             ),
         )
         .training(
-            num_sgd_iter=1,
-            sgd_minibatch_size=2, # minibatch size for each SGD iteration
-            train_batch_size=2, # number of on-policy samples to collect
-            _enable_learner_api=True,
-            learner_class=RLHFPPOTorchLearner,
+            learner_class = RLHFPPOTorchLearner,
+            **config.get("training")
         )
         .rollouts(
-            num_rollout_workers=0,
+            **config.get("rollouts")
         )
         .evaluation(
-            evaluation_interval=1,
-            evaluation_duration_unit="episodes",
+            **config.get("evaluation")
         )
         .experimental(
-            _disable_preprocessor_api=True,
-            # _disable_initialize_loss_from_dummy_batch=True,
+            **config.get("experimental")
         )
         .callbacks(
             callbacks_class=make_multi_callbacks([
@@ -77,25 +82,19 @@ def main():
         )
     )
 
-
-    # ppo_algo = ppo_config.build()
-    # ppo_algo.train()
     tuner = tune.Tuner(
         PPORLHF,
         param_space=ppo_config,
         run_config=air.RunConfig(
             checkpoint_config=air.CheckpointConfig(
-                checkpoint_frequency=50,
-                checkpoint_at_end=True,
+                **config.get("run_config").pop('checkpoint')
             ),
-            stop={"training_iteration": 1000},
+            **config.get("run_config")
         ),
         tune_config=tune.TuneConfig(reuse_actors=False)
     )
 
     results = tuner.fit()
-
-
 
 if __name__ == "__main__":
     main()
