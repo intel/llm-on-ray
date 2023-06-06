@@ -55,7 +55,7 @@ Please refer to the Finetune/llm_finetune_template.conf for a detailed descripti
 ### Inference
 The inference workflow provides two execution methods, deploying it by UI or terminal execution.
 #### Deploy by UI
-![image]()
+![image](https://github.com/intel-sandbox/llm-ray/assets/97155466/f4ce763b-9f95-4f15-ae69-a69c514e9c88)
 
 This method can launch a UI interface and deploy an online inference service with just a few simple clicks.
 - Update `Inference/conf_file/llm_finetune_template.conf` as described in [Finetune](#Finetune).
