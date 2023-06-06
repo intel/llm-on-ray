@@ -147,7 +147,7 @@ class DefaultTrainer(Trainer):
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
-                    losses.append(self.accelerator.gather_for_metrics(loss.repeat(2)))
+                    losses.append(self.accelerator.gather_for_metrics(loss.repeat(batch["input_ids"].shape[0])))
                     if max_eval_step is not None:
                         if step >= max_eval_step:
                             break
