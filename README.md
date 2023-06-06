@@ -85,6 +85,7 @@ todo
 
 ## Expected Output
 The successful execution of this stage will create the below contents under `output` and `checkpoint` directory.
+```
 output/
 |-- config.json
 |-- generation_config.json
@@ -110,7 +111,7 @@ TorchTrainer_2023-06-05_08-50-46/
 |-- trainable.pkl
 |-- trainer.pkl
 `-- tuner.pkl
-
+```
 ## Customize
 ### Adopt to your dataset
 You can bring your own dataset to be used with this workflow. The dataprocesser is packaged into an independent module in Finetune/plugin/dataprocesser. So users can define data processing methods according to their own data format. If you want to process wikitext data in a different way, then you can follow the example of wikitextprocesser and rewrite a class. At the same time, set the new class name to llm_finetune_template.conf.
