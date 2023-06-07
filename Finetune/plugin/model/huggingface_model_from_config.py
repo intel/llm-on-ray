@@ -10,4 +10,4 @@ class HuggingFaceModelFromConfig(Model):
             config = transformers.AutoConfig.from_pretrained(pretrained_model_name_or_path=name, **model_config)
         else:
             config = transformers.AutoConfig.for_model(**model_config)
-        return transformers.AutoModel.from_config(config)
+        return transformers.AutoModelForCausalLM.from_config(config)
