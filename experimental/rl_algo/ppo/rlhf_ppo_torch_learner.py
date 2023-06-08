@@ -1,8 +1,6 @@
 import logging
 from typing import Mapping, Any
 
-from ray.rllib.algorithms.ppo.ppo_base_learner import PPOBaseLearner
-from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.framework import try_import_torch
@@ -11,6 +9,18 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import TensorType
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.models.torch.torch_distributions import TorchCategorical
+
+from ray.rllib.algorithms.ppo.ppo_learner import (
+    LEARNER_RESULTS_KL_KEY,
+    LEARNER_RESULTS_CURR_KL_COEFF_KEY,
+    LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY,
+    LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
+    PPOLearner,
+    PPOLearnerHyperparameters,
+)
+from ray.rllib.core.learner.learner import POLICY_LOSS_KEY, VF_LOSS_KEY, ENTROPY_KEY
+
+from ray.rllib.utils.nested_dict import NestedDict
 
 from .util import masked_mean
 
@@ -22,8 +32,13 @@ logger = logging.getLogger(__name__)
 class RLHFPPOTorchLearner(PPOTorchLearner):
 
     @override(PPOTorchLearner)
-    def compute_loss_per_module(
-        self, module_id: str, batch: SampleBatch, fwd_out: Mapping[str, TensorType]
+    def compute_loss_for_module(
+        self, 
+        *, 
+        module_id: str, 
+        hps: PPOLearnerHyperparameters, 
+        batch: NestedDict, 
+        fwd_out: Mapping[str, TensorType]
     ) -> TensorType:
         """Extention of PPO loss function to support RLHF.
 
@@ -33,8 +48,8 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         """
 
         # make sure all the coefficients are on the same device as the model
-        if self.kl_coeff.device != self._device:
-            self.kl_coeff = self.kl_coeff.to(self._device)
+        # if self.kl_coeff.device != self._device:
+        #     self.kl_coeff = self.kl_coeff.to(self._device)
 
         curr_action_dist = fwd_out[SampleBatch.ACTION_DIST]
         prev_action_dist = TorchCategorical(logits=batch[SampleBatch.ACTIONS]["logits"])
@@ -47,7 +62,8 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         logp_ratio = masked_mean(logp_ratio_unmasked, attention_mask, dim=-1)
 
         # Only calculate kl loss if necessary (kl-coeff > 0.0).
-        if self.hps.kl_coeff > 0.0:
+        # if self.hps.kl_coeff > 0.0:
+        if hps.use_kl_loss:
             action_kl = prev_action_dist.kl(curr_action_dist)
             mean_kl_loss = masked_mean(action_kl, attention_mask, dim=-1).mean()
             if mean_kl_loss.isinf():
@@ -75,7 +91,7 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         )
 
         # Compute a value function loss.
-        if self.hps.use_critic:
+        if hps.use_critic:
             value_fn_out = fwd_out[SampleBatch.VF_PREDS]
             vf_loss = torch.pow(value_fn_out - batch[Postprocessing.VALUE_TARGETS], 2.0)
             vf_loss_clipped = torch.clamp(vf_loss, 0, self.hps.vf_clip_param)
@@ -88,29 +104,34 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
             vf_loss_clipped = mean_vf_loss = torch.tensor(0.0).to(surrogate_loss.device)
 
         total_loss = torch.mean(
-            surrogate_loss
-            + self.hps.vf_loss_coeff * vf_loss_clipped
-            - self.entropy_coeff * curr_entropy
+            -surrogate_loss
+            + hps.vf_loss_coeff * vf_loss_clipped
+            - (
+                self.entropy_coeff_schedulers_per_module[module_id].get_current_value()
+                * curr_entropy
+            )
         )
 
         # Add mean_kl_loss (already processed through `reduce_mean_valid`),
         # if necessary.
-        if self.hps.kl_coeff > 0.0:
-            total_loss += self.kl_coeff * mean_kl_loss
+        if hps.use_kl_loss:
+        # if self.hps.kl_coeff > 0.0:
+            # total_loss += self.kl_coeff * mean_kl_loss
+            total_loss += self.curr_kl_coeffs_per_module[module_id] * mean_kl_loss
 
-        return {
-            self.TOTAL_LOSS_KEY: total_loss,
-            "policy_loss": torch.mean(surrogate_loss),
-            "vf_loss": mean_vf_loss,
-            "unclipped_vf_loss": mean_vf_unclipped_loss,
-            "vf_explained_var": explained_variance(
-                batch[Postprocessing.VALUE_TARGETS], value_fn_out
-            ),
-            "entropy": mean_entropy,
-            "kl": mean_kl_loss,
-            "entropy_coeff": self.entropy_coeff,
-            "cur_kl_coeff": self.kl_coeff,
-            "mean_reward_total": batch[SampleBatch.REWARDS].mean(),
-            "mean_reward_rm": batch[SampleBatch.INFOS]["r_align"].mean(),
-            "mean_reward_kl": batch[SampleBatch.INFOS]["r_kl"].mean(),
-        }
+        # Register important loss stats.
+        self.register_metrics(
+            module_id,
+            {
+                POLICY_LOSS_KEY: -torch.mean(surrogate_loss),
+                VF_LOSS_KEY: mean_vf_loss,
+                LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY: mean_vf_unclipped_loss,
+                LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY: explained_variance(
+                    batch[Postprocessing.VALUE_TARGETS], value_fn_out
+                ),
+                ENTROPY_KEY: mean_entropy,
+                LEARNER_RESULTS_KL_KEY: mean_kl_loss,
+            },
+        )
+
+        return total_loss

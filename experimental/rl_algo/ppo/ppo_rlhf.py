@@ -91,38 +91,6 @@ class RLHFSampler:
 
 class PPORLHF(PPO):
 
-    def get_default_policy_class(
-        cls, config: AlgorithmConfig
-    ) -> Optional[Type[Policy]]:
-        if config["framework"] == "torch":
-
-            if config._enable_rl_module_api:
-                from .ppo_torch_policy_rlm import (
-                    PPOTorchPolicyWithRLModule,
-                )
-
-                return PPOTorchPolicyWithRLModule
-            else:
-                from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
-
-                return PPOTorchPolicy
-        elif config["framework"] == "tf":
-            from ray.rllib.algorithms.ppo.ppo_tf_policy import PPOTF1Policy
-
-            return PPOTF1Policy
-        else:
-            if config._enable_rl_module_api:
-                from ray.rllib.algorithms.ppo.tf.ppo_tf_policy_rlm import (
-                    PPOTfPolicyWithRLModule,
-                )
-
-                return PPOTfPolicyWithRLModule
-            else:
-
-                from ray.rllib.algorithms.ppo.ppo_tf_policy import PPOTF2Policy
-
-                return PPOTF2Policy
-        
 
     def setup(self, config: AlgorithmConfig) -> None:
         super().setup(config)
@@ -149,7 +117,7 @@ class PPORLHF(PPO):
 
         policies_to_update = {DEFAULT_POLICY_ID}
         kl_dict = {
-            pid: train_results[pid][LEARNER_STATS_KEY].get("kl")
+            pid: train_results[pid].get("mean_kl_loss")
             for pid in policies_to_update
         }
         self.learner_group.additional_update(
@@ -164,7 +132,7 @@ class PPORLHF(PPO):
         # breakpoint()
 
         train_batch = self.sampler.sample(batch_size=1)
-        rewards = train_batch[SampleBatch.INFOS]['r_align']
+        rewards = train_batch[SampleBatch.INFOS][0]['r_align']
         
         self.evaluation_metrics = {"evaluation": 
             {
