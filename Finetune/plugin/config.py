@@ -17,10 +17,10 @@ def parse_args():
 def parse_config():
     args = parse_args()
     if args.config_path is None:
-        args.config_path = os.environ.get("CONFIG_PATH")
-    assert args.config_path is not None
+        return {}
     with open(args.config_path) as f:
         config = eval(f.read())
+    assert isinstance(config, dict)
     return config
 
 def _singleton(cls):
@@ -35,6 +35,11 @@ def _singleton(cls):
 class Config(Dict):
     def __init__(self):
         dict.__init__(self)
-        _config = parse_config()
-        for key, value in _config.items():
+        config = parse_config()
+        if config is not None:
+            self.merge(config)
+
+    def merge(self, config: dict):
+        for key, value in config.items():
             self.__setitem__(key, value)
+        

@@ -15,29 +15,24 @@ class StoppingCriteriaSub(StoppingCriteria):
         self.stops = stops
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
-        # print("input_ids: ", input_ids)
         for stop in self.stops:
-            # print("stop words: ", stop)
             length = 1  if len(stop.size())==0 else stop.size()[0]
             if torch.all((stop == input_ids[0][-length:])).item():
                 return True
-
         return False
 
 
-# @serve.deployment(num_replicas=2, ray_actor_options={"num_cpus": 27, "num_gpus": 0})
 @serve.deployment()
 class PredictDeployment:
-    def __init__(self, model_id, amp_enabled, amp_dtype, stop_words):
+    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
-        # self.max_new_tokens = max_new_tokens
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
@@ -48,42 +43,31 @@ class PredictDeployment:
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
-    def generate(self, text: str, config) -> str:
-        with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-            input_ids = self.tokenizer(text, return_tensors="pt").input_ids
-            max_new_tokens = config["max_new_tokens"]
-            Temperature = config["Temperature"]
-            Top_p = config["Top_p"]
-            Top_k = config["Top_k"]
-            Beams = config["Beams"]
-            do_sample = config["do_sample"]
+    def generate(self, text: str, **config) -> str:
+        # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
 
-            gen_tokens = self.model.generate(
-                input_ids,
-                max_new_tokens=max_new_tokens,
-                temperature=Temperature,
-                top_p=Top_p,
-                top_k=Top_k,
-                num_beams=Beams,
-                do_sample=do_sample,
-                pad_token_id=self.tokenizer.eos_token_id,
-                stopping_criteria=self.stopping_criteria,
-            )
-            output = self.tokenizer.batch_decode(gen_tokens)[0]
+        gen_tokens = self.model.generate(
+            input_ids,
+            pad_token_id=self.tokenizer.eos_token_id,
+            stopping_criteria=self.stopping_criteria,
+            **config
+        )
+        output = self.tokenizer.batch_decode(gen_tokens)[0]
 
-            return output
+        return output
 
     async def __call__(self, http_request: Request) -> str:
         json_request: str = await http_request.json()
         prompts = []
         for prompt in json_request:
             text = prompt["text"]
-            config = prompt["config"]
+            config = prompt["config"]  if "config" in prompt else {}
             if isinstance(text, list):
                 prompts.extend(text)
             else:
                 prompts.append(text)
-        outputs = self.generate(prompts, config)
+        outputs = self.generate(prompts, **config)
         return outputs
 
 if __name__ == "__main__":
@@ -100,8 +84,11 @@ if __name__ == "__main__":
 
     # args
     import argparse
-    parser = argparse.ArgumentParser('GPT-J generation script', add_help=False)
-    parser.add_argument('--precision', default='bf16', type=str, help="fp32 or bf16")
+    parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
+    parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
+    parser.add_argument("--model", default=None, type=str, help="model name or path")
+    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+
     args = parser.parse_args()
 
     amp_enabled = True if args.precision != "fp32" else False
@@ -109,7 +96,21 @@ if __name__ == "__main__":
 
     stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
 
-    for model_id, model_config in all_models.items():
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
+    if args.model is None:
+        model_list = all_models
+    else:
+        model_list = {
+            "custom_model": {
+                "model_id_or_path": args.model,
+                "tokenizer_name_or_path": args.tokenizer,
+                "port": "8000",
+                "name": "custom-model",
+                "route_prefix": "/custom-model"
+            }
+        }
+
+    for model_id, model_config in model_list.items():
+        print("deploy model: ", model_id)
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
     input("Service is deployed successfully")

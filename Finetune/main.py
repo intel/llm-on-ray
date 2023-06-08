@@ -48,9 +48,10 @@ def train_func(config: Dict[str, Any]):
         exit(1)
     plugin.logger.info(f"train finish")
 
-def main():
+def main(external_config = None):
     config = plugin.Config()
-    args = plugin.parse_args()
+    if external_config is not None:
+        config.merge(external_config)
     if config.get("run_mode") == "standalone":
         train_func(config)
     elif config.get("run_mode") == "ray":
@@ -59,13 +60,30 @@ def main():
         plugin.logger.info(f"ray init config: {ray_init_config}")
 
         runtime_env = ray_init_config.get("runtime_env")
-        if runtime_env is None:
-            ray_init_config["runtime_env"] = {}
-        env_vars = ray_init_config["runtime_env"].get("env_vars")
-        if env_vars is None:
-            ray_init_config["runtime_env"]["env_vars"] = {}
-        ray_init_config["runtime_env"]["env_vars"]["CONFIG_PATH"] = os.path.abspath(args.config_path)
         ray.init(**ray_init_config)
+
+        scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
+        plugin.logger.info(f"ray scaling config: {scaling_config}")
+
+        torch_config = TorchConfig(**ray_config.get("torch_config", {}))
+        plugin.logger.info(f"ray torch config: {torch_config}")
+
+        failure_config = FailureConfig(**ray_config.get("failure_config", {}))
+        plugin.logger.info(f"ray failure config: {failure_config}")
+
+        run_config = RunConfig(**ray_config.get("run_config", {}), failure_config=failure_config)
+        plugin.logger.info(f"ray run config: {run_config}")
+
+        trainer = TorchTrainer(
+            train_func,
+            train_loop_config=config,
+            scaling_config=scaling_config,
+            torch_config = torch_config,
+            run_config = run_config
+        )
+        results = trainer.fit()
+    elif config.get("run_mode") == "initialized":
+        ray_config = config.get("ray_config")
 
         scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
         plugin.logger.info(f"ray scaling config: {scaling_config}")

@@ -11,6 +11,6 @@ def import_all_module(basedir, prefix):
 
     for module in modules:
         if not module.startswith("_"):
-            module = module.strip(".py")
+            module = module.rstrip(".py")
             module_name = f"{prefix}.{module}"
             importlib.import_module(module_name)
