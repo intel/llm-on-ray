@@ -10,3 +10,6 @@ tabulate
 ray[tune]
 ray[serve]
 gradio
+gymnasium
+dm-tree
+scikit-image
