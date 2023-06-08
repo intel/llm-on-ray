@@ -84,19 +84,18 @@ pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-st
 ### Launch ray cluster
 #### head node
 ```bash
-ray start --head --node-ip-address $ray_node-ip-address --ray-debugger-external
+ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external
 ```
 #### worker node
 ```bash
-ray start --address='$ray_node-ip-address:port' --ray-debugger-external
+ray start --address='127.0.0.1:6379' --ray-debugger-external
 ```
 
 If deploying a ray cluster on multiple nodes, please download the workflow repository on each node. More information about ray cluster, please refer to https://www.ray.io/
 
 ### Run Workflow
 #### Finetune 
-Modify some configuration items, include `trainer.output` `checkpoint.root_path` `ray_config.init._node_ip_address`. The above configurations are related to the operating environment. So when the operating environment changes, it needs to be modified.
-Once the prerequisits have been met and the llm_finetune_template.conf files have been updated to execute the workflow, use these commands to run the workflow:
+Once the prerequisits have been met, use the following commands to run the workflow:
 ```bash
 python Finetune/main.py --config_path Finetune/llm_finetune_template.conf 
 ```
