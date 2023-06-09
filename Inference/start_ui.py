@@ -48,13 +48,15 @@ class ChatBotUI():
         print("prompt: ", prompt)
         prompt = self.process_tool.get_prompt(prompt)
         
-        sample_input = {"text": prompt, "config": config}
+        sample_input = {"text": prompt, "config": config, "stream": True}
         proxies = { "http": None, "https": None}
-        output = requests.post(request_url, proxies=proxies, json=[sample_input]).text
-        # remove context
-        output = output[len(prompt):]
-        output = self.process_tool.convert_output(output)
-        return output
+        outputs = requests.post(request_url, proxies=proxies, json=[sample_input], stream=True)
+        outputs.raise_for_status()
+        for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
+            # remove context
+            output = output[len(prompt):]
+            output = self.process_tool.convert_output(output)
+            yield output
 
     def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         prompt = self.history_to_messages(history)
@@ -66,11 +68,14 @@ class ChatBotUI():
             "top_p": Top_p,
             "top_k": Top_k,
         }
-        response = self.model_generate(prompt=prompt, request_url=request_url, config=config)
-        time_end = time.time()
-        history[-1][1]=response
-        time_spend = time_end - time_start
-        return [history, time_spend, "model"] 
+        outputs = self.model_generate(prompt=prompt, request_url=request_url, config=config)
+
+        for output in outputs:
+            if len(output) != 0:
+                time_end = time.time()
+                history[-1][1]=output
+                time_spend = time_end - time_start
+                yield [history, time_spend] 
 
     def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr):
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
@@ -194,12 +199,12 @@ class ChatBotUI():
             
             msg.submit(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency, model_used]
+                           [chatbot, latency]
             )
             clear_btn.click(self.clear, None, chatbot, queue=False)
             send_btn.click(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency, model_used]
+                           [chatbot, latency]
             )
 
             finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr], [all_model_dropdown])
@@ -239,4 +244,4 @@ if __name__ == "__main__":
         finetune_model_path = os.path.abspath(infer_path + os.path.sep + finetune_model_path)
 
     ui = ChatBotUI(all_models, base_models, finetune_model_path, config)
-    ui.gr_chat.launch(share=True, server_port=8080, server_name="0.0.0.0")
+    ui.gr_chat.queue().launch(share=True, server_port=8080, server_name="0.0.0.0")

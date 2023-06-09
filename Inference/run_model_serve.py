@@ -3,10 +3,13 @@ from ray import serve
 from starlette.requests import Request
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import StoppingCriteria, StoppingCriteriaList
 import intel_extension_for_pytorch as ipex
 from config import all_models
-from transformers import StoppingCriteria, StoppingCriteriaList
 
+from typing import Generator, Union
+from starlette.responses import StreamingResponse
+from threading import Thread
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -22,7 +25,7 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-@serve.deployment()
+@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
         self.amp_enabled = amp_enabled
@@ -33,42 +36,61 @@ class PredictDeployment:
             low_cpu_mem_usage=True,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+        from transformers import TextIteratorStreamer
+        self.streamer = TextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
         # to ipex
-        self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
-        # self.model = model
+        # self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
+        self.model = model
 
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
-    def generate(self, text: str, **config) -> str:
+    def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
+        inputs = self.tokenizer(text, return_tensors="pt")
 
-        gen_tokens = self.model.generate(
-            input_ids,
-            pad_token_id=self.tokenizer.eos_token_id,
-            stopping_criteria=self.stopping_criteria,
-            **config
-        )
-        output = self.tokenizer.batch_decode(gen_tokens)[0]
+        if not streaming_response:
+            input_ids = inputs.input_ids
+            gen_tokens = self.model.generate(
+                input_ids,
+                pad_token_id=self.tokenizer.eos_token_id,
+                stopping_criteria=self.stopping_criteria,
+                **config
+            )
+            output = self.tokenizer.batch_decode(gen_tokens)
+            yield output[0]
 
-        return output
+        generation_kwargs = dict(inputs, 
+                                 streamer=self.streamer,
+                                 pad_token_id=self.tokenizer.eos_token_id,
+                                 stopping_criteria=self.stopping_criteria,
+                                 **config
+                                )
+        thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
+        thread.start()
+        generated_text = ""
+        for new_text in self.streamer:
+            generated_text += new_text
+            yield generated_text
 
-    async def __call__(self, http_request: Request) -> str:
+    async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()
         prompts = []
         for prompt in json_request:
             text = prompt["text"]
             config = prompt["config"]  if "config" in prompt else {}
+            streaming_response = prompt["stream"]
             if isinstance(text, list):
                 prompts.extend(text)
             else:
                 prompts.append(text)
-        outputs = self.generate(prompts, **config)
-        return outputs
+        outputs = self.generate(prompts, streaming_response, **config)
+        if not streaming_response:
+            return next(outputs)
+        return StreamingResponse(outputs, status_code=200, media_type="text/plain")
 
 if __name__ == "__main__":
     runtime_env = {
