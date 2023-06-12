@@ -94,6 +94,25 @@ ray start --address='127.0.0.1:6379' --ray-debugger-external
 If deploying a ray cluster on multiple nodes, please download the workflow repository on each node. More information about ray cluster, please refer to https://www.ray.io/
 
 ### Run Workflow
+#### Prepare Dataset
+
+Now, the workflow supports two types of datasets. 
+
+
+The first is plain text data similar to [wikitext](https://huggingface.co/datasets/wikitext). This type of data is used for finetuning in non-prompt mode and this type of data is characterized by containing `text` field. All the text under the `text` field will be directly used as finetuning data. Since most of the samples in these dataset are of different lengths, we provide switch named `group` to control whether to splice the data into the same length. 
+
+
+The second is instruction fintuning dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `response` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
+
+The meaning of the above three columns:
++ Instruction Column: The column in the dataset is the user input, such as a question or a command.
++ Context Column: This column is other information used by instruction, such as the options used in the question and so on. It can be empty.
++ Response: The column in the dataset containing the expected output.
+
+
+Therefore, if the your data meets the above two formats, you can use the data by configuring the local data path or huggingface dataset. If not, please refer to the following **Adopt to your dataset**.
+
+
 #### Finetune 
 Once the prerequisits have been met, use the following commands to run the workflow:
 ```bash
@@ -154,5 +173,5 @@ TorchTrainer_2023-06-05_08-50-46/
 ```
 ## Customize
 ### Adopt to your dataset
-You can bring your own dataset to be used with this workflow. The dataprocesser is packaged into an independent module in Finetune/plugin/dataprocesser. So users can define data processing methods according to their own data format. If you want to process wikitext data in a different way, then you can follow the example of wikitextprocesser and rewrite a class. At the same time, set the new class name to llm_finetune_template.conf.
+If the your data do not meets the above two supported formats, you may need to preprocess the data into the standard format. Here we provide an example dataset (converted dataset from [OpenAssistant/oasst1](https://huggingface.co/datasets/OpenAssistant/oasst1)) as `Finetune/process_data.py`. After running `python process_data.py`, a directory named `data` will output to the `Finetune` directory, just modify the configuration item `dataset.name` to the absolute path of this directory to start the task.
 
