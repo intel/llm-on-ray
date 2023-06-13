@@ -22,14 +22,13 @@ def prep_data(df):
         parent_ids.append(input.parent_id)
 
     df_assistant["instruction"] = inputs
-    df_assistant["parent_id"] = parent_ids
     df_assistant["context"] = contexts
 
     df_assistant = df_assistant[df_assistant.lang == "en"]
 
     df_assistant = df_assistant[
-        ["instruction", "response", "message_id", "parent_id", "context"]
-    ].rename(columns={"message_id": "id"})
+        ["instruction", "context", "response"]
+    ]
 
     return df_assistant
 df_train = prep_data(train)
