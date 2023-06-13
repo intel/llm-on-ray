@@ -25,6 +25,14 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
+@ray.remote
+def transformers_gen(model, inputs, pad_token_id, stopping_criteria, streamer, **config):
+    model.generate(inputs,
+                pad_token_id=pad_token_id,
+                stopping_criteria=stopping_criteria,
+                streamer=streamer,
+                **config)
+
 @serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
@@ -36,8 +44,7 @@ class PredictDeployment:
             low_cpu_mem_usage=True,
         )
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
-        from transformers import TextIteratorStreamer
-        self.streamer = TextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
+        self.streamer = self.create_streamer()
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
@@ -48,6 +55,36 @@ class PredictDeployment:
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
+    def create_streamer(self):
+        from transformers import TextStreamer
+        from typing import Optional
+        from ray.util.queue import Queue
+
+        class RayTextIteratorStreamer(TextStreamer):
+            def __init__(
+                self, tokenizer: "AutoTokenizer", skip_prompt: bool = False, timeout: Optional[float] = None, **decode_kwargs
+            ):
+                super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+                self.text_queue = Queue()
+                self.stop_signal = None
+                self.timeout = timeout
+
+            def on_finalized_text(self, text: str, stream_end: bool = False):
+                self.text_queue.put(text, timeout=self.timeout)
+                if stream_end:
+                    self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                value = self.text_queue.get(timeout=self.timeout)
+                if value == self.stop_signal:
+                    raise StopIteration()
+                else:
+                    return value
+        return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
+    
     def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
         inputs = self.tokenizer(text, return_tensors="pt")
@@ -62,19 +99,19 @@ class PredictDeployment:
             )
             output = self.tokenizer.batch_decode(gen_tokens)
             yield output[0]
+        
+        transformers_gen.remote(self.model,
+                                inputs.input_ids,
+                                self.tokenizer.eos_token_id,
+                                self.stopping_criteria,
+                                self.streamer, 
+                                **config)
 
-        generation_kwargs = dict(inputs, 
-                                 streamer=self.streamer,
-                                 pad_token_id=self.tokenizer.eos_token_id,
-                                 stopping_criteria=self.stopping_criteria,
-                                 **config
-                                )
-        thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
-        thread.start()
         generated_text = ""
         for new_text in self.streamer:
-            generated_text += new_text
-            yield generated_text
+            if new_text is not None:
+                generated_text += new_text
+                yield generated_text
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()

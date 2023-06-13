@@ -81,19 +81,19 @@ class ChatBotUI():
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         finetuned_model_path = os.path.join(self.finetuned_model_path, new_model_name)
-        config["datasets"]["name"]=dataset
-        config["tokenizer"]["name"]=tokenizer_path
-        config["model"]["name"]=origin_model_path
-        config["trainer"]["num_train_epochs"]=num_epochs
-        config["trainer"]["output"]=finetuned_model_path
-        config["trainer"]["dataprocesser"]["batch_size"]=batch_size
-        config["optimizer"]["config"]["lr"]=lr
+        self.config["datasets"]["name"]=dataset
+        self.config["tokenizer"]["name"]=tokenizer_path
+        self.config["model"]["name"]=origin_model_path
+        self.config["trainer"]["num_train_epochs"]=num_epochs
+        self.config["trainer"]["output"]=finetuned_model_path
+        self.config["trainer"]["dataprocesser"]["batch_size"]=batch_size
+        self.config["optimizer"]["config"]["lr"]=lr
         if max_train_step==0:
-            config["trainer"].pop("max_train_step", None)
+            self.config["trainer"].pop("max_train_step", None)
         else:
-            config["trainer"]["max_train_step"]=max_train_step
+            self.config["trainer"]["max_train_step"]=max_train_step
 
-        main(config)
+        main(self.config)
         
         model_config = {
             "model_id_or_path": finetuned_model_path,
@@ -244,4 +244,4 @@ if __name__ == "__main__":
         finetune_model_path = os.path.abspath(infer_path + os.path.sep + finetune_model_path)
 
     ui = ChatBotUI(all_models, base_models, finetune_model_path, config)
-    ui.gr_chat.queue().launch(share=True, server_port=8080, server_name="0.0.0.0")
+    ui.gr_chat.queue().launch(share=True, server_port=8082, server_name="0.0.0.0")
