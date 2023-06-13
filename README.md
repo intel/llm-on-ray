@@ -70,7 +70,7 @@ Now, the workflow supports two types of datasets.
 The first is plain text data similar to [wikitext](https://huggingface.co/datasets/wikitext). This type of data is used for finetuning in non-prompt mode and this type of data is characterized by containing `text` field. All the text under the `text` field will be directly used as finetuning data. Since most of the samples in these dataset are of different lengths, we provide switch named `group` to control whether to splice the data into the same length. 
 
 
-The second is instruction fintuning dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `response` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
+The second is instruction fintuning dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `context` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
 
 
 The meaning of the above three columns:
