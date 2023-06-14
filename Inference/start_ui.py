@@ -244,4 +244,4 @@ if __name__ == "__main__":
         finetune_model_path = os.path.abspath(infer_path + os.path.sep + finetune_model_path)
 
     ui = ChatBotUI(all_models, base_models, finetune_model_path, config)
-    ui.gr_chat.queue().launch(share=True, server_port=8082, server_name="0.0.0.0")
+    ui.gr_chat.queue().launch(share=True, server_port=8080, server_name="0.0.0.0")

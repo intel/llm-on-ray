@@ -26,12 +26,19 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 
 @ray.remote
-def transformers_gen(model, inputs, pad_token_id, stopping_criteria, streamer, **config):
-    model.generate(inputs,
-                pad_token_id=pad_token_id,
-                stopping_criteria=stopping_criteria,
-                streamer=streamer,
-                **config)
+class Dialogue:
+    def __init__(self, model, pad_token_id, stopping_criteria, streamer):
+        self.model = model
+        self.pad_token_id = pad_token_id
+        self.stopping_criteria = stopping_criteria
+        self.streamer = streamer
+
+    def generate_func(self, inputs, **config):
+        self.model.generate(inputs,
+                    pad_token_id=self.pad_token_id,
+                    stopping_criteria=self.stopping_criteria,
+                    streamer=self.streamer,
+                    **config)
 
 @serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
 class PredictDeployment:
@@ -54,6 +61,7 @@ class PredictDeployment:
 
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.dialogue = Dialogue.remote(self.model, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
 
     def create_streamer(self):
         from transformers import TextStreamer
@@ -100,12 +108,7 @@ class PredictDeployment:
             output = self.tokenizer.batch_decode(gen_tokens)
             yield output[0]
         
-        transformers_gen.remote(self.model,
-                                inputs.input_ids,
-                                self.tokenizer.eos_token_id,
-                                self.stopping_criteria,
-                                self.streamer, 
-                                **config)
+        self.dialogue.generate_func.remote(inputs.input_ids, **config)
 
         generated_text = ""
         for new_text in self.streamer:
