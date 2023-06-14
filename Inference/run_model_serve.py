@@ -27,22 +27,7 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 @ray.remote
 class Dialogue:
-    def __init__(self, model, pad_token_id, stopping_criteria, streamer):
-        self.model = model
-        self.pad_token_id = pad_token_id
-        self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
-
-    def generate_func(self, inputs, **config):
-        self.model.generate(inputs,
-                    pad_token_id=self.pad_token_id,
-                    stopping_criteria=self.stopping_criteria,
-                    streamer=self.streamer,
-                    **config)
-
-@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
-class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
+    def __init__(self, model_id, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         model = AutoModelForCausalLM.from_pretrained(
@@ -50,18 +35,44 @@ class PredictDeployment:
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
-        self.streamer = self.create_streamer()
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
         # to ipex
         # self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
         self.model = model
+        self.pad_token_id = pad_token_id
+        self.stopping_criteria = stopping_criteria
+        self.streamer = streamer
 
+    def streaming_generate(self, inputs, **config):
+        self.model.generate(inputs,
+                    pad_token_id=self.pad_token_id,
+                    stopping_criteria=self.stopping_criteria,
+                    streamer=self.streamer,
+                    **config)
+    
+    def generate(self, inputs, **config):
+        gen_tokens = self.model.generate(
+            inputs,
+            pad_token_id=self.pad_token_id,
+            stopping_criteria=self.stopping_criteria,
+            **config
+        )
+        return gen_tokens
+
+    def ping(self):
+        pass
+
+@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
+class PredictDeployment:
+    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+        self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        self.dialogue = Dialogue.remote(self.model, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
+        self.dialogue = Dialogue.remote(model_id, amp_enabled, amp_dtype, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
+        ray.get(self.dialogue.ping.remote())
 
     def create_streamer(self):
         from transformers import TextStreamer
@@ -95,20 +106,15 @@ class PredictDeployment:
     
     def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        inputs = self.tokenizer(text, return_tensors="pt")
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
 
         if not streaming_response:
-            input_ids = inputs.input_ids
-            gen_tokens = self.model.generate(
-                input_ids,
-                pad_token_id=self.tokenizer.eos_token_id,
-                stopping_criteria=self.stopping_criteria,
-                **config
-            )
+            response = self.dialogue.generate.remote(input_ids, **config)
+            gen_tokens = ray.get(response)
             output = self.tokenizer.batch_decode(gen_tokens)
             yield output[0]
         
-        self.dialogue.generate_func.remote(inputs.input_ids, **config)
+        self.dialogue.streaming_generate.remote(input_ids, **config)
 
         generated_text = ""
         for new_text in self.streamer:
