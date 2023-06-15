@@ -25,9 +25,9 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
-class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
+@ray.remote
+class Dialogue:
+    def __init__(self, model_id, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         model = AutoModelForCausalLM.from_pretrained(
@@ -35,46 +35,92 @@ class PredictDeployment:
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
-        from transformers import TextIteratorStreamer
-        self.streamer = TextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
         model = model.eval()
         # to channels last
         model = model.to(memory_format=torch.channels_last)
         # to ipex
         # self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
         self.model = model
+        self.pad_token_id = pad_token_id
+        self.stopping_criteria = stopping_criteria
+        self.streamer = streamer
 
+    def streaming_generate(self, inputs, **config):
+        self.model.generate(inputs,
+                    pad_token_id=self.pad_token_id,
+                    stopping_criteria=self.stopping_criteria,
+                    streamer=self.streamer,
+                    **config)
+    
+    def generate(self, inputs, **config):
+        gen_tokens = self.model.generate(
+            inputs,
+            pad_token_id=self.pad_token_id,
+            stopping_criteria=self.stopping_criteria,
+            **config
+        )
+        return gen_tokens
+
+    def ping(self):
+        pass
+
+@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
+class PredictDeployment:
+    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+        self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.dialogue = Dialogue.remote(model_id, amp_enabled, amp_dtype, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
+        ray.get(self.dialogue.ping.remote())
 
+    def create_streamer(self):
+        from transformers import TextStreamer
+        from typing import Optional
+        from ray.util.queue import Queue
+
+        class RayTextIteratorStreamer(TextStreamer):
+            def __init__(
+                self, tokenizer: "AutoTokenizer", skip_prompt: bool = False, timeout: Optional[float] = None, **decode_kwargs
+            ):
+                super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+                self.text_queue = Queue()
+                self.stop_signal = None
+                self.timeout = timeout
+
+            def on_finalized_text(self, text: str, stream_end: bool = False):
+                self.text_queue.put(text, timeout=self.timeout)
+                if stream_end:
+                    self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                value = self.text_queue.get(timeout=self.timeout)
+                if value == self.stop_signal:
+                    raise StopIteration()
+                else:
+                    return value
+        return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
+    
     def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        inputs = self.tokenizer(text, return_tensors="pt")
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
 
         if not streaming_response:
-            input_ids = inputs.input_ids
-            gen_tokens = self.model.generate(
-                input_ids,
-                pad_token_id=self.tokenizer.eos_token_id,
-                stopping_criteria=self.stopping_criteria,
-                **config
-            )
+            response = self.dialogue.generate.remote(input_ids, **config)
+            gen_tokens = ray.get(response)
             output = self.tokenizer.batch_decode(gen_tokens)
             yield output[0]
+        
+        self.dialogue.streaming_generate.remote(input_ids, **config)
 
-        generation_kwargs = dict(inputs, 
-                                 streamer=self.streamer,
-                                 pad_token_id=self.tokenizer.eos_token_id,
-                                 stopping_criteria=self.stopping_criteria,
-                                 **config
-                                )
-        thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
-        thread.start()
         generated_text = ""
         for new_text in self.streamer:
-            generated_text += new_text
-            yield generated_text
+            if new_text is not None:
+                generated_text += new_text
+                yield generated_text
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()
