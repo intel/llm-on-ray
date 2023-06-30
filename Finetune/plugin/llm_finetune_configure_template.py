@@ -5,7 +5,7 @@
     # The global seed of pytorch.
     "seed": 42,
     # The global threads num of pytorch.
-    "torch_thread_num": 32,
+    "torch_thread_num": 28,
     # Config of accelerator, all items will be transfered to accelerate.Accelerator().
     "accelerator": {
         "gradient_accumulation_steps": 1,
@@ -14,13 +14,11 @@
         # The type of dataset, now only HuggingfaceDataset is supported.
         "type": "HuggingfaceDataset",
         # The name/path of dataset in huggingface.
-        "name": "wikitext",
+        "name": "tatsu-lab/alpaca",
         # Whether to use the datasets.load_from_disk() interface to load data. 
         "load_from_disk": False,
         # Config of dataset, all items will be transfered to datasets.load_dataset() or datasets.load_from_disk().
-        "load_config" : {
-            "name": "wikitext-2-raw-v1"
-        }
+        "load_config" : {}
     },
     "tokenizer": {
         # The type of dataset, now only HuggingfaceTokenizer is supported.
@@ -36,7 +34,9 @@
         # The name/path of model in huggingface.
         "name": "EleutherAI/gpt-j-6B",
         # Config of model, all items will be transfered to AutoModelForCausalLM.from_pretrained().
-        "config": {}
+        "config": {
+            "trust_remote_code": True
+        }
     },
     "optimizer": {
         # The type of optimizer, only DefaultOptimizer is supported. All parameters in model will be optimized by DefaultOptimizer.
@@ -63,7 +63,7 @@
         "output": "/tmp/output",
         "dataprocesser": {
             # The type of dataprocesser. 
-            "type": "WikitextProcesser",
+            "type": "GeneralProcesser",
             # Number of preprocessing workers.
             "preprocessing_num_workers": 4,
             # Whether to apply batch processing.
@@ -75,11 +75,11 @@
             # eval batch size per device
             "per_device_eval_batch_size": 4,
             # Whether the training dataset is shuffle
-            "shuffle": False
+            "shuffle": True
         },
         "lr_scheduler": {
             # Whether to enable learning rate scheduler
-            "enable": False,
+            "enable": True,
             # The max training step of lr_scheduler. This item will be transfered to transformers.get_scheduler().
             "max_train_steps": None,
             # The type of lr_scheduler. This item will be transfered to transformers.get_scheduler().
@@ -102,7 +102,7 @@
             # Environment variables for ray workers
             "runtime_env": {
                 "env_vars": {
-                    "OMP_NUM_THREADS": "32", 
+                    "OMP_NUM_THREADS": "28", 
                     "ACCELERATE_USE_CPU": "True", 
                     "ACCELERATE_MIXED_PRECISION": "no",
                     "CCL_WORKER_COUNT": "2",        # CCL setting
@@ -120,7 +120,7 @@
             "num_workers": 2,
             # The amount of resources per worker.
             "resources_per_worker": {
-                "CPU": 32
+                "CPU": 28
             },
             # The placement strategy to use for the placement group of the Ray actors.
             "placement_strategy": "SPREAD"
@@ -135,7 +135,7 @@
         },
         "run_config": {
             # Local dir to save training results to.
-            "local_dir": "/tmp"
+            "local_dir": "/tmp/llm-ray"
         }
     }
 }

@@ -75,15 +75,11 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
                 response_token_ids_start_idx = idx
                 break
 
-            if response_token_ids_start_idx is None:
-                raise RuntimeError(
-                    f'Could not find response key {response_token_ids} in token IDs {batch["labels"][i]}'
-                )
+            if response_token_ids_start_idx is not None:
+                response_token_ids_end_idx = response_token_ids_start_idx + 1
 
-            response_token_ids_end_idx = response_token_ids_start_idx + 1
-
-            # Make pytorch loss function ignore all tokens up through the end of the response key
-            labels[i, :response_token_ids_end_idx] = -100
+                # Make pytorch loss function ignore all tokens up through the end of the response key
+                labels[i, :response_token_ids_end_idx] = -100
 
         batch["labels"] = labels
 
@@ -180,7 +176,7 @@ class GeneralProcesser(DataProcesser):
             eval_dataset = tokenized_datasets["validation"]
             eval_dataloader = torch.utils.data.DataLoader(
                 eval_dataset, 
-                collate_fn=transformers.default_data_collator, 
+                collate_fn=default_data_collator, 
                 batch_size=per_device_eval_batch_size
             )
         return train_dataloader, eval_dataloader

@@ -16,6 +16,9 @@ from ray.air import RunConfig, FailureConfig
 import plugin
 
 def train_func(config: Dict[str, Any]):
+    cwd = config.get("cwd")
+    if cwd:
+        os.chdir(cwd)
     plugin.init(config)
     try :
         accelerator_config = config.get("accelerator")
@@ -55,6 +58,7 @@ def main(external_config = None):
     if config.get("run_mode") == "standalone":
         train_func(config)
     elif config.get("run_mode") == "ray":
+        config["cwd"] = os.getcwd()
         ray_config = config.get("ray_config")
         ray_init_config = ray_config.get("init", {})
         plugin.logger.info(f"ray init config: {ray_init_config}")
