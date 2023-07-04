@@ -38,7 +38,7 @@ CONFIG_MAPPING = {
     "Training.weight_decay": "optimizer.config.weight_decay",
     "Training.num_training_workers": [
         "ray_config.scaling_config.num_workers",
-        "ray_config.init.runtime_env.env_vars.CCL_WORKER_COUNT#str"
+        "ray_config.init.runtime_env.env_vars.CCL_WORKER_COUNT#str",
         "ray_config.init.runtime_env.env_vars.WORLD_SIZE#str"
     ],
     "Training.resources_per_worker.CPU": [
