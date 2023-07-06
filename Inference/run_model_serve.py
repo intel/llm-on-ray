@@ -27,13 +27,14 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 @ray.remote
 class Dialogue:
-    def __init__(self, model_id, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
+    def __init__(self, model_id, trust_remote_code, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
+            trust_remote_code=trust_remote_code
         )
         model = model.eval()
         # to channels last
@@ -64,14 +65,14 @@ class Dialogue:
     def ping(self):
         pass
 
-@serve.deployment
+@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
 class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
+    def __init__(self, model_id, tokenizer_name_or_path, trust_remote_code, amp_enabled, amp_dtype, stop_words):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        self.dialogue = Dialogue.remote(model_id, amp_enabled, amp_dtype, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
+        self.dialogue = Dialogue.remote(model_id, trust_remote_code, amp_enabled, amp_dtype, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
         ray.get(self.dialogue.ping.remote())
 
     def create_streamer(self):
@@ -179,6 +180,7 @@ if __name__ == "__main__":
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
+        trust_remote_code = model_config.get("trust_remote_code")
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
     input("Service is deployed successfully")

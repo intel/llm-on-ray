@@ -215,8 +215,9 @@ class ChatBotUI():
         if chat_model is None:
             return model_name + " deployment failed. " + model_config["chat_model"] + " does not exist."
         self.process_tool = chat_model(**model_config["prompt"])
+        trust_remote_code = model_config.get("trust_remote_code")
         deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})\
-                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], amp_enabled, amp_dtype, stop_words=stop_words)
+                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=stop_words)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
         return self.ip_port + model_config["route_prefix"]
 

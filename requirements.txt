@@ -13,3 +13,4 @@ gradio
 gymnasium
 dm-tree
 scikit-image
+einops

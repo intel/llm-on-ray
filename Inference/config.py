@@ -27,7 +27,7 @@ gpt_j_finetuned_52K = {
         "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
         "human_id": "\n### Instruction",
         "bot_id": "\n### Response",
-        "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
+        "stop_words": []
     }
 }
 
@@ -42,7 +42,7 @@ gpt_j_6B = {
         "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
         "human_id": "\n### Instruction",
         "bot_id": "\n### Response",
-        "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
+        "stop_words": []
     }
 }
 
@@ -92,12 +92,29 @@ opt = {
     }
 }
 
+mpt = {
+    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/mpt-7b-chat/",
+    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt-neox-20b/",
+    "port": "8000",
+    "name": "mpt",
+    "route_prefix": "/mpt",
+    "chat_model": "ChatModelGptJ",
+    "prompt": {
+        "intro": "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n",
+        "human_id": "\n### Instruction",
+        "bot_id": "\n### Response",
+        "stop_words": []
+    },
+    "trust_remote_code": True,
+}
+
 
 all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
 all_models["gpt-j-6B"] = gpt_j_6B
 all_models["gpt2"] = gpt2
 all_models["bloom"] = bloom
 all_models["opt"] = opt
+all_models["mpt"] = mpt
 
 base_models["gpt2"] = gpt2
 base_models["gpt-j-6B"] = gpt_j_6B
