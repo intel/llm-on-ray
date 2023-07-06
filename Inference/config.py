@@ -24,9 +24,9 @@ gpt_j_finetuned_52K = {
     "route_prefix": "/gpt-j-6B-finetuned-52K",
     "chat_model": "ChatModelGptJ",
     "prompt": {
-        "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request. \n",
-        "human_id": "### Instruction",
-        "bot_id": "### Response",
+        "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
+        "human_id": "\n### Instruction",
+        "bot_id": "\n### Response",
         "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
     }
 }
@@ -39,9 +39,9 @@ gpt_j_6B = {
     "route_prefix": "/gpt-j-6B",
     "chat_model": "ChatModelGptJ",
     "prompt": {
-        "intro": "",
-        "human_id": "### Instruction",
-        "bot_id": "### Response",
+        "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
+        "human_id": "\n### Instruction",
+        "bot_id": "\n### Response",
         "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
     }
 }

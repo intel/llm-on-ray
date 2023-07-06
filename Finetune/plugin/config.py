@@ -122,5 +122,5 @@ class Config(Dict):
     def merge(self, config: dict):
         recursive_merge(self, config)
 
-    def merge_with_mapping(self, config: dict, table: dict):
-        merge_with_mapping(self, config, table)
+    def merge_with_mapping(self, config: dict, table: dict, only_in_table: bool = True):
+        merge_with_mapping(self, config, table, only_in_table)

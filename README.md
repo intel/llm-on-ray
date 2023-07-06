@@ -52,11 +52,11 @@ pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-st
 #### 3. Launch ray cluster
 #### head node
 ```bash
-ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external
+RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external
 ```
 #### worker node
 ```bash
-ray start --address='127.0.0.1:6379' --ray-debugger-external
+RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external
 ```
 
 If deploying a ray cluster on multiple nodes, please download the workflow repository on each node. More information about ray cluster, please refer to https://www.ray.io/

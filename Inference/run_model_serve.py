@@ -64,7 +64,7 @@ class Dialogue:
     def ping(self):
         pass
 
-@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
+@serve.deployment
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, amp_enabled, amp_dtype, stop_words):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
