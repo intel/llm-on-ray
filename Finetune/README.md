@@ -1,6 +1,5 @@
-## Accelerate + Ray 
-### 1. Prepare environment
-### Bare-metal  
+## 1. Prepare environment
+### 1.1 Bare-metal  
 Follow [LLM Finetune](https://wiki.ith.intel.com/pages/viewpage.action?spaceKey=AppliedML&title=LLM+Finetune).
 Please change ``huggingface accelerate`` repo to: [huggingface accelerate](https://github.com/KepingYan/accelerate)  branch: FSDP_CPU
 
@@ -11,22 +10,8 @@ pip install -U "ray[default] @ LINK_TO_WHEEL.whl"
 pip install --pre raydp
 pip install "ray[tune]" tabulate tensorboard
 ```
-
-### Using Docker 
-```bash
-# on head node 
-git clone https://github.com/intel-sandbox/llm-ray.git
-cd llm-ray/Finetune
-./build-image.sh 
-# save docker image
-docker save -o ray-image.tar ray-llm:latest
-# copy over to worker nodes, this is an optional step if all your cluster nodes are NFS-shared
-scp ray-image.tar <worker_node_ip>:<destination_path_on_worker_node>
-# on worker nodes   
-docker load -i ray-image.tar 
-```
-
-### 2. Enable torch_ccl [optional]
+## 2. Accelerate + Ray 
+### 2.1 Enable torch_ccl [optional]
 ```python
 from raydp.torch.config import TorchConfig
 
@@ -41,7 +26,7 @@ def train_fashion_mnist(...):
     ...
 ```
 
-### 3. Set parameters [optional]
+### 2.2 Set parameters [optional]
 - FSDP parameters 
   ```python
   trainer = AccelerateTrainer(
@@ -73,19 +58,15 @@ def train_fashion_mnist(...):
     }
   ```
 
-### 5. Test Ray TorchTrainer example
-#### Bare-metal
+### 2.3 Test Ray TorchTrainer example
+#### 2.3.1 Bare-metal
 ```bash
 oneccl_bindings_for_pytorch_path=$(python -c "from oneccl_bindings_for_pytorch import cwd; print(cwd)") && source $oneccl_bindings_for_pytorch_path/env/setvars.sh
 python -u run_clm_no_trainer_ray.py --model_name_or_path  EleutherAI/gpt-j-6B --dataset_name wikitext --dataset_config_name wikitext-2-raw-v1  --per_device_train_batch_size 2  --per_device_eval_batch_size 4  --num_train_epochs 1 --address 10.165.9.53 --num_workers 2
 ```
-#### Using Docker
-```bash 
-python launch_workflow.py -w workflow.yaml
-```
 
-## FSDP_CPU + Ray
-### 1. Enable fsdp_cpu in Ray
+## 3. FSDP_CPU + Ray
+### 3.1 Enable fsdp_cpu in Ray
 Edit codes in train_loop_utils.py
 ```python
 class _TorchAccelerator(Accelerator):
@@ -112,7 +93,7 @@ def train_func(config: Dict):
     ...
 ```
 
-### 2. enable torch_ccl in Ray
+### 3.2 enable torch_ccl in Ray
 ```bash
 pip install --pre raydp
 ```
@@ -157,10 +138,11 @@ File "env/lib/python3.7/site-packages/ray/train/_internal/worker_group.py", line
 RuntimeError: no support for _allgather_base in Gloo process group
 ```
 
-### 3. Test Fashion MNIST example
+### 3.3 Test Fashion MNIST example
 ```python
 python run_minist_fsdp.py
 ```
+
 
 ## Memory Status
 Reference to Applied Machine Learning team ([intel-sandbox/HuggingFace](https://github.com/intel-sandbox/HuggingFace/tree/main/test/memory))

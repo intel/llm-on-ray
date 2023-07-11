@@ -26,12 +26,12 @@ then
 fi
 
 echo -e "\ncopy hadoop configuration files..."
-cp configs/hadoop-env.sh $HADOOP_HOME/etc/hadoop/hadoop-env.sh
-cp configs/hdfs-site.xml $HADOOP_HOME/etc/hadoop/hdfs-site.xml && \
-cp configs/core-site.xml $HADOOP_HOME/etc/hadoop/core-site.xml && \
-cp configs/mapred-site.xml $HADOOP_HOME/etc/hadoop/mapred-site.xml && \
-cp configs/yarn-site.xml $HADOOP_HOME/etc/hadoop/yarn-site.xml && \
-cp configs/workers $HADOOP_HOME/etc/hadoop/workers
+cp /home/user/workspace/tools/workload_in_containers/configs/hadoop-env.sh $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+cp /home/user/workspace/tools/workload_in_containers/configs/hdfs-site.xml $HADOOP_HOME/etc/hadoop/hdfs-site.xml && \
+cp /home/user/workspace/tools/workload_in_containers/configs/core-site.xml $HADOOP_HOME/etc/hadoop/core-site.xml && \
+cp /home/user/workspace/tools/workload_in_containers/configs/mapred-site.xml $HADOOP_HOME/etc/hadoop/mapred-site.xml && \
+cp /home/user/workspace/tools/workload_in_containers/configs/yarn-site.xml $HADOOP_HOME/etc/hadoop/yarn-site.xml && \
+cp /home/user/workspace/tools/workload_in_containers/configs/workers $HADOOP_HOME/etc/hadoop/workers
 
 
 sed -i 's@hadoop-leader@'"$master_ip"'@'  $HADOOP_HOME/etc/hadoop/core-site.xml && \

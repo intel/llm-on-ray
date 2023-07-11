@@ -10,7 +10,8 @@ class Workflow :
         self.run_hdfs = workflow_config['general']["run_hdfs"]
         self.run_training_job = workflow_config['general']['run_training_job']
         self.model_dir = workflow_config['general']['model_dir']
-        self.tmp_dir = workflow_config['general']['tmp_dir']
+        self.tmp_dir = workflow_config['general']['nfs_dir']
+        self.local_dir = workflow_config['general']['local_dir']
         self.workspace_dir = workflow_config['general']['workspace_dir']
         self.image_name = workflow_config['general']['image_name']
         self.cluster_config = workflow_config['nodes'] 
@@ -51,6 +52,7 @@ class Workflow :
                         -w {self.workspace_dir} \
                         -m {self.model_dir} \
                         -t {self.tmp_dir} \
+                        -l {self.local_dir} \
                         -i {self.image_name}')
                 if ret == 0 :
                     print("Successfully startup the ray head!")
@@ -68,6 +70,7 @@ class Workflow :
                         -w {self.workspace_dir} \
                         -m {self.model_dir} \
                         -t {self.tmp_dir} \
+                        -l {self.local_dir} \
                         -u {node["user"]} \
                         -p {node["password"]} \
                         -i {self.image_name} \
@@ -81,7 +84,7 @@ class Workflow :
                 
     def startup_hdfs(self):
 
-        ret = os.system(f'docker exec ray-leader bash run-hdfs.sh -m {self.head_ip} -w {self.worker_ips}')
+        ret = os.system(f'docker exec ray-leader bash tools/workload_in_containers/run-hdfs.sh -m {self.head_ip} -w {self.worker_ips}')
             
         if ret == 0:
             print("Successfully startup HDFS!")
@@ -115,6 +118,7 @@ class Workflow :
 
         if self.run_training_job:
             self.run_training()
+        
         
 
 def parse_cmd():

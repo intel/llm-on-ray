@@ -24,12 +24,12 @@
             <!-- NameNode directory for namespace and transaction logs storage -->
             <property>
             <name>dfs.namenode.name.dir</name>
-            <value>/home/user/tmp/hdfs/nn</value>
+            <value>/home/user/local/tmp/hdfs/nn</value>
           </property>
           <!-- DataNode directory -->
            <property>
             <name>dfs.datanode.data.dir</name>
-            <value>/home/user/tmp/hdfs/dn</value>
+            <value>/home/user/local/tmp/hdfs/dn</value>
           </property>
           <!-- NameNode web address -->
             <property>

@@ -4,7 +4,7 @@ OPTIND=1
 WORKSPACE_DIR=/home/user/workspace
 MODEL_DIR=/root/.cache/huggingface/
 TMP_DIR=/home/user/tmp
-
+LOCAL_DIR=/home/user/local
 
 RAM=$(awk '/^Mem/ {print $2}' <(free -mh))
 RAM=${RAM/Gi/}
@@ -32,6 +32,8 @@ usage() {
   echo "         hugging face model directory"
   echo "    -t tmp_dir"
   echo "         temporary directory"
+  echo "    -l local_dir"
+  echo "         non-nfs directoy which is only accessible by each worker"
   echo "    -u user"
   echo "         user name for access worker server"
   echo "    -p password"
@@ -47,7 +49,7 @@ usage() {
   echo ""
 }
 
-while getopts "h?r:a:c:f:w:m:t:u:p:i:s:" opt; do
+while getopts "h?r:a:c:f:w:m:t:l:u:p:i:s:" opt; do
     case "$opt" in
     h|\?)
         usage
@@ -66,6 +68,8 @@ while getopts "h?r:a:c:f:w:m:t:u:p:i:s:" opt; do
     m)  model_dir=$OPTARG
         ;;
     t)  tmp_dir=$OPTARG
+        ;;
+    l)  local_dir=$OPTARG
         ;;
     u)  user=$OPTARG
         ;;
@@ -99,12 +103,13 @@ if [[ $run_type = "startup_head" ]]; then
                 -v ${workspace}:${WORKSPACE_DIR} \
                 -v ${model_dir}:${MODEL_DIR} \
                 -v ${tmp_dir}:${TMP_DIR} \
+                -v ${local_dir}:${LOCAL_DIR} \
                 -w /home/user/workspace \
                 --shm-size ${shm_size} \
                 --cpuset-cpus=${cores_range} \
                 --name ray-leader ${image}
 
-        docker exec ray-leader /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=9999 --ray-debugger-external --temp-dir=/home/user/tmp/ray"
+        docker exec ray-leader /bin/bash -c "ray start --head --node-ip-address=${head_address} --dashboard-port=9999 --ray-debugger-external --temp-dir=/home/user/local/ray"
         
 elif [[ $run_type = "startup_worker" ]]; then
 
@@ -121,6 +126,7 @@ elif [[ $run_type = "startup_worker" ]]; then
                 -v ${workspace}:${WORKSPACE_DIR} \
                 -v ${model_dir}:${MODEL_DIR} \
                 -v ${tmp_dir}:${TMP_DIR} \
+                -v ${local_dir}:${LOCAL_DIR} \
                 --cpuset-cpus=${cores_range} \
                 --network host \
                 -w /home/user/workspace \
@@ -131,7 +137,7 @@ elif [[ $run_type = "startup_worker" ]]; then
 EOF
 
         sshpass -p $password ssh -o StrictHostKeychecking=no $user@$worker_ip bash << EOF
-        docker exec $worker_name /bin/bash -c "ray start --address=${head_address} --ray-debugger-external --temp-dir=/home/user/tmp/ray"
+        docker exec $worker_name /bin/bash -c "ray start --address=${head_address} --ray-debugger-external"
 EOF
 
 elif [[ $run_type = "stop_ray" ]]; then

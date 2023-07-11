@@ -15,7 +15,7 @@ RUN conda update --all
 RUN conda install mkl mkl-include 
 
 RUN pip install --upgrade pip
-RUN pip install astunparse numpy ninja pyyaml setuptools cmake typing_extensions six requests dataclasses datasets evaluate
+RUN pip install astunparse nltk numpy ninja pyyaml setuptools cmake typing_extensions six requests dataclasses datasets evaluate scikit-image dm-tree gymnasium
 
 ENV CMAKE_PREFIX_PATH=/opt/conda
 
@@ -46,7 +46,8 @@ RUN git clone https://github.com/huggingface/transformers && \
     pip install .
 
 # install ray-related libs
-RUN pip install -U "ray[default]" && pip install --pre raydp && pip install "ray[tune]" tabulate tensorboard
+RUN pip install -U "ray[default] @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp310-cp310-manylinux2014_x86_64.whl"
+RUN pip install --pre raydp && pip install "ray[tune]" tabulate tensorboard
 
 # install java
 RUN wget --no-check-certificate -q https://repo.huaweicloud.com/java/jdk/8u201-b09/jdk-8u201-linux-x64.tar.gz && \

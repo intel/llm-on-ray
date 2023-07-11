@@ -1,11 +1,14 @@
 import os
 import math
 import time
+import json
+import shutil
 
 import torch
 import transformers
-
+            
 from ray.air.checkpoint import Checkpoint
+from pathlib import Path
 
 from .. import dataprocesser
 from .trainer import Trainer
@@ -157,18 +160,43 @@ class PreTrainer(Trainer):
             train_dataloader, eval_dataloader,
         )
 
+    def _check_and_mkdir(self, path):
+        path = Path(path) 
+        if not path.exists():
+            path.mkdir(parents=True)
+    
+    def _write_json(self, target_dict, save_path):
+        json_object = json.dumps(target_dict, indent=4)
+        with open(save_path, "w") as outfile:
+            outfile.write(json_object)
+
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         log_step = self.config.get("log_step", 1)
         max_train_step_per_episode = self.config.get("max_train_step_per_episode")
         max_eval_step_per_episode = self.config.get("max_eval_step_per_episode")
+        save_state_path = self.config.get("save_state_path")
+
+        if save_state_path is not None and int(self.rank) == 0:
+            self._check_and_mkdir(save_state_path)
+            training_state = {}
+        else:
+            training_state = None 
+        
         for idx in range(self.starting_episode, len(self.train_dataloader), 1):
             logger.info(f"start train episode {idx}")
+            if training_state is not None and int(self.rank) == 0:
+                training_state[f'episode_{idx}'] = {}
             self.model.train()
             current_train_dataloader = self.train_dataloader[idx]
             start = time.time()
             for step, batch in enumerate(current_train_dataloader):
+                if training_state is not None and int(self.rank) == 0:
+                    training_state[f'episode_{idx}'][f'step_{step}'] = {}
+                    training_state[f'episode_{idx}'][f'step_{step}']['data'] = batch['input_ids'][0].tolist()[:50]
+                    training_state[f'episode_{idx}'][f'step_{step}']['learning_rate'] = self.lr_scheduler.state_dict()['_last_lr']
+                        
                 with self.accelerator.accumulate(self.model):
                     outputs = self.model(**batch)
                     loss = outputs.loss
@@ -182,6 +210,12 @@ class PreTrainer(Trainer):
                     if step % log_step == 0:
                         logger.info(f"train episode:[{idx}/{len(self.train_dataloader)}]\tstep:[{step}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
                         start = time.time()
+                if training_state is not None and int(self.rank) == 0:
+                    training_state[f'episode_{idx}'][f'step_{step}']['loss'] = loss.item()
+                    training_state[f'episode_{idx}'][f'step_{step}']['ppl'] = math.exp(loss) 
+                    file_name = "stepwise_training_state_recovery" if self.starting_episode > 0 else "stepwise_training_state"
+                    self._write_json(training_state, f"{save_state_path}/{file_name}.json")
+                
                 if max_train_step_per_episode is not None:
                     if step >= max_train_step_per_episode:
                         break

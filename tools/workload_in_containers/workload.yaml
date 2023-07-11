@@ -1,0 +1,36 @@
+general:
+  run_ray_cluster: True
+  run_hdfs: False
+  run_training_job: False
+  model_dir: /home/user/.cache/huggingface # all folders are NFS-shared across nodes 
+  nfs_dir: /home/user/tmp
+  local_dir: /localdisk/user
+  workspace_dir: /home/user/workspace/llm-ray
+  image_name: llm-ray:latest
+
+nodes:
+  - node: 10.165.9.53
+    type: head
+    cores: 0-95
+
+  - node: 10.165.9.52
+    type: worker
+    cores: 0-95
+    user: $user
+    password: $paassword
+  
+  - node: 10.165.9.164
+    type: worker
+    cores: 0-95
+    user: $user
+    password: $paassword
+  
+  - node: 10.165.9.23
+    type: worker
+    cores: 0-95
+    user: $user
+    password: $paassword
+    
+training_spec:
+  task_name: clm  
+  config_path: ../../Finetune/llm_pretrain_template.conf
