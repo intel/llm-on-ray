@@ -59,10 +59,6 @@ nltk.data.load("tokenizers/punkt/english.pickle")
 ## Common_Crawl
 Please note that the current `togethercomputer/RedPajama-Data-1T` data loading script is not compatible with HuggingFace streaming mode implementation for common_crawl datset. For common_crawl, you have to first download the dataset to local disk and  preprocess the data in local mode.
 
-## Disk Space
-For the full dataset mode, we need to have both 
-
-
 
 # Troubleshooting
 ## Connection Error
