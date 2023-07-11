@@ -17,19 +17,19 @@ nodes:
     type: worker
     cores: 0-95
     user: $user
-    password: $paassword
+    password: $password
   
   - node: 10.165.9.164
     type: worker
     cores: 0-95
     user: $user
-    password: $paassword
+    password: $password
   
   - node: 10.165.9.23
     type: worker
     cores: 0-95
     user: $user
-    password: $paassword
+    password: $password
     
 training_spec:
   task_name: clm  
