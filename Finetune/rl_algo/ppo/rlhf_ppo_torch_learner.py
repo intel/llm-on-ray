@@ -32,12 +32,10 @@ logger = logging.getLogger(__name__)
 class RLHFPPOTorchLearner(PPOTorchLearner):
 
     @override(PPOTorchLearner)
-    def compute_loss_for_module(
+    def compute_loss_per_module(
         self, 
-        *, 
         module_id: str, 
-        hps: PPOLearnerHyperparameters, 
-        batch: NestedDict, 
+        batch: SampleBatch, 
         fwd_out: Mapping[str, TensorType]
     ) -> TensorType:
         """Extention of PPO loss function to support RLHF.
@@ -62,10 +60,9 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         logp_ratio = masked_mean(logp_ratio_unmasked, attention_mask, dim=-1)
 
         # Only calculate kl loss if necessary (kl-coeff > 0.0).
-        # if self.hps.kl_coeff > 0.0:
-        if hps.use_kl_loss:
+        if self.hps.kl_coeff > 0.0:
             action_kl = prev_action_dist.kl(curr_action_dist)
-            mean_kl_loss = masked_mean(action_kl, attention_mask, dim=-1).mean()
+            mean_kl_loss = torch.mean(action_kl)
             if mean_kl_loss.isinf():
                 logger.warning(
                     "KL divergence is non-finite, this will likely destabilize "
@@ -74,8 +71,8 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
                     "This can happen naturally in deterministic "
                     "environments where the optimal policy has zero mass "
                     "for a specific action. To fix this issue, consider "
-                    "setting the coefficient for the KL loss term to "
-                    "zero or increasing policy entropy."
+                    "setting `kl_coeff` to 0.0 or increasing `entropy_coeff` in your "
+                    "config."
                 )
         else:
             mean_kl_loss = torch.tensor(0.0, device=logp_ratio.device)
@@ -91,7 +88,7 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         )
 
         # Compute a value function loss.
-        if hps.use_critic:
+        if self.hps.use_critic:
             value_fn_out = fwd_out[SampleBatch.VF_PREDS]
             vf_loss = torch.pow(value_fn_out - batch[Postprocessing.VALUE_TARGETS], 2.0)
             vf_loss_clipped = torch.clamp(vf_loss, 0, self.hps.vf_clip_param)
@@ -104,34 +101,30 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
             vf_loss_clipped = mean_vf_loss = torch.tensor(0.0).to(surrogate_loss.device)
 
         total_loss = torch.mean(
-            -surrogate_loss
-            + hps.vf_loss_coeff * vf_loss_clipped
-            - (
-                self.entropy_coeff_schedulers_per_module[module_id].get_current_value()
-                * curr_entropy
-            )
+            surrogate_loss
+            + self.hps.vf_loss_coeff * vf_loss_clipped
+            - self.entropy_coeff_scheduler.get_current_value(module_id) * curr_entropy
         )
+
 
         # Add mean_kl_loss (already processed through `reduce_mean_valid`),
         # if necessary.
-        if hps.use_kl_loss:
-        # if self.hps.kl_coeff > 0.0:
-            # total_loss += self.kl_coeff * mean_kl_loss
+        if self.hps.kl_coeff > 0.0:
             total_loss += self.curr_kl_coeffs_per_module[module_id] * mean_kl_loss
 
-        # Register important loss stats.
-        self.register_metrics(
-            module_id,
-            {
-                POLICY_LOSS_KEY: -torch.mean(surrogate_loss),
-                VF_LOSS_KEY: mean_vf_loss,
-                LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY: mean_vf_unclipped_loss,
-                LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY: explained_variance(
-                    batch[Postprocessing.VALUE_TARGETS], value_fn_out
-                ),
-                ENTROPY_KEY: mean_entropy,
-                LEARNER_RESULTS_KL_KEY: mean_kl_loss,
-            },
-        )
-
-        return total_loss
+        return {
+            self.TOTAL_LOSS_KEY: total_loss,
+            "policy_loss": torch.mean(surrogate_loss),
+            "vf_loss": mean_vf_loss,
+            "unclipped_vf_loss": mean_vf_unclipped_loss,
+            "vf_explained_var": explained_variance(
+                batch[Postprocessing.VALUE_TARGETS], value_fn_out
+            ),
+            "entropy": mean_entropy,
+            "kl": mean_kl_loss,
+            "entropy_coeff": self.entropy_coeff_scheduler.get_current_value(module_id),
+            "cur_kl_coeff": self.curr_kl_coeffs_per_module[module_id],
+            "mean_reward_total": batch[SampleBatch.REWARDS].mean(),
+            "mean_reward_rm": batch[SampleBatch.INFOS]["r_align"].mean(),
+            "mean_reward_kl": batch[SampleBatch.INFOS]["r_kl"].mean(),
+        }

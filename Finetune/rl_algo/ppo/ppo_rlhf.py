@@ -117,7 +117,7 @@ class PPORLHF(PPO):
 
         policies_to_update = {DEFAULT_POLICY_ID}
         kl_dict = {
-            pid: train_results[pid].get("mean_kl_loss")
+            pid: train_results[pid][LEARNER_STATS_KEY].get("kl")
             for pid in policies_to_update
         }
         self.learner_group.additional_update(
@@ -132,7 +132,7 @@ class PPORLHF(PPO):
         # breakpoint()
 
         train_batch = self.sampler.sample(batch_size=1)
-        rewards = train_batch[SampleBatch.INFOS][0]['r_align']
+        rewards = train_batch[SampleBatch.INFOS]['r_align']
         
         self.evaluation_metrics = {"evaluation": 
             {

@@ -1,6 +1,8 @@
 from .trainer import Trainer
 from itertools import chain
+import os
 import torch
+from torch.utils.tensorboard import SummaryWriter   
 import transformers
 import math
 import time
@@ -57,14 +59,17 @@ class RMTrainer(DefaultTrainer):
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         log_step = self.config.get("log_step", 1)
+        if not os.path.exists(self.config.get("log_path", ".")):
+            os.makedirs(self.config.get("log_path", "."), exist_ok=True)
+        writer = SummaryWriter(self.config.get("log_path", "."))
         for idx in range(num_train_epochs):
             logger.info(f"start train epoch {idx}")
             self.model.train()
             start = time.time()
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
-                    batch = dict(zip(batch.keys(), map(lambda x: x.unsqueeze(1), batch.values())))
                     loss = self.compute_loss(batch)
+                    writer.add_scalar('training loss', loss, step)
                     self.accelerator.backward(loss)
                     self.optimizer.step()
                     if self.lr_scheduler is not None:
@@ -92,3 +97,5 @@ class RMTrainer(DefaultTrainer):
                     eval_loss = float("inf")
                     perplexity = float("inf")
                 logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")
+                writer.add_scalar('eval loss', eval_loss, idx)
+                writer.add_scalar('perplexity', perplexity, idx)

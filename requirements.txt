@@ -13,4 +13,6 @@ gradio
 gymnasium
 dm-tree
 scikit-image
+tensorboard
 einops
+

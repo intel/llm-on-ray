@@ -162,11 +162,11 @@ class RLHFEnv(gym.Env, AgentEnv):
 
         reward = r_align - self.kl_coeff * r_kl
 
-        info = [{
+        info = {
             "r_align": r_align, 
             "r_kl": r_kl, 
             "n_response_tokens": n_response_tokens
-        }]
+        }
 
         # Produce a random reward when we reach the goal.
         return self.observation_space.sample(), reward, True, False, info

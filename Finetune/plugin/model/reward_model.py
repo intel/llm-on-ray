@@ -34,7 +34,14 @@ def get_reward_model(model_cls, name):
             super().__init__(config, *args, **kwargs)
 
             # The additional value head.
-            self.value_head = nn.Linear(self.config.n_embd, 1)
+            if hasattr(self.config, 'hidden_size'):
+                self.value_head = nn.Linear(self.config.hidden_size, 1)
+            elif hasattr(self.config, 'n_embd'):
+                self.value_head = nn.Linear(self.config.n_embd, 1)
+            else:
+                raise ValueError("current model does not support")
+            
+            self.post_init()
 
         def forward(
             self,
@@ -65,7 +72,7 @@ def get_reward_model(model_cls, name):
 
             values = self.value_head(last_hidden_state)
             # Remove the last dimension, since there is only a single value per token.
-            value = values.mean(dim=1).squeeze(-1)
+            value = values.squeeze(-1)
 
             return value
 
