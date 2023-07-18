@@ -29,7 +29,7 @@ Due to the large size and long processing time for the full RedPajama dataset, w
 ```python
 python preprocess_full.py -h
 ```
-We recommend users to first download the RedPajama dataset to local disk and preprocess the data per data source. The following command will download the full dataset to your local disk:
+We recommend users to first download the RedPajama dataset to local disk and preprocess the data per data source. It can avoid network problems during the preprocessing. The following command will download the full RedPajama dataset to your local disk:
 ```bash
 wget 'https://data.together.xyz/redpajama-data-1T/v1.0.0/urls.txt'
 while read line; do
@@ -38,16 +38,28 @@ while read line; do
     wget "$line" -O "$dload_loc"
 done < urls.txt
 ```
-Here is an example for starting full dataset preprocessing on the full dataset of source book:
+Suppose you are under the path `/home/user/local`, the above command will create 7 folders with the names `stackexchange`, `book`, `c4`, `common_crawl`, `wikipedia`, `github`, `arxiv` under this path.
+
+Here is an example for starting dataset preprocessing on the full dataset of source stackexchange:
 ```python
 python preprocess_full.py \
-         --input togethercomputer/RedPajama-Data-1T \
-         --data-dir /home/user/local \
-         --cache-dir /home/user/local \
-         --source book \
-         --output-prefix full_megatron \
-         --cpu-per-worker 90
+        --input togethercomputer/RedPajama-Data-1T \
+        --data-dir /home/user/local \
+        --cache-dir /home/user/local/ \
+        --source stackexchange \
+        --load-batch-size 100000 \
+        --output-prefix redpajama_processed \
+        --cpu-per-worker 90 \
+        --local
 ```
+In local mode, batch size means the number of samples in one preprocessing round. It is adjustable based on your hardware. For a cluster machine with 376Gi RAM, 100000 is a good starting value. 
+
+## Validation
+When the data preprocessing gets finished, you will see the total execution time at the end of the command line output. Now, it is your responsibility to gather all data partition files on each worker to the head node. When all the data partition files are under one folder on the head node, you can run the `merge_datasets.py` script to merge multiple megatron `bin` and `idx` files into one `bin` and `idx` files on each worker node. To count the token numbers in the dataset, you can use the `count_tokens.py` script, e.g.
+```python
+python count_tokens.py --file_name <data_file> --output_file <file_to_save_token_numbers>
+```
+Now you can compare the token numbers with the token numbers provided by RedPajama on (this)[https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T] page.
 
 ## NLTK
 If you are using the `split-sentences` flag, please make sure to run the following lines of code on each worker first before getting started with the data preprocessing for better performance. 
@@ -56,9 +68,9 @@ import nltk
 nltk.download('punkt')
 nltk.data.load("tokenizers/punkt/english.pickle")
 ```
-## Common_Crawl
-Please note that the current `togethercomputer/RedPajama-Data-1T` data loading script is not compatible with HuggingFace streaming mode implementation for common_crawl datset. For common_crawl, you have to first download the dataset to local disk and  preprocess the data in local mode.
 
+## Common_Crawl
+Please note that the current `togethercomputer/RedPajama-Data-1T` data loading script is not compatible with HuggingFace streaming mode implementation for common_crawl dataset. For common_crawl, you have to first download the dataset to local disk and  preprocess the data in local mode. 
 
 # Troubleshooting
 ## Connection Error

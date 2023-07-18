@@ -66,7 +66,7 @@ def get_args():
         "--cache-dir",
         type=str,
         default='/root/.cache',
-        help="Hugging Face Cache dir, where the hugging face dataset it stored"
+        help="Hugging Face cache dir, where the hugging face dataset it stored"
     )
     group.add_argument(
         "--source",
@@ -81,10 +81,10 @@ def get_args():
     group.add_argument('--keep-newlines', action='store_true',
                        help='Keep newlines between sentences when splitting.')
     group.add_argument(
-        '--stream', 
+        '--local', 
         default=False, 
         action='store_true', 
-        help="whether to load data from hugging face using streaming mode"
+        help="whether to use local mode to preprocess data"
     )
     group.add_argument(
         "--load-batch-size", type=int, default=1000, help="only needed if you use streaming mode to read data from hugging face"
@@ -212,33 +212,26 @@ def main():
     else:
         fn_name = 'preprocess_megatron'
 
-    if args.stream:
+    if not args.local:
         dataset = load_dataset(args.input, data_source, streaming=True)['train']
-
-        idx = 1
-        for rows in dataset.iter(batch_size=args.load_batch_size):
-            print("-----------------------------")
-            df = pd.DataFrame(rows)
-            ray_dataset = ray.data.from_pandas(df)
-            ray_dataset = ray_dataset.repartition(parallelism)
-
-            tokenized_data = ray_dataset.map_batches(eval(fn_name), batch_format="numpy", batch_size=None)
-            tokenized_data.materialize()
-
-            if idx % 10 == 0:
-                print(f"{idx} * {args.load_batch_size} samples were written to disk.")
-            idx += 1
-            print("============================")
     else:
         os.environ["RED_PAJAMA_DATA_DIR"] = args.data_dir 
-        ds = load_dataset(args.input, args.source, cache_dir=cache_dir)['train']
-        ray_dataset = ray.data.from_huggingface(ds)
-        # create multiple data blocks  
+        dataset = load_dataset(args.input, data_source, cache_dir=cache_dir, streaming=True)['train']
+    
+    idx = 1
+    for rows in dataset.iter(batch_size=args.load_batch_size):
+        print("-----------------------------")
+        df = pd.DataFrame(rows)
+        ray_dataset = ray.data.from_pandas(df)
         ray_dataset = ray_dataset.repartition(parallelism)
 
         tokenized_data = ray_dataset.map_batches(eval(fn_name), batch_format="numpy", batch_size=None)
         tokenized_data.materialize()
 
+        print(f"{idx} * {args.load_batch_size} samples were written to disk.")
+        idx += 1
+        print("============================")
+  
 
 if __name__ == "__main__":
     start = time.time()
