@@ -25,7 +25,7 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
-@ray.remote
+@ray.remote(scheduling_strategy="SPREAD")
 class Dialogue:
     def __init__(self, model_id, trust_remote_code, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
         self.amp_enabled = amp_enabled

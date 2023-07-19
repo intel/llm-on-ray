@@ -112,8 +112,8 @@ mpt = {
 all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
 all_models["gpt-j-6B"] = gpt_j_6B
 all_models["gpt2"] = gpt2
-all_models["bloom"] = bloom
-all_models["opt"] = opt
+all_models["bloom-560m"] = bloom
+all_models["opt-125m"] = opt
 all_models["mpt"] = mpt
 
 base_models["gpt2"] = gpt2
