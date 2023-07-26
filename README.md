@@ -66,13 +66,9 @@ If deploying a ray cluster on multiple nodes, please download the workflow repos
 
 #### 1. Prepare Dataset
 
-Now, the workflow supports two types of datasets. 
+Now, the workflow only supports datasets in the specified format
 
-
-The first is plain text data similar to [wikitext](https://huggingface.co/datasets/wikitext). This type of data is used for finetuning in non-prompt mode and this type of data is characterized by containing `text` field. All the text under the `text` field will be directly used as finetuning data. Since most of the samples in these dataset are of different lengths, we provide switch named `group` to control whether to splice the data into the same length. 
-
-
-The second is instruction fintuning dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `context` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
+The format of dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `context` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
 
 
 The meaning of the above three columns:
@@ -87,7 +83,7 @@ Therefore, if the your data meets the above two formats, you can use the data by
 
 The workflow is designed for configure driven. All argument about the workflow are record to just one configure. So user can launch a task with a simple common command. Once the prerequisits have been met, use the following commands to run the workflow:
 ```bash
-python Finetune/finetune.py --config_path Finetune/finetune.conf 
+python finetune/finetune.py --config_path finetune/finetune.conf 
 ```
 
 #### 3. Expected Output
@@ -154,5 +150,5 @@ Otherwise, the model configured in `Inference/config.py` will be deployed by def
 
 ## Customize
 ### Adopt to your dataset
-If the your data do not meets the above two supported formats, you may need to preprocess the data into the standard format. Here we provide an example dataset (converted dataset from [OpenAssistant/oasst1](https://huggingface.co/datasets/OpenAssistant/oasst1)) as `Finetune/process_data.py`. After running `python process_data.py`, a directory named `data` will output to the `Finetune` directory, just modify the configuration items `train_file` and `validation_file` to the corresponding file in `data` to start your own task.
+If your data do not meets the supported formats, you may need to preprocess the data into the standard format. Here we provide several examples include `example/finetune/open_assistant` and `example/finetune/dolly1`. After running `cd examples/finetune/open_assistant; python process_data.py`, a directory named `data` will output to the `examples/finetune/open_assistant` directory, just modify the configuration items `train_file` and `validation_file` to the corresponding file in `data` to start your own task. So does `example/finetune/dolly1` and other user-defined dataset.
 
