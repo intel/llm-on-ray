@@ -120,7 +120,8 @@ The successful execution of this stage will create the below contents under `out
 ### Inference Workflow
 The inference workflow provides two execution methods, deploying it by UI or terminal execution.
 #### Deploy by UI
-![image](https://github.com/intel-sandbox/llm-ray/assets/97155466/f4ce763b-9f95-4f15-ae69-a69c514e9c88)
+![image](https://github.com/intel-sandbox/llm-ray/assets/97155466/c676e2f1-9e17-4bea-815d-8f7e21d68582)
+
 
 This method will launch a UI interface and deploy an online inference service.
 - (Optional) If customed models need to be added, please update `inference/config.py`.
