@@ -123,8 +123,7 @@ The inference workflow provides two execution methods, deploying it by UI or ter
 ![image](https://github.com/intel-sandbox/llm-ray/assets/97155466/f4ce763b-9f95-4f15-ae69-a69c514e9c88)
 
 This method will launch a UI interface and deploy an online inference service.
-- Update `Inference/conf_file/llm_finetune_template.conf`, mainly including parameters `torch_thread_num` and `ray_config`, Parameters is the same as introduced in [Finetune](#Finetune).
-- (Optional) If a customed model needs to be added, please update `Inference/config.py`.
+- (Optional) If customed models need to be added, please update `inference/config.py`.
 ```bash
 python start_ui.py
 # Running on local URL:  http://0.0.0.0:8080
@@ -144,8 +143,7 @@ python run_model_serve.py --model $model --tokenizer $tokenizer
 
 python run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
 ```
-Otherwise, the model configured in `Inference/config.py` will be deployed by default, You can add customed models in it as needed. 
-
+Otherwise, the model configured in `inference/config.py` will be deployed by default, You can add customed models in it as needed. 
 
 
 ## Customize

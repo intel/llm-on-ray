@@ -140,16 +140,6 @@ class PredictDeployment:
         return StreamingResponse(outputs, status_code=200, media_type="text/plain")
 
 if __name__ == "__main__":
-    runtime_env = {
-        "env_vars": {
-            "KMP_BLOCKTIME": "1",
-            "KMP_SETTINGS": "1",
-            "KMP_AFFINITY": "granularity=fine,compact,1,0",
-            "OMP_NUM_THREADS": "56",
-            "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
-        }
-    }
-    ray.init(address="auto", runtime_env=runtime_env)
 
     # args
     import argparse
@@ -157,13 +147,24 @@ if __name__ == "__main__":
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+    parser.add_argument("--cpus_per_worker", default="24", type=str, help="cpus per worker")
 
     args = parser.parse_args()
 
+    
+    runtime_env = {
+        "env_vars": {
+            "KMP_BLOCKTIME": "1",
+            "KMP_SETTINGS": "1",
+            "KMP_AFFINITY": "granularity=fine,compact,1,0",
+            "OMP_NUM_THREADS": args.cpus_per_worker ,
+            "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
+        }
+    }
+    ray.init(address="auto", runtime_env=runtime_env)
+
     amp_enabled = True if args.precision != "fp32" else False
     amp_dtype = torch.bfloat16 if args.precision != "fp32" else torch.float32
-
-    stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
 
     if args.model is None:
         model_list = all_models
@@ -174,13 +175,20 @@ if __name__ == "__main__":
                 "tokenizer_name_or_path": args.tokenizer,
                 "port": "8000",
                 "name": "custom-model",
-                "route_prefix": "/custom-model"
+                "route_prefix": "/custom-model",
+                "chat_model": "ChatModelGptJ",
+                "prompt": {
+                    "intro": "",
+                    "human_id": "",
+                    "bot_id": "",
+                    "stop_words": []
+                }
             }
         }
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
         trust_remote_code = model_config.get("trust_remote_code")
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=stop_words)
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=model_config["prompt"]["stop_words"])
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
     input("Service is deployed successfully")

@@ -5,9 +5,25 @@ import argparse
 parser = argparse.ArgumentParser("Model Inference Script", add_help=False)
 parser.add_argument("--model_endpoint", default="http://127.0.0.1:8000", type=str, help="deployed model endpoint")
 parser.add_argument("--streaming_response", default=False, action="store_true", help="whether to enable streaming response")
+parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")
+parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
+parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation")
+parser.add_argument("--top_k", default=None, help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
+
 args = parser.parse_args()
 prompt = "Once upon a time,"
-sample_input = {"text": prompt, "stream": args.streaming_response}
+config = {}
+if args.max_new_tokens:
+    config["max_new_tokens"] = int(args.max_new_tokens)
+if args.temperature:
+    config["temperature"] = float(args.temperature)
+if args.top_p:
+    config["top_p"] = float(args.top_p)
+if args.top_k:
+    config["top_k"] = float(args.top_k)
+
+sample_input = {"text": prompt, "config": config, "stream": args.streaming_response}
+
 total_time = 0.0
 num_iter = 10
 num_warmup = 3

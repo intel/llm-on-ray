@@ -32,8 +32,8 @@ gpt_j_finetuned_52K = {
 }
 
 gpt_j_6B = {
-    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt-j-6B",
-    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt-j-6B",
+    "model_id_or_path": "EleutherAI/gpt-j-6b",
+    "tokenizer_name_or_path": "EleutherAI/gpt-j-6b",
     "port": "8000",
     "name": "gpt-j-6B",
     "route_prefix": "/gpt-j-6B",
@@ -47,8 +47,8 @@ gpt_j_6B = {
 }
 
 gpt2 = {
-    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt2",
-    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt2",
+    "model_id_or_path": "gpt2",
+    "tokenizer_name_or_path": "gpt2",
     "port": "8000",
     "name": "gpt2",
     "route_prefix": "/gpt2",
@@ -63,8 +63,8 @@ gpt2 = {
 
 
 bloom = {
-    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/bloom-560m",
-    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/bloom-560m",
+    "model_id_or_path": "bigscience/bloom-560m",
+    "tokenizer_name_or_path": "bigscience/bloom-560m",
     "port": "8000",
     "name": "bloom",
     "route_prefix": "/bloom",
@@ -78,8 +78,8 @@ bloom = {
 }
 
 opt = {
-    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/opt-125m",
-    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/opt-125m",
+    "model_id_or_path": "facebook/opt-125m",
+    "tokenizer_name_or_path": "facebook/opt-125m",
     "port": "8000",
     "name": "opt",
     "route_prefix": "/opt",
@@ -93,8 +93,8 @@ opt = {
 }
 
 mpt = {
-    "model_id_or_path": "/mnt/DP_disk3/ykp/huggingface/mpt-7b-chat/",
-    "tokenizer_name_or_path": "/mnt/DP_disk3/ykp/huggingface/gpt-neox-20b/",
+    "model_id_or_path": "mosaicml/mpt-7b",
+    "tokenizer_name_or_path": "EleutherAI/gpt-neox-20b",
     "port": "8000",
     "name": "mpt",
     "route_prefix": "/mpt",
@@ -109,7 +109,7 @@ mpt = {
 }
 
 
-all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
+# all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
 all_models["gpt-j-6B"] = gpt_j_6B
 all_models["gpt2"] = gpt2
 all_models["bloom-560m"] = bloom

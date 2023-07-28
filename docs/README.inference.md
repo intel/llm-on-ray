@@ -1,7 +1,7 @@
 
 ## Inference
 ### Parameter Setting
-Update `Inference/conf_file/llm_finetune_template.conf` and `Inference/config.py` as needed.
+If customed models need to be added, please update `inference/config.py` as needed.
 ### Method 1: Deploy Finetune and Inference through UI
 ```bash
 python start_ui.py
@@ -20,4 +20,4 @@ python run_model_serve.py --model $model --tokenizer $tokenizer
 
 python run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
 ```
-Or you can deploy models configured in `Inference/config.py` without passing parameters.
+Or you can deploy models configured in `inference/config.py` without passing parameters.
