@@ -137,6 +137,7 @@ Ray serve is used to deploy models. First the model is exposed over HTTP by usin
 A specific model can be deployed by specifying the model path and tokenizer path.
 
 ```bash
+# If you dont' want to view serve logs, you can set env var, "KEEP_SERVE_TERMINAL" to false
 python run_model_serve.py --model $model --tokenizer $tokenizer
 
 # INFO - Deployment 'custom-model_PredictDeployment' is ready at `http://127.0.0.1:8000/custom-model`. component=serve deployment=custom-model_PredictDeployment
@@ -144,7 +145,7 @@ python run_model_serve.py --model $model --tokenizer $tokenizer
 
 python run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
 ```
-Otherwise, the model configured in `inference/config.py` will be deployed by default, You can add customed models in it as needed. 
+Otherwise, all the models configured in `inference/config.py` will be deployed by default. If you want to choose a specific model to deploy, you can set env var, "MODEL_TO_SERVE", to your choice.  You can add customized models in it as needed. 
 
 
 ## Customize

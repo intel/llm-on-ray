@@ -1,3 +1,4 @@
+import os
 import ray
 from ray import serve
 from starlette.requests import Request
@@ -191,4 +192,11 @@ if __name__ == "__main__":
         trust_remote_code = model_config.get("trust_remote_code")
         deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=model_config["prompt"]["stop_words"])
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
-    input("Service is deployed successfully")
+
+    msg = "Service is deployed successfully"
+    env_name = "KEEP_SERVE_TERMINAL"
+    if env_name not in os.environ or os.environ[env_name].lower() in ['true', '1', 't', 'y', 'yes', 'yeah', 'yup']:
+        input(msg)
+    else:
+        print(msg)
+

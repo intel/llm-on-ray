@@ -9,6 +9,7 @@ parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers 
 parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
 parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation")
 parser.add_argument("--top_k", default=None, help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
+parser.add_argument("--num_iter", default=10, type=int, help="The Number of inference iterations")
 
 args = parser.parse_args()
 prompt = "Once upon a time,"
@@ -25,7 +26,7 @@ if args.top_k:
 sample_input = {"text": prompt, "config": config, "stream": args.streaming_response}
 
 total_time = 0.0
-num_iter = 10
+num_iter = args.num_iter
 num_warmup = 3
 for i in range(num_iter):
     print("iter: ", i)
