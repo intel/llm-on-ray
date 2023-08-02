@@ -6,6 +6,7 @@ import torch
 import transformers
 
 from ray.air.checkpoint import Checkpoint
+from ray.air import session
 
 from .. import dataprocesser
 from .trainer import Trainer
@@ -133,9 +134,10 @@ class DefaultTrainer(Trainer):
                     self.optimizer.zero_grad()
                     if step % log_step == 0:
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        session.report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, len(self.train_dataloader))})
                         start = time.time()
                 if max_train_step is not None:
-                    if step >= max_train_step:
+                    if step >= max_train_step - 1:
                         break
 
             if self.eval_dataloader:

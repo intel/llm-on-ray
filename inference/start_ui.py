@@ -13,9 +13,12 @@ import argparse
 from ray.air import session
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
+from ray.tune.logger import LoggerCallback
 from multiprocessing import Process, Queue
+from ray.util import queue
 import paramiko
 from html_format import cpu_memory_html, ray_status_html, custom_css
+from typing import Any, Dict
 
 class CustomStopper(Stopper):
     def __init__(self):
@@ -30,7 +33,40 @@ class CustomStopper(Stopper):
 
     def stop(self, flag):
         self.should_stop = flag
-    
+
+
+@ray.remote
+class Progress_Actor():
+    def __init__(self, config) -> None:
+        self.config = config
+
+    def track_progress(self):
+        if "epoch_value" not in self.config:
+            return -1,-1,-1,-1
+        if not self.config["epoch_value"].empty():
+            total_epochs = self.config["total_epochs"].get(block=False)
+            total_steps = self.config["total_steps"].get(block=False)
+            value_epoch = self.config["epoch_value"].get(block=False)
+            value_step = self.config["step_value"].get(block=False)
+            return total_epochs, total_steps, value_epoch, value_step
+        return -1, -1, -1, -1
+
+
+class LoggingCallback(LoggerCallback):
+    def __init__(self, config) -> None:
+        self.config = config
+        self.results = []
+
+    def log_trial_result(self, iteration: int, trial: "Trial", result: Dict):
+        if "train_epoch" in trial.last_result:
+            self.config["epoch_value"].put(trial.last_result["train_epoch"] + 1, block=False)
+            self.config["total_epochs"].put(trial.last_result["total_epochs"], block=False)
+            self.config["step_value"].put(trial.last_result["train_step"] + 1, block=False)
+            self.config["total_steps"].put(trial.last_result["total_steps"], block=False)
+
+    def get_result(self):
+        return self.results
+
 
 class ChatBotUI():
     def __init__(
@@ -66,6 +102,8 @@ class ChatBotUI():
         self.bot_queue = list(range(self.test_replica))
         self.messages = ["What is AI?", "What is Spark?", "What is Ray?", "What is chatbot?"]
         self.process_tool = None
+        self.finetune_actor = None
+        self.finetune_status = False
 
         self._init_ui()
 
@@ -210,15 +248,28 @@ class ChatBotUI():
 
         if not hasattr(globals().get("main"), '__call__'):
             from finetune.finetune import main
+
+        self.config["total_epochs"] = queue.Queue()
+        self.config["total_steps"] = queue.Queue()
+        self.config["epoch_value"] = queue.Queue()
+        self.config["step_value"] = queue.Queue()
+        self.finetune_actor = Progress_Actor.remote(self.config)
+        
+        callback = LoggingCallback(self.config)
+        self.config["run_config"] = {}
+        self.config["run_config"]["callbacks"] = [callback]
         self.stopper.stop(False)
-        self.config["stop"] = self.stopper
+        self.config["run_config"]["stop"] = self.stopper
+        self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
-            main(self.config)
+            results = main(self.config)
+            if results.metrics["done"]:
+                self.finetune_status = True
         except TrainingFailedError as e:
             print("An error occurred, possibly due to failed recovery")
             print(e)
-        
+
         model_config = {
             "model_id_or_path": finetuned_model_path,
             "tokenizer_name_or_path": tokenizer_path,
@@ -234,7 +285,20 @@ class ChatBotUI():
             }
         }
         self._all_models[new_model_name] = model_config
-        return gr.Dropdown.update(choices=list(self._all_models.keys())), "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
+        return gr.Dropdown.update(choices=list(self._all_models.keys()))
+
+    def finetune_progress(self, progress=gr.Progress()):
+        while True:
+            time.sleep(1)
+            if self.finetune_actor is None:
+                continue
+            if self.finetune_status == True:
+                break
+            total_epochs, total_steps, value_epoch, value_step = ray.get(self.finetune_actor.track_progress.remote())
+            if value_epoch == -1:
+                continue
+            progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
+        return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
     def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker: int):
         self.shutdown_deploy()
@@ -521,8 +585,9 @@ class ChatBotUI():
             for i in range(len(stop_btn)):
                 stop_btn[i].click(self.kill_node, [node_index[i]], None)
 
-            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker], [all_model_dropdown, finetune_status])
-            stop_finetune_btn.click(fn=self.shutdown_finetune, inputs=None, outputs=None, cancels=[finetune_event])
+            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker], [all_model_dropdown])
+            finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_status])
+            stop_finetune_btn.click(fn=self.shutdown_finetune, inputs=None, outputs=None, cancels=[finetune_event, finetune_progress_event])
             deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker], [deployed_model_endpoint])
             stop_deploy_btn.click(fn=self.shutdown_deploy, inputs=None, outputs=None, cancels=[deploy_event])
 

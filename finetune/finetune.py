@@ -122,10 +122,11 @@ def main(external_config = None):
 
     failure_config = FailureConfig()
 
-    if config.get("stop", None) is None:
+    if config.get("run_config", None) is None:
         run_config = RunConfig(failure_config=failure_config)
     else:
-        run_config = RunConfig(failure_config=failure_config, stop=config["stop"])
+        customer_run_config = config.get("run_config")
+        run_config = RunConfig(**customer_run_config)
 
     trainer = TorchTrainer(
         train_func,
@@ -135,6 +136,7 @@ def main(external_config = None):
         run_config = run_config
     )
     results = trainer.fit()
+    return results
 
 if __name__ == "__main__":
     main()
