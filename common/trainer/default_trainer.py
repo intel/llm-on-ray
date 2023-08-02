@@ -123,6 +123,7 @@ class DefaultTrainer(Trainer):
             logger.info(f"start train epoch {idx}")
             self.model.train()
             start = time.time()
+            total_steps = len(self.train_dataloader)
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     outputs = self.model(**batch)
@@ -133,8 +134,8 @@ class DefaultTrainer(Trainer):
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
                     if step % log_step == 0:
-                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
-                        session.report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, len(self.train_dataloader))})
+                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        session.report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, total_steps) if max_train_step else total_steps})
                         start = time.time()
                 if max_train_step is not None:
                     if step >= max_train_step - 1:
