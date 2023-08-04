@@ -26,8 +26,7 @@ jobs:
       - name: Run Inference Test
         run: |
           docker exec "inference" bash -c "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
-          docker exec -d "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
-          sleep 10
+          docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
           docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
 
       - name: Stop Container

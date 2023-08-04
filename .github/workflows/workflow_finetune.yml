@@ -1,0 +1,50 @@
+name: Finetune
+
+on:
+  workflow_call:
+
+jobs:
+  inference:
+    name: finetune test
+    strategy:
+      matrix:
+        model: [ EleutherAI/gpt-j-6b, gpt2, bigscience/bloom-560m, facebook/opt-125m ]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build Docker Image
+        run: docker build ./ --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t finetune:latest && yes | docker container prune && yes | docker image prune
+
+      - name: Start Docker Container
+        run: |
+          cid=$(docker ps -q --filter "name=finetune")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          docker run -tid -v /mnt/DP_disk1/huggingface/cache/:/root/.cache/huggingface/hub -v .:/root/llm-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER_RUN }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER_RUN }} --name="finetune" --hostname="finetune-container" finetune:latest
+
+      - name: Run Finetune Test
+        run: |
+          docker exec "finetune" bash -c "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
+          CMD=$(cat << EOF
+          conf_path = "finetune/finetune.conf"
+          with open(conf_path, encoding="utf-8") as reader:
+              result = eval(reader.read())
+              result['General']['base_model'] = "${{ matrix.model }}"
+              result['Training']['epochs'] = 1
+              result['Training']['num_training_workers'] = 1
+          with open(conf_path, 'w') as output:
+              print(result, file=output)
+          EOF
+          )
+          docker exec "finetune" python -c "$CMD"
+          docker exec "finetune" bash -c "python finetune/finetune.py --config_path finetune/finetune.conf"
+
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          cid=$(docker ps -q --filter "name=finetune")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+
+      - name: Test Summary
+        run: echo "to be continued"
