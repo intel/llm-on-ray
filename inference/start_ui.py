@@ -229,8 +229,6 @@ class ChatBotUI():
             self.config["Training"]["num_training_workers"] = int(worker_num)
             self.config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
 
-            path = self.repo_code_path
-            ray.worker.global_worker.run_function_on_all_workers(lambda worker_info: sys.path.append(path))
             ray.init(**new_ray_init_config)
             exist_worker = worker_num
             exist_cpus_per_worker = cpus_per_worker
@@ -500,7 +498,7 @@ class ChatBotUI():
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
                         with gr.Row():
-                            node_pic = r"./ui_images/Picture2.png"
+                            node_pic = r"./inference/ui_images/Picture2.png"
                             gr.Image(type="pil", value=node_pic, show_label=False, min_width=45, height=45, width=45, elem_id="notshowimg", container=False)
                         with gr.Row():
                             gr.HTML("<h4 style='text-align: center; margin-bottom: 1rem'> Ray Cluster </h4>")
@@ -539,7 +537,7 @@ class ChatBotUI():
 
                         with gr.Column(scale=0.065, min_width=45):
                             with gr.Row():
-                                node_pic = r"./ui_images/Picture1.png"
+                                node_pic = r"./inference/ui_images/Picture1.png"
                                 gr.Image(type="pil", value=node_pic, show_label=False, min_width=45, height=45, width=45, elem_id="notshowimg", container=False)
                             with gr.Row():
                                 if node_ip == self.head_node_ip:
@@ -610,7 +608,6 @@ if __name__ == "__main__":
     default_data_path = os.path.abspath(infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl")
 
     sys.path.append(repo_path)
-    ray.worker.global_worker.run_function_on_all_workers(lambda worker_info: sys.path.append(repo_path))
 
     config = {
         "General": {},

@@ -126,7 +126,7 @@ The inference workflow provides two execution methods, deploying it by UI or ter
 This method will launch a UI interface and deploy an online inference service.
 - (Optional) If customed models need to be added, please update `inference/config.py`.
 ```bash
-python start_ui.py
+python inference/start_ui.py
 # Running on local URL:  http://0.0.0.0:8080
 # Running on public URL: https://180cd5f7c31a1cfd3c.gradio.live
 ```
@@ -138,12 +138,12 @@ A specific model can be deployed by specifying the model path and tokenizer path
 
 ```bash
 # If you dont' want to view serve logs, you can set env var, "KEEP_SERVE_TERMINAL" to false
-python run_model_serve.py --model $model --tokenizer $tokenizer
+python inference/run_model_serve.py --model $model --tokenizer $tokenizer
 
 # INFO - Deployment 'custom-model_PredictDeployment' is ready at `http://127.0.0.1:8000/custom-model`. component=serve deployment=custom-model_PredictDeployment
 # Service is deployed successfully
 
-python run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
+python inference/run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
 ```
 Otherwise, all the models configured in `inference/config.py` will be deployed by default. If you want to choose a specific model to deploy, you can set env var, "MODEL_TO_SERVE", to your choice.  You can add customized models in it as needed. 
 
