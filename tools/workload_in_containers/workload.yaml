@@ -1,11 +1,10 @@
 general:
   run_ray_cluster: True
-  run_hdfs: False
-  run_training_job: False
-  model_dir: /home/fanlilin/.cache/huggingface # all folders are NFS-shared across nodes 
-  nfs_dir: /home/fanlilin/tmp
-  local_dir: /localdisk/fanli
-  workspace_dir: /home/fanlilin/workspace/llm-ray
+  run_data_processing: False
+  shared_dir: /home/user/tmp # directory that can be accessed by all worker nodes, e.g. a NFS-folder
+  local_dir: /localdisk/user # directory that is owned by each individual work node
+  hf_dir: /home/user/.cache/huggingface # hugging face cache directory, ideally shared by all worker nodes
+  workspace_dir: /home/user/workspace/llm-ray # project code directory, ideally shared by all worker nodes  
   image_name: llm-ray:latest
 
 nodes:
@@ -16,21 +15,9 @@ nodes:
   - node: 10.165.9.52
     type: worker
     cores: 0-95
-    user: fanlilin
-    password: Intel123
-  
-  # - node: 10.165.9.164
-  #   type: worker
-  #   cores: 0-95
-  #   user: fanlilin
-  #   password: Intel123
-  
-  # - node: 10.165.9.23
-  #   type: worker
-  #   cores: 0-95
-  #   user: fanlilin
-  #   password: Intel123
-    
-training_spec:
-  task_name: clm  
-  config_path: ../../Finetune/llm_pretrain_template.conf
+    user: $user
+    password: $password
+
+data_processing_spec:
+  pipeline_name: 
+  config_path:

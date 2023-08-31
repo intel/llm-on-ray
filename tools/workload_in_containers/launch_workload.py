@@ -7,15 +7,14 @@ class Workflow :
         self.cfg = cfg
         workflow_config = self.read_from_yaml(cfg.workflow_yaml)
         self.run_ray_cluster = workflow_config['general']['run_ray_cluster']
-        self.run_hdfs = workflow_config['general']["run_hdfs"]
-        self.run_training_job = workflow_config['general']['run_training_job']
-        self.model_dir = workflow_config['general']['model_dir']
-        self.tmp_dir = workflow_config['general']['nfs_dir']
+        self.run_data_processing = workflow_config['general']['run_data_processing']
+        self.hf_dir = workflow_config['general']['hf_dir']
+        self.shared_dir = workflow_config['general']['shared_dir']
         self.local_dir = workflow_config['general']['local_dir']
         self.workspace_dir = workflow_config['general']['workspace_dir']
         self.image_name = workflow_config['general']['image_name']
         self.cluster_config = workflow_config['nodes'] 
-        self.training_spec = workflow_config['training_spec']
+        self.data_processing_spec = workflow_config['data_processing_spec']
         self.head_ip = self.get_head_node()['node']
         self.num_nodes = self.get_worker_nodes()[0]+1
         self.worker_ips = self.get_worker_nodes()[1]
@@ -50,8 +49,8 @@ class Workflow :
                 ret = os.system(f'./run-ray-cluster.sh -r startup_head -a {node["node"]} \
                         -c {node["cores"]} \
                         -w {self.workspace_dir} \
-                        -m {self.model_dir} \
-                        -t {self.tmp_dir} \
+                        -m {self.hf_dir} \
+                        -t {self.shared_dir} \
                         -l {self.local_dir} \
                         -i {self.image_name}')
                 if ret == 0 :
@@ -68,8 +67,8 @@ class Workflow :
                 ret = os.system(f'./run-ray-cluster.sh -r startup_worker -a {head_node["node"]} \
                         -c {node["cores"]} \
                         -w {self.workspace_dir} \
-                        -m {self.model_dir} \
-                        -t {self.tmp_dir} \
+                        -m {self.hf_dir} \
+                        -t {self.shared_dir} \
                         -l {self.local_dir} \
                         -u {node["user"]} \
                         -p {node["password"]} \
@@ -82,45 +81,19 @@ class Workflow :
                     return False
         return True
                 
-    def startup_hdfs(self):
 
-        ret = os.system(f'docker exec ray-leader bash tools/workload_in_containers/run-hdfs.sh -m {self.head_ip} -w {self.worker_ips}')
-            
-        if ret == 0:
-            print("Successfully startup HDFS!")
-        else:
-            print("Startup HDFS failed!")
-            return False
+    def run_dp(self):
+        pass 
 
-        return True
-    
-    def run_training(self):
-        
-        if self.training_spec['task_name'] == 'clm':
-            config_path = self.training_spec["config_path"]
-
-            ret = os.system(f'docker exec ray-leader python -u Finetune/main.py --config_path {config_path}')
-
-            if ret == 0:
-                print("Training Job finished!")
-            else:
-                print("Training Job failed! Please check the log for debugging.")
-
-        else:
-            raise ValueError("only clm training taks is supported.")
 
     def process(self):
         if self.run_ray_cluster:
             self.startup_ray_cluster()
-        
-        if self.run_hdfs:
-            self.startup_hdfs()
 
-        if self.run_training_job:
-            self.run_training()
+        if self.run_data_processing:
+            self.run_dp()
         
         
-
 def parse_cmd():
     args = argparse.ArgumentParser(description='parse arguments', epilog=' ', formatter_class=argparse.RawTextHelpFormatter)
     args.add_argument('-w', required=True, type=str, dest='workflow_yaml', help='workflow config file')

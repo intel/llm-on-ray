@@ -3,7 +3,7 @@
 OPTIND=1
 WORKSPACE_DIR=/home/user/workspace
 MODEL_DIR=/root/.cache/huggingface/
-TMP_DIR=/home/user/tmp
+TMP_DIR=/home/user/shared
 LOCAL_DIR=/home/user/local
 
 RAM=$(awk '/^Mem/ {print $2}' <(free -mh))
