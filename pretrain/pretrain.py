@@ -25,36 +25,80 @@ def train_func(config: Dict[str, Any]):
     from common.common import import_all_module
     import_all_module(f"{os.path.dirname(os.path.realpath(__file__))}/plugin","plugin")
     common.init(config)
-    try :
-        accelerator_config = config.get("accelerator")
-        common.logger.info(f"accelerator_config: {accelerator_config}")
-        accelerator = accelerate.Accelerator(**accelerator_config)
-    except Exception as e:
-        common.logger.critical(e, exc_info=True)
-        exit(1)
-    common.logger.info(f"accelerator generate finish")
+    
+    initializer_config = config.get("initializer")
+    if initializer_config:
+        try :
+            initializer = common.get_initializer(initializer_config)
+            initializer.init()
+        except Exception as e:
+            common.logger.critical(e, exc_info=True)
+            exit(1)   
+        common.logger.info(f"Initializer is initialized")
 
-    datasets = common.load_dataset(config.get("datasets"))
-    tokenizer = common.load_tokenizer(config.get("tokenizer"))
-    model = common.load_model(config.get("model"))
-    optimizer = common.load_optimizer(model, config.get("optimizer"))
-    trainer = common.get_trainer(config.get("trainer"))
+    accelerator = None
+    accelerator_config = config.get("accelerator")
+    if accelerator_config != None:
+        try :
+            common.logger.info(f"accelerator_config: {accelerator_config}")
+            accelerator = accelerate.Accelerator(**accelerator_config)
+        except Exception as e:
+            common.logger.critical(e, exc_info=True)
+            exit(1)
+        common.logger.info(f"accelerator generate finish")
+    
+    model = None
+    datasets = None
+    tokenizer = None
+    optimizer = None
+    
+    datasets_config = config.get("datasets")
+    if datasets_config:
+        datasets = common.load_dataset(datasets_config)
+        common.logger.info(f" ")
+    else:
+        common.logger.warn(f"No datasets plugin provided, use the built-in datasets of trainer")
+    
+    tokenizer_config = config.get("tokenizer")
+    if tokenizer_config:
+        tokenizer = common.load_tokenizer(tokenizer_config)
+    else:
+        common.logger.warn(f"No tokenizer plugin provided, use the built-in datasets of trainer")
+    
+    model_config = config.get("model")
+    if model_config:
+        model = common.load_model(model_config)
+    else:
+        common.logger.warn(f"No model plugin provided, use the built-in datasets of trainer")
+    
+    optimizer_config = config.get("optimizer")
+    if optimizer_config:
+        optimizer = common.load_optimizer(model, config.get("optimizer"))
+    else:
+        common.logger.warn(f"No optimizer plugin provided, use the built-in datasets of trainer")
 
-    try :
-        common.logger.info(f"trainer prepare start")
-        trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
-    except Exception as e:
-        common.logger.critical(e, exc_info=True)
-        exit(1)
-    common.logger.info(f"trainer prepare finish")
+    trainer_config = config.get("trainer") 
+    if trainer_config:
+        trainer = common.get_trainer(config.get("trainer"))
 
-    try :
-        common.logger.info(f"train start")
-        trainer.train()
-    except Exception as e:
-        common.logger.critical(e, exc_info=True)
-        exit(1)
-    common.logger.info(f"train finish")
+        try :
+            trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
+        except Exception as e:
+            common.logger.critical(e, exc_info=True)
+            exit(1)
+        common.logger.info(f"trainer prepare finish")
+
+        try :
+            common.logger.info(f"train start")
+            trainer.train()
+            common.logger.info(f"train done")
+        except Exception as e:
+            common.logger.critical(e, exc_info=True)
+            exit(1)
+        common.logger.info(f"train finish")
+    else:
+        common.logger.error(f"Trainer isn't found!")
+
 
 def main(external_config = None):
     config = common.Config()

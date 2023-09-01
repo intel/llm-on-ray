@@ -7,6 +7,7 @@ from . import tokenizer
 from . import model
 from . import optimizer
 from . import trainer
+from . import initializer
 
 def load_check_decorator(func):
     def wrapper(*args, **kwargs):
@@ -91,6 +92,20 @@ def get_trainer(config: Dict[str, Any]):
     Factory = trainer.Trainer.registory.get(trainer_type)
     if Factory is None:
         raise ValueError(f"there is no {trainer_type} trainer.")
+    try:
+        _ = Factory(config)
+    except Exception as e:
+        logger.critical(f"{Factory.__name__} init error: {e}", exc_info=True)
+        exit(1)
+    return _
+
+@load_check_decorator
+def get_initializer(config: Dict[str, Any]):
+    logger.info(f"{sys._getframe().f_code.co_name} config: {config}")
+    initializer_type = config.get("type", None)
+    Factory = initializer.Initializer.registory.get(initializer_type)
+    if Factory is None:
+        raise ValueError(f"there is no {initializer_type} initializer.")
     try:
         _ = Factory(config)
     except Exception as e:

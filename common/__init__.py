@@ -2,7 +2,7 @@ from .config import Config, parse_args, parse_config
 from .logging import get_logger, logger
 from .load import *
 from .init import init
-
+from .common import import_all_module
 from . import agentenv
 
 @load_check_decorator

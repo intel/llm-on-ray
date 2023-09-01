@@ -1,8 +1,10 @@
 #!/bin/bash
-if [[ $1 = "dp" ]]; then
-    dockerfile=Dockerfile-dp
-fi 
-
+dockerfile=Dockerfile
+if [[ $1 = "megatron-gpu" ]]; then
+    dockerfile=Dockerfile.megatron.gpu
+elif [[ $1 = "dp" ]]; then
+    dockerfile=Dockerfile-dp 
+fi
 docker build \
     -f ${dockerfile} . \
     -t llm-ray:$1 \

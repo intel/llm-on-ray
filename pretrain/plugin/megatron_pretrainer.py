@@ -160,7 +160,7 @@ class MegatronPreTrainer(PreTrainer):
             batch["input_ids"] = batch["text"]
             batch["labels"] =  batch["text"]
             del batch["text"]
-            del batch["dummy_sample"]
+            #del batch["dummy_sample"]
             with self.accelerator.accumulate(self.model):
                 outputs = self.model(**batch)
                 loss = outputs.loss

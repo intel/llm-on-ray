@@ -12,7 +12,6 @@ from pathlib import Path
 
 from common import dataprocesser
 from common.trainer import Trainer
-
 from common.logging import logger
 
 class PreTrainer(Trainer):
