@@ -18,6 +18,10 @@ RUN pip install -U ray[default,data]
 RUN pip install astunparse nltk gymnasium pyyaml datasets presidio_analyzer presidio_anonymizer 
 RUN python -m spacy download en_core_web_lg
 
+#install PII detection/redaction related libs for code
+RUN pip install gibberish-detector
+RUN pip install detect-secrets
+
 # enable password-less ssh
 RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -P '' && \
     cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
