@@ -1,0 +1,194 @@
+From 264a9337b19185b40595e9fb34a5015aecf311d4 Mon Sep 17 00:00:00 2001
+From: yuanwu <yuan.wu@intel.com>
+Date: Mon, 4 Sep 2023 09:01:09 +0000
+Subject: [PATCH] Init megatron-deepspeed with Ray cluster
+
+Signed-off-by: yuanwu <yuan.wu@intel.com>
+---
+ .../Megatron-DeepSpeed/megatron/arguments.py  | 31 ++++---
+ .../Megatron-DeepSpeed/megatron/initialize.py | 88 ++++++++++---------
+ 2 files changed, 61 insertions(+), 58 deletions(-)
+
+diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
+index 0bb85226..ad3b1676 100644
+--- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
++++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
+@@ -66,6 +66,18 @@ def parse_args(extra_args_provider=None, defaults={},
+     else:
+         args = parser.parse_args()
+ 
++    # Set input defaults.
++    for key in defaults:
++        # For default to be valid, it should not be provided in the
++        # arguments that are passed to the program. We check this by
++        # ensuring the arg is set to None.
++        print('WARNING: overriding default arguments for {key}:{v} \
++               with {key}:{v2}'.format(key=key, v=defaults[key],
++                                       v2=getattr(args, key)),
++                                       flush=True)
++        setattr(args, key, defaults[key])
++
++
+     # helper argument to set deepspeed pipeline parallel or not
+     args.ds_pipeline_enabled = not args.no_pipeline_parallel
+ 
+@@ -115,20 +127,6 @@ def parse_args(extra_args_provider=None, defaults={},
+         'longer valid, use --tensor-model-parallel-size instead'
+     del args.model_parallel_size
+ 
+-    # Set input defaults.
+-    for key in defaults:
+-        # For default to be valid, it should not be provided in the
+-        # arguments that are passed to the program. We check this by
+-        # ensuring the arg is set to None.
+-        if getattr(args, key) is not None:
+-            if args.rank == 0:
+-                print('WARNING: overriding default arguments for {key}:{v} \
+-                       with {key}:{v2}'.format(key=key, v=defaults[key],
+-                                               v2=getattr(args, key)),
+-                                               flush=True)
+-        else:
+-            setattr(args, key, defaults[key])
+-
+     # Batch size.
+     assert args.micro_batch_size is not None
+     assert args.micro_batch_size > 0
+@@ -237,7 +235,8 @@ def parse_args(extra_args_provider=None, defaults={},
+     else:
+         assert args.encoder_seq_length is not None
+         args.seq_length = args.encoder_seq_length
+-
++    if isinstance(args.position_embedding_type, str):
++        args.position_embedding_type = PositionEmbeddingType[args.position_embedding_type]
+     if args.position_embedding_type == PositionEmbeddingType.absolute \
+             or args.position_embedding_type == PositionEmbeddingType.alibi \
+             or args.position_embedding_type == PositionEmbeddingType.learnable:
+@@ -1101,4 +1100,4 @@ def _add_deterministic_args(parser):
+     group.add_argument("--hpu-deterministic", action='store_true',
+                         help="sets deterministic flag run for hpu")
+ 
+-    return parser
+\ No newline at end of file
++    return parser
+diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
+index 55828072..5d227ba6 100644
+--- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
++++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
+@@ -46,7 +46,6 @@ def initialize_megatron(extra_args_provider=None, args_defaults={},
+     Returns a function to finalize distributed env initialization
+     (optionally, only when args.lazy_mpu_init == True)
+     """
+-
+     # Parse args, build tokenizer, and set adlr-autoresume,
+     # tensorboard-writer, and timers.
+     set_global_variables(extra_args_provider=extra_args_provider,
+@@ -210,53 +209,15 @@ def _initialize_distributed():
+                   'skipping initialization ...', flush=True)
+         args.rank = torch.distributed.get_rank()
+         args.world_size = torch.distributed.get_world_size()
++        if args.deepspeed or args.ds_inference:
++            deepspeed.init_distributed(dist_backend=args.distributed_backend)
++
+ 
+     else:
+         print("_initialize_distributed: Initializing with below params:")
+         print("args.local_rank:", args.local_rank)
+         print("args.world_size:", args.world_size)
+         print("args.rank:", args.rank)
+-        # TODO SW-65249 need to align behavior between device types
+-        device_count = None
+-        print("args.distributed_backend:", args.distributed_backend)
+-        if args.distributed_backend == 'hccl':
+-            import habana_frameworks.torch as htcore
+-            device_count = htcore.hpu.device_count()
+-            if args.hpu_deterministic:
+-                assert args.use_hpu, f"--hpu-deterministic supported only with --use-hpu flag"
+-                htcore.hpu.setDeterministic(True)
+-            print("hccl device_count: ", device_count)
+-        elif args.distributed_backend == 'nccl':
+-            device_count = torch.cuda.device_count()
+-        elif args.distributed_backend == 'gloo':
+-            # no limit of devices when working on CPU, setting 8.
+-            device_count = int(os.getenv('GPUS_PER_NODE', '8'))
+-        else:
+-            assert False, f"Unsupported backend {args.distributed_backend}"
+-
+-        # Manually set the device ids.
+-        if device_count > 0:
+-            device = args.rank % device_count
+-            if args.local_rank is not None:
+-                assert args.local_rank == device, \
+-                    'expected local-rank to be the same as rank % device-count.'
+-            else:
+-                args.local_rank = device
+-        else:
+-            assert False, "Error: device_count is not positive"
+-
+-        if args.distributed_backend == 'hccl':
+-            device = torch.device('hpu')
+-        elif args.distributed_backend == 'nccl':
+-            torch.cuda.set_device(device)
+-            device = torch.device('cuda')
+-        elif args.distributed_backend == 'gloo':
+-            device = torch.device('cpu')
+-        else:
+-            assert False, f"Unsupported backend {args.distributed_backend}"
+-
+-        args.device = device
+-
+         if args.rank == 0:
+             print('> initializing torch distributed ...', flush=True)
+ 
+@@ -275,6 +236,49 @@ def _initialize_distributed():
+                 backend=args.distributed_backend,
+                 world_size=args.world_size, rank=args.rank,
+                 init_method=init_method)
++
++    # TODO SW-65249 need to align behavior between device types
++    device_count = None
++    print("args.distributed_backend:", args.distributed_backend)
++    if args.distributed_backend == 'hccl':
++        import habana_frameworks.torch as htcore
++        device_count = htcore.hpu.device_count()
++        if args.hpu_deterministic:
++            assert args.use_hpu, f"--hpu-deterministic supported only with --use-hpu flag"
++            htcore.hpu.setDeterministic(True)
++        print("hccl device_count: ", device_count)
++    elif args.distributed_backend == 'nccl':
++        device_count = torch.cuda.device_count()
++    elif args.distributed_backend == 'gloo':
++        # no limit of devices when working on CPU, setting 8.
++        device_count = int(os.getenv('GPUS_PER_NODE', '8'))
++    else:
++        assert False, f"Unsupported backend {args.distributed_backend}"
++
++    # Manually set the device ids.
++    if device_count > 0:
++        device = args.rank % device_count
++        if args.local_rank is not None:
++            assert args.local_rank == device, \
++                'expected local-rank to be the same as rank % device-count.'
++        else:
++            args.local_rank = device
++    else:
++        assert False, "Error: device_count is not positive"
++
++    if args.distributed_backend == 'hccl':
++        device = torch.device('hpu')
++    elif args.distributed_backend == 'nccl':
++        torch.cuda.set_device(device)
++        device = torch.device('cuda')
++    elif args.distributed_backend == 'gloo':
++        device = torch.device('cpu')
++    else:
++        assert False, f"Unsupported backend {args.distributed_backend}"
++
++    args.device = device
++
++
+     # Set the tensor model-parallel, pipeline model-parallel, and
+     # data-parallel communicators.
+     if device_count > 0:
+-- 
+2.25.1
+

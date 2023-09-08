@@ -600,6 +600,3 @@ class MegatronDeepspeedPreTrainer(PreTrainer):
             save_checkpoint(iteration, self.model, self.optimizer, self.opt_param_scheduler)
 
         return iteration
-
-
- 

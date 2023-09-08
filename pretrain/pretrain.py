@@ -149,7 +149,6 @@ def main(external_config = None):
 
         run_config = RunConfig(**ray_config.get("run_config", {}), failure_config=failure_config)
         common.logger.info(f"ray run config: {run_config}")
-
         trainer = TorchTrainer(
             train_func,
             train_loop_config=config,

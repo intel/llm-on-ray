@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /home/user
 
 COPY requirements.txt /home/user/
-COPY pretrain/0001-workaround-and-hot-fix-for-llm-ray.patch /home/user/
+COPY pretrain/patch/gpu/0001-workaround-and-hot-fix-for-llm-ray.patch /home/user/
 RUN pip install -r requirements.txt
 RUN pip install deepspeed lz4
 RUN pip install -U numpy

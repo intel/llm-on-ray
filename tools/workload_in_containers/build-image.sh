@@ -4,9 +4,11 @@ if [[ $1 = "megatron-gpu" ]]; then
     dockerfile=Dockerfile.megatron.gpu
 elif [[ $1 = "dp" ]]; then
     dockerfile=Dockerfile-dp 
+elif [[ $1 = "megatron-habana" ]]; then
+    dockerfile=Dockerfile.megatron.habana
 fi
 docker build \
-    -f ${dockerfile} . \
+    -f ${dockerfile} ../../ \
     -t llm-ray:$1 \
     --network=host \
     --build-arg http_proxy=${http_proxy} \
