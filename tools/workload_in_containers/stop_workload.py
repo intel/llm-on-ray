@@ -4,22 +4,9 @@ import yaml
 
 class Workflow :
     def __init__(self, cfg):
-        self.cfg = cfg
         workflow_config = self.read_from_yaml(cfg.workflow_yaml)
-        self.hf_dir = workflow_config['general']['hf_dir']
-        self.shared_dir = workflow_config['general']['shared_dir']
-        self.local_dir = workflow_config['general']['local_dir']
-        self.workspace_dir = workflow_config['general']['workspace_dir']
-        self.image_name = workflow_config['general']['image_name']
+        self.remove_containers = cfg.remove_containers
         self.cluster_config = workflow_config['nodes'] 
-        try:
-            self.data_processing_config = workflow_config['data_processing_config']
-        except:
-            self.data_processing_config = ""
-        if os.path.exists(self.data_processing_config):
-            self.run_data_processing = True
-        else:
-            self.run_data_processing = False 
         self.head_ip = self.get_head_node()['node']
         self.num_nodes = self.get_worker_nodes()[0]+1
         self.worker_ips = self.get_worker_nodes()[1]
@@ -48,20 +35,14 @@ class Workflow :
         return (len(node_ips), "@".join(node_ips))        
 
 
-    def startup_ray_cluster(self) :
+    def remove_ray_cluster(self) :
         for node in self.cluster_config:
             if node["type"] == "head" :
-                ret = os.system(f'./run-ray-cluster.sh -r startup_head -a {node["node"]} \
-                        -c {node["cores"]} \
-                        -w {self.workspace_dir} \
-                        -m {self.hf_dir} \
-                        -t {self.shared_dir} \
-                        -l {self.local_dir} \
-                        -i {self.image_name}')
+                ret = os.system(f'./run-ray-cluster.sh -r clean_ray_head -a {node["node"]}')
                 if ret == 0 :
-                    print("Successfully startup the ray head!")
+                    print(f"Successfully removed the ray-leader on node {node['node']}!")
                 else:
-                    print("Startup the ray head failed!")
+                    print(f"Remove the ray-leader failed on node {node['node']}!")
                     return False
             else:
                 head_node = self.get_head_node()
@@ -69,37 +50,54 @@ class Workflow :
                     print("head_node cannot be None!!")
                     return False
                 
-                ret = os.system(f'./run-ray-cluster.sh -r startup_worker -a {head_node["node"]} \
-                        -c {node["cores"]} \
-                        -w {self.workspace_dir} \
-                        -m {self.hf_dir} \
-                        -t {self.shared_dir} \
-                        -l {self.local_dir} \
+                ret = os.system(f'./run-ray-cluster.sh -r clean_ray_worker -a {head_node["node"]} \
                         -u {node["user"]} \
                         -p {node["password"]} \
-                        -i {self.image_name} \
                         -s {node["node"]}')
                 if ret == 0 :
-                    print("Successfully startup the workers!")
+                    print(f"Successfully removed the ray-worker on node {node['node']}!")
                 else:
-                    print("Startup the workers failed!")
+                    print(f"Remove the ray-worker failed on node {node['node']}!")
                     return False
         return True
+
+    def stop_ray_cluster(self) :
+        for node in self.cluster_config:
+            if node["type"] == "head" :
+                ret = os.system(f'./run-ray-cluster.sh -r stop_ray_head -a {node["node"]}')
+                if ret == 0 :
+                    print(f"Successfully stopped the ray-leader on node {node['node']}!")
+                else:
+                    print(f"Stop the ray-leader failed on node {node['node']}!")
+                    return False
+            else:
+                head_node = self.get_head_node()
+                if head_node == None:
+                    print("head_node cannot be None!!")
+                    return False
                 
-
-    def run_dp(self):
-        pass 
-
+                ret = os.system(f'./run-ray-cluster.sh -r stop_ray_worker -a {head_node["node"]} \
+                        -u {node["user"]} \
+                        -p {node["password"]} \
+                        -s {node["node"]}')
+                if ret == 0 :
+                    print(f"Successfully stopped the ray-worker on node {node['node']}!")
+                else:
+                    print(f"Stop the ray-worker failed on node {node['node']}!")
+                    return False
+        return True
+    
     def process(self):
-        self.startup_ray_cluster()
+        if self.remove_containers:
+            self.remove_ray_cluster()
+        else:
+            self.stop_ray_cluster()
 
-        if self.run_data_processing:
-            self.run_dp()
-        
         
 def parse_cmd():
     args = argparse.ArgumentParser(description='parse arguments', epilog=' ', formatter_class=argparse.RawTextHelpFormatter)
     args.add_argument('-w', required=True, type=str, dest='workflow_yaml', help='workflow config file')
+    args.add_argument('-r', default=False, action='store_true', dest='remove_containers', help='whether to remove the containers')
     return args.parse_args()
 
 

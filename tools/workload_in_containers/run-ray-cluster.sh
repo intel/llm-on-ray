@@ -6,6 +6,10 @@ MODEL_DIR=/root/.cache/huggingface/
 TMP_DIR=/home/user/shared
 LOCAL_DIR=/home/user/local
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC="\033[0m"
+
 RAM=$(awk '/^Mem/ {print $2}' <(free -mh))
 RAM=${RAM/Gi/}
 tri_RAM=$((RAM / 3))
@@ -140,17 +144,30 @@ EOF
         docker exec $worker_name /bin/bash -c "ray start --address=${head_address} --ray-debugger-external"
 EOF
 
-elif [[ $run_type = "stop_ray" ]]; then
-    echo "Stop ray containers"
-    docker stop $(docker ps -a |grep -E 'ray-head|ray-worker'|awk '{print $1 }')
+elif [[ $run_type = "stop_ray_head" ]]; then
+    echo -e "${GREEN} Stop ray-leader on head node.${NC}"
+    docker stop ray-leader
 
-elif [[ $run_type = "clean_ray" ]]; then
-    echo "Clean ray containers"
-    docker rm $(docker ps -a |grep -E 'ray-head|ray-worker'|awk '{print $1 }')
+elif [[ $run_type = "stop_ray_worker" ]]; then
 
-elif [[ $run_type = "clean_all" ]]; then
-    echo "Stop and clean ray and elasticsearch containers"
-    docker stop $(docker ps -a |grep -E 'ray-head|ray-worker|ray-elasticsearch|ray-postgres'|awk '{print $1 }')
-    docker rm $(docker ps -a |grep -E 'ray-head|ray-worker|ray-elasticsearch|ray-postgres'|awk '{print $1 }')
+    echo -e "${GREEN} Access ${worker_ip} and stop the Ray Worker on this node.${NC}"
+
+    sshpass -p $password ssh -o StrictHostKeychecking=no $user@$worker_ip bash << EOF
+    docker stop ray-worker
+EOF
+
+elif [[ $run_type = "clean_ray_head" ]]; then
+    echo -e "${GREEN} Clean ray containers on head node.${NC}"
+    docker rm -f ray-leader
+
+elif [[ $run_type = "clean_ray_worker" ]]; then
+    echo -e "${GREEN} Access ${worker_ip} and stop the Ray Worker on this node.${NC}"
+
+    sshpass -p $password ssh -o StrictHostKeychecking=no $user@$worker_ip bash << EOF
+    docker rm -f ray-worker
+EOF
+
+else 
+    echo -e "${RED} pls specify the correct run_type.${NC}"
 fi
 

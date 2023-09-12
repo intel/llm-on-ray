@@ -128,7 +128,7 @@ def main():
     data_field = args.data_field
     input_dir = args.input_dir
     file_type = args.file_type
-
+        
     # ctx = ray.data.DataContext.get_current()
     # ctx.execution_options.verbose_progress = True
 
@@ -148,6 +148,13 @@ def main():
     pprint(ray.cluster_resources())
     num_nodes = len(ray.nodes())
     parallelism = num_nodes * args.cpu_per_node
+    
+    ray_job_id = ray.runtime_context.get_runtime_context().get_job_id()
+    
+    output_parent = os.path.dirname(output_dir)
+    name_dir = os.path.join(output_parent, f"{ray_job_id}_csv")
+    if not os.path.exists(name_dir):
+        os.makedirs(name_dir)
 
     def preprocess_megatron(batch: Dict[str, np.ndarray]) -> pd.DataFrame:
         
@@ -170,8 +177,9 @@ def main():
         ray_dataset = ray_dataset.repartition(parallelism)
 
         tokenized_data = ray_dataset.map_batches(preprocess_megatron, batch_format="numpy", batch_size=None)
-        tokenized_data.materialize()
-
+        tokenized_data = tokenized_data.repartition(1)
+        tokenized_data.write_csv(name_dir)
+            
         print(f"{idx} * {args.load_batch_size} samples were written to disk.")
         idx += 1
         print("============================")

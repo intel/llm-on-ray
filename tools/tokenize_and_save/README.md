@@ -36,7 +36,7 @@ python merge_datasets.py --input <directory_containing_megatron_files> --output-
 ## Validation
 When the data preprocessing gets finished, you will see the total execution time at the end of the command line output. Now, it is your responsibility to gather all data partition files on each worker to the head node. When all the data partition files are under one folder on the head node, you can run the `merge_datasets.py` script to merge multiple megatron `bin` and `idx` files into one `bin` and `idx` files on each worker node. To count the token numbers in the dataset, you can use the `count_tokens.py` script, e.g.
 ```python
-python count_tokens.py <megatron_file_without_file_extension> <output_file_containing_the_token_number_per_row>
+python count_tokens.py <megatron_file_without_file_extension> <output_file_containing_the_token_number_per_row> <tokenizer_name>
 ```
 
 

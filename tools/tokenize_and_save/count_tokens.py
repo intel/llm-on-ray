@@ -7,11 +7,12 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("file_name", help="the file name to read")
 parser.add_argument("output_file", help="the file name to write")
+parser.add_argument("tokenizer", help="tokenizer name")
 args = parser.parse_args()
 
 ds = MMapIndexedDataset(args.file_name)
 
-tok = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+tok = AutoTokenizer.from_pretrained(args.tokenizer)
 
 num_tokens = [
     len(ds[i]) for i in range(len(ds))
