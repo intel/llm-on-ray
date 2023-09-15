@@ -24,8 +24,27 @@ RUN conda init bash && \
     conda install python==3.9
 
 RUN pip install --no-cache-dir accelerate==0.19.0 datasets==2.12.0 numpy==1.21.6 ray==2.5.0  \
-    raydp==1.6.0b20230527.dev0 torch==1.13.1 transformers==4.26.0 typing==3.7.4.3  \
+    raydp==1.6.0b20230527.dev0 transformers==4.26.0 typing==3.7.4.3  \
     tabulate ray[tune] ray[serve] gradio gymnasium dm-tree scikit-image pydantic==1.10.11  \
     tensorboard einops
-RUN pip install oneccl_bind_pt==1.13 -f https://developer.intel.com/ipex-whl-stable-cpu
-RUN pip install intel_extension_for_pytorch==1.13.100+cpu -f https://developer.intel.com/ipex-whl-stable-cpu
+
+# For PyTorch 1.13
+# COPY ./requirements.intel.txt ./
+# RUN pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-stable-cpu \
+#     -f https://download.pytorch.org/whl/torch_stable.html
+
+# For PyTorch 2.0
+COPY ./requirements.intel.cpu.pt2.txt /tmp
+RUN pip install -r /tmp/requirements.intel.cpu.pt2.txt -f https://developer.intel.com/ipex-whl-stable-cpu \
+    -f https://download.pytorch.org/whl/torch_stable.html
+
+# For DeepSpeed
+COPY ./requirements.deepspeed.cpu.txt /tmp
+# Requirments should be installed before deepspeed, can't put deepspeed in the same file
+RUN pip install -r /tmp/requirements.deepspeed.cpu.txt
+# 0.10.2 is required to support bloom
+RUN pip install deepspeed==0.10.2
+RUN ds_report
+
+COPY ./dev/docker/install-oneapi.sh /tmp
+RUN /tmp/install-oneapi.sh

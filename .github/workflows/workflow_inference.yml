@@ -23,11 +23,23 @@ jobs:
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
           docker run -tid -v /mnt/DP_disk1/huggingface/cache/:/root/.cache/huggingface/hub -v .:/root/llm-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER_RUN }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER_RUN }} --name="inference" --hostname="inference-container" inference:latest
 
+      - name: Start Ray Cluster
+        run: |
+          docker exec "inference" bash -c "./dev/docker/start-ray-cluster.sh"
+
       - name: Run Inference Test
         run: |
-          docker exec "inference" bash -c "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
           docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
           docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+
+      - name: Run Inference Test with DeepSpeed
+        run: |
+          if [[ ${{ matrix.model }} =~ ^(gpt2)$ ]]; then
+            echo ${{ matrix.model }} is not supported!
+          else
+            docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py --deepspeed"
+            docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          fi
 
       - name: Stop Container
         if: success() || failure()

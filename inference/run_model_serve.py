@@ -12,6 +12,10 @@ from typing import Generator, Union
 from starlette.responses import StreamingResponse
 from threading import Thread
 
+from transformer_predictor import TransformerPredictor
+from deepspeed_predictor import DeepSpeedPredictor
+from config import all_models
+
 class StoppingCriteriaSub(StoppingCriteria):
 
     def __init__(self, stops = [], encounters=1):
@@ -25,55 +29,40 @@ class StoppingCriteriaSub(StoppingCriteria):
                 return True
         return False
 
-
 @ray.remote(scheduling_strategy="SPREAD")
 class Dialogue:
-    def __init__(self, model_id, trust_remote_code, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer):
-        self.amp_enabled = amp_enabled
-        self.amp_dtype = amp_dtype
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=amp_dtype,
-            low_cpu_mem_usage=True,
-            trust_remote_code=trust_remote_code
-        )
-        model = model.eval()
-        # to channels last
-        model = model.to(memory_format=torch.channels_last)
-        # to ipex
-        # self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
-        self.model = model
-        self.pad_token_id = pad_token_id
-        self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
+    def __init__(self, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled,
+                 deepspeed_enabled, cpus_per_worker, workers_per_group):
+        if deepspeed_enabled:
+            self.predictor = DeepSpeedPredictor(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+                                                ipex_enabled, cpus_per_worker, workers_per_group)
+        else:
+            self.predictor = TransformerPredictor(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+                                                  ipex_enabled)
 
-    def streaming_generate(self, inputs, **config):
-        self.model.generate(inputs,
-                    pad_token_id=self.pad_token_id,
-                    stopping_criteria=self.stopping_criteria,
-                    streamer=self.streamer,
-                    **config)
-    
-    def generate(self, inputs, **config):
-        gen_tokens = self.model.generate(
-            inputs,
-            pad_token_id=self.pad_token_id,
-            stopping_criteria=self.stopping_criteria,
-            **config
-        )
-        return gen_tokens
+    def streaming_generate(self, input_ids, **config):
+        return self.predictor.streaming_generate(input_ids, **config)
+
+    def generate(self, input_ids, **config):
+        return self.predictor.generate(input_ids, **config)
 
     def ping(self):
         pass
 
 @serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
 class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, trust_remote_code, amp_enabled, amp_dtype, stop_words):
+    def __init__(self, model_id, tokenizer_name_or_path, trust_remote_code, device_name, amp_enabled, amp_dtype, stop_words,
+                 ipex_enabled, deepspeed_enabled, cpus_per_worker, workers_per_group):
+        self.device_name = device_name
+        self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        self.dialogue = Dialogue.remote(model_id, trust_remote_code, amp_enabled, amp_dtype, self.tokenizer.eos_token_id, self.stopping_criteria, self.streamer)
+        self.dialogue = Dialogue.remote(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype,
+                                        self.tokenizer.eos_token_id,
+                                        self.stopping_criteria, self.streamer, ipex_enabled,
+                                        deepspeed_enabled, cpus_per_worker, workers_per_group)
         ray.get(self.dialogue.ping.remote())
 
     def create_streamer(self):
@@ -105,17 +94,17 @@ class PredictDeployment:
                 else:
                     return value
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
-    
+
     def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids.to(self.device)
 
         if not streaming_response:
             response = self.dialogue.generate.remote(input_ids, **config)
             gen_tokens = ray.get(response)
             output = self.tokenizer.batch_decode(gen_tokens)
             yield output[0]
-        
+
         self.dialogue.streaming_generate.remote(input_ids, **config)
 
         generated_text = ""
@@ -148,17 +137,20 @@ if __name__ == "__main__":
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
-    parser.add_argument("--cpus_per_worker", default="24", type=str, help="cpus per worker")
+    parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
+    parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
+    parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
+    parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu or gpu")
 
     args = parser.parse_args()
 
-    
     runtime_env = {
         "env_vars": {
             "KMP_BLOCKTIME": "1",
             "KMP_SETTINGS": "1",
             "KMP_AFFINITY": "granularity=fine,compact,1,0",
-            "OMP_NUM_THREADS": args.cpus_per_worker ,
+            "OMP_NUM_THREADS": str(args.cpus_per_worker),
             "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
         }
     }
@@ -190,7 +182,11 @@ if __name__ == "__main__":
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
         trust_remote_code = model_config.get("trust_remote_code")
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=model_config["prompt"]["stop_words"])
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code,
+                                            args.device, amp_enabled, amp_dtype,
+                                            stop_words=model_config["prompt"]["stop_words"],
+                                            ipex_enabled=args.ipex,
+                                            deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker, workers_per_group=args.workers_per_group)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
 
     msg = "Service is deployed successfully"

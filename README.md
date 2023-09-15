@@ -29,7 +29,7 @@ There are workflow-specific hardware and software setup requirements depending o
 ### Software Requirements
 Workflow has been tested on Linux-4.18.0-408.el8.x86_64 and Ubuntu 22.04
 - Docker
-- NFS 
+- NFS
 - Python3 > 3.7.16
 
 ## Run This Workflow
@@ -56,6 +56,10 @@ Skip this step, if using docker container for pretrain
 ```bash
 pip install -r requirements.txt
 pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-stable-cpu
+```
+(Optional) If you want to use DeepSpeed, please install the following requirements:
+```bash
+pip install -r requirements.deepspeed.txt
 ```
 #### 4. Run the docker containers on head node and worker nodes for pretrain.
 make the logs directory for saving the ray logs.
@@ -139,7 +143,7 @@ Therefore, if the your data meets the above two formats, you can use the data by
 
 The workflow is designed for configure driven. All argument about the workflow are record to just one configure. So user can launch a task with a simple common command. Once the prerequisits have been met, use the following commands to run the workflow:
 ```bash
-python finetune/finetune.py --config_path finetune/finetune.conf 
+python finetune/finetune.py --config_path finetune/finetune.conf
 ```
 
 #### 3. Expected Output
@@ -190,18 +194,23 @@ Access url and deploy service in a few simple clicks.
 #### Terminal Execution
 Ray serve is used to deploy models. First the model is exposed over HTTP by using Deployment, then test it over HTTP request.
 
-A specific model can be deployed by specifying the model path and tokenizer path.
+A specific model can be deployed by specifying the model path and tokenizer path. If you want to enabled DeepSpeed, please add `--deepspeed` to the command line.
 
 ```bash
 # If you dont' want to view serve logs, you can set env var, "KEEP_SERVE_TERMINAL" to false
+
+# Run model serve with specified model and tokenizer
 python inference/run_model_serve.py --model $model --tokenizer $tokenizer
+
+# Run model serve with DeepSpeed
+python inference/run_model_serve.py --model $model --tokenizer $tokenizer --deepspeed
 
 # INFO - Deployment 'custom-model_PredictDeployment' is ready at `http://127.0.0.1:8000/custom-model`. component=serve deployment=custom-model_PredictDeployment
 # Service is deployed successfully
 
 python inference/run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model
 ```
-Otherwise, all the models configured in `inference/config.py` will be deployed by default. If you want to choose a specific model to deploy, you can set env var, "MODEL_TO_SERVE", to your choice.  You can add customized models in it as needed. 
+Otherwise, all the models configured in `inference/config.py` will be deployed by default. If you want to choose a specific model to deploy, you can set env var, "MODEL_TO_SERVE", to your choice.  You can add customized models in it as needed.
 
 
 ## Customize
