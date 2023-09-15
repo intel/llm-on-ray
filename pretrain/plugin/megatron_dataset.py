@@ -1,25 +1,35 @@
 import numpy as np
 
+from megatron import get_args, print_rank_0
+from megatron.training import build_train_valid_test_datasets
+from megatron.data import gpt_dataset
 from megatron.data.indexed_dataset import make_dataset as make_indexed_dataset
-from megatron.data.gpt_dataset import GPTDataset
 
 from common.dataset import Dataset
 
 class MegatronDataset(Dataset):
     def __call__(self, config):
-        name = config.get("name", "test")
-        path = config.get("path")
-        impl = config.get("impl", "mmap")
-        seq_length = config.get("seq_length", 1024)
-        seed = config.get("seed", 42)
-        use_seq_len_plus_one_tokens = config.get("use_seq_len_plus_one_tokens", True)
+        def _train_valid_test_datasets_provider(train_val_test_num_samples):
+            """Build train, valid, and test datasets."""
+            args = get_args()
+            print_rank_0('> building train, validation, and test datasets '
+                        'for GPT ...')
+            train_ds, valid_ds, test_ds = gpt_dataset.build_train_valid_test_datasets(
+                data_prefix=args.data_path,
+                data_impl=args.data_impl,
+                splits_string=args.split,
+                train_valid_test_num_samples=train_val_test_num_samples,
+                seq_length=args.seq_length,
+                seed=args.seed,
+                skip_warmup=(not args.mmap_warmup),
+                train_data_prefix=args.train_data_path,
+                valid_data_prefix=args.valid_data_path,
+                test_data_prefix=args.test_data_path,
+                data_cache_path=args.data_cache_path)
+            print_rank_0("> finished creating GPT datasets ...")
 
-        indexed_dataset = make_indexed_dataset(path, impl)
-        data_prefix = path
-        train_samples = len(indexed_dataset)
-        documents = np.arange(start=0, stop=train_samples, step=1, dtype=np.int32)
-        dataset = GPTDataset(name, data_prefix,
-                                documents, indexed_dataset,
-                                train_samples,
-                                seq_length, seed, use_seq_len_plus_one_tokens)
-        return dataset
+            return train_ds, valid_ds, test_ds
+
+        datasets = build_train_valid_test_datasets(_train_valid_test_datasets_provider)
+        print_rank_0(datasets)
+        return datasets

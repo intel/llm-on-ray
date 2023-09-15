@@ -4,7 +4,7 @@ import time
 
 import torch
 import transformers
-
+from megatron import get_args
 from ray.air.checkpoint import Checkpoint
 
 from common import dataprocesser
@@ -141,9 +141,7 @@ class MegatronPreTrainer(PreTrainer):
             # only ddp support
             pass
 
-        self.train_dataloader, self.eval_dataloader = self.dataprocesser.prepare(
-            tokenizer, dataset, starting_step = self.starting_step, rank = self.rank, size=self.size
-        )
+        self.train_dataloader, self.eval_dataloader, _ = self.dataprocesser.prepare(tokenizer, dataset, step=self.starting_step)
 
     def train(self):
         checkpoint = self.config.get("checkpoint")
@@ -151,7 +149,9 @@ class MegatronPreTrainer(PreTrainer):
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
         checkpoint_step = self.config.get("checkpoint_step", 1)
-    
+        # megatron arguments
+        args = get_args()
+
         logger.info(f"start train")
         self.model.train()
         start = time.time()
@@ -178,12 +178,15 @@ class MegatronPreTrainer(PreTrainer):
                 if step >= max_train_step:
                     break
 
-            if self.eval_dataloader:
+            if self.eval_dataloader and args.eval_interval and step and step % args.eval_interval == 0:
                 logger.info(f"start eval step {step}")
                 self.model.eval()
                 start = time.time()
                 losses = []
                 for step, batch in enumerate(self.eval_dataloader):
+                    batch["input_ids"] = batch["text"]
+                    batch["labels"] =  batch["text"]
+                    del batch["text"]
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
