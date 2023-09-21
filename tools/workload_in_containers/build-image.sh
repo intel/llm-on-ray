@@ -3,7 +3,7 @@ dockerfile=Dockerfile
 if [[ $1 = "megatron-gpu" ]]; then
     dockerfile=Dockerfile.megatron.gpu
 elif [[ $1 = "dp" ]]; then
-    dockerfile=Dockerfile-dp 
+    dockerfile=Dockerfile.dp 
 elif [[ $1 = "megatron-habana" ]]; then
     dockerfile=Dockerfile.megatron.habana
 fi

@@ -32,7 +32,13 @@ def get_args():
         "--file-type",
         type=str,
         default="json",
-        help="the file type of the input data, only json, jsonl and parquet are supported, default type is json."
+        help="the file type of the input data, only json, jsonl and parquet are supported, default type is json"
+    )
+    group.add_argument(
+        "--ray-load",
+        action='store_true',
+        default=False,
+        help="whether or not to use native ray data API to load data; if set true, you need to ensure that the data is accessible by each worker, e.g. it NFS"
     )
     group.add_argument(
         "--tokenizer",
@@ -41,7 +47,13 @@ def get_args():
         help="tokenizer name"
     )
     group.add_argument(
-        "--model-max-length", type=int, default=100000000, help="batch size"
+        "--use-slow",
+        action='store_true',
+        default=False,
+        help="whether or not to use slow tokenizer"
+    )
+    group.add_argument(
+        "--model-max-length", type=int, default=100000000000, help="batch size"
     )
     group.add_argument(
         "--data-field",
@@ -69,30 +81,28 @@ def get_args():
     return args
 
 
-def tokenize_batch(tokenizer_name, batch, data_field, model_max_length):
+def tokenize_batch(tokenizer_name, batch, data_field, model_max_length, use_fast):
 
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
-        tokenizer.model_max_length = model_max_length
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast= use_fast)
+    tokenizer.model_max_length = model_max_length
 
-        eos_token = tokenizer.eos_token
-        eos_id = tokenizer(eos_token)['input_ids']
+    eos_token = tokenizer.eos_token
+    eos_id = tokenizer(eos_token)['input_ids']
 
-        samples = batch[data_field].tolist()
-    
-        ids = []
-        lens = []
-    
-        for sample in samples:
-            encoded = tokenizer(sample, 
-                                truncation=False,
-                                padding=False)  
-            sample_id = encoded['input_ids'] + eos_id
-            ids.append(sample_id)
-            lens.append(len(sample))
+    samples = batch[data_field].tolist()
 
-        tokenized_batch = pd.DataFrame({"tokens": ids, "length": lens})
+    ids = []
 
-        return tokenized_batch
+    for sample in samples:
+        encoded = tokenizer(sample, 
+                            truncation=False,
+                            padding=False)  
+        sample_id = encoded['input_ids'] + eos_id
+        ids.append(sample_id)
+
+    tokenized_batch = pd.DataFrame({"tokens": ids})
+
+    return tokenized_batch
 
 
 def __best_fitting_dtype(vocab_size=None):
@@ -103,12 +113,11 @@ def __best_fitting_dtype(vocab_size=None):
 
 
 def save_megatron(output_dir, task_id, tokenized_batch, vocab_size):
-    save_dir = os.path.join(output_dir)
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    out_file = os.path.join(save_dir, f"{task_id}.bin")
-    idx_file = os.path.join(save_dir, f"{task_id}.idx")
+    out_file = os.path.join(output_dir, f"{task_id}.bin")
+    idx_file = os.path.join(output_dir, f"{task_id}.idx")
     
     data_builder = MMapIndexedDatasetBuilder(out_file, dtype=__best_fitting_dtype(vocab_size))
 
@@ -128,9 +137,11 @@ def main():
     data_field = args.data_field
     input_dir = args.input_dir
     file_type = args.file_type
+    use_fast = not args.use_slow
+    ray_load = args.ray_load
         
-    # ctx = ray.data.DataContext.get_current()
-    # ctx.execution_options.verbose_progress = True
+    ctx = ray.data.DataContext.get_current()
+    ctx.execution_options.verbose_progress = True
 
     if file_type == 'json':
         input_files = sorted(glob.glob(os.path.join(input_dir, "*.json")))
@@ -140,8 +151,8 @@ def main():
         input_files = sorted(glob.glob(os.path.join(input_dir, "*.parquet")))
     else:
         raise ValueError("Please specify the correct file type. Choose one from json, jsonl and parquet.")
-    
-    vocab_size = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True).vocab_size 
+
+    vocab_size = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast).vocab_size 
     
     # init ray
     ray.init(address='auto')
@@ -151,43 +162,47 @@ def main():
     
     ray_job_id = ray.runtime_context.get_runtime_context().get_job_id()
     
+    timestr = time.strftime("%Y%m%d-%H%M%S")
     output_parent = os.path.dirname(output_dir)
-    name_dir = os.path.join(output_parent, f"{ray_job_id}_csv")
+    name_dir = os.path.join(output_parent, f"{timestr}_{ray_job_id}.csv")
     if not os.path.exists(name_dir):
         os.makedirs(name_dir)
 
     def preprocess_megatron(batch: Dict[str, np.ndarray]) -> pd.DataFrame:
         
         task_id = ray.get_runtime_context().get_task_id()
-        tokenized_batch = tokenize_batch(tokenizer_name, batch, data_field, model_max_length)
+        tokenized_batch = tokenize_batch(tokenizer_name, batch, data_field, model_max_length, use_fast)
         save_megatron(output_dir, task_id, tokenized_batch, vocab_size)
 
         return pd.DataFrame({'task_id': [task_id]})
 
-    if file_type == 'parquet':
-        dataset = load_dataset("parquet", data_files=input_files, streaming=True)['train']
-    else:
-        dataset = load_dataset("json", data_files=input_files, streaming=True)['train']
-    
-    idx = 1
-    for rows in dataset.iter(batch_size=args.load_batch_size):
-        print("-----------------------------")
-        df = pd.DataFrame(rows)
-        ray_dataset = ray.data.from_pandas(df)
-        ray_dataset = ray_dataset.repartition(parallelism)
-
+    if ray_load:
+        if file_type == 'parquet':
+            ray_dataset = ray.data.read_parquet(input_files, columns=[args.data_field])
+        else:
+            ray_dataset = ray.data.read_json(input_files)
         tokenized_data = ray_dataset.map_batches(preprocess_megatron, batch_format="numpy", batch_size=None)
-        tokenized_data = tokenized_data.repartition(1)
         tokenized_data.write_csv(name_dir)
-            
-        print(f"{idx} * {args.load_batch_size} samples were written to disk.")
-        idx += 1
-        print("============================")
+    else:
+        if file_type == 'parquet':
+            dataset = load_dataset("parquet", data_files=input_files, streaming=True)['train']
+        else:
+            dataset = load_dataset("json", data_files=input_files, streaming=True)['train']
+        dataset = dataset.select_columns(args.data_field)
+        
+        idx = 1
+        for rows in dataset.iter(batch_size=args.load_batch_size):
+            df = pd.DataFrame(rows)
+            ray_dataset = ray.data.from_pandas(df)
+            ray_dataset = ray_dataset.repartition(parallelism)
 
+            tokenized_data = ray_dataset.map_batches(preprocess_megatron, batch_format="numpy", batch_size=None)
+            tokenized_data = tokenized_data.repartition(1)
+            tokenized_data.write_csv(name_dir)        
+            idx += 1
 
 if __name__ == "__main__":
     start = time.time()
     main()
     end = time.time()
     print(f"\nthis script took {end-start}s.")
-
