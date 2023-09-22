@@ -1,6 +1,7 @@
 import os
 import math
 import time
+import shutil
 
 import torch
 import transformers
@@ -251,6 +252,13 @@ class MegatronPreTrainer(PreTrainer):
         donefile = self._get_local_donefile_path(root_path, step)
         Checkpoint.to_directory(placeholder, donefile)
 
+    def _remove_stale_checkpoint(self, root_path, num_to_keep):
+        checkpoints = self._get_all_checkpoint_step(root_path)
+        if len(checkpoints) > num_to_keep:
+            stale = checkpoints[-1]
+            logger.warning("Removing stale checkpoint")
+            shutil.rmtree(f"{root_path}/{stale}")
+
     def save(self, config, step):
         if config is None or config is {}:
             logger.warning(f"checkpoint is empty, skip")
@@ -258,6 +266,10 @@ class MegatronPreTrainer(PreTrainer):
         root_path = config.get("root_path")
         if root_path is None:
             logger.warning(f"checkpoint root_path is empty, skip")
+        num_to_keep = config.get("num_to_keep")
+        if num_to_keep <= 0:
+            logger.warning(f"checkpoint num_to_keep cannot be zero, ignored")
+            num_to_keep = None
         local_checkpoint_path = self._get_local_path(root_path, step)
         if self.mode == "ddp":
             if int(self.rank) == 0:
@@ -267,3 +279,5 @@ class MegatronPreTrainer(PreTrainer):
         else:
             pass
         self._save_done(root_path, step)
+        if num_to_keep > 0 and self.mode == "ddp" and int(self.rank) == 0:
+            self._remove_stale_checkpoint(root_path, num_to_keep)
