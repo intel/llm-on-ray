@@ -6,9 +6,11 @@ The following are the parameters supported in the finetuning workflow.
 
 |Configuration Name| Default|Meaning|
 |-|-|-|
-|base_model| mosaicml/mpt-7b|Path to pretrained model or model identifier from huggingface.co/models|
+|base_model| EleutherAI/gpt-j-6b|Path to pretrained model or model identifier from huggingface.co/models|
+|gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model|
 |checkpoint_dir|/tmp/llm-ray/checkpoint|The directory to store checkpoint|
+|config|trust_remote_code: False<br> use_auth_token: None|Will be passed to the transformers `from_pretrained` method|
 
 
 

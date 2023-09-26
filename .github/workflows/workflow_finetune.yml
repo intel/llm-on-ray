@@ -8,11 +8,14 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, gpt2, bigscience/bloom-560m, facebook/opt-125m ]
+        model: [ EleutherAI/gpt-j-6b, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, meta-llama/Llama-2-7b-chat-hf]
     runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      
+      - name: Load environment variables
+        run: cat ~/llm-ray-actions-runner/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: docker build ./ --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t finetune:latest && yes | docker container prune && yes | docker image prune
@@ -31,6 +34,18 @@ jobs:
           with open(conf_path, encoding="utf-8") as reader:
               result = eval(reader.read())
               result['General']['base_model'] = "${{ matrix.model }}"
+              if "${{ matrix.model }}" == "mosaicml/mpt-7b-chat":
+                  result['General']['config']['trust_remote_code'] = True
+              else:
+                  result['General']['config']['trust_remote_code'] = False
+              if "${{ matrix.model }}" == "EleutherAI/gpt-j-6b" or "${{ matrix.model }}" == "gpt2":
+                  result['General']["gpt_base_model"] = True
+              else:
+                  result['General']["gpt_base_model"] = False
+              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf":
+                  result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
+              else:
+                  result['General']["config"]["use_auth_token"] = None
               result['Training']['epochs'] = 1
               result['Training']['num_training_workers'] = 1
           with open(conf_path, 'w') as output:

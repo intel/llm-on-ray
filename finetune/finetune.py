@@ -39,10 +39,12 @@ def train_func(config: Dict[str, Any]):
 
     tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(config = {
         "name": config["General"]["base_model"], 
+        "config": config["General"]["config"]
     })
 
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(config = {
-        "name": config["General"]["base_model"], 
+        "name": config["General"]["base_model"],
+        "config": config["General"]["config"]
     })
 
     optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(model, config = {
@@ -104,12 +106,15 @@ def main(external_config = None):
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
                 "ACCELERATE_USE_CPU": "True", 
+                "ACCELERATE_USE_IPEX": "False",
                 "ACCELERATE_MIXED_PRECISION": "no",
                 "CCL_WORKER_COUNT": "1",
                 "CCL_LOG_LEVEL": "info",
                 "WORLD_SIZE": str(num_training_workers),
             }
         }
+        if config["General"]["gpt_base_model"] == True:
+            runtime_env["pip"] = ["transformers==4.26.0"]
         ray.init(runtime_env = runtime_env)
 
     scaling_config = ScalingConfig(

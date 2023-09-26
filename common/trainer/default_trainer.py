@@ -101,6 +101,7 @@ class DefaultTrainer(Trainer):
         else:
             lr_scheduler = None
 
+        model.train()
         self.model, self.optimizer, self.lr_scheduler = accelerator.prepare(
             model, optimizer, lr_scheduler
         )

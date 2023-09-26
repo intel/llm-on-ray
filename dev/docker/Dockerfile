@@ -23,8 +23,8 @@ RUN conda init bash && \
     conda config --add channels intel && \
     conda install python==3.9
 
-RUN pip install --no-cache-dir accelerate==0.19.0 datasets==2.12.0 numpy==1.21.6 ray==2.5.0  \
-    raydp==1.6.0b20230527.dev0 transformers==4.26.0 typing==3.7.4.3  \
+RUN pip install --no-cache-dir accelerate==0.21.0 datasets==2.12.0 numpy==1.21.6 ray==2.5.0  \
+    raydp==1.6.0b20230527.dev0 transformers==4.31.0 typing==3.7.4.3  \
     tabulate ray[tune] ray[serve] gradio gymnasium dm-tree scikit-image pydantic==1.10.11  \
     tensorboard einops
 
