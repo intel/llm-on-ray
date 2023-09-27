@@ -44,7 +44,8 @@ def train_func(config: Dict[str, Any]):
 
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(config = {
         "name": config["General"]["base_model"],
-        "config": config["General"]["config"]
+        "config": config["General"]["config"],
+        "lora_config": config["General"]["lora_config"] if config["General"].get("lora_config") else None
     })
 
     optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(model, config = {

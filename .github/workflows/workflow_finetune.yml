@@ -48,6 +48,27 @@ jobs:
                   result['General']["config"]["use_auth_token"] = None
               result['Training']['epochs'] = 1
               result['Training']['num_training_workers'] = 1
+              result['General']['lora_config'] = None
+          with open(conf_path, 'w') as output:
+              print(result, file=output)
+          EOF
+          )
+          docker exec "finetune" python -c "$CMD"
+          docker exec "finetune" bash -c "python finetune/finetune.py --config_path finetune/finetune.conf"
+      
+      - name: Run PEFT-LoRA Test
+        run: |
+          docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
+          CMD=$(cat << EOF
+          conf_path = "finetune/finetune.conf"
+          with open(conf_path, encoding="utf-8") as reader:
+              result = eval(reader.read())
+              result['General']['lora_config'] = {
+                  "task_type": "CAUSAL_LM",
+                  "r": 8,
+                  "lora_alpha": 32,
+                  "lora_dropout": 0.1
+              }
           with open(conf_path, 'w') as output:
               print(result, file=output)
           EOF

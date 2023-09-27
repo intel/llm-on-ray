@@ -1,6 +1,7 @@
 import transformers
 
 from .model import Model
+from peft import get_peft_model, LoraConfig
 
 class HuggingFaceModelFromConfig(Model):
     def __call__(self, config):
@@ -10,4 +11,9 @@ class HuggingFaceModelFromConfig(Model):
             config = transformers.AutoConfig.from_pretrained(pretrained_model_name_or_path=name, **model_config)
         else:
             config = transformers.AutoConfig.for_model(**model_config)
-        return transformers.AutoModelForCausalLM.from_config(config)
+        model = transformers.AutoModelForCausalLM.from_config(config)
+        lora_config = config.get("lora_config")
+        if lora_config:
+            peft_config = LoraConfig(**lora_config)
+            model = get_peft_model(model, peft_config) 
+        return model

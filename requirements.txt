@@ -18,3 +18,4 @@ pydantic==1.10.11
 tensorboard
 einops
 gpustat==1.0.0
+peft==0.5.0
