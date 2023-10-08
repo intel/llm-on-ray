@@ -45,11 +45,11 @@ git checkout main
 #### 2. build Docker images for pretrain
 ```bash
 cd llm-ray/tools/workload_in_containers
-./build_image megatron-habana # for Gaudi2 platform
+./build-image.sh megatron-habana # for Gaudi2 platform
 ```
 or
 ```bash
-./build_image megatron-gpu # for Nvidia GPU platform
+./build-image.sh megatron-gpu # for Nvidia GPU platform
 ```
 #### 3. Install Dependencies
 Skip this step, if using docker container for pretrain
