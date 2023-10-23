@@ -3,7 +3,7 @@ FROM rayproject/ray:2.5.0
 ARG http_proxy
 ARG https_proxy
 
-RUN sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools
+RUN apt-get update -y && apt-get upgrade -y && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools
 RUN $HOME/anaconda3/bin/pip install accelerate==0.19.0
 RUN $HOME/anaconda3/bin/pip install datasets==2.12.0
 RUN $HOME/anaconda3/bin/pip install numpy==1.21.6
