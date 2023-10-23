@@ -373,10 +373,12 @@ class ChatBotUI():
                 mark_alive = index
             node_ip = self.ray_nodes[index]["NodeName"]
             self.ssh_connect[index] = paramiko.SSHClient()
-            self.ssh_connect[index].set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh_connect[index].load_system_host_keys()
+            self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
             self.ssh_connect[index].connect(hostname=node_ip, port=self.node_port, username=self.user_name)
         self.ssh_connect[-1] = paramiko.SSHClient()
-        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh_connect[-1].load_system_host_keys()
+        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
         self.ssh_connect[-1].connect(hostname=self.ray_nodes[mark_alive]["NodeName"], port=self.node_port, username=self.user_name)
         
         title = "LLM on Ray Workflow as a Service Demo"
