@@ -26,17 +26,13 @@ dedup_convert.py Output: a folder of *.jsonl files (deduplicated)
 
 0. setup
 ```
-cd llm-ray/tools/near_dedup
-cd docker
-docker compose build && docker compose run autofe-notebook-dev
+conda create --name pyrecdp
+conda activate pyrecdp
+DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jre graphviz
+pip install pyrecdp --pre
 ```
 
 ### option 1. using cmdline
-
-```
-docker exec -it `docker ps | grep 'autofe-notebook-dev' | awk '{print $NF}'` /bin/bash
-```
-Now you are inside container
 0. (Optional) convert text files to jsonl
 ```
 python convert_jsonl.py -d ${raw_data_dir} -o ${output_dir} -n {num_partition} | tee -a ${log}
@@ -54,14 +50,9 @@ python dedup_convert.py -d ${to_dedup_data_folder} -f ${dedup_dict_file} -o ${ou
 
 ### option 2. using notebook
 
-There will be notebook url shown as below
-```
-[I 2023-08-28 16:24:48.132 ServerApp] Serving notebooks from local directory: /home/vmagent/app/workspace
-[I 2023-08-28 16:24:48.132 ServerApp] Jupyter Server 2.7.1 is running at:
-[I 2023-08-28 16:24:48.132 ServerApp] http://${hostname}:8890/lab
-[I 2023-08-28 16:24:48.132 ServerApp]     http://127.0.0.1:8890/lab
-[I 2023-08-28 16:24:48.132 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
-
-```
 template notebooks are at [template_notebooks](template_notebooks)
 PILE processed notebooks are at [PILE_notebooks](PILE_notebooks)
+
+## Learn More
+
+We support all general used LLM data utils in [RecDP LLM](https://github.com/intel/e2eAIOK/blob/main/RecDP/pyrecdp/LLM/README.md)

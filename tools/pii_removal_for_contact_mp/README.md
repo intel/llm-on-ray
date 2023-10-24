@@ -15,6 +15,7 @@ Out format: a folder of *parquet, 'text' will be processed and personal info wil
 ```
 conda create --name pyrecdp
 conda activate pyrecdp
+DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jre graphviz
 pip install pyrecdp --pre
 pip install presidio_analyzer
 python -m spacy download en_core_web_lg
