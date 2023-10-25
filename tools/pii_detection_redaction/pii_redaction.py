@@ -133,28 +133,28 @@ def main():
 
         return pd.DataFrame({"results": outputs})
 
-    if not args.local:
+    if args.load_batch_size and not args.local:
         dataset = load_dataset(args.input, streaming=True)['train']
+        idx = 1
+        for rows in dataset.iter(batch_size=args.load_batch_size):
+            print("-----------------------------")
+            df = pd.DataFrame(rows)
+            ray_dataset = ray.data.from_pandas(df)
+            ray_dataset = ray_dataset.repartition(parallelism)
+
+            tokenized_data = ray_dataset.map_batches(preprocess_fn, batch_format="numpy", batch_size=None)
+            tokenized_data.select_columns(cols=["results"]).write_json(output_dir)
+
+            print(f"{idx} * {args.load_batch_size} samples were written to disk.")
+            idx += 1
+            print("============================")
+            if idx == 2:
+                sys.exit()
     else:
         pass 
         #os.environ["RED_PAJAMA_DATA_DIR"] = args.data_dir 
         #dataset = load_dataset(args.input, cache_dir=cache_dir, streaming=True)['train']
     
-    idx = 1
-    for rows in dataset.iter(batch_size=args.load_batch_size):
-        print("-----------------------------")
-        df = pd.DataFrame(rows)
-        ray_dataset = ray.data.from_pandas(df)
-        ray_dataset = ray_dataset.repartition(parallelism)
-
-        tokenized_data = ray_dataset.map_batches(preprocess_fn, batch_format="numpy", batch_size=None)
-        tokenized_data.select_columns(cols=["results"]).write_json(output_dir)
-
-        print(f"{idx} * {args.load_batch_size} samples were written to disk.")
-        idx += 1
-        print("============================")
-        if idx == 2:
-            sys.exit()
 
 if __name__ == "__main__":
     start = time.time()

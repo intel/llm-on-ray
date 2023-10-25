@@ -261,6 +261,8 @@ class ChatBotUI():
         self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
+            if main is None:
+                raise Exception("An error occurred, main cannot be null")
             results = main(self.config)
             if results.metrics["done"]:
                 self.finetune_status = True

@@ -27,6 +27,7 @@ class DefaultTrainer(Trainer):
     def recovery(self, config):
         if config is None or config is {}:
             logger.warning(f"checkpoint is empty, skip")
+            return
         root_path = config.get("root_path")
         model_name = config.get("model_name", "")
         if root_path is None:
@@ -185,10 +186,12 @@ class DefaultTrainer(Trainer):
     def save(self, config, epoch = 0):
         if config is None or config is {}:
             logger.warning(f"checkpoint is empty, skip")
+            return
         root_path = config.get("root_path")
         model_name = config.get("model_name", "")
         if root_path is None:
             logger.warning(f"checkpoint root_path is empty, skip")
+            return
         local_checkpoint_path = self._get_local_path(root_path, model_name)
 
         logger.info(f"save checkpoint to {local_checkpoint_path}")

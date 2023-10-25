@@ -278,11 +278,16 @@ class MegatronDeepspeedHabanaPreTrainer(PreTrainer):
         tokens_ = data_b['text'].long()
         if not args.use_seq_len_plus_one_tokens:
             labels = torch.roll(tokens_, shifts=-1, dims=1)
-            labels[:, -1] = -1
-            tokens = tokens_
+            if labels is not None:
+                labels[:, -1] = -1
+                tokens = tokens_
         else:
             labels = tokens_[:, 1:].contiguous()
             tokens = tokens_[:, :-1].contiguous()
+
+        if labels is None:
+            logger.warning(f"labels is empty, skip")
+            return
 
         # Get the masks and postition ids.
         attention_mask, loss_mask, position_ids = get_ltor_masks_and_position_ids(
@@ -303,8 +308,7 @@ class MegatronDeepspeedHabanaPreTrainer(PreTrainer):
             # tokens, position_ids, labels, loss_mask have size [batch size, seqlen]
             tokens = tokens[:, :args.curriculum_seqlen].contiguous()
             position_ids = position_ids[:, :args.curriculum_seqlen].contiguous()
-            if labels is not None:
-                labels = labels[:, :args.curriculum_seqlen].contiguous()
+            labels = labels[:, :args.curriculum_seqlen].contiguous()
             loss_mask = loss_mask[:, :args.curriculum_seqlen].contiguous()
 
         return (tokens, position_ids, attention_mask), (labels, loss_mask)
@@ -461,7 +465,7 @@ class MegatronDeepspeedHabanaPreTrainer(PreTrainer):
                                     iteration, False)
 
         # Clean the model and do evaluation again
-        if args.compression_training:
+        if args.compression_training and model:
             model = [redundancy_clean(model[0], args.deepspeed_config, mpu)]
             if args.do_valid:
                 prefix = ' '.join([training_prefix,
