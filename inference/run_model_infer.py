@@ -36,7 +36,8 @@ for i in range(num_iter):
     if args.streaming_response:
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
-            print(output, flush=True)
+            print(output, end='', flush=True)
+        print()
     else:
         print(outputs.text, flush=True)
     toc = time.time()

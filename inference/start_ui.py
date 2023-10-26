@@ -143,8 +143,8 @@ class ChatBotUI():
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
             # remove context
-            output = output[len(prompt):]
-            output = self.process_tool.convert_output(output)
+            if prompt in output:
+                output = output[len(prompt):]
             yield output
 
     def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
@@ -162,7 +162,11 @@ class ChatBotUI():
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                history[-1][1]=output
+                if history[-1][1] is None:
+                    history[-1][1]=output
+                else:
+                    history[-1][1]+=output
+                history[-1][1] = self.process_tool.convert_output(history[-1][1])
                 time_spend = time_end - time_start
                 yield [history, time_spend] 
 
@@ -181,7 +185,11 @@ class ChatBotUI():
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                history[-1][1]=output
+                if history[-1][1] is None:
+                    history[-1][1]=output
+                else:
+                    history[-1][1]+=output
+                history[-1][1] = self.process_tool.convert_output(history[-1][1])
                 time_spend = time_end - time_start
                 bot_queue.put([queue_id, history, time_spend])
         bot_queue.put([queue_id, "", ""])

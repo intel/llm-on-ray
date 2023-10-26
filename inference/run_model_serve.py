@@ -49,7 +49,7 @@ class Dialogue:
     def ping(self):
         pass
 
-@serve.deployment(ray_actor_options={"runtime_env": {"pip": ["transformers==4.28.0"]}})
+@serve.deployment()
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, trust_remote_code, device_name, amp_enabled, amp_dtype, stop_words,
                  ipex_enabled, deepspeed_enabled, cpus_per_worker, workers_per_group):
@@ -107,11 +107,8 @@ class PredictDeployment:
 
         self.dialogue.streaming_generate.remote(input_ids, **config)
 
-        generated_text = ""
         for new_text in self.streamer:
-            if new_text is not None:
-                generated_text += new_text
-                yield generated_text
+            yield new_text
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()

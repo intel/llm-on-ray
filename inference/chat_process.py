@@ -28,16 +28,18 @@ class ChatModel:
 
     def convert_output(self, output: str):
         """Convert the model output to final answer."""
-        if self.human_id != "":
-            output = output.split(self.human_id)[0]
-        if self.bot_id != "":
-            output = output.split(self.bot_id)[0]
+        human_id = self.human_id.strip()
+        bot_id = self.bot_id.strip()
+        if human_id != "":
+            output = output.split(human_id)[0]
+        if bot_id != "":
+            output = output.split(bot_id)[0]
         for word in self.MEANINGLESS_WORDS:
             output = output.replace(word, "")
-        text = output.strip()
+        text = output
         # remove partial human_id or bot id
-        if '\n' in text and (self.human_id.startswith(text[text.rfind('\n')+1:]) or
-                             self.bot_id.startswith(text[text.rfind('\n')+1])):
+        if '\n' in text and (human_id.startswith(text[text.rfind('\n')+1:]) or
+                             bot_id.startswith(text[text.rfind('\n')+1])):
             text = text[:text.rfind('\n')]
         return text
 
