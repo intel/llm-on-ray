@@ -13,12 +13,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      
+
       - name: Load environment variables
         run: cat ~/llm-ray-actions-runner/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
-        run: docker build ./ --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t finetune:latest && yes | docker container prune && yes | docker image prune
+        run: docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t finetune:latest && yes | docker container prune && yes | docker image prune
 
       - name: Start Docker Container
         run: |
@@ -55,7 +55,7 @@ jobs:
           )
           docker exec "finetune" python -c "$CMD"
           docker exec "finetune" bash -c "python finetune/finetune.py --config_path finetune/finetune.conf"
-      
+
       - name: Run PEFT-LoRA Test
         run: |
           docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"

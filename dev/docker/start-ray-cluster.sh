@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -eo pipefail
+
 # Setup oneapi envs before starting Ray
 source /opt/intel/oneapi/setvars.sh
 

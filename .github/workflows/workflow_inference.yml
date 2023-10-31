@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build Docker Image
-        run: docker build ./ --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t inference:latest && yes | docker container prune && yes | docker image prune
+        run: docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile -t inference:latest && yes | docker container prune && yes | docker image prune
 
       - name: Start Docker Container
         run: |

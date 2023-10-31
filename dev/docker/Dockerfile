@@ -46,5 +46,7 @@ RUN pip install -r /tmp/requirements.deepspeed.cpu.txt
 RUN pip install deepspeed==0.10.2
 RUN ds_report
 
+# Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
+ARG CACHEBUST=1
 COPY ./dev/docker/install-oneapi.sh /tmp
 RUN /tmp/install-oneapi.sh
