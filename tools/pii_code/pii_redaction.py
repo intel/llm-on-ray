@@ -3,6 +3,7 @@ https://github.com/bigcode-project/bigcode-dataset/blob/main/pii/pii_redaction.p
 """
 import json
 import random
+import secrets
 import string
 import ipaddress
 
@@ -57,11 +58,11 @@ def random_replacements(n=10):
     letters = string.ascii_lowercase
     lettters_digits = string.ascii_lowercase + string.digits
     emails = [
-        "".join(random.choice(letters) for i in range(5)) + "@example.com"
+        "".join(secrets.choice(letters) for i in range(5)) + "@example.com"
         for i in range(n)
     ]
     keys = [
-        "".join(random.choice(lettters_digits) for i in range(32)) for i in range(n)
+        "".join(secrets.choice(lettters_digits) for i in range(32)) for i in range(n)
     ]
     ip_addresses = REPLACEMENTS_IP
     return {"EMAIL": emails, "KEY": keys, "IP_ADDRESS": ip_addresses}
@@ -71,11 +72,11 @@ def replace_ip(value, replacements_dict):
     """Replace an IP address with a synthetic IP address of the same format"""
     try:
         ipaddress.IPv4Address(value)
-        return random.choice(replacements_dict["IP_ADDRESS"]["IPv4"])
+        return secrets.choice(replacements_dict["IP_ADDRESS"]["IPv4"])
     except ValueError:
         try:
             ipaddress.IPv6Address(value)
-            return random.choice(replacements_dict["IP_ADDRESS"]["IPv6"])
+            return secrets.choice(replacements_dict["IP_ADDRESS"]["IPv6"])
         except ValueError:
             # this doesn't happen if we already use ipaddress filter in the detection
             print("Invalid IP address")
@@ -126,7 +127,7 @@ def redact_pii_text(text, secrets, replacements, add_references=False):
                 if secret["tag"] == "IP_ADDRESS":
                     replacement = replace_ip(secret["value"], replacements)
                 else:
-                    replacement = random.choice(replacements[secret["tag"]])
+                    replacement = secrets.choice(replacements[secret["tag"]])
                 replaced_secrets[secret["value"]] = replacement
             subparts.append(replacement)
             replaced_secrets[secret["value"]] = replacement

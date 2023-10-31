@@ -11,6 +11,8 @@ import os
 import pandas as pd
 # from matplotlib import pyplot as plt
 
+import secrets
+
 def write_merged_detect_redact_results_to_html(sample):
     # sample is a dictionary {'text': xxxx, pii: []}
     #text = sample['original']
@@ -59,7 +61,7 @@ def write_merged_detect_redact_results_to_html(sample):
 path = '/home/vmagent/app/falcon-refinedweb-pii-remove/'
 datafile = glob.glob(path + '*.parquet')
 # randomly pick one file from output
-filename = random.choice(datafile)
+filename = secrets.choice(datafile)
 output = 'pii_test'
 
 # Check 1: load with pd to check schema and content

@@ -1,5 +1,6 @@
 import ipaddress
 import random
+import secrets
 import string
 
 
@@ -56,30 +57,30 @@ lettters_digits = string.ascii_lowercase + string.digits
 # random emails
 n = 100
 REPLACEMENT_EMAIL = [
-        "".join(random.choice(letters) for i in range(10)) + "@example.com"
+        "".join(secrets.choice(letters) for i in range(10)) + "@example.com"
         for i in range(n)
     ]
 
 # random keys
 REPLACEMENT_KEY = [
-        "".join(random.choice(digits) for i in range(10))
+        "".join(secrets.choice(digits) for i in range(10))
         for i in range(n)
     ]
 # simple hack: make key replacement and phone replacement to be 
 # both 10 random digits
 # to simplify redaction
 # [
-#         "".join(random.choice(lettters_digits) for i in range(32)) for i in range(n)
+#         "".join(secrets.choice(lettters_digits) for i in range(32)) for i in range(n)
 #     ]
 
 # random usernames
 REPLACEMENT_USERNAME = [
-        "@"+"".join(random.choice(letters) for i in range(10))
+        "@"+"".join(secrets.choice(letters) for i in range(10))
         for i in range(n)
     ]
 
 REPLACEMENT_PHONE = [
-        "".join(random.choice(digits) for i in range(10))
+        "".join(secrets.choice(digits) for i in range(10))
         for i in range(n)
     ]
 
@@ -108,12 +109,12 @@ def replace_ip(value):
     try:
         ipaddress.IPv4Address(value)
         print('IP is IPv4, return redacted value')
-        return random.choice(REPLACEMENTS_IP["IPv4"])
+        return secrets.choice(REPLACEMENTS_IP["IPv4"])
     except ValueError:
         try:
             ipaddress.IPv6Address(value)
             print('IP is IPv6, return redacted value')
-            return random.choice(REPLACEMENTS_IP["IPv6"])
+            return secrets.choice(REPLACEMENTS_IP["IPv6"])
         except ValueError:
             # this doesn't happen if we already use ipaddress filter in the detection
             # this is good as we have another layer of protection to redace false positive
@@ -123,15 +124,15 @@ def replace_ip(value):
 def redact_email_key_user_phone(value, tag):
     supported_tags = {'KEY', 'EMAIL', 'USER', 'PHONE_NUMBER'}
     if tag in supported_tags:
-        #return random.choice(REPLACEMENT_DICT[tag]) 
+        #return secrets.choice(REPLACEMENT_DICT[tag]) 
         if tag=='KEY':
-            redact_value = "".join(random.choice(digits) for i in range(10))
+            redact_value = "".join(secrets.choice(digits) for i in range(10))
         if tag == 'EMAIL':
-            redact_value = "".join(random.choice(letters) for i in range(10)) + "@{}.com".format("".join(random.choice(letters) for i in range(5)))
+            redact_value = "".join(secrets.choice(letters) for i in range(10)) + "@{}.com".format("".join(secrets.choice(letters) for i in range(5)))
         if tag == 'USER':
-            redact_value = "@"+"".join(random.choice(letters) for i in range(10))
+            redact_value = "@"+"".join(secrets.choice(letters) for i in range(10))
         if tag == 'PHONE_NUMBER':
-            redact_value = "".join(random.choice(digits) for i in range(10))
+            redact_value = "".join(secrets.choice(digits) for i in range(10))
         return redact_value
     else:
         print('{} type is not supported!'.format(tag))
