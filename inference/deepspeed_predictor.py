@@ -115,7 +115,7 @@ class PredictionWorker(TorchDistributedWorker):
         self.generator = pipe
 
     def streaming_generate(self, input_ids, **config):
-        return self.generator.streaming_generate(input_ids, self.streamer, config)
+        self.generator.streaming_generate(input_ids, self.streamer, **config)
 
     def generate(self, input_ids, **config):
         return self.generator.generate(input_ids, **config)
@@ -149,6 +149,17 @@ class DeepSpeedPredictor:
     def __del__(self):
         shutdown_torch_dist_process_group(self.prediction_workers)
 
+    # Use dummy streamer to ignore other workers' ouputs
+    def _create_dummy_streamer(self):
+        class DummyStreamer():
+            def put(self, value):
+                pass
+
+            def end(self):
+                pass
+
+        return DummyStreamer()
+
     def _init_worker_group(self, scaling_config: ScalingConfig):
         """Create the worker group.
 
@@ -170,8 +181,12 @@ class DeepSpeedPredictor:
         # Create the prediction workers.
         self.prediction_workers = [
             prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.trust_remote_code, self.
-                                         device_name, self.amp_enabled, self.amp_dtype,
-                                         self.pad_token_id, self.stopping_criteria, self.streamer, self.ipex_enabled)
+                device_name, self.amp_enabled, self.amp_dtype,
+                self.pad_token_id, self.stopping_criteria, self.streamer, self.ipex_enabled)
+            if i == 0 else
+                prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.trust_remote_code, self.
+                    device_name, self.amp_enabled, self.amp_dtype,
+                    self.pad_token_id, self.stopping_criteria, self._create_dummy_streamer(), self.ipex_enabled)
             for i in range(scaling_config.num_workers)
         ]
 
@@ -186,13 +201,12 @@ class DeepSpeedPredictor:
 
     def streaming_generate(self, input_ids, **config):
         input_ids_ref = ray.put(input_ids)
-        prediction = ray.get(
+        ray.get(
             [
                 worker.streaming_generate.remote(input_ids_ref, **config)
                 for worker in self.prediction_workers
             ]
         )
-        return prediction
 
     def generate(self, input_ids, **config):
         input_ids_ref = ray.put(input_ids)
