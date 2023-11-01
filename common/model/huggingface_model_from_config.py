@@ -7,11 +7,12 @@ class HuggingFaceModelFromConfig(Model):
     def __call__(self, config):
         name = config.get("name")
         model_config = config.get("config", {})
+        auto_config = None
         if name is not None:
-            config = transformers.AutoConfig.from_pretrained(pretrained_model_name_or_path=name, **model_config)
+            auto_config = transformers.AutoConfig.from_pretrained(pretrained_model_name_or_path=name, **model_config)
         else:
-            config = transformers.AutoConfig.for_model(**model_config)
-        model = transformers.AutoModelForCausalLM.from_config(config)
+            auto_config = transformers.AutoConfig.for_model(**model_config)
+        model = transformers.AutoModelForCausalLM.from_config(auto_config)
         lora_config = config.get("lora_config")
         if lora_config:
             peft_config = LoraConfig(**lora_config)

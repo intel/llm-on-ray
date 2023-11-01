@@ -8,7 +8,7 @@ RUN git config --global user.email "root@example.com"
 RUN git config --global user.name "root" 
 RUN git clone https://github.com/HabanaAI/Model-References.git && \
     cd Model-References && \
-    git checkout -b ray 3ca77c4a5fb62c60372e8a2839b1fccc3c4e4212 && \
+    git checkout -b ray c2046a9aa9405b88acc15cad9e1cf2630c68d3d8 && \
     git am /home/user/0001-Init-megatron-deepspeed-with-Ray-cluster.patch && \
     cd PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/ && \
     pip install . 

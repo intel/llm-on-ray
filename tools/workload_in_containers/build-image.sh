@@ -6,6 +6,8 @@ elif [[ $1 = "dp" ]]; then
     dockerfile=Dockerfile.dp 
 elif [[ $1 = "megatron-habana" ]]; then
     dockerfile=Dockerfile.megatron.habana
+elif [[ $1 = "optimum-habana" ]]; then
+    dockerfile=Dockerfile.optimum.habana
 fi
 docker build \
     -f ${dockerfile} ../../ \

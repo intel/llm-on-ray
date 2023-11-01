@@ -122,15 +122,15 @@ Set up `megatron_deepspeed_path` in the configuration.
 ```bash
 cd /home/user/workspace/llm-ray
 #Bloom-7B
-python pretrain/pretrain.py --config_path pretrain/config/bloom_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
+python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/bloom_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
 #llama-7B
-python pretrain/pretrain.py --config_path pretrain/config/llama_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
+python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/llama_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
 ```
 ##### Nvidia GPU:
 ```bash
 cd /home/user/workspace/llm-ray
 #llama2-7B
-python pretrain/pretrain.py --config_path pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
+python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
 ```
 ### Finetune Workflow
 

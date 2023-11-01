@@ -1,0 +1,40 @@
+From f8810ff7463b3bd0be23ad08d90f6384f8cee4cb Mon Sep 17 00:00:00 2001
+From: yuanwu <yuan.wu@intel.com>
+Date: Thu, 26 Oct 2023 06:31:27 +0000
+Subject: [PATCH] Change the sample's column name
+
+Signed-off-by: yuanwu <yuan.wu@intel.com>
+---
+ megatron/data/gpt_dataset.py | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/megatron/data/gpt_dataset.py b/megatron/data/gpt_dataset.py
+index 228d56e..258ad2b 100644
+--- a/megatron/data/gpt_dataset.py
++++ b/megatron/data/gpt_dataset.py
+@@ -301,14 +301,19 @@ class GPTDataset(torch.utils.data.Dataset):
+                 self.doc_idx[doc_index_l],
+                 length=offset_l + 1))
+             sample = np.concatenate(sample_list)
++        column_name = "text"
++        if args.use_dataset_only:
++            column_name = "input_ids"
+         if args.return_data_index:
+-            return {'text': np.array(sample, dtype=np.int64),
++            return {column_name: np.array(sample, dtype=np.int64),
+                     'index': np.array([orig_idx], dtype=np.int64)}
+         elif self.return_doc_ids: # for retro preprocessing
+-            return {'text': np.array(sample, dtype=np.int64),
++            return {column_name: np.array(sample, dtype=np.int64),
+                     'doc_ids': np.array(doc_ids, dtype=np.int64)}
++        elif args.use_dataset_only:
++            return {column_name: np.array(sample, dtype=np.int64), 'labels': np.array(sample, dtype=np.int64)}
+         else:
+-            return {'text': np.array(sample, dtype=np.int64)}
++            return {column_name: np.array(sample, dtype=np.int64)}
+ 
+ 
+ def _build_index_mappings(name, data_prefix, documents, sizes,
+-- 
+2.25.1
+
