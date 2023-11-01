@@ -49,10 +49,12 @@ cd llm-ray/tools/workload_in_containers
 ```
 or
 ```bash
-./build-image.sh megatron-gpu # for Nvidia GPU platform
+./build-image.sh megatron-nvidia # for Nvidia GPU platform
 ```
 #### 3. Install Dependencies
-Skip this step, if using docker container for pretrain
+
+Skip this step, if using docker container.
+
 ```bash
 pip install -r requirements.txt
 pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-stable-cpu
@@ -61,6 +63,7 @@ pip install -r requirements.intel.txt -f https://developer.intel.com/ipex-whl-st
 ```bash
 pip install -r requirements.deepspeed.txt
 ```
+
 #### 4. Run the docker containers on head node and worker nodes for pretrain.
 make the logs directory for saving the ray logs.
 ```bash
@@ -72,7 +75,7 @@ docker run -it --name megatron-habana --runtime=habana -e HABANA_VISIBLE_DEVICES
 ```
 Nvidia GPU:
 ```bash
-docker run --gpus all -it --ulimit memlock=-1 --ulimit stack=67108864 --network host --name yuanwu-megatron --shm-size=64g -v ~/workspace/logs:/tmp -v ~/workspace:/home/user/workspace llm-ray:megatron-gpu  /bin/bash
+docker run --gpus all -it --ulimit memlock=-1 --ulimit stack=67108864 --network host --name megatron-nvidia --shm-size=64g -v ~/workspace/logs:/tmp -v ~/workspace:/home/user/workspace llm-ray:megatron-gpu  /bin/bash
 ```
 
 #### 5. Launch ray cluster
@@ -103,10 +106,19 @@ cd ~/workspace/data/
 wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
 wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt 
 ```
-#### 3. Pretrain
-Check and modify the config files in ~/workspace/llm-ray/pretrain/config/
-Run the following commands in the head container.
+
+
+
+#### 3. Pretrain Command
+
+Please ensure that you check and modify the configuration files located in ~/workspace/llm-ray/pretrain/config/ before proceeding.
+
+After your environment configuration are properly set up, you can use the following instructions to pretrain the language model:
+
 ##### Gaudi2:
+
+Set up `megatron_deepspeed_path` in the configuration.
+
 ```bash
 cd /home/user/workspace/llm-ray
 #Bloom-7B
@@ -120,7 +132,6 @@ cd /home/user/workspace/llm-ray
 #llama2-7B
 python pretrain/pretrain.py --config_path pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
 ```
-
 ### Finetune Workflow
 
 

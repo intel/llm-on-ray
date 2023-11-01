@@ -1,0 +1,51 @@
+From 3763ec83b3a63e3c819ebb513b09044059f87368 Mon Sep 17 00:00:00 2001
+From: zhangjian <jian2.zhang@intel.com>
+Date: Tue, 31 Oct 2023 10:42:41 +0000
+Subject: [PATCH] hot fix for megatron deepspeed
+
+---
+ megatron/training.py | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/megatron/training.py b/megatron/training.py
+index c509377..f6cbbe5 100644
+--- a/megatron/training.py
++++ b/megatron/training.py
+@@ -103,7 +103,8 @@ def pretrain(train_valid_test_dataset_provider,
+ 
+     # Initalize and get arguments, timers, and Tensorboard writer.
+     initialize_megatron(extra_args_provider=extra_args_provider,
+-                        args_defaults=args_defaults)
++                        args_defaults=args_defaults,
++                        ignore_unknown_args=True)
+     # Set pytorch JIT layer fusion options and warmup JIT functions.
+     if get_accelerator().device_name() == 'cuda':
+         set_jit_fusion_options()
+@@ -113,8 +114,8 @@ def pretrain(train_valid_test_dataset_provider,
+     # image ... launches.
+     global _TRAIN_START_TIME
+     start_time_tensor = get_accelerator().DoubleTensor([_TRAIN_START_TIME])
+-    torch.distributed.all_reduce(start_time_tensor,
+-                                 op=torch.distributed.ReduceOp.MIN)
++    # torch.distributed.all_reduce(start_time_tensor,
++    #                              op=torch.distributed.ReduceOp.MIN)
+     _TRAIN_START_TIME = start_time_tensor.item()
+     print_rank_0('time to initialize megatron (seconds): {:.3f}'.format(
+         time.time() - _TRAIN_START_TIME))
+@@ -124,8 +125,11 @@ def pretrain(train_valid_test_dataset_provider,
+     timers = get_timers()
+ 
+     if args.deepspeed:
+-        args.deepspeed_configuration = json.load(
+-            open(args.deepspeed_config, 'r', encoding='utf-8'))
++        if isinstance(args.deepspeed_config, dict) :
++            args.deepspeed_configuration = args.deepspeed_config
++        else:
++            args.deepspeed_configuration = json.load(
++                open(args.deepspeed_config, 'r', encoding='utf-8'))
+         if "curriculum_learning" in args.deepspeed_configuration and \
+             "enabled" in args.deepspeed_configuration["curriculum_learning"]:
+             args.curriculum_learning_legacy = args.deepspeed_configuration[ \
+-- 
+2.25.1
+

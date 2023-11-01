@@ -1,9 +1,8 @@
-FROM vault.habana.ai/gaudi-docker/1.11.0/ubuntu20.04/habanalabs/pytorch-installer-2.0.1:latest
+FROM vault.habana.ai/gaudi-docker/1.12.1/ubuntu20.04/habanalabs/pytorch-installer-2.0.1:latest
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /home/user
 RUN pip install lz4 numpy==1.24.4 ray==2.5.0 tensorboard gpustat==1.0.0 sentencepiece accelerate==0.19.0 raydp==1.6.0b20230527.dev0 datasets==2.12.0 gymnasium transformers==4.26.0 dm-tree scikit-image
-RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.11.0
-COPY pretrain/patch/hpu/config.py /usr/local/lib/python3.8/dist-packages/ray/train/torch/
+RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.12.1
 COPY pretrain/patch/hpu/0001-Init-megatron-deepspeed-with-Ray-cluster.patch .
 RUN git config --global user.email "root@example.com" 
 RUN git config --global user.name "root" 
