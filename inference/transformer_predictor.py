@@ -2,14 +2,14 @@ import torch
 from transformers import AutoModelForCausalLM
 
 class TransformerPredictor:
-    def __init__(self, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled):
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=amp_dtype,
             low_cpu_mem_usage=True,
-            trust_remote_code=trust_remote_code
+            **model_load_config
         )
 
         device = torch.device(device_name)

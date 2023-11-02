@@ -12,6 +12,10 @@ model1 = {
         "human_id": "",
         "bot_id": "",
         "stop_words": []
+    },
+    "config": {
+        "trust_remote_code": "",
+        "use_auth_token": "",
     }
 }
 
@@ -30,7 +34,8 @@ gpt_j_finetuned_52K = {
         "human_id": "\n### Instruction",
         "bot_id": "\n### Response",
         "stop_words": []
-    }
+    },
+    "gpt_base_model": True
 }
 
 gpt_j_6B = {
@@ -45,7 +50,8 @@ gpt_j_6B = {
         "human_id": "\n### Instruction",
         "bot_id": "\n### Response",
         "stop_words": []
-    }
+    },
+    "gpt_base_model": True
 }
 
 gpt2 = {
@@ -60,7 +66,8 @@ gpt2 = {
         "human_id": "",
         "bot_id": "",
         "stop_words": []
-    }
+    },
+    "gpt_base_model": True
 }
 
 
@@ -107,7 +114,27 @@ mpt = {
         "bot_id": "\n### Response",
         "stop_words": []
     },
-    "trust_remote_code": True,
+    "config": {
+        "trust_remote_code": True,
+    }
+}
+
+llama2 = {
+    "model_id_or_path": "meta-llama/Llama-2-7b-chat-hf",
+    "tokenizer_name_or_path": "meta-llama/Llama-2-7b-chat-hf",
+    "port": "8000",
+    "name": "llama2",
+    "route_prefix": "/llama2",
+    "chat_model": "ChatModelLLama",
+    "prompt": {
+        "intro": "",
+        "human_id": "[INST] {msg} [/INST]\n",
+        "bot_id": "",
+        "stop_words": []
+    },
+    "config": {
+        "use_auth_token": None
+    }
 }
 
 _models = {
@@ -115,7 +142,8 @@ _models = {
     "gpt2": gpt2,
     "bloom": bloom,
     "opt": opt,
-    "mpt": mpt
+    "mpt": mpt,
+    "llama2": llama2
 }
 
 env_model = "MODEL_TO_SERVE"

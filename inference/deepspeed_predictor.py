@@ -19,7 +19,7 @@ class DSPipeline:
     def __init__(
         self,
         model_id_or_path,
-        trust_remote_code,
+        model_load_config,
         pad_token_id,
         stopping_criteria,
         dtype,
@@ -34,7 +34,7 @@ class DSPipeline:
         self.model = AutoModelForCausalLM.from_pretrained(model_id_or_path,
                                                           torch_dtype=dtype,
                                                           low_cpu_mem_usage=True,
-                                                          trust_remote_code=trust_remote_code)
+                                                          **model_load_config)
 
         self.model = self.model.eval().to(device)
         # to channels last
@@ -64,10 +64,10 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer=None, ipex_enabled=False):
+    def __init__(self, world_size: int, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer=None, ipex_enabled=False):
         self.world_size = world_size
         self.model_id = model_id
-        self.trust_remote_code = trust_remote_code
+        self.model_load_config = model_load_config
         self.device_name = device_name
         self.device = torch.device(self.device_name)
         self.amp_enabled = amp_enabled
@@ -92,7 +92,7 @@ class PredictionWorker(TorchDistributedWorker):
 
         pipe = DSPipeline(
             model_id_or_path=self.model_id,
-            trust_remote_code=self.model_id,
+            model_load_config=self.model_load_config,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             dtype=self.amp_dtype,
@@ -121,10 +121,10 @@ class PredictionWorker(TorchDistributedWorker):
         return self.generator.generate(input_ids, **config)
 
 class DeepSpeedPredictor:
-    def __init__(self, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
                  ipex_enabled, cpus_per_worker, workers_per_group) -> None:
         self.model_id = model_id
-        self.trust_remote_code = trust_remote_code
+        self.model_load_config = model_load_config
         self.device_name = device_name
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
@@ -180,11 +180,11 @@ class DeepSpeedPredictor:
 
         # Create the prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.trust_remote_code, self.
+            prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.model_load_config, self.
                 device_name, self.amp_enabled, self.amp_dtype,
                 self.pad_token_id, self.stopping_criteria, self.streamer, self.ipex_enabled)
             if i == 0 else
-                prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.trust_remote_code, self.
+                prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.model_load_config, self.
                     device_name, self.amp_enabled, self.amp_dtype,
                     self.pad_token_id, self.stopping_criteria, self._create_dummy_streamer(), self.ipex_enabled)
             for i in range(scaling_config.num_workers)

@@ -82,6 +82,7 @@ class ChatBotUI():
         node_port: str,
         node_user_name: str,
         conda_env_name: str,
+        master_ip_port: str
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -94,6 +95,7 @@ class ChatBotUI():
         self.node_port = node_port
         self.user_name = node_user_name
         self.conda_env_name = conda_env_name
+        self.master_ip_port = master_ip_port
         self.ray_nodes = ray.nodes()
         self.ssh_connect = [None] * (len(self.ray_nodes)+1)
         self.ip_port = "http://127.0.0.1:8000"
@@ -208,17 +210,19 @@ class ChatBotUI():
     def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker):
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
+        gpt_base_model = self._base_models[model_name].get("gpt_base_model")
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name) if self.finetuned_checkpoint_path != "" else None
 
-        training_config = self.config.get("Training")
+        finetune_config = self.config.copy()
+        training_config = finetune_config.get("Training")
         exist_worker = int(training_config["num_training_workers"])
         exist_cpus_per_worker = int(training_config["resources_per_worker"]["CPU"])
 
         ray_resources = ray.available_resources()
         if "CPU" not in ray_resources or cpus_per_worker * worker_num + 1 > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
-        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker:
+        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker or gpt_base_model:
             ray.shutdown()
             new_ray_init_config = {
                 "runtime_env": {
@@ -234,49 +238,58 @@ class ChatBotUI():
                 "address": "auto",
                 "_node_ip_address": "127.0.0.1",
             }
-            self.config["Training"]["num_training_workers"] = int(worker_num)
-            self.config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
+            if gpt_base_model:
+                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
+            finetune_config["Training"]["num_training_workers"] = int(worker_num)
+            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
 
             ray.init(**new_ray_init_config)
             exist_worker = worker_num
             exist_cpus_per_worker = cpus_per_worker
 
-        self.config["Dataset"]["train_file"] = dataset
-        self.config["General"]["base_model"]=origin_model_path
-        self.config["Training"]["epochs"]=num_epochs
-        self.config["General"]["output_dir"]=finetuned_model_path
+        finetune_config["Dataset"]["train_file"] = dataset
+        finetune_config["General"]["base_model"] = origin_model_path
+        finetune_config["Training"]["epochs"] = num_epochs
+        finetune_config["General"]["output_dir"] = finetuned_model_path
         if finetuned_checkpoint_path:
-            self.config["General"]["checkpoint_dir"]=finetuned_checkpoint_path
-        self.config["Training"]["batch_size"]=batch_size
-        self.config["Training"]["learning_rate"]=lr
-        if max_train_step!=0:
-            self.config["Training"]["max_train_steps"]=max_train_step
+            finetune_config["General"]["checkpoint_dir"] = finetuned_checkpoint_path
+        finetune_config["Training"]["batch_size"] = batch_size
+        finetune_config["Training"]["learning_rate"] = lr
+        if max_train_step != 0:
+            finetune_config["Training"]["max_train_steps"] = max_train_step
 
         if not hasattr(globals().get("main"), '__call__'):
             from finetune.finetune import main
+        finetune_config["total_epochs"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["total_steps"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["epoch_value"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["step_value"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        self.finetune_actor = Progress_Actor.options(resources={"queue_hardware": 1}).remote(finetune_config)
 
-        self.config["total_epochs"] = queue.Queue()
-        self.config["total_steps"] = queue.Queue()
-        self.config["epoch_value"] = queue.Queue()
-        self.config["step_value"] = queue.Queue()
-        self.finetune_actor = Progress_Actor.remote(self.config)
-        
-        callback = LoggingCallback(self.config)
-        self.config["run_config"] = {}
-        self.config["run_config"]["callbacks"] = [callback]
+        callback = LoggingCallback(finetune_config)
+        finetune_config["run_config"] = {}
+        finetune_config["run_config"]["callbacks"] = [callback]
         self.stopper.stop(False)
-        self.config["run_config"]["stop"] = self.stopper
+        finetune_config["run_config"]["stop"] = self.stopper
         self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
             if main is None:
                 raise Exception("An error occurred, main cannot be null")
-            results = main(self.config)
+            results = main(finetune_config)
             if results.metrics["done"]:
                 self.finetune_status = True
         except TrainingFailedError as e:
+            self.finetune_status = True
             print("An error occurred, possibly due to failed recovery")
             print(e)
+
+        finetune_config["total_epochs"].shutdown(force=True)
+        finetune_config["total_steps"].shutdown(force=True)
+        finetune_config["epoch_value"].shutdown(force=True)
+        finetune_config["step_value"].shutdown(force=True)
+        ray.kill(self.finetune_actor)
+        self.finetune_actor = None
 
         model_config = {
             "model_id_or_path": finetuned_model_path,
@@ -296,16 +309,25 @@ class ChatBotUI():
         return gr.Dropdown.update(choices=list(self._all_models.keys()))
 
     def finetune_progress(self, progress=gr.Progress()):
+        finetune_flag = False
         while True:
             time.sleep(1)
             if self.finetune_actor is None:
-                continue
+                if finetune_flag == False:
+                    continue
+                else:
+                    break
             if self.finetune_status == True:
                 break
-            total_epochs, total_steps, value_epoch, value_step = ray.get(self.finetune_actor.track_progress.remote())
-            if value_epoch == -1:
-                continue
-            progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
+            finetune_flag = True
+            try:
+                total_epochs, total_steps, value_epoch, value_step = ray.get(self.finetune_actor.track_progress.remote())
+                if value_epoch == -1:
+                    continue
+                progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
+            except Exception as e:
+                progress(0, "Restarting...")
+        self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
     def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker: int):
@@ -326,9 +348,10 @@ class ChatBotUI():
             return model_name + " deployment failed. " + model_config["chat_model"] + " does not exist."
         self.process_tool = chat_model(**model_config["prompt"])
 
-        trust_remote_code = model_config.get("trust_remote_code")
+        model_load_config = model_config.get("config", {})
+        device_name = "cpu"
         deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.28.0"]}})\
-                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=stop_words)
+                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config, device_name, amp_enabled, amp_dtype, stop_words=stop_words, cpus_per_worker=cpus_per_worker)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
         return self.ip_port + model_config["route_prefix"]
 
@@ -362,11 +385,22 @@ class ChatBotUI():
         used_memory = 1 - free_memory/total_memory
         return cpu_memory_html.format(str(round(cpu_value, 1)), str(round(used_memory*100, 1)))
     
-    def kill_node(self, index):
-        index = int(index)
-        command = 'conda activate ' + self.conda_env_name + '; ray status'
-        self.ssh_connect[index].exec_command(command)
-        self.ray_nodes[index]["Alive"] = "False"
+    def kill_node(self, btn_txt, index):
+        serve.shutdown()
+        if btn_txt=="Kill":
+            index = int(index)
+            command = 'conda activate ' + self.conda_env_name + '; ray stop'
+            self.ssh_connect[index].exec_command(command)
+            self.ray_nodes[index]["Alive"] = "False"
+            time.sleep(2)
+            return "Start", ""
+        elif btn_txt=="Start":
+            index = int(index)
+            command = "conda activate " + self.conda_env_name + "; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address=" + self.master_ip_port + r""" --resources='{"special_hardware": 4}'"""
+            self.ssh_connect[index].exec_command(command)
+            self.ray_nodes[index]["Alive"] = "True"
+            time.sleep(2)
+            return "Kill", ""
     
     def watch_node_status(self, index):
         if self.ray_nodes[index]["Alive"] == "False":
@@ -434,7 +468,7 @@ class ChatBotUI():
                         stop_finetune_btn = gr.Button("Stop")
                 
                 with gr.Row():
-                    finetune_status = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>")
+                    finetune_res = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>")
 
             with gr.Tab("Deployment"):
                 step2 = "Deploy the finetuned model as an online inference service"
@@ -593,10 +627,10 @@ class ChatBotUI():
                 reset_all_btn.click(self.reset, [ids[i]], [msgs[i], chatbots[i]], queue=False)
             
             for i in range(len(stop_btn)):
-                stop_btn[i].click(self.kill_node, [node_index[i]], None)
+                stop_btn[i].click(self.kill_node, [stop_btn[i], node_index[i]], [stop_btn[i], deployed_model_endpoint])
 
             finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker], [all_model_dropdown])
-            finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_status])
+            finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_res])
             stop_finetune_btn.click(fn=self.shutdown_finetune, inputs=None, outputs=None, cancels=[finetune_event, finetune_progress_event])
             deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker], [deployed_model_endpoint])
             stop_deploy_btn.click(fn=self.shutdown_deploy, inputs=None, outputs=None, cancels=[deploy_event])
@@ -612,6 +646,7 @@ if __name__ == "__main__":
     parser.add_argument("--node_port", default="22", type=str, help="The node port that ssh connects.")
     parser.add_argument("--node_user_name", default="root", type=str, help="The node user name that ssh connects.")
     parser.add_argument("--conda_env_name", default="test_gradio", type=str, help="The environment used to execute ssh commands.")
+    parser.add_argument("--master_ip_port", default="None", type=str, help="The ip:port of head node to connect when restart a worker node.")
     args = parser.parse_args()
 
     file_path = os.path.abspath(__file__)
@@ -622,7 +657,9 @@ if __name__ == "__main__":
     sys.path.append(repo_path)
 
     config = {
-        "General": {},
+        "General": {
+            "config": {}
+        },
         "Dataset": {
             "validation_file": None,
             "validation_split_percentage": 0
@@ -631,11 +668,15 @@ if __name__ == "__main__":
             "optimizer": "AdamW",
             "lr_scheduler": "linear",
             "weight_decay": 0.0,
+            "device": "CPU",
             "num_training_workers": 2,
             "resources_per_worker": {
                 "CPU": 24
             },
         },
+        "failure_config": {
+            "max_failures": 5
+        }
     }
 
     ray_init_config = {
@@ -658,5 +699,5 @@ if __name__ == "__main__":
     finetune_model_path = args.finetune_model_path
     finetune_checkpoint_path = args.finetune_checkpoint_path
 
-    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name)
+    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
     ui.gr_chat.queue(concurrency_count=10).launch(share=True, server_port=8080, server_name="0.0.0.0")

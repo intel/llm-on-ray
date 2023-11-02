@@ -31,13 +31,13 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 @ray.remote(scheduling_strategy="SPREAD")
 class Dialogue:
-    def __init__(self, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled,
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled,
                  deepspeed_enabled, cpus_per_worker, workers_per_group):
         if deepspeed_enabled:
-            self.predictor = DeepSpeedPredictor(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+            self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
                                                 ipex_enabled, cpus_per_worker, workers_per_group)
         else:
-            self.predictor = TransformerPredictor(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+            self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
                                                   ipex_enabled)
 
     def streaming_generate(self, input_ids, **config):
@@ -51,15 +51,15 @@ class Dialogue:
 
 @serve.deployment()
 class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, trust_remote_code, device_name, amp_enabled, amp_dtype, stop_words,
-                 ipex_enabled, deepspeed_enabled, cpus_per_worker, workers_per_group):
+    def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, stop_words,
+                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, workers_per_group=2):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        self.dialogue = Dialogue.remote(model_id, trust_remote_code, device_name, amp_enabled, amp_dtype,
+        self.dialogue = Dialogue.remote(model_id, model_load_config, device_name, amp_enabled, amp_dtype,
                                         self.tokenizer.eos_token_id,
                                         self.stopping_criteria, self.streamer, ipex_enabled,
                                         deepspeed_enabled, cpus_per_worker, workers_per_group)
@@ -178,8 +178,8 @@ if __name__ == "__main__":
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
-        trust_remote_code = model_config.get("trust_remote_code")
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code,
+        model_load_config = model_config.get("config", {})
+        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
                                             args.device, amp_enabled, amp_dtype,
                                             stop_words=model_config["prompt"]["stop_words"],
                                             ipex_enabled=args.ipex,

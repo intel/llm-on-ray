@@ -124,14 +124,24 @@ def main(external_config = None):
         placement_strategy = "SPREAD"
     )
 
-    torch_config = TorchConfig(backend = "ccl")
-
-    failure_config = FailureConfig()
+    if config.get("torch_config", None) is None:
+        torch_config = TorchConfig(backend = "ccl")
+    else:
+        customer_torch_config = config.get("torch_config")
+        torch_config = TorchConfig(**customer_torch_config)
+    
+    if config.get("failure_config", None) is None:
+        failure_config = FailureConfig()
+    else:
+        customer_failure_config = config.get("failure_config")
+        failure_config = FailureConfig(**customer_failure_config)
 
     if config.get("run_config", None) is None:
         run_config = RunConfig(failure_config=failure_config)
     else:
         customer_run_config = config.get("run_config")
+        if customer_run_config.get("failure_config", None) is None:
+            customer_run_config["failure_config"] = failure_config
         run_config = RunConfig(**customer_run_config)
 
     trainer = TorchTrainer(
