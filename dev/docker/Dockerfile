@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 ENV LANG C.UTF-8
 
@@ -23,9 +23,9 @@ RUN conda init bash && \
     conda config --add channels intel && \
     conda install python==3.9
 
-RUN pip install --no-cache-dir accelerate==0.21.0 datasets==2.14.6 numpy==1.21.6 ray==2.5.0  \
+RUN pip install accelerate==0.21.0 datasets==2.14.6 numpy==1.21.6 ray==2.5.0  \
     raydp==1.6.0b20230527.dev0 transformers==4.31.0 typing==3.7.4.3  \
-    tabulate ray[tune] ray[serve] gradio gymnasium dm-tree scikit-image pydantic==1.10.11  \
+    tabulate ray\[tune\] ray\[serve\] gradio gymnasium dm-tree scikit-image pydantic==1.10.11  \
     tensorboard einops peft==0.5.0
 
 # For PyTorch 1.13
@@ -43,8 +43,8 @@ COPY ./requirements.deepspeed.cpu.txt /tmp
 # Requirments should be installed before deepspeed, can't put deepspeed in the same file
 RUN pip install -r /tmp/requirements.deepspeed.cpu.txt
 # 0.10.2 is required to support bloom
-RUN pip install deepspeed==0.10.2
-RUN ds_report
+RUN pip install deepspeed==0.10.2 \
+&& ds_report
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
