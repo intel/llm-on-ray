@@ -125,6 +125,29 @@ class PredictDeployment:
         if not streaming_response:
             return next(outputs)
         return StreamingResponse(outputs, status_code=200, media_type="text/plain")
+    
+    async def test_generate(self, text: str, streaming_response: bool, **config):
+        print("############ pass test_generate: ", text)
+        # json_request: str = await http_request.json()
+        prompts = []
+        # for prompt in json_request:
+        #     text = prompt["text"]
+        #     config = prompt["config"]  if "config" in prompt else {}
+        #     streaming_response = prompt["stream"]
+        if isinstance(text, list):
+            prompts.extend(text)
+        else:
+            prompts.append(text)
+        prompts = ["You are a helpful assistant. Tell me a long story with many words."]
+        for output in self.generate(prompts, streaming_response, **config):
+            print("look output 1: ** ", output, " **")
+            yield output
+        # if not streaming_response:
+        #     return next(outputs)
+        # print("########################### look outputs: ", outputs)
+        # # return StreamingResponse(outputs, status_code=200, media_type="text/plain")
+        # yield outputs
+        # yield outputs
 
 if __name__ == "__main__":
 
