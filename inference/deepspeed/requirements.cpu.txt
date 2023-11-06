@@ -1,0 +1,5 @@
+packaging>=20.0
+psutil
+tqdm
+# 0.10.2 is required to support bloom
+deepspeed==0.10.2

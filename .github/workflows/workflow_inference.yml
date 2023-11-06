@@ -25,7 +25,7 @@ jobs:
 
       - name: Start Ray Cluster
         run: |
-          docker exec "inference" bash -c "./dev/docker/start-ray-cluster.sh"
+          docker exec "inference" bash -c "./inference/deepspeed/start-ray-cluster.sh"
 
       - name: Run Inference Test
         run: |

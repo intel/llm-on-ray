@@ -1,10 +1,8 @@
 accelerate==0.21.0
-datasets==2.12.0
-numpy==1.24.4
+datasets==2.14.6
+numpy==1.21.6
 ray==2.5.0
-raydp==1.6.0b20230527.dev0
-torchvision==0.14.1
-torch==1.13.1
+raydp==1.6.0
 transformers==4.31.0
 typing==3.7.4.3
 tabulate
@@ -13,10 +11,10 @@ ray[serve]
 gradio
 gymnasium
 dm-tree
-scikit-image
-pydantic==1.10.11
 tensorboard
 einops
-gpustat==1.0.0
 peft==0.5.0
--e git+https://github.com/microsoft/Megatron-DeepSpeed.git#egg=megatron-core
+py-cpuinfo
+torch==2.0.0+cpu
+oneccl_bind_pt==2.0.0
+intel_extension_for_pytorch==2.0.100+cpu

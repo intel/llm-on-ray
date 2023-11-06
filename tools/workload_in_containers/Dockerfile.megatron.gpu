@@ -3,7 +3,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /home/user
 
-COPY requirements.txt /home/user/
+COPY pretrain/requirements.txt /home/user/
 COPY pretrain/patch/gpu/0001-hot-fix-for-megatron-deepspeed.patch /home/user/
 RUN pip install -r requirements.txt
 RUN pip install deepspeed lz4
