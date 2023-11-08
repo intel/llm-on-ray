@@ -102,7 +102,10 @@ class PredictDeployment:
         if not streaming_response:
             response = self.dialogue.generate.remote(input_ids, **config)
             gen_tokens = ray.get(response)
-            output = self.tokenizer.batch_decode(gen_tokens)
+            output = self.tokenizer.batch_decode(
+                gen_tokens,
+                skip_special_tokens=True
+            )
             yield output[0]
 
         self.dialogue.streaming_generate.remote(input_ids, **config)
