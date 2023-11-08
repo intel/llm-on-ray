@@ -5,9 +5,6 @@ import time
 import yaml
 from enum import IntEnum
 
-if TYPE_CHECKING:
-    from rayllm.backend.server.models import AviaryModelResponse
-
 TModel = TypeVar("TModel", bound="Model")
 TCompletion = TypeVar("TCompletion", bound="Completion")
 TChatCompletion = TypeVar("TChatCompletion", bound="ChatCompletion")
@@ -50,7 +47,7 @@ class Usage(BaseModel):
 
     @classmethod
     def from_response(
-        cls, response: Union["AviaryModelResponse", Dict[str, Any]]
+        cls, response: Union["ModelResponse", Dict[str, Any]]
     ) -> "Usage":
         if isinstance(response, BaseModel):
             response_dict = response.dict()
@@ -136,10 +133,9 @@ class ChatCompletion(BaseModel):
     object: str
     created: int
     model: str
-    # choices: List[Union[MessageChoices, DeltaChoices]]
-    # usage: Optional[Usage]
-    result: List[str]
-
+    choices: List[Union[MessageChoices, DeltaChoices]]
+    usage: Optional[Usage]
+    
     @classmethod
     def create(
         cls,
@@ -347,7 +343,7 @@ class ComputedPropertyMixin:
 
         return super().json(*args, **kwargs)  # type: ignore
 
-class AviaryModelResponse(ComputedPropertyMixin, BaseModelExtended):
+class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
     generated_text: Optional[str] = None
     num_input_tokens: Optional[int] = None
     num_input_tokens_batch: Optional[int] = None
@@ -372,7 +368,7 @@ class AviaryModelResponse(ComputedPropertyMixin, BaseModelExtended):
         return values
 
     @classmethod
-    def merge_stream(cls, *responses: "AviaryModelResponse") -> "AviaryModelResponse":
+    def merge_stream(cls, *responses: "ModelResponse") -> "ModelResponse":
         """
         Merge a stream of responses into a single response.
 
@@ -466,5 +462,5 @@ class AviaryModelResponse(ComputedPropertyMixin, BaseModelExtended):
         except Exception:
             return None
 
-    def unpack(self) -> Tuple["AviaryModelResponse", ...]:
+    def unpack(self) -> Tuple["ModelResponse", ...]:
         return (self,)

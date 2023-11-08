@@ -8,24 +8,15 @@ from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-import ray
 
-from util.logger import get_logger
-# from rayllm.backend.logger import get_logger
-# from rayllm.backend.observability.telemetry import configure_telemetry
-from common.models import Prompt, AviaryModelResponse
-import json
-# from rayllm.backend.server.models import AviaryModelResponse, Prompt, QueuePriority
-# from rayllm.backend.server.openai_compat.openai_exception import OpenAIHTTPException
-# from rayllm.backend.server.openai_compat.openai_middleware import (
-#     openai_exception_handler,
-# )
-# from rayllm.backend.server.routers.middleware import add_request_id
-# from rayllm.backend.server.utils import _replace_prefix
-from util.utils import _replace_prefix
-from common.query_client import RouterQueryClient
-from common.llm_models import VLLMCompletions, VLLMChatCompletions
-from common.models import (
+from api_backend.util.logger import get_logger
+from api_backend.util.utils import _replace_prefix, OpenAIHTTPException
+
+from api_backend.common.models import Prompt, ModelResponse
+from api_backend.routers.middleware import add_request_id
+from api_backend.common.query_client import RouterQueryClient
+from api_backend.common.llm_models import VLLMCompletions, VLLMChatCompletions
+from api_backend.common.models import (
     ChatCompletion,
     Completion,
     DeltaChoices,
@@ -50,7 +41,6 @@ TIMEOUT = float(os.environ.get("AVIARY_ROUTER_HTTP_TIMEOUT", 600))
 def init() -> FastAPI:
     router_app = FastAPI()
 
-    # router_app.add_exception_handler(OpenAIHTTPException, openai_exception_handler)
     router_app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -59,8 +49,8 @@ def init() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # # Add a unique per-request ID
-    # router_app.middleware("http")(add_request_id)
+    # Add a unique per-request ID
+    router_app.middleware("http")(add_request_id)
     # # Configure common FastAPI app telemetry
     # configure_telemetry(router_app, "model_router_app")
 
@@ -85,17 +75,17 @@ async def _completions_wrapper(
                 all_results.append(subresult)
                 subresult_dict = subresult.dict()
                 if subresult_dict.get("error"):
-                    # response.status_code = subresult_dict["error"]["code"]
-                    # # Drop finish reason as OpenAI doesn't expect it
-                    # # for errors in streaming
-                    # subresult_dict["finish_reason"] = None
+                    response.status_code = subresult_dict["error"]["code"]
+                    # Drop finish reason as OpenAI doesn't expect it
+                    # for errors in streaming
+                    subresult_dict["finish_reason"] = None
                     logger.error(f"{subresult_dict['error']}")
                     yield "data: " +  subresult
-                    # all_results.pop()
-                    # had_error = True
-                    # yield "data: " + AviaryModelResponse(
-                    #     **subresult_dict
-                    # ).json() + "\n\n"
+                    all_results.pop()
+                    had_error = True
+                    yield "data: " + ModelResponse(
+                        **subresult_dict
+                    ).json() + "\n\n"
                     # Return early in case of an error
                     break
                 choices = [
@@ -110,7 +100,7 @@ async def _completions_wrapper(
                 if subresult_dict["finish_reason"]:
                     usage = (
                         Usage.from_response(
-                            AviaryModelResponse.merge_stream(*all_results)
+                            ModelResponse.merge_stream(*all_results)
                         )
                         if all_results
                         else None
@@ -134,7 +124,7 @@ async def _chat_completions_wrapper(
     body: VLLMChatCompletions,
     request: Request,
     response: Response,
-    generator: AsyncGenerator[AviaryModelResponse, None],
+    generator: AsyncGenerator[ModelResponse, None],
 ) -> AsyncGenerator[str, None]:
     had_error = False
     async with async_timeout.timeout(TIMEOUT):
@@ -156,9 +146,7 @@ async def _chat_completions_wrapper(
         ).json() + "\n\n"
 
         all_results = []
-        print("###########################look generator: ", generator, " ", type(generator))
         async for results in generator:
-            print("################################# look results: ", results, " ", type(results))
             for subresult in results.unpack():
                 all_results.append(subresult)
                 subresult_dict = subresult.dict()
@@ -170,7 +158,7 @@ async def _chat_completions_wrapper(
                     subresult_dict["finish_reason"] = None
                     all_results.pop()
                     had_error = True
-                    yield "data: " + AviaryModelResponse(
+                    yield "data: " + ModelResponse(
                         **subresult_dict
                     ).json() + "\n\n"
                     # Return early in case of an error
@@ -206,7 +194,7 @@ async def _chat_completions_wrapper(
                 )
             ]
             usage = (
-                Usage.from_response(AviaryModelResponse.merge_stream(*all_results))
+                Usage.from_response(ModelResponse.merge_stream(*all_results))
                 if all_results
                 else None
             )
@@ -244,12 +232,11 @@ class Router:
         model = _replace_prefix(model)
         model_data = await self.query_engine.model(model)
         if model_data is None:
-            raise "Invalid model '{model}' ".format(model)
-            # raise OpenAIHTTPException(
-            #     message=f"Invalid model '{model}'",
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     type="InvalidModel",
-            # )
+            raise OpenAIHTTPException(
+                message=f"Invalid model '{model}'",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                type="InvalidModel",
+            )
         return model_data
 
     @router_app.post("/v1/completions")
@@ -274,36 +261,29 @@ class Router:
         completion_id = body.model + "-" + request.state.request_id
 
         if body.stream:
-            # return StreamingResponse(
-            #     _completions_wrapper(
-            #         completion_id,
-            #         body,
-            #         request,
-            #         response,
-            #         self.query_engine.stream(
-            #             body.model,
-            #             prompt,
-            #             request,
-            #             # priority=QueuePriority.GENERATE_TEXT,
-            #         ),
-            #     ),
-            #     media_type="text/event-stream",
-            # )
-            return self.query_engine.stream(
-                body.model,
-                prompt,
-                request
+            return StreamingResponse(
+                _completions_wrapper(
+                    completion_id,
+                    body,
+                    request,
+                    response,
+                    self.query_engine.stream(
+                        body.model,
+                        prompt,
+                        request,
+                    ),
+                ),
+                media_type="text/event-stream",
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
                 results = await self.query_engine.query(body.model, prompt, request)
                 if results.error:
-                    raise(results.error)
-                    # raise OpenAIHTTPException(
-                    #     message=results.error.message,
-                    #     status_code=results.error.code,
-                    #     type=results.error.type,
-                    # )
+                    raise OpenAIHTTPException(
+                        message=results.error.message,
+                        status_code=results.error.code,
+                        type=results.error.type,
+                    )
                 results = results.dict()
 
                 choices = [
@@ -339,79 +319,57 @@ class Router:
         Returns:
             A response object with completions.
         """
-        print("#################### pass /v1/chat/completions")
         prompt = Prompt(prompt=body.messages, parameters=body)
-        print("#################### prompt: ", prompt)
 
         # completion_id = body.model + "-" + request.state.request_id
         completion_id = body.model
 
         if body.stream:
-            async def adapter():
-                generator = self.query_engine.stream(
+            return StreamingResponse(
+                _chat_completions_wrapper(
+                    completion_id,
+                    body,
+                    request,
+                    response,
+                    self.query_engine.stream(
                                     body.model,
                                     prompt,
                                     request
                                 )
-                print("############### look type generator: ", generator, "  ***   ", type(generator))
-                async for item in generator:
-                    print("#################### look item: ", item, " *********** ", type(item), " **** ", dir(item))
-                    # print("#################### get the result of task: ", item.result())
-                    yield json.dumps({"message": item, "model": body.model}) + "\0"
-            return StreamingResponse(adapter())
-            # return StreamingResponse(
-            #     _chat_completions_wrapper(
-            #         completion_id,
-            #         body,
-            #         request,
-            #         response,
-            #         self.query_engine.stream(
-            #             body.model,
-            #             prompt,
-            #             request,
-            #             # priority=QueuePriority.GENERATE_TEXT,
-            #         ),
-            #     ),
-            #     media_type="text/event-stream",
-            # )
-            # return StreamingResponse(self.query_engine.stream(
-            #                         body.model,
-            #                         prompt,
-            #                         request
-            #                     ))
+                ),
+                media_type="text/event-stream",
+            )
             
         else:
             async with async_timeout.timeout(TIMEOUT):
                 results = await self.query_engine.query(body.model, prompt, request)
-                print("########################## look results: ", results)
-                # if results.error:
-                #     raise results.error.message
-                    # raise OpenAIHTTPException(
-                    #     message=results.error.message,
-                    #     status_code=results.error.code,
-                    #     type=results.error.type,
-                    # )
-                # results = results.dict()
+                if results.error:
+                    raise OpenAIHTTPException(
+                        message=results.error.message,
+                        status_code=results.error.code,
+                        type=results.error.type,
+                    )
+                results = results.dict()
 
-                # # TODO: pick up parameters that make sense, remove the rest
+                # TODO: pick up parameters that make sense, remove the rest
 
-                # choices: List[MessageChoices] = [
-                #     MessageChoices(
-                #         message=Message(
-                #             role="assistant", content=results["generated_text"] or ""
-                #         ),
-                #         index=0,
-                #         finish_reason=results["finish_reason"],
-                #     )
-                # ]
-                # usage = Usage.from_response(results)
+                choices: List[MessageChoices] = [
+                    MessageChoices(
+                        message=Message(
+                            role="assistant", content=results["generated_text"] or ""
+                        ),
+                        index=0,
+                        finish_reason=results["finish_reason"],
+                    )
+                ]
+                usage = Usage.from_response(results)
 
                 return ChatCompletion(
                     id=completion_id,
                     object="text_completion",
                     created=int(time.time()),
                     model=body.model,
-                    # choices=choices,
+                    choices=choices,
                     result=results,
                 )
 

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, Literal
 from pydantic import BaseModel, Extra, PrivateAttr, root_validator, validator
 import yaml
-from util.dict_utils import merge_dicts
+from api_backend.util.dict_utils import merge_dicts
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -64,42 +64,6 @@ class VLLMCompletions(BaseModel):
         if kwargs.get("exclude", None) is None:
             kwargs["exclude"] = self._ignored_fields
         return super().dict(**kwargs)
-
-    # @validator("stop", always=True)
-    # def validate_stopping_sequences(cls, values):
-    #     if not values:
-    #         return values
-
-    #     unique_val = sorted(list(set(values)))
-
-    #     if len(unique_val) > MAX_NUM_STOPPING_SEQUENCES:
-    #         TooManyStoppingSequences(
-    #             len(unique_val), MAX_NUM_STOPPING_SEQUENCES
-    #         ).raise_exception()
-
-    #     return unique_val
-
-    # @classmethod
-    # def merge_generation_params(
-    #     cls: Type[ModelT], prompt: Prompt, generation: GenerationConfig
-    # ) -> ModelT:
-    #     # Extract parameters object from prompt
-    #     parameters = prompt.parameters or {}
-    #     if not isinstance(parameters, dict):
-    #         parameters = parameters.dict()
-
-    #     # Merge in the generate kwargs
-    #     generate_kwargs = merge_dicts(
-    #         parameters,
-    #         generation.generate_kwargs,
-    #     )
-
-    #     # The stoppping sequence needs to be merged manually
-    #     generate_kwargs["stop"] = (parameters.get("stop") or []) + (
-    #         generation.stopping_sequences or []
-    #     )
-
-    #     return cls.parse_obj(generate_kwargs)
 
 
 class Message(BaseModel):

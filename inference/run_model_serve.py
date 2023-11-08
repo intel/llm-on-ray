@@ -15,6 +15,7 @@ from threading import Thread
 from transformer_predictor import TransformerPredictor
 from deepspeed_predictor import DeepSpeedPredictor
 from config import all_models
+from api_backend.common.models import ModelResponse
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -126,28 +127,27 @@ class PredictDeployment:
             return next(outputs)
         return StreamingResponse(outputs, status_code=200, media_type="text/plain")
     
-    async def test_generate(self, text: str, streaming_response: bool, **config):
-        print("############ pass test_generate: ", text)
-        # json_request: str = await http_request.json()
+    async def test_generate(self, content: str, streaming_response: bool, **config):
+        prompt = content.prompt
+        print("content.prompt: ", content.prompt)
         prompts = []
-        # for prompt in json_request:
-        #     text = prompt["text"]
-        #     config = prompt["config"]  if "config" in prompt else {}
-        #     streaming_response = prompt["stream"]
-        if isinstance(text, list):
-            prompts.extend(text)
+        if isinstance(prompt, list):
+            for message in prompt:
+                prompts.append(message.content)
+            prompts = [" ".join(prompts)]
         else:
-            prompts.append(text)
-        prompts = ["You are a helpful assistant. Tell me a long story with many words."]
-        for output in self.generate(prompts, streaming_response, **config):
-            print("look output 1: ** ", output, " **")
-            yield output
+            prompts.append(prompt)
         # if not streaming_response:
         #     return next(outputs)
-        # print("########################### look outputs: ", outputs)
-        # # return StreamingResponse(outputs, status_code=200, media_type="text/plain")
-        # yield outputs
-        # yield outputs
+        for output in self.generate(prompts, streaming_response, **config):
+            aviary_model_response = ModelResponse(
+                generated_text=output,
+                num_input_tokens=len(prompts[0]),
+                num_input_tokens_batch=len(prompts[0]),
+                num_generated_tokens=1,
+                preprocessing_time=0,
+            )
+            yield aviary_model_response
 
 if __name__ == "__main__":
 
