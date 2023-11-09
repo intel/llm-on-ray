@@ -1,7 +1,7 @@
 import ray
 import torch
-import oneccl_bindings_for_pytorch
 import deepspeed
+import oneccl_bindings_for_pytorch
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from ray.air.util.torch_dist import (
@@ -36,7 +36,7 @@ class DSPipeline:
                                                           low_cpu_mem_usage=True,
                                                           **model_load_config)
 
-        self.model = self.model.eval().to(device)
+        self.model = self.model.eval().to(self.device)
         # to channels last
         self.model = self.model.to(memory_format=torch.channels_last)
         self.model.eval()
@@ -118,11 +118,12 @@ class PredictionWorker(TorchDistributedWorker):
         self.generator.streaming_generate(input_ids, self.streamer, **config)
 
     def generate(self, input_ids, **config):
+        input_ids = input_ids.to(self.device)
         return self.generator.generate(input_ids, **config)
 
 class DeepSpeedPredictor:
     def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
-                 ipex_enabled, cpus_per_worker, workers_per_group) -> None:
+                 ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group) -> None:
         self.model_id = model_id
         self.model_load_config = model_load_config
         self.device_name = device_name
@@ -133,13 +134,16 @@ class DeepSpeedPredictor:
         self.streamer = streamer
         self.ipex_enabled = ipex_enabled
 
-        use_gpu = True if (device_name == "xpu") else False
+        use_gpu = True if (device_name == "cuda") else False
 
         # Scaling config for one worker group.
+        resource = {"CPU": cpus_per_worker}
+        if device_name == "cuda":
+            resource["GPU"] = gpus_per_worker
         scaling_conf = ScalingConfig(
             use_gpu=use_gpu,
             num_workers=workers_per_group,
-            resources_per_worker={"CPU": cpus_per_worker},
+            resources_per_worker=resource
         )
 
         print(scaling_conf)
@@ -173,6 +177,7 @@ class DeepSpeedPredictor:
         self.pg = scaling_config.as_placement_group_factory().to_placement_group()
         prediction_worker_cls = PredictionWorker.options(
             num_cpus=scaling_config.num_cpus_per_worker,
+            num_gpus=scaling_config.num_gpus_per_worker,
             scheduling_strategy=PlacementGroupSchedulingStrategy(
                 placement_group=self.pg, placement_group_capture_child_tasks=True
             ),
@@ -191,7 +196,7 @@ class DeepSpeedPredictor:
         ]
 
         # Initialize torch distributed process group for the workers.
-        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl")
+        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl" if self.device_name != "cuda" else "nccl")
 
         # Initialize the model on each worker.
         ray.get([

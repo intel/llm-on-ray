@@ -32,10 +32,10 @@ class StoppingCriteriaSub(StoppingCriteria):
 @ray.remote(scheduling_strategy="SPREAD")
 class Dialogue:
     def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled,
-                 deepspeed_enabled, cpus_per_worker, workers_per_group):
+                 deepspeed_enabled, cpus_per_worker, gpus_per_worker, workers_per_group):
         if deepspeed_enabled:
             self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
-                                                ipex_enabled, cpus_per_worker, workers_per_group)
+                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
         else:
             self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
                                                   ipex_enabled)
@@ -52,17 +52,21 @@ class Dialogue:
 @serve.deployment()
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, stop_words,
-                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, workers_per_group=2):
+                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         self.streamer = self.create_streamer()
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-        self.dialogue = Dialogue.remote(model_id, model_load_config, device_name, amp_enabled, amp_dtype,
+
+        self.dialogue = Dialogue.options(num_gpus=gpus_per_worker if not deepspeed_enabled else min(gpus_per_worker, 1),
+                                         num_cpus=cpus_per_worker if not deepspeed_enabled else 1).remote(
+                                        model_id, model_load_config, device_name, amp_enabled, amp_dtype,
                                         self.tokenizer.eos_token_id,
                                         self.stopping_criteria, self.streamer, ipex_enabled,
-                                        deepspeed_enabled, cpus_per_worker, workers_per_group)
+                                        deepspeed_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
+
         ray.get(self.dialogue.ping.remote())
 
     def create_streamer(self):
@@ -97,7 +101,7 @@ class PredictDeployment:
 
     def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        input_ids = self.tokenizer(text, return_tensors="pt").input_ids.to(self.device)
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
 
         if not streaming_response:
             response = self.dialogue.generate.remote(input_ids, **config)
@@ -138,10 +142,11 @@ if __name__ == "__main__":
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
+    parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
     parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
     parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu or gpu")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu or cuda")
 
     args = parser.parse_args()
 
@@ -151,6 +156,7 @@ if __name__ == "__main__":
             "KMP_SETTINGS": "1",
             "KMP_AFFINITY": "granularity=fine,compact,1,0",
             "OMP_NUM_THREADS": str(args.cpus_per_worker),
+            "DS_ACCELERATOR": args.device,
             "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
         }
     }
@@ -181,12 +187,15 @@ if __name__ == "__main__":
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
+
         model_load_config = model_config.get("config", {})
-        deployment = PredictDeployment.bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
+        deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(args.gpus_per_worker, 1)}).bind(
+                                            model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
                                             args.device, amp_enabled, amp_dtype,
                                             stop_words=model_config["prompt"]["stop_words"],
                                             ipex_enabled=args.ipex,
-                                            deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker, workers_per_group=args.workers_per_group)
+                                            deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker,
+                                            gpus_per_worker=args.gpus_per_worker, workers_per_group=args.workers_per_group)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
 
     msg = "Service is deployed successfully"

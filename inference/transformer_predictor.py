@@ -5,6 +5,7 @@ class TransformerPredictor:
     def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
+        self.device = torch.device(device_name)
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=amp_dtype,
@@ -12,8 +13,7 @@ class TransformerPredictor:
             **model_load_config
         )
 
-        device = torch.device(device_name)
-        model = model.eval().to(device)
+        model = model.eval().to(self.device)
         # to channels last
         model = model.to(memory_format=torch.channels_last)
         # to ipex

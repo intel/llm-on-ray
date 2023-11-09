@@ -102,11 +102,12 @@ def main(external_config = None):
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
+    device = config["Training"]["device"]
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
-                "ACCELERATE_USE_CPU": "True", 
+                "ACCELERATE_USE_CPU": "True" if device == "CPU" else "False", 
                 "ACCELERATE_USE_IPEX": "False",
                 "ACCELERATE_MIXED_PRECISION": "no",
                 "CCL_WORKER_COUNT": "1",
@@ -121,11 +122,12 @@ def main(external_config = None):
     scaling_config = ScalingConfig(
         num_workers = num_training_workers,
         resources_per_worker = resources_per_worker,
-        placement_strategy = "SPREAD"
+        placement_strategy = "SPREAD",
+        use_gpu = False if device == "CPU" else True
     )
 
     if config.get("torch_config", None) is None:
-        torch_config = TorchConfig(backend = "ccl")
+        torch_config = TorchConfig(backend = "ccl" if device == "CPU" else None)
     else:
         customer_torch_config = config.get("torch_config")
         torch_config = TorchConfig(**customer_torch_config)
