@@ -1,14 +1,17 @@
 import os
+import asyncio
+import functools
 import ray
 from ray import serve
 from starlette.requests import Request
+from queue import Empty
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 from transformers import StoppingCriteria, StoppingCriteriaList
 import intel_extension_for_pytorch as ipex
 from config import all_models
 
-from typing import Generator, Union
+from typing import Generator, Union, List
 from starlette.responses import StreamingResponse
 from threading import Thread
 
@@ -29,45 +32,26 @@ class StoppingCriteriaSub(StoppingCriteria):
                 return True
         return False
 
-@ray.remote(scheduling_strategy="SPREAD")
-class Dialogue:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled,
-                 deepspeed_enabled, cpus_per_worker, gpus_per_worker, workers_per_group):
-        if deepspeed_enabled:
-            self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
-                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
-        else:
-            self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
-                                                  ipex_enabled)
-
-    def streaming_generate(self, input_ids, **config):
-        return self.predictor.streaming_generate(input_ids, **config)
-
-    def generate(self, input_ids, **config):
-        return self.predictor.generate(input_ids, **config)
-
-    def ping(self):
-        pass
-
-@serve.deployment()
+@serve.deployment
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, stop_words,
                  ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
-        self.streamer = self.create_streamer()
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-
-        self.dialogue = Dialogue.options(num_gpus=gpus_per_worker if not deepspeed_enabled else min(gpus_per_worker, 1),
-                                         num_cpus=cpus_per_worker if not deepspeed_enabled else 1).remote(
-                                        model_id, model_load_config, device_name, amp_enabled, amp_dtype,
-                                        self.tokenizer.eos_token_id,
-                                        self.stopping_criteria, self.streamer, ipex_enabled,
-                                        deepspeed_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
-
-        ray.get(self.dialogue.ping.remote())
+        self.use_deepspeed = deepspeed_enabled
+        if self.use_deepspeed:
+            self.streamer = self.create_streamer()
+            self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
+                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
+        else:
+            self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
+                                                  ipex_enabled)
+        self.loop = asyncio.get_running_loop()
 
     def create_streamer(self):
         from transformers import TextStreamer
@@ -99,23 +83,41 @@ class PredictDeployment:
                     return value
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
-    def generate(self, text: str, streaming_response: bool, **config) -> Generator[str, None, None]:
+    def tokenize_inputs(self, text: List[str]):
+        input_tokens = self.tokenizer.batch_encode_plus(
+            text, return_tensors="pt", padding=True
+        )
+        input_token_len = input_tokens.input_ids.shape[-1]
+        inputs = {k: v.to(device=self.device) \
+                  for k,v in input_tokens.items() \
+                  if torch.is_tensor(v)}
+        return inputs, input_token_len
+
+    def predict(self, text: List[str], **config) -> str:
+        inputs, _ = self.tokenize_inputs(text)
+        gen_tokens = self.predictor.generate(inputs, **config)
+        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
+
+    def predict_stream(self, text: List[str], streamer: TextIteratorStreamer, **config) -> Generator[str, None, None]:
         # with torch.cpu.amp.autocast(enabled=self.amp_enabled, dtype=self.amp_dtype):
-        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
+        inputs, _ = self.tokenize_inputs(text)
+        self.predictor.streaming_generate(inputs, streamer, **config)
+    
+    def consume_streamer(self):
+        for text in self.streamer:
+            yield text
 
-        if not streaming_response:
-            response = self.dialogue.generate.remote(input_ids, **config)
-            gen_tokens = ray.get(response)
-            output = self.tokenizer.batch_decode(
-                gen_tokens,
-                skip_special_tokens=True
-            )
-            yield output[0]
-
-        self.dialogue.streaming_generate.remote(input_ids, **config)
-
-        for new_text in self.streamer:
-            yield new_text
+    async def consume_streamer_async(self, streamer: TextIteratorStreamer):
+        while True:
+            try:
+                for token in streamer:
+                    yield token
+                break
+            except Empty:
+                # The streamer raises an Empty exception if the next token
+                # hasn't been generated yet. `await` here to yield control
+                # back to the event loop so other coroutines can run.
+                await asyncio.sleep(0.1)
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()
@@ -128,10 +130,15 @@ class PredictDeployment:
                 prompts.extend(text)
             else:
                 prompts.append(text)
-        outputs = self.generate(prompts, streaming_response, **config)
         if not streaming_response:
-            return next(outputs)
-        return StreamingResponse(outputs, status_code=200, media_type="text/plain")
+            return self.predict(prompts, **config)
+        if self.use_deepspeed:
+            self.predict_stream(prompts, self.streamer, **config)
+            return StreamingResponse(self.consume_streamer(), status_code=200, media_type="text/plain")
+        else:
+            streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)
+            self.loop.run_in_executor(None, functools.partial(self.predict_stream, prompts, streamer, **config))
+            return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
 
 if __name__ == "__main__":
 

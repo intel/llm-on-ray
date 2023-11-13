@@ -2,7 +2,7 @@ import torch
 from transformers import AutoModelForCausalLM
 
 class TransformerPredictor:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer, ipex_enabled):
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         self.device = torch.device(device_name)
@@ -26,18 +26,17 @@ class TransformerPredictor:
             self.model = model
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
 
-    def streaming_generate(self, input_ids, **config):
-        self.model.generate(input_ids,
+    def streaming_generate(self, inputs, streamer, **config):
+        self.model.generate(**inputs,
                     pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
-                    streamer=self.streamer,
+                    streamer=streamer,
                     **config)
 
-    def generate(self, input_ids, **config):
+    def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
-            input_ids,
+            **inputs,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config

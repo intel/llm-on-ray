@@ -41,16 +41,16 @@ class DSPipeline:
         self.model = self.model.to(memory_format=torch.channels_last)
         self.model.eval()
 
-    def streaming_generate(self, input_ids, streamer, **generate_kwargs):
-        self.model.generate(input_ids,
+    def streaming_generate(self, inputs, streamer, **generate_kwargs):
+        self.model.generate(**inputs,
                     pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
                     **generate_kwargs)
 
-    def generate(self, input_ids, **config):
+    def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
-            input_ids,
+            **inputs,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config
@@ -64,7 +64,7 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer=None, ipex_enabled=False):
+    def __init__(self, world_size: int, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled=False):
         self.world_size = world_size
         self.model_id = model_id
         self.model_load_config = model_load_config
@@ -74,7 +74,6 @@ class PredictionWorker(TorchDistributedWorker):
         self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
         self.ipex_enabled = ipex_enabled
 
     def init_model(self, local_rank: int):
@@ -114,15 +113,14 @@ class PredictionWorker(TorchDistributedWorker):
 
         self.generator = pipe
 
-    def streaming_generate(self, input_ids, **config):
-        self.generator.streaming_generate(input_ids, self.streamer, **config)
+    def streaming_generate(self, inputs, streamer, **config):
+        self.generator.streaming_generate(inputs, streamer, **config)
 
-    def generate(self, input_ids, **config):
-        input_ids = input_ids.to(self.device)
-        return self.generator.generate(input_ids, **config)
+    def generate(self, inputs, **config):
+        return self.generator.generate(inputs, **config)
 
 class DeepSpeedPredictor:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria,
                  ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group) -> None:
         self.model_id = model_id
         self.model_load_config = model_load_config
@@ -131,7 +129,6 @@ class DeepSpeedPredictor:
         self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
         self.ipex_enabled = ipex_enabled
 
         use_gpu = True if (device_name == "cuda") else False
@@ -187,11 +184,7 @@ class DeepSpeedPredictor:
         self.prediction_workers = [
             prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.model_load_config, self.
                 device_name, self.amp_enabled, self.amp_dtype,
-                self.pad_token_id, self.stopping_criteria, self.streamer, self.ipex_enabled)
-            if i == 0 else
-                prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.model_load_config, self.
-                    device_name, self.amp_enabled, self.amp_dtype,
-                    self.pad_token_id, self.stopping_criteria, self._create_dummy_streamer(), self.ipex_enabled)
+                self.pad_token_id, self.stopping_criteria, self.ipex_enabled)
             for i in range(scaling_config.num_workers)
         ]
 
@@ -204,20 +197,17 @@ class DeepSpeedPredictor:
             for worker, local_rank in zip(self.prediction_workers, local_ranks)
         ])
 
-    def streaming_generate(self, input_ids, **config):
-        input_ids_ref = ray.put(input_ids)
-        ray.get(
-            [
-                worker.streaming_generate.remote(input_ids_ref, **config)
-                for worker in self.prediction_workers
-            ]
-        )
+    def streaming_generate(self, inputs, streamer, **config):
+        inputs_ref = ray.put(inputs)
+        self.prediction_workers[0].streaming_generate.remote(inputs_ref, streamer, **config)
+        for worker in self.prediction_workers[1:]:
+                worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, input_ids, **config):
-        input_ids_ref = ray.put(input_ids)
+    def generate(self, inputs, **config):
+        inputs_ref = ray.put(inputs)
         prediction = ray.get(
             [
-                worker.generate.remote(input_ids_ref, **config)
+                worker.generate.remote(inputs_ref, **config)
                 for worker in self.prediction_workers
             ]
         )[0]
