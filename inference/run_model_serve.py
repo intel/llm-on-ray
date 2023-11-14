@@ -32,10 +32,11 @@ class StoppingCriteriaSub(StoppingCriteria):
                 return True
         return False
 
+
 @serve.deployment
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, stop_words,
-                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2):
+                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2, deltatuner_model_id=None):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
@@ -47,10 +48,10 @@ class PredictDeployment:
         if self.use_deepspeed:
             self.streamer = self.create_streamer()
             self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
-                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group)
+                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group, deltatuner_model_id)
         else:
             self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
-                                                  ipex_enabled)
+                                                  ipex_enabled, deltatuner_model_id)
         self.loop = asyncio.get_running_loop()
 
     def create_streamer(self):
@@ -147,6 +148,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
     parser.add_argument("--model", default=None, type=str, help="model name or path")
+    parser.add_argument("--deltatuner_model", default=None, type=str, help="deltatuner model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
     parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
@@ -194,7 +196,7 @@ if __name__ == "__main__":
 
     for model_id, model_config in model_list.items():
         print("deploy model: ", model_id)
-
+        model_config["deltatuner_model_id_or_path"] = args.deltatuner_model
         model_load_config = model_config.get("config", {})
         deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(args.gpus_per_worker, 1)}).bind(
                                             model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
@@ -202,7 +204,8 @@ if __name__ == "__main__":
                                             stop_words=model_config["prompt"]["stop_words"],
                                             ipex_enabled=args.ipex,
                                             deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker,
-                                            gpus_per_worker=args.gpus_per_worker, workers_per_group=args.workers_per_group)
+                                            gpus_per_worker=args.gpus_per_worker, workers_per_group=args.workers_per_group,
+                                            deltatuner_model_id=model_config["deltatuner_model_id_or_path"])
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
 
     msg = "Service is deployed successfully"

@@ -9,6 +9,9 @@ jobs:
     strategy:
       matrix:
         model: [ gpt-j-6B, gpt2, bloom, opt, mpt ]
+        include:
+          - dtuner_model: /root/.cache/huggingface/hub/mpt-7b-deltatuner-model
+            model: mpt
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -32,6 +35,13 @@ jobs:
           docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
           docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+      
+      - name: Run Inference Test with Deltatuner
+        if: ${{ matrix.dtuner_model }}
+        run: |
+          docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py --deltatuner_model ${{ matrix.dtuner_model }}"
+          docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
       - name: Run Inference Test with DeepSpeed
         run: |
@@ -39,6 +49,17 @@ jobs:
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py --deepspeed"
+            docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+            docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+          fi
+
+      - name: Run Inference Test with DeepSpeed and Deltatuner
+        if: ${{ matrix.dtuner_model }}
+        run: |
+          if [[ ${{ matrix.model }} =~ ^(gpt2|mpt)$ ]]; then
+            echo ${{ matrix.model }} is not supported!
+          else
+            docker exec "inference" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py --deepspeed --deltatuner_model ${{ matrix.dtuner_model }}"
             docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "inference" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi

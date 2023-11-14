@@ -13,7 +13,8 @@ gymnasium
 dm-tree
 tensorboard
 einops
-peft==0.5.0
+peft==0.4.0
+deltatuner==1.1.9
 py-cpuinfo
 torch==2.0.0+cpu
 oneccl_bind_pt==2.0.0

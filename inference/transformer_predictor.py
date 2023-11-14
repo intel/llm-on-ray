@@ -1,8 +1,10 @@
 import torch
 from transformers import AutoModelForCausalLM
+from peft import PeftModel
+from deltatuner import DeltaTunerModel
 
 class TransformerPredictor:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled):
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled, deltatuner_model_id=None):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         self.device = torch.device(device_name)
@@ -12,6 +14,10 @@ class TransformerPredictor:
             low_cpu_mem_usage=True,
             **model_load_config
         )
+        if deltatuner_model_id:
+            model = PeftModel.from_pretrained(model, deltatuner_model_id)
+            model = DeltaTunerModel.from_pretrained(model, deltatuner_model_id)
+            model = model.merge_and_unload()
 
         model = model.eval().to(self.device)
         # to channels last
