@@ -10,7 +10,6 @@ import accelerate
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
-from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
 
 import sys

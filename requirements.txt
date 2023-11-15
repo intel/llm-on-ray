@@ -1,8 +1,7 @@
 accelerate==0.21.0
 datasets==2.14.6
 numpy==1.21.6
-ray==2.5.0
-raydp==1.6.0
+https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp39-cp39-manylinux2014_x86_64.whl
 transformers==4.31.0
 typing==3.7.4.3
 tabulate

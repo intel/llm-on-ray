@@ -1,8 +1,7 @@
 accelerate==0.21.0
 datasets==2.12.0
 numpy==1.24.4
-ray==2.5.0
-raydp==1.6.0b20230527.dev0
+https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 torchvision==0.14.1
 torch==1.13.1
 transformers==4.31.0

@@ -6,8 +6,6 @@ from torch.utils.tensorboard import SummaryWriter
 import transformers
 import math
 import time
-from ray.air import session
-from ray.air.checkpoint import Checkpoint
 
 from .. import dataprocesser
 from .default_trainer import DefaultTrainer

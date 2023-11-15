@@ -2,7 +2,6 @@ import os, sys
 from typing import Any, Dict
 
 import ray
-from ray.air import session
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from ray.air import RunConfig, FailureConfig

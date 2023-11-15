@@ -10,7 +10,6 @@ import accelerate
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
-from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
 
 import sys
@@ -127,10 +126,10 @@ def main(external_config = None):
     )
 
     if config.get("torch_config", None) is None:
-        torch_config = TorchConfig(backend = "ccl" if device == "CPU" else None)
+        torch_config = common.TorchConfig(backend = "ccl" if device == "CPU" else None)
     else:
         customer_torch_config = config.get("torch_config")
-        torch_config = TorchConfig(**customer_torch_config)
+        torch_config = common.TorchConfig(**customer_torch_config)
     
     if config.get("failure_config", None) is None:
         failure_config = FailureConfig()

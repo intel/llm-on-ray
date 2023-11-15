@@ -10,7 +10,6 @@ import ray
 import gradio as gr
 import sys
 import argparse
-from ray.air import session
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
 from ray.tune.logger import LoggerCallback

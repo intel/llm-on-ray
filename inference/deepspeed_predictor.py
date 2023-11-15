@@ -10,7 +10,7 @@ from ray.air.util.torch_dist import (
     shutdown_torch_dist_process_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
-from ray.air import Checkpoint, ScalingConfig
+from ray.air import ScalingConfig
 from typing import List
 import os
 # import math
