@@ -35,7 +35,7 @@ class StoppingCriteriaSub(StoppingCriteria):
 @serve.deployment
 class PredictDeployment:
     def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, chat_processor_name, prompt,
-                 ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2, deltatuner_model_id=None):
+                 ipex_enabled=False, deployment_mode=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2, deltatuner_model_id=None):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
@@ -55,10 +55,10 @@ class PredictDeployment:
         if self.use_deepspeed:
             self.streamer = self.create_streamer()
             self.predictor = DeepSpeedPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
-                                                ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group, deltatuner_model_id)
+                                                ipex_enabled, deployment_mode, cpus_per_worker, gpus_per_worker, workers_per_group, deltatuner_model_id)
         else:
             self.predictor = TransformerPredictor(model_id, model_load_config, device_name, amp_enabled, amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria,
-                                                  ipex_enabled, deltatuner_model_id)
+                                                  ipex_enabled, deployment_mode, deltatuner_model_id)
         self.loop = asyncio.get_running_loop()
 
     def create_streamer(self):
@@ -125,7 +125,7 @@ class PredictDeployment:
                 # The streamer raises an Empty exception if the next token
                 # hasn't been generated yet. `await` here to yield control
                 # back to the event loop so other coroutines can run.
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.001)
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
         json_request: str = await http_request.json()
@@ -176,6 +176,8 @@ if __name__ == "__main__":
     parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
     parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
+    parser.add_argument("--deployment_mode", action="store_true", help="Whether to apply the optimized model for deployment \
+                        of model generation, only used when ipex optimization is True.")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu or cuda")
 
     args = parser.parse_args()
@@ -227,7 +229,7 @@ if __name__ == "__main__":
                                             model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
                                             args.device, amp_enabled, amp_dtype,
                                             chat_processor_name = model_config["chat_processor"], prompt=model_config["prompt"],
-                                            ipex_enabled=args.ipex,
+                                            ipex_enabled=args.ipex, deployment_mode=args.deployment_mode,
                                             deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker,
                                             gpus_per_worker=args.gpus_per_worker, workers_per_group=args.workers_per_group,
                                             deltatuner_model_id=model_config["deltatuner_model_id_or_path"])

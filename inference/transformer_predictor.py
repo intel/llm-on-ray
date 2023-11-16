@@ -1,16 +1,23 @@
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoConfig
 from peft import PeftModel
 from deltatuner import DeltaTunerModel
 
 class TransformerPredictor:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled, deltatuner_model_id=None):
+    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled, deployment_mode, deltatuner_model_id=None):
         self.amp_enabled = amp_enabled
         self.amp_dtype = amp_dtype
         self.device = torch.device(device_name)
+        config = None
+        if deployment_mode:
+            trust_remote_code = model_load_config.get("trust_remote_code", None)
+            config = AutoConfig.from_pretrained(
+            model_id, torchscript=deployment_mode, trust_remote_code=trust_remote_code
+        )
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=amp_dtype,
+            config=config,
             low_cpu_mem_usage=True,
             **model_load_config
         )
@@ -25,9 +32,16 @@ class TransformerPredictor:
         # to ipex
         if ipex_enabled:
             import intel_extension_for_pytorch as ipex
+
+            torch._C._jit_set_texpr_fuser_enabled(False)
             try: ipex._C.disable_jit_linear_repack()
             except: pass
-            self.model = ipex.optimize(model, dtype=amp_dtype, inplace=True)
+            self.model = ipex.optimize_transformers(
+                model.eval(),
+                dtype=amp_dtype,
+                inplace=True,
+                deployment_mode=deployment_mode,
+            )
         else:
             self.model = model
         self.pad_token_id = pad_token_id

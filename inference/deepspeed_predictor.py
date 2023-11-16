@@ -3,7 +3,7 @@ import torch
 import deepspeed
 import oneccl_bindings_for_pytorch
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from ray.air.util.torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
@@ -13,7 +13,6 @@ from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
 from typing import List
 import os
-# import math
 from peft import PeftModel
 from deltatuner import DeltaTunerModel
 
@@ -26,6 +25,7 @@ class DSPipeline:
         stopping_criteria,
         dtype,
         device,
+        deployment_mode=False,
         deltatuner_model_id_or_path=None
     ):
 
@@ -34,8 +34,16 @@ class DSPipeline:
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
+        
+        config = None
+        if deployment_mode:
+            trust_remote_code = model_load_config.get("trust_remote_code", None)
+            config = AutoConfig.from_pretrained(
+            model_id_or_path, torchscript=deployment_mode, trust_remote_code=trust_remote_code
+        )
         self.model = AutoModelForCausalLM.from_pretrained(model_id_or_path,
                                                           torch_dtype=dtype,
+                                                          config=config,
                                                           low_cpu_mem_usage=True,
                                                           **model_load_config)
         
@@ -72,7 +80,7 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled=False, deltatuner_model_id=None):
+    def __init__(self, world_size: int, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled=False, deployment_mode=False, deltatuner_model_id=None):
         self.world_size = world_size
         self.model_id = model_id
         self.model_load_config = model_load_config
@@ -84,6 +92,7 @@ class PredictionWorker(TorchDistributedWorker):
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
         self.ipex_enabled = ipex_enabled
+        self.deployment_mode = deployment_mode
 
     def init_model(self, local_rank: int):
         """Initialize model for inference."""
@@ -117,9 +126,16 @@ class PredictionWorker(TorchDistributedWorker):
 
         if self.ipex_enabled:
             import intel_extension_for_pytorch as ipex
+
+            torch._C._jit_set_texpr_fuser_enabled(False)
             try: ipex._C.disable_jit_linear_repack()
             except: pass
-            pipe.model = ipex.optimize(pipe.model.eval(), dtype=self.amp_dtype, inplace=True)
+            pipe.model = ipex.optimize_transformers(
+                pipe.model.eval(),
+                dtype=self.amp_dtype,
+                inplace=True,
+                deployment_mode=self.deployment_mode,
+            )
 
         self.generator = pipe
 
@@ -131,7 +147,7 @@ class PredictionWorker(TorchDistributedWorker):
 
 class DeepSpeedPredictor:
     def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria,
-                 ipex_enabled, cpus_per_worker, gpus_per_worker, workers_per_group, deltatuner_model_id) -> None:
+                 ipex_enabled, deployment_mode, cpus_per_worker, gpus_per_worker, workers_per_group, deltatuner_model_id) -> None:
         self.model_id = model_id
         self.model_load_config = model_load_config
         self.deltatuner_model_id = deltatuner_model_id
@@ -141,6 +157,7 @@ class DeepSpeedPredictor:
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
         self.ipex_enabled = ipex_enabled
+        self.deployment_mode = deployment_mode
 
         use_gpu = True if (device_name == "cuda") else False
 
@@ -195,7 +212,7 @@ class DeepSpeedPredictor:
         self.prediction_workers = [
             prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.model_load_config, self.
                 device_name, self.amp_enabled, self.amp_dtype,
-                self.pad_token_id, self.stopping_criteria, self.ipex_enabled, self.deltatuner_model_id)
+                self.pad_token_id, self.stopping_criteria, self.ipex_enabled, self.deployment_mode, self.deltatuner_model_id)
             for i in range(scaling_config.num_workers)
         ]
 
