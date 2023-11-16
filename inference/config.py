@@ -6,7 +6,7 @@ model1 = {
     "port": "",     # port for HTTP server
     "name": "",
     "route_prefix": "",
-    "chat_model": "ChatModelGptJ", # prompt processing, corresponding to chat_process.py
+    "chat_processor": "ChatModelGptJ", # prompt processing, corresponding to chat_process.py
     "prompt": {
         "intro": "",
         "human_id": "",
@@ -28,7 +28,7 @@ gpt_j_finetuned_52K = {
     "port": "8000",
     "name": "gpt_j_finetuned_52K",
     "route_prefix": "/gpt-j-6B-finetuned-52K",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
         "human_id": "\n### Instruction",
@@ -44,7 +44,7 @@ gpt_j_6B = {
     "port": "8000",
     "name": "gpt-j-6B",
     "route_prefix": "/gpt-j-6B",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
         "human_id": "\n### Instruction",
@@ -60,7 +60,7 @@ gpt2 = {
     "port": "8000",
     "name": "gpt2",
     "route_prefix": "/gpt2",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "",
         "human_id": "",
@@ -77,7 +77,7 @@ bloom = {
     "port": "8000",
     "name": "bloom",
     "route_prefix": "/bloom",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "",
         "human_id": "",
@@ -92,7 +92,7 @@ opt = {
     "port": "8000",
     "name": "opt",
     "route_prefix": "/opt",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "",
         "human_id": "",
@@ -107,7 +107,7 @@ mpt = {
     "port": "8000",
     "name": "mpt",
     "route_prefix": "/mpt",
-    "chat_model": "ChatModelGptJ",
+    "chat_processor": "ChatModelGptJ",
     "prompt": {
         "intro": "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n",
         "human_id": "\n### Instruction",
@@ -125,7 +125,7 @@ llama2 = {
     "port": "8000",
     "name": "llama2",
     "route_prefix": "/llama2",
-    "chat_model": "ChatModelLLama",
+    "chat_processor": "ChatModelLLama",
     "prompt": {
         "intro": "",
         "human_id": "[INST] {msg} [/INST]\n",

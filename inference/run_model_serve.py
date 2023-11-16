@@ -10,14 +10,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 from transformers import StoppingCriteria, StoppingCriteriaList
 import intel_extension_for_pytorch as ipex
 from config import all_models
+import sys
 
-from typing import Generator, Union, List
+from typing import Generator, Union, Optional, List
 from starlette.responses import StreamingResponse
-from threading import Thread
 
 from transformer_predictor import TransformerPredictor
 from deepspeed_predictor import DeepSpeedPredictor
-from config import all_models
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -35,13 +34,21 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 @serve.deployment
 class PredictDeployment:
-    def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, stop_words,
+    def __init__(self, model_id, tokenizer_name_or_path, model_load_config, device_name, amp_enabled, amp_dtype, chat_processor_name, prompt,
                  ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=1, gpus_per_worker=0, workers_per_group=2, deltatuner_model_id=None):
         self.device_name = device_name
         self.device = torch.device(device_name)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        self.process_tool = None
+        if chat_processor_name is not None:
+            module = __import__("chat_process")
+            chat_processor = getattr(module, chat_processor_name, None)
+            if chat_processor is None:
+                raise ValueError(model_id + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
+            self.process_tool = chat_processor(**prompt)
+        stop_words = prompt["stop_words"]
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
         self.use_deepspeed = deepspeed_enabled
@@ -128,7 +135,11 @@ class PredictDeployment:
             config = prompt["config"]  if "config" in prompt else {}
             streaming_response = prompt["stream"]
             if isinstance(text, list):
-                prompts.extend(text)
+                if self.process_tool is not None:
+                    prompt = self.process_tool.get_prompt(text)
+                    prompts.append(prompt)
+                else:
+                    prompts.extend(text)            
             else:
                 prompts.append(text)
         if not streaming_response:
@@ -150,6 +161,16 @@ if __name__ == "__main__":
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--deltatuner_model", default=None, type=str, help="deltatuner model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+    parser.add_argument("--port", default="8000", type=str, help="the port of deployment address")
+    parser.add_argument("--route_prefix", default="custom_model", type=str, help="the route prefix for HTTP requests.")
+    parser.add_argument("--chat_processor", default=None, type=str, help="how to process the prompt and output, \
+                        the value corresponds to class names in chat_process.py, only for chat version.")
+    parser.add_argument("--prompt", default=None, type=str, help="the specific format of prompt.")
+    parser.add_argument("--trust_remote_code", action='store_true', 
+                        help="Whether or not to allow for custom code defined on the Hub in their own modeling, configuration,\
+                            tokenization or even pipeline files.")
+    parser.add_argument("--use_auth_token", default=None, type=Optional[Union[bool, str]],
+                        help="The token to use as HTTP bearer authorization for remote files.")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
     parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
     parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
@@ -180,16 +201,20 @@ if __name__ == "__main__":
         model_list = {
             "custom_model": {
                 "model_id_or_path": args.model,
-                "tokenizer_name_or_path": args.tokenizer,
-                "port": "8000",
-                "name": "custom-model",
-                "route_prefix": "/custom-model",
-                "chat_model": "ChatModelGptJ",
+                "tokenizer_name_or_path": args.tokenizer if args.tokenizer is not None else args.model,
+                "port": args.port,
+                "name": args.route_prefix,
+                "route_prefix": "/{}".format(args.route_prefix),
+                "chat_processor": args.chat_processor,
                 "prompt": {
                     "intro": "",
                     "human_id": "",
                     "bot_id": "",
                     "stop_words": []
+                } if args.prompt is None else eval(args.prompt),
+                "config": {
+                    "trust_remote_code": args.trust_remote_code,
+                    "use_auth_token": args.use_auth_token
                 }
             }
         }
@@ -201,7 +226,7 @@ if __name__ == "__main__":
         deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(args.gpus_per_worker, 1)}).bind(
                                             model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
                                             args.device, amp_enabled, amp_dtype,
-                                            stop_words=model_config["prompt"]["stop_words"],
+                                            chat_processor_name = model_config["chat_processor"], prompt=model_config["prompt"],
                                             ipex_enabled=args.ipex,
                                             deepspeed_enabled=args.deepspeed, cpus_per_worker=args.cpus_per_worker,
                                             gpus_per_worker=args.gpus_per_worker, workers_per_group=args.workers_per_group,
