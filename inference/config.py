@@ -119,7 +119,7 @@ mpt = {
     }
 }
 
-llama2 = {
+llama2_7b = {
     "model_id_or_path": "meta-llama/Llama-2-7b-chat-hf",
     "tokenizer_name_or_path": "meta-llama/Llama-2-7b-chat-hf",
     "port": "8000",
@@ -143,7 +143,7 @@ _models = {
     "bloom": bloom,
     "opt": opt,
     "mpt": mpt,
-    "llama2": llama2
+    "llama2_7b": llama2_7b
 }
 
 env_model = "MODEL_TO_SERVE"
@@ -155,3 +155,4 @@ else:
 
 base_models["gpt2"] = gpt2
 base_models["gpt-j-6B"] = gpt_j_6B
+base_models["llama2-7b"] = llama2_7b

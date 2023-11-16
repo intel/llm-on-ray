@@ -2,7 +2,7 @@ import requests
 from config import all_models, base_models
 import time
 import os
-from chat_process import ChatModelGptJ
+from chat_process import ChatModelGptJ, ChatModelLLama
 import torch
 from run_model_serve import PredictDeployment
 from ray import serve

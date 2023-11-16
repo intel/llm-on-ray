@@ -84,7 +84,7 @@ class ChatModelLLama(ChatModel):
             role, content = msg["role"], msg["content"]
             if role == "user":
                 if self.human_id != "":
-                    prompt += self.human_id.format(content)
+                    prompt += self.human_id.format(msg=content)
                 else:
                     prompt += f"{content}\n"
             elif role == "assistant":
