@@ -9,10 +9,10 @@ RUN pip install -r requirements.txt
 RUN pip install deepspeed lz4
 RUN pip install -U numpy
 ENV MAX_JOBS=32
-RUN cd src/megatron-core && \
-    git am /home/user/0001-hot-fix-for-megatron-deepspeed.patch
 RUN git config --global user.email "root@example.com" 
 RUN git config --global user.name "root" 
+RUN cd src/megatron-core && \
+    git am /home/user/0001-hot-fix-for-megatron-deepspeed.patch
 RUN git clone https://github.com/NVIDIA/apex && \
     cd apex && \
     git checkout 22.04-dev &&\

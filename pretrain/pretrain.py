@@ -14,14 +14,15 @@ from ray.air import RunConfig, FailureConfig
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import common
+
 import importlib
 loader = importlib.util.find_spec('habana_frameworks')
 if loader is not None:
-    from plugin.habana_backend import TorchConfig
+    from backend.habana_backend import TorchConfig
 else:
     from ray.train.torch import TorchConfig
+    from backend.deepspeed_backend import TorchConfig as DeepSpeedTorchConfig
 
 
 def train_func(config: Dict[str, Any]):
@@ -123,7 +124,13 @@ def main(external_config = None):
         scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
         common.logger.info(f"ray scaling config: {scaling_config}")
 
-        torch_config = TorchConfig(**ray_config.get("torch_config", {}))
+        if (
+            config.get("training_config", None) and
+            config.get("training_config").get("deepspeed", None)
+        ):
+            torch_config = DeepSpeedTorchConfig(**ray_config.get("torch_config", {}))
+        else:  
+            torch_config = TorchConfig(**ray_config.get("torch_config", {}))
         common.logger.info(f"ray torch config: {torch_config}")
 
         failure_config = FailureConfig(**ray_config.get("failure_config", {}))

@@ -18,4 +18,4 @@ tensorboard
 einops
 gpustat==1.0.0
 peft==0.5.0
--e git+https://github.com/microsoft/Megatron-DeepSpeed.git#egg=megatron-core
+-e git+https://github.com/microsoft/Megatron-DeepSpeed.git@2032dbb#egg=megatron-core

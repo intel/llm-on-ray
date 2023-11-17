@@ -96,8 +96,10 @@ class HuggingFacePreTrainer(RayTrainer):
     def train(self):
         if use_habana:
             del os.environ["ACCELERATE_TORCH_DEVICE"]
-        parser = HfArgumentParser((GaudiTrainingArguments))
-
+            parser = HfArgumentParser((GaudiTrainingArguments))
+        else:
+            parser = HfArgumentParser((TrainingArguments))
+            
         training_args = parser.parse_dict(self.config.get("training_config", None))[0]
         send_example_telemetry("Ray_HF_Trainer", training_args)
 
@@ -117,21 +119,22 @@ class HuggingFacePreTrainer(RayTrainer):
         transformers.utils.logging.set_verbosity(log_level)
         transformers.utils.logging.enable_default_handler()
         transformers.utils.logging.enable_explicit_format()
+        
+        if use_habana:
+            gaudi_config = GaudiConfig.from_pretrained(
+                training_args.gaudi_config_name,
+                cache_dir=self.config.get("cache_dir", None),
+                revision=self.config.get("model_revision", None),
+                use_auth_token=True if self.config.get("use_auth_token") else None,
+            )
 
-        gaudi_config = GaudiConfig.from_pretrained(
-            training_args.gaudi_config_name,
-            cache_dir=self.config.get("cache_dir", None),
-            revision=self.config.get("model_revision", None),
-            use_auth_token=True if self.config.get("use_auth_token") else None,
-        )
-
-        # Log on each process the small summary:
-        mixed_precision = training_args.bf16 or gaudi_config.use_torch_autocast or gaudi_config.use_habana_mixed_precision
-        logger.warning(
-            f"Process rank: {training_args.local_rank}, device: {training_args.device}, "
-            + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, "
-            + f"mixed-precision training: {mixed_precision}"
-        )
+            # Log on each process the small summary:
+            mixed_precision = training_args.bf16 or gaudi_config.use_torch_autocast or gaudi_config.use_habana_mixed_precision
+            logger.warning(
+                f"Process rank: {training_args.local_rank}, device: {training_args.device}, "
+                + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, "
+                + f"mixed-precision training: {mixed_precision}"
+            )
         logger.info(f"Training/evaluation parameters {training_args}")
 
         # Detecting last checkpoint.
@@ -150,7 +153,8 @@ class HuggingFacePreTrainer(RayTrainer):
                 )
 
         # Set seed before initializing model.
-        set_seed(training_args.seed)
+        if use_habana:
+            set_seed(training_args.seed)
 
         model_config = self.config.get("model")
         if model_config:
@@ -206,7 +210,18 @@ class HuggingFacePreTrainer(RayTrainer):
             )
             
         else:
-            print("use the GPU or CPU for training")
+            trainer = HFCustomerSamplerTrainer(
+                model=self.model,
+                args=training_args,
+                train_dataset=self.train_dataset if training_args.do_train else None,
+                eval_dataset=self.eval_dataset if training_args.do_eval else None,
+                tokenizer=self.tokenizer,
+                # Data collator will default to DataCollatorWithPadding, so we change it.
+                data_collator=default_data_collator,
+                compute_metrics=compute_metrics if training_args.do_eval else None,
+                preprocess_logits_for_metrics=preprocess_logits_for_metrics if training_args.do_eval else None,
+            )
+            print("use the GPU for training")
 
         trainer.set_sampler(self.dataprocesser)
 
