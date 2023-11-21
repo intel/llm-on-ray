@@ -1,0 +1,15 @@
+name: llm-ray inference & finetune
+
+on:
+  schedule:
+    - cron: "* 21 * * *"
+
+jobs:
+
+  call-inference:
+    uses: ./.github/workflows/workflow_inference.yml
+
+  call-finetune:
+    uses: ./.github/workflows/workflow_finetune.yml
+    with:
+      ci_type: nightly

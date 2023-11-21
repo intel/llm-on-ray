@@ -2,6 +2,10 @@ name: Finetune
 
 on:
   workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
@@ -12,7 +16,16 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b ]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
+        
+        exclude:
+          - { isPR: true }
+        include:
+          - { model: "EleutherAI/gpt-j-6b"}
+          - { model: "meta-llama/Llama-2-7b-chat-hf"}
+
     runs-on: self-hosted
     steps:
       - name: Checkout
