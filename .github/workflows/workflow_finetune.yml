@@ -12,7 +12,7 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, meta-llama/Llama-2-7b-chat-hf ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf ]
     runs-on: self-hosted
     steps:
       - name: Checkout

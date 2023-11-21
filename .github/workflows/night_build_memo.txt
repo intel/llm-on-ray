@@ -1,0 +1,1 @@
+finetune: gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b
