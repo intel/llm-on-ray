@@ -210,6 +210,7 @@ class ChatBotUI():
         origin_model_path = self._base_models[model_name]["model_id_or_path"]
         tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
         gpt_base_model = self._base_models[model_name].get("gpt_base_model")
+        last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name) if self.finetuned_checkpoint_path != "" else None
 
@@ -221,7 +222,7 @@ class ChatBotUI():
         ray_resources = ray.available_resources()
         if "CPU" not in ray_resources or cpus_per_worker * worker_num + 1 > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
-        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker or gpt_base_model:
+        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker or not (gpt_base_model and last_gpt_base_model):
             ray.shutdown()
             new_ray_init_config = {
                 "runtime_env": {
@@ -239,6 +240,9 @@ class ChatBotUI():
             }
             if gpt_base_model:
                 new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
+            else:
+                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
+            last_gpt_base_model = gpt_base_model
             finetune_config["Training"]["num_training_workers"] = int(worker_num)
             finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
 
@@ -296,7 +300,7 @@ class ChatBotUI():
             "port": "8000",
             "name": new_model_name,
             "route_prefix": "/" + new_model_name,
-            "chat_model": self._base_models[model_name]["chat_model"],
+            "chat_processor": self._base_models[model_name]["chat_processor"],
             "prompt": {
                 "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
                 "human_id": "\n### Instruction",
@@ -342,15 +346,18 @@ class ChatBotUI():
         model_config = self._all_models[model_name]
         print("model path: ", model_config["model_id_or_path"])
 
-        chat_model = getattr(sys.modules[__name__], model_config["chat_model"], None)
-        if chat_model is None:
-            return model_name + " deployment failed. " + model_config["chat_model"] + " does not exist."
-        self.process_tool = chat_model(**model_config["prompt"])
+        chat_processor = getattr(sys.modules[__name__], model_config["chat_processor"], None)
+        if chat_processor is None:
+            return model_name + " deployment failed. " + model_config["chat_processor"] + " does not exist."
+        self.process_tool = chat_processor(**model_config["prompt"])
 
         model_load_config = model_config.get("config", {})
         device_name = "cpu"
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.28.0"]}})\
-                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config, device_name, amp_enabled, amp_dtype, stop_words=stop_words, cpus_per_worker=cpus_per_worker)
+        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.31.0"]}})\
+                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
+                                            device_name, amp_enabled, amp_dtype,
+                                            chat_processor_name=model_config["chat_processor"], prompt=model_config["prompt"],
+                                            cpus_per_worker=cpus_per_worker)
         handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
         return self.ip_port + model_config["route_prefix"]
 
@@ -379,8 +386,8 @@ class ChatBotUI():
         out = stdout.read().decode('utf-8')
         out_words = out.split(" ")
         cpu_value = 100 - float(out_words[7])
-        total_memory = int(out_words[20].split('+')[0])
-        free_memory = int(out_words[21].split('+')[0])
+        total_memory = float(out_words[20].split('+')[0])
+        free_memory = float(out_words[21].split('+')[0])
         used_memory = 1 - free_memory/total_memory
         return cpu_memory_html.format(str(round(cpu_value, 1)), str(round(used_memory*100, 1)))
     
@@ -395,7 +402,7 @@ class ChatBotUI():
             return "Start", ""
         elif btn_txt=="Start":
             index = int(index)
-            command = "conda activate " + self.conda_env_name + "; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address=" + self.master_ip_port + r""" --resources='{"special_hardware": 4}'"""
+            command = "conda activate " + self.conda_env_name + "; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address=" + self.master_ip_port + r""" --resources='{"special_hardware": 2}'"""
             self.ssh_connect[index].exec_command(command)
             self.ray_nodes[index]["Alive"] = "True"
             time.sleep(2)
@@ -428,6 +435,7 @@ class ChatBotUI():
         with gr.Blocks(css=custom_css,title=title) as gr_chat:
             head_content = """
                 <div style="color: #fff;text-align: center;">
+                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=inference/ui_images/logo.png" width="50" height="50"/></div>
                     <p style="color: #fff; font-size: 1.0rem;">LLM on Ray Workflow as a Service Demo</p> 
                     <p style="color: #fff; font-size: 0.8rem;">Build your own LLM models with proprietary data, deploy an online inference service in production, all in a few simple clicks.</p>
                 </div>

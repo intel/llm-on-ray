@@ -126,11 +126,17 @@ Llm-ray provides two ways to serve models, GUI or terminal.
 This method will launch a UI interface and deploy an online inference service.
 - (Optional) If customed models need to be added, please update `inference/config.py`.
 ```bash
-python inference/start_ui.py
+# Start ray head
+RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head  --node-ip-address $node_ip --dashboard-host 0.0.0.0 --resources='{"queue_hardware": 5}'
+# Start ray worker (optional)
+RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address='$node_ip:6379'
+# Start ui (Please make sure passwordless SSH login is set up for $user on node $node_ip) 
+python -u inference/start_ui.py --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
+# Get urls from the log
 # Running on local URL:  http://0.0.0.0:8080
 # Running on public URL: https://180cd5f7c31a1cfd3c.gradio.live
 ```
-Access url and deploy service in a few simple clicks.
+Then you can access url and deploy service in a few simple clicks.
 
 #### Terminal
 Ray serve is used to deploy models. First the model is exposed over HTTP by using Deployment, then test it over HTTP request.
