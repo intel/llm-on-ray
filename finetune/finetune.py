@@ -76,7 +76,7 @@ def train_func(config: Dict[str, Any]):
         } if config["General"].get("checkpoint_dir") else None
     })
 
-    try :
+    try:
         common.logger.info(f"trainer prepare start")
         trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
     except Exception as e:
@@ -84,7 +84,7 @@ def train_func(config: Dict[str, Any]):
         exit(1)
     common.logger.info(f"trainer prepare finish")
 
-    try :
+    try:
         common.logger.info(f"train start")
         trainer.train()
     except Exception as e:
@@ -101,12 +101,12 @@ def main(external_config = None):
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
-    device = config["Training"]["device"]
+    device = config["Training"]["device"].lower()
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
-                "ACCELERATE_USE_CPU": "True" if device == "CPU" else "False", 
+                "ACCELERATE_USE_CPU": "True" if device == "cpu" else "False", 
                 "ACCELERATE_USE_IPEX": "False",
                 "ACCELERATE_MIXED_PRECISION": "no",
                 "CCL_WORKER_COUNT": "1",
@@ -122,14 +122,14 @@ def main(external_config = None):
         num_workers = num_training_workers,
         resources_per_worker = resources_per_worker,
         placement_strategy = "SPREAD",
-        use_gpu = False if device == "CPU" else True
+        use_gpu = False if device == "cpu" else True
     )
 
     if config.get("torch_config", None) is None:
-        torch_config = common.TorchConfig(backend = "ccl" if device == "CPU" else None)
+        torch_config = common.TorchConfig(backend = "ccl" if device == "cpu" else None, device=device)
     else:
         customer_torch_config = config.get("torch_config")
-        torch_config = common.TorchConfig(**customer_torch_config)
+        torch_config = common.TorchConfig(**customer_torch_config, device=device)
     
     if config.get("failure_config", None) is None:
         failure_config = FailureConfig()
@@ -149,10 +149,11 @@ def main(external_config = None):
         train_func,
         train_loop_config=config,
         scaling_config=scaling_config,
-        torch_config = torch_config,
-        run_config = run_config
+        torch_config=torch_config,
+        run_config=run_config
     )
     results = trainer.fit()
+
     return results
 
 if __name__ == "__main__":

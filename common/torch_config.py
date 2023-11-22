@@ -2,6 +2,7 @@ from ray.train.torch.config import _TorchBackend
 from ray.train.torch.config import TorchConfig as RayTorchConfig
 from ray.train._internal.worker_group import WorkerGroup
 from dataclasses import dataclass
+from typing import Optional
 import os
 import sys
 # The package importlib_metadata is in a different place, depending on the Python version.
@@ -13,9 +14,11 @@ else:
 
 @dataclass
 class TorchConfig(RayTorchConfig):
+    device: Optional[str] = None
 
     @property
     def backend_cls(self):
+        EnableCCLBackend.device = self.device
         return EnableCCLBackend
 
 
@@ -41,11 +44,13 @@ def libs_import():
         ) from ccl_not_exist
 
 
-def _del_torch_distributed_env_vars():
-    del os.environ["ACCELERATE_TORCH_DEVICE"]
+def _set_torch_distributed_env_vars(device):
+    if device is not None:
+        os.environ["ACCELERATE_TORCH_DEVICE"] = device
 
 
 class EnableCCLBackend(_TorchBackend):
+    device: Optional[str] = None
 
     def on_start(self, worker_group: WorkerGroup, backend_config: RayTorchConfig):
         for i in range(len(worker_group)):
@@ -54,4 +59,4 @@ class EnableCCLBackend(_TorchBackend):
 
     def on_training_start(self, worker_group: WorkerGroup, backend_config: RayTorchConfig):
         super().on_training_start(worker_group, backend_config)
-        worker_group.execute(_del_torch_distributed_env_vars)
+        worker_group.execute(_set_torch_distributed_env_vars, self.device)
