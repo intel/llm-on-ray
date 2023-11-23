@@ -49,7 +49,7 @@ class DefaultTrainer(Trainer):
 
                 # update lr_scheduler status
                 if Path.exists(checkpoint_dir / "lr_scheduler.pt") and hasattr(self, "lr_scheduler"):
-                    scheduler_state = torch.load(checkpoint_dir / "lr_schduler.pt", map_location="cpu")
+                    scheduler_state = torch.load(checkpoint_dir / "lr_scheduler.pt", map_location="cpu")
                     self.lr_scheduler.load_state_dict(scheduler_state)
 
                 # update current epoch
@@ -111,12 +111,14 @@ class DefaultTrainer(Trainer):
             lr_scheduler = None
 
         model.train()
-        self.model, self.optimizer, self.lr_scheduler = accelerator.prepare(
-            model, optimizer, lr_scheduler
-        )
 
-        self.train_dataloader, self.eval_dataloader = accelerator.prepare(
-            train_dataloader, eval_dataloader,
+        # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
+        # because it is recommended way to prepare model and optimizer while using FSDP.
+        # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
+        self.model = accelerator.prepare(model)
+
+        self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
+            optimizer, train_dataloader, eval_dataloader, lr_scheduler
         )
 
         checkpoint = self.config.get("checkpoint")
@@ -144,7 +146,7 @@ class DefaultTrainer(Trainer):
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
                     if step % log_step == 0:
-                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{math.exp(loss):.6f}\ttime:{time.time()-start:.6f}")
                         report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, total_steps) if max_train_step else total_steps})
                         start = time.time()
                 if max_train_step is not None:
@@ -207,7 +209,7 @@ class DefaultTrainer(Trainer):
             torch.save(self.optimizer.state_dict(), os.path.join(tmpdir, "optim.pt"))
             torch.save({"epoch": epoch}, os.path.join(tmpdir, "epoch.pt"))
             if self.lr_scheduler:
-                torch.save(self.lr_scheduler.state_dict(), os.path.join(tmpdir, "lr_schduler.pt"))
+                torch.save(self.lr_scheduler.state_dict(), os.path.join(tmpdir, "lr_scheduler.pt"))
             checkpoint = Checkpoint.from_directory(tmpdir)
             checkpoint.to_directory(local_checkpoint_path)
             logger.info(f"save checkpoint to {local_checkpoint_path} finished")

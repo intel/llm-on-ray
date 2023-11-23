@@ -64,18 +64,23 @@ If deploying a ray cluster on multiple nodes, please download the workflow repos
 
 #### 1. Prepare Dataset
 
-Now, the workflow only supports datasets in the specified format
+The workflow only supports datasets with JSONL (JSON Lines) format, where each line is a separate JSON object. Here’s the structure each line should follow:
 
-The format of dataset similar to [databricks/databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k). This type of data is used for finetuning in prompt mode and this type of data is characterized by containing `instruction` `context` and `response` fields where `instruction` and `response` are required fields and `context` is an optional field. In the data preprocessing stage, the three fields will be concatenated to the corresponding format according to [dolly](https://github.com/databrickslabs/dolly/blob/master/training/trainer.py#LL93).
+``` json
+{"instruction":"<User Input>", "context":"<Additional Information>", "response":"<Expected Output>"}
+```
 
+- Instruction: This is the user's input, such as a question, command, or prompt for content generation.
+- Context: Supplementary information that aids the instruction. This can include previous conversation parts, background details, or specificities influencing the response. It's optional and can be left empty.
+- Response: The model's expected output in response to the 'instruction', considering the 'context' if provided.
 
-The meaning of the above three columns:
-+ Instruction Column: The column in the dataset is the user input, such as a question or a command.
-+ Context Column: This column is other information used by instruction, such as the options used in the question and so on. It can be empty.
-+ Response: The column in the dataset containing the expected output.
+##### Examples:
+``` json
+{"instruction":"Which is a species of fish? Tope or Rope", "context":"", "response":"Tope"}
+{"instruction":"What is the average lifespan of a Golden Retriever?","context":"Golden Retrievers are a generally healthy breed; they have an average lifespan of 12 to 13 years. Irresponsible breeding to meet high demand has led to the prevalence of inherited health problems in some breed lines, including allergic skin conditions, eye problems and sometimes snappiness. These problems are rarely encountered in dogs bred from responsible breeders.","response":"The average lifespan of a Golden Retriever is 12 to 13 years."}
+```
 
-
-Therefore, if the your data meets the above two formats, you can use the data by configuring the local data path or huggingface dataset. If not, please refer to the following **Adopt to Your Dataset**.
+An example dataset can be accessed at `examples/data/sample_finetune_data.jsonl`. Ensure each line in your dataset follows the above format.
 
 #### 2. Finetune
 

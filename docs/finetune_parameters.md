@@ -32,14 +32,10 @@ The following are the parameters supported in the finetuning workflow.
 |learning_rate|1e-5|Initial learning rate to use.|
 |lr_scheduler|linear|The scheduler type to use, supported value: "linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"|
 |weight_decay|0.0|Weight decay is a regularization technique that adds an L2 norm of all model weights to the loss function while increasing the probability of improving the model generalization.|
-|device|CPU|The device type used, can be CPU or GPU.|
-|num_training_workers|2|The number of the training process|
-|resources_per_worker|{"CPU": 32}|A dict to specify the resources for each worker. If `device` is GPU, please set it like {"CPU": 32, "GPU": 1}.|
+|device|CPU|The device type used, can be "CPU", "GPU".|
+|num_training_workers|2|The number of the training process.|
+|resources_per_worker|{"CPU": 32}|A dict to specify the resources for each worker. If `device` is "GPU", please set it like {"CPU": 32, "GPU": 1}.|
+|accelerate_mode|CPU_DDP|The accelerate mode for training model, available options are: "CPU_DDP", "GPU_DDP", "GPU_FSDP".|
 |max_train_steps|None|Total number of training steps to perform. If provided, overrides epochs.|
 |gradient_accumulation_steps|1|Number of updates steps to accumulate before performing a backward/update pass.|
 |seed|None|A seed for reproducible training.|
-
-
-
-
-

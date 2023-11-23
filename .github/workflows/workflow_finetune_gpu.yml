@@ -1,0 +1,20 @@
+name: Finetune on PVC 
+
+on:
+  workflow_call:
+
+jobs:
+  finetune:
+    name: finetune on gpu test
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Start remote task 
+        run: |
+          source ~/borealis-runner/init_conda.sh
+          python ~/borealis-runner/gpu_task_on_pvc.py
+
+      - name: Test Summary
+        run: echo "to be continued"
