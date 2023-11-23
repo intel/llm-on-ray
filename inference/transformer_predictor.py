@@ -2,35 +2,34 @@ import torch
 from transformers import AutoModelForCausalLM, AutoConfig
 from peft import PeftModel
 from deltatuner import DeltaTunerModel
+from inference_config import InferenceConfig
 
 class TransformerPredictor:
-    def __init__(self, model_id, model_load_config, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, ipex_enabled, deployment_mode, deltatuner_model_id=None):
-        self.amp_enabled = amp_enabled
+    def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria):
         self.amp_dtype = amp_dtype
-        self.device = torch.device(device_name)
-        config = None
-        if deployment_mode:
-            trust_remote_code = model_load_config.get("trust_remote_code", None)
-            config = AutoConfig.from_pretrained(
-            model_id, torchscript=deployment_mode, trust_remote_code=trust_remote_code
-        )
+        self.device = torch.device(inferenceConfig.device)
+
+        model_desc = inferenceConfig.model_description
+        model_config = model_desc.config
+        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
         model = AutoModelForCausalLM.from_pretrained(
-            model_id,
+            model_desc.model_id_or_path,
             torch_dtype=amp_dtype,
             config=config,
             low_cpu_mem_usage=True,
-            **model_load_config
+            **model_config.dict()
         )
-        if deltatuner_model_id:
-            model = PeftModel.from_pretrained(model, deltatuner_model_id)
-            model = DeltaTunerModel.from_pretrained(model, deltatuner_model_id)
+        if model_desc.peft_model_id_or_path:
+            model = PeftModel.from_pretrained(model, model_desc.peft_model_id_or_path)
+            if model_desc.peft_type == "deltatuner":
+                model = DeltaTunerModel.from_pretrained(model, model_desc.peft_model_id_or_path)
             model = model.merge_and_unload()
 
         model = model.eval().to(self.device)
         # to channels last
         model = model.to(memory_format=torch.channels_last)
         # to ipex
-        if ipex_enabled:
+        if inferenceConfig.ipex:
             import intel_extension_for_pytorch as ipex
 
             torch._C._jit_set_texpr_fuser_enabled(False)
@@ -39,8 +38,7 @@ class TransformerPredictor:
             self.model = ipex.optimize_transformers(
                 model.eval(),
                 dtype=amp_dtype,
-                inplace=True,
-                deployment_mode=deployment_mode,
+                inplace=True
             )
         else:
             self.model = model

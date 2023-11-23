@@ -123,6 +123,13 @@ jobs:
             docker exec "finetune" bash -c "python finetune/finetune.py --config_path finetune/finetune.conf"
           fi
 
+      - name: Stop Ray
+        run: |
+          cid=$(docker ps -q --filter "name=finetune")
+          if [[ ! -z "$cid" ]]; then
+            docker exec "finetune" bash -c "ray stop"
+          fi
+          
       - name: Stop Container
         if: success() || failure()
         run: |

@@ -1,5 +1,6 @@
 import requests
-from config import all_models, base_models
+from inference_config import all_models, base_models, ModelDescription, Prompt
+from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
 from chat_process import ChatModelGptJ, ChatModelLLama
@@ -70,8 +71,8 @@ class LoggingCallback(LoggerCallback):
 class ChatBotUI():
     def __init__(
         self,
-        all_models: dict,
-        base_models: dict,
+        all_models: dict[str, FinetunedConfig],
+        base_models: dict[str, FinetunedConfig],
         finetune_model_path: str,
         finetuned_checkpoint_path: str,
         repo_code_path: str,
@@ -207,9 +208,10 @@ class ChatBotUI():
             yield [res[1], res[2]]
 
     def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker):
-        origin_model_path = self._base_models[model_name]["model_id_or_path"]
-        tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
-        gpt_base_model = self._base_models[model_name].get("gpt_base_model")
+        model_desc = self._base_models[model_name].model_description
+        origin_model_path = model_desc.model_id_or_path
+        tokenizer_path = model_desc.tokenizer_name_or_path
+        gpt_base_model = model_desc.gpt_base_model
         last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name) if self.finetuned_checkpoint_path != "" else None
@@ -294,21 +296,21 @@ class ChatBotUI():
         ray.kill(self.finetune_actor)
         self.finetune_actor = None
 
-        model_config = {
-            "model_id_or_path": finetuned_model_path,
-            "tokenizer_name_or_path": tokenizer_path,
-            "port": "8000",
-            "name": new_model_name,
-            "route_prefix": "/" + new_model_name,
-            "chat_processor": self._base_models[model_name]["chat_processor"],
-            "prompt": {
-                "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
-                "human_id": "\n### Instruction",
-                "bot_id": "\n### Response",
-                "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
-            }
-        }
-        self._all_models[new_model_name] = model_config
+        new_prompt = Prompt()
+        new_prompt.intro = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n"
+        new_prompt.human_id = "\n### Instruction"
+        new_prompt.bot_id = "\n### Response"
+        new_prompt.stop_words.extend(["### Instruction", "# Instruction", "### Question", "##", " ="])
+        new_model_desc = ModelDescription(model_id_or_path=finetuned_model_path,
+                                          tokenizer_name_or_path=tokenizer_path,
+                                          prompt=new_prompt,
+                                          chat_processor=model_desc.chat_processor
+                                          )
+        new_finetuned = FinetunedConfig(name=new_model_name,
+                                  route_prefix="/" + new_model_name,
+                                  model_description=new_model_desc
+                                  )
+        self._all_models[new_model_name] = new_finetuned
         return gr.Dropdown.update(choices=list(self._all_models.keys()))
 
     def finetune_progress(self, progress=gr.Progress()):
@@ -339,27 +341,28 @@ class ChatBotUI():
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
-        amp_enabled = True
         amp_dtype = torch.bfloat16
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
-        model_config = self._all_models[model_name]
-        print("model path: ", model_config["model_id_or_path"])
+        finetuned = self._all_models[model_name]
+        model_desc = finetuned.model_description
+        prompt = model_desc.prompt if model_desc.prompt else {}
+        print("model path: ", model_desc.model_id_or_path)
 
-        chat_processor = getattr(sys.modules[__name__], model_config["chat_processor"], None)
-        if chat_processor is None:
-            return model_name + " deployment failed. " + model_config["chat_processor"] + " does not exist."
-        self.process_tool = chat_processor(**model_config["prompt"])
+        chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
+        if chat_model is None:
+            return model_name + " deployment failed. " + model_desc.chat_processor + " does not exist."
+        self.process_tool = chat_model(**prompt)
 
-        model_load_config = model_config.get("config", {})
-        device_name = "cpu"
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.31.0"]}})\
-                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], model_load_config,
-                                            device_name, amp_enabled, amp_dtype,
-                                            chat_processor_name=model_config["chat_processor"], prompt=model_config["prompt"],
-                                            cpus_per_worker=cpus_per_worker)
-        handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
-        return self.ip_port + model_config["route_prefix"]
+        finetuned_deploy = finetuned.copy(deep=True)
+        finetuned_deploy.device = 'cpu'
+        finetuned_deploy.precision = 'bf16'
+        finetuned_deploy.model_description.prompt.stop_words = stop_words
+        finetuned_deploy.cpus_per_worker = cpus_per_worker
+        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.28.0"]}})\
+                                      .bind(finetuned_deploy)
+        handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
+        return self.ip_port + finetuned_deploy.route_prefix
 
     def shutdown_finetune(self):
         self.stopper.stop(True)
@@ -663,7 +666,7 @@ if __name__ == "__main__":
 
     sys.path.append(repo_path)
 
-    config = {
+    finetune_config = {
         "General": {
             "config": {}
         },
@@ -706,5 +709,5 @@ if __name__ == "__main__":
     finetune_model_path = args.finetune_model_path
     finetune_checkpoint_path = args.finetune_checkpoint_path
 
-    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
+    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
     ui.gr_chat.queue(concurrency_count=10).launch(share=True, server_port=8080, server_name="0.0.0.0")
