@@ -1,12 +1,13 @@
 import os
 from pydantic import BaseModel, validator
 from pydantic_yaml import parse_yaml_raw_as
+from typing import List
 
 class Prompt(BaseModel):
     intro: str = ""
     human_id: str = ""
     bot_id: str = ""
-    stop_words: list[str] = []
+    stop_words: List[str] = []
 
 class ModelConfig(BaseModel):
     trust_remote_code: bool = False

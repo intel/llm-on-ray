@@ -54,7 +54,7 @@ class PredictDeployment:
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
         self.use_deepspeed = inferenceConfig.deepspeed
-        self.amp_dtype = torch.bfloat16 if args.precision != "fp32" else torch.float32
+        self.amp_dtype = torch.bfloat16 if inferenceConfig.precision != "fp32" else torch.float32
         if self.use_deepspeed:
             self.streamer = self.create_streamer()
             self.predictor = DeepSpeedPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)

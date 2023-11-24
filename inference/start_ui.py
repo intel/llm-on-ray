@@ -71,8 +71,8 @@ class LoggingCallback(LoggerCallback):
 class ChatBotUI():
     def __init__(
         self,
-        all_models: dict[str, FinetunedConfig],
-        base_models: dict[str, FinetunedConfig],
+        all_models: Dict[str, FinetunedConfig],
+        base_models: Dict[str, FinetunedConfig],
         finetune_model_path: str,
         finetuned_checkpoint_path: str,
         repo_code_path: str,
@@ -341,7 +341,6 @@ class ChatBotUI():
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
-        amp_dtype = torch.bfloat16
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         finetuned = self._all_models[model_name]
@@ -352,15 +351,14 @@ class ChatBotUI():
         chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
         if chat_model is None:
             return model_name + " deployment failed. " + model_desc.chat_processor + " does not exist."
-        self.process_tool = chat_model(**prompt)
+        self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
         finetuned_deploy.device = 'cpu'
         finetuned_deploy.precision = 'bf16'
         finetuned_deploy.model_description.prompt.stop_words = stop_words
         finetuned_deploy.cpus_per_worker = cpus_per_worker
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.28.0"]}})\
-                                      .bind(finetuned_deploy)
+        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker}).bind(finetuned_deploy)
         handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
         return self.ip_port + finetuned_deploy.route_prefix
 
