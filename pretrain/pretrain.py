@@ -125,8 +125,8 @@ def main(external_config = None):
         common.logger.info(f"ray scaling config: {scaling_config}")
 
         if (
-            config.get("training_config", None) and
-            config.get("training_config").get("deepspeed", None)
+            config['trainer'].get("training_config", None) and
+            config['trainer'].get("training_config").get("deepspeed", None)
         ):
             torch_config = DeepSpeedTorchConfig(**ray_config.get("torch_config", {}))
         else:  

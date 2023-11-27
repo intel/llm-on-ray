@@ -1,12 +1,27 @@
-From 3763ec83b3a63e3c819ebb513b09044059f87368 Mon Sep 17 00:00:00 2001
+From f5b68a271939438ef264b65149708a748e597abb Mon Sep 17 00:00:00 2001
 From: zhangjian <jian2.zhang@intel.com>
-Date: Tue, 31 Oct 2023 10:42:41 +0000
+Date: Mon, 27 Nov 2023 19:49:12 +0800
 Subject: [PATCH] hot fix for megatron deepspeed
 
 ---
- megatron/training.py | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ megatron/initialize.py |  3 +++
+ megatron/training.py   | 14 +++++++++-----
+ 2 files changed, 12 insertions(+), 5 deletions(-)
 
+diff --git a/megatron/initialize.py b/megatron/initialize.py
+index 3aa035a..adbea3d 100644
+--- a/megatron/initialize.py
++++ b/megatron/initialize.py
+@@ -208,6 +208,9 @@ def _initialize_distributed():
+                   'skipping initialization ...', flush=True)
+         args.rank = torch.distributed.get_rank()
+         args.world_size = torch.distributed.get_world_size()
++        
++        device = args.rank % device_count
++        get_accelerator().set_device(device)
+ 
+     else:
+         if args.rank == 0:
 diff --git a/megatron/training.py b/megatron/training.py
 index c509377..f6cbbe5 100644
 --- a/megatron/training.py
