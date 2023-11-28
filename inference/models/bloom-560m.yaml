@@ -2,7 +2,7 @@ port: 8000
 name: bloom-560m
 route_prefix: /bloom-560m
 precision: 'bf16'
-cpus_per_worker: 24
+cpus_per_worker: 10
 gpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2

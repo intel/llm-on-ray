@@ -15,9 +15,6 @@ import sys
 from typing import Generator, Union, Optional, List
 from starlette.responses import StreamingResponse
 
-from transformer_predictor import TransformerPredictor
-from deepspeed_predictor import DeepSpeedPredictor
-
 from pydantic_yaml import parse_yaml_raw_as
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -56,9 +53,11 @@ class PredictDeployment:
         self.use_deepspeed = inferenceConfig.deepspeed
         self.amp_dtype = torch.bfloat16 if inferenceConfig.precision != "fp32" else torch.float32
         if self.use_deepspeed:
+            from deepspeed_predictor import DeepSpeedPredictor
             self.streamer = self.create_streamer()
             self.predictor = DeepSpeedPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)
         else:
+            from transformer_predictor import TransformerPredictor
             self.predictor = TransformerPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)
         self.loop = asyncio.get_running_loop()
 
@@ -140,7 +139,7 @@ class PredictDeployment:
                     prompt = self.process_tool.get_prompt(text)
                     prompts.append(prompt)
                 else:
-                    prompts.extend(text)            
+                    prompts.extend(text)
             else:
                 prompts.append(text)
         if not streaming_response:
@@ -153,8 +152,21 @@ class PredictDeployment:
             self.loop.run_in_executor(None, functools.partial(self.predict_stream, prompts, streamer, **config))
             return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
 
-if __name__ == "__main__":
+_ray_env_key = "env_vars"
+# OMP_NUM_THREADS will be set by num_cpus, so not set in env
+_predictor_runtime_env_ipex = {
+    "KMP_BLOCKTIME": "1",
+    "KMP_SETTINGS": "1",
+    "KMP_AFFINITY": "granularity=fine,compact,1,0",
+    "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000"
+}
 
+_predictor_runtime_env_deepspeed_template = {
+    "DS_ACCELERATOR": "<device>"
+}
+
+# make it unittest friendly
+def main(argv=None):
     # args
     import argparse
     parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
@@ -171,19 +183,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu or cuda")
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
 
-    args = parser.parse_args()
-
-    runtime_env = {
-        "env_vars": {
-            "KMP_BLOCKTIME": "1",
-            "KMP_SETTINGS": "1",
-            "KMP_AFFINITY": "granularity=fine,compact,1,0",
-            "OMP_NUM_THREADS": str(args.cpus_per_worker),
-            "DS_ACCELERATOR": args.device,
-            "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
-        }
-    } if args.ipex else {}
-    ray.init(address="auto", runtime_env=runtime_env)
+    args = parser.parse_args(argv)
 
     # serve all pre-defined models, or model from MODEL_TO_SERVE env, if no model argument specified
     if args.model is None and args.config_file is None:
@@ -191,9 +191,11 @@ if __name__ == "__main__":
     else:
         # config_file has precedence over others
         if args.config_file:
+            print("reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
                 inferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
         else: # args.model should be set
+            print("reading from command line, " + args.model)
             model_desc = ModelDescription()
             model_desc.model_id_or_path = args.model
             model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
@@ -202,13 +204,23 @@ if __name__ == "__main__":
             rp = args.route_prefix if args.route_prefix else "custom_model"
             inferenceConfig.route_prefix = "/{}".format(rp)
             inferenceConfig.name = rp
+            inferenceConfig.ipex = args.ipex
         model_list = {}
         model_list[inferenceConfig.name] = inferenceConfig
 
-    for model_id, inferenceConfig in model_list.items():
+    ray.init(address="auto")
+
+    deployments = []
+    for model_id, inferCfg in model_list.items():
         print("deploy model: ", model_id)
-        deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(args.gpus_per_worker, 1)}).bind(inferenceConfig)
-        handle = serve.run(deployment, _blocking=True, port=inferenceConfig.port, name=inferenceConfig.name, route_prefix=inferenceConfig.route_prefix)
+        runtime_env = {_ray_env_key: {}}
+        if inferCfg.ipex:
+            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
+        if inferCfg.deepspeed:
+            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
+        deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(inferCfg.gpus_per_worker, 1), "num_cpus": inferCfg.cpus_per_worker, "runtime_env": runtime_env}).bind(inferCfg)
+        handle = serve.run(deployment, _blocking=True, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
+        deployments.append(handle)
 
     msg = "Service is deployed successfully"
     env_name = "KEEP_SERVE_TERMINAL"
@@ -216,4 +228,7 @@ if __name__ == "__main__":
         input(msg)
     else:
         print(msg)
+    return deployments
 
+if __name__ == "__main__":
+    main(sys.argv[1:])

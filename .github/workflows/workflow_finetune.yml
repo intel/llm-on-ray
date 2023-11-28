@@ -64,7 +64,11 @@ jobs:
               else:
                   result['General']["config"]["use_auth_token"] = None
               result['Training']['epochs'] = 1
-              result['Training']['num_training_workers'] = 1
+              if "${{ matrix.model }}" == "gpt2":
+                  # to verify oneccl
+                  result['Training']['num_training_workers'] = 2
+              else:
+                  result['Training']['num_training_workers'] = 1
               result['General']['lora_config'] = None
           with open(conf_path, 'w') as output:
               print(result, file=output)

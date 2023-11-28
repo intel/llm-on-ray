@@ -1,7 +1,7 @@
 import os
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, ConfigDict
 from pydantic_yaml import parse_yaml_raw_as
-from typing import List
+from typing import List, Dict
 
 class Prompt(BaseModel):
     intro: str = ""
@@ -24,6 +24,10 @@ class ModelDescription(BaseModel):
     peft_type: str = None
     prompt: Prompt = Prompt()
     config: ModelConfig = ModelConfig()
+
+    # prevent warning of protected namespaces
+    # DO NOT TOUCH
+    model_config = ConfigDict(protected_namespaces=())
     
     @validator('quantization_type')
     def _check_quant_type(cls, v: str):
@@ -50,6 +54,10 @@ class InferenceConfig(BaseModel):
     device: str = "cpu"
     model_description: ModelDescription = ModelDescription()
 
+    # prevent warning of protected namespaces
+    # DO NOT TOUCH
+    model_config = ConfigDict(protected_namespaces=())
+
     @validator('port')
     def _check_port(cls, v: int):
         assert v > 0 & v < 65535
@@ -73,9 +81,9 @@ class InferenceConfig(BaseModel):
             assert v > 0
         return v
 
-all_models = {}
-base_models = {}
-_models = {}
+all_models : Dict[str, InferenceConfig] = {}
+base_models : Dict[str, InferenceConfig] = {}
+_models : Dict[str, InferenceConfig] = {}
 
 _cur = os.path.dirname(os.path.abspath(__file__))
 _models_folder = _cur + "/models"
@@ -91,5 +99,7 @@ else:
     # all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
     all_models = _models.copy()
 
-base_models["gpt2"] = _models["gpt2"]
-base_models["gpt-j-6b"] = _models["gpt-j-6b"]
+_gpt2_key = "gpt2"
+_gpt_j_6b = "gpt-j-6b"
+base_models[_gpt2_key] = _models[_gpt2_key]
+base_models[_gpt_j_6b] = _models[_gpt_j_6b]
