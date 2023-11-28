@@ -13,6 +13,7 @@ from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
 from typing import List
 import os
+from predictor import Predictor
 from peft import PeftModel
 from deltatuner import DeltaTunerModel
 from inference_config import InferenceConfig
@@ -123,7 +124,7 @@ class PredictionWorker(TorchDistributedWorker):
     def generate(self, inputs, **config):
         return self.generator.generate(inputs, **config)
 
-class DeepSpeedPredictor:
+class DeepSpeedPredictor(Predictor):
     def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria) -> None:
         self.inferenceConfig = inferenceConfig
         self.amp_dtype = amp_dtype

@@ -8,7 +8,6 @@ from queue import Empty
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 from transformers import StoppingCriteria, StoppingCriteriaList
-import intel_extension_for_pytorch as ipex
 from inference_config import ModelDescription, InferenceConfig, all_models
 import sys
 
@@ -30,10 +29,22 @@ class StoppingCriteriaSub(StoppingCriteria):
                 return True
         return False
 
+def max_input_len(input_text_length):
+    if input_text_length <= 128:
+        return 128
+    elif input_text_length <= 512:
+        return 512
+    elif input_text_length <= 2048:
+        return 2048
+    else:
+        print("Max support length is 4096")
+        return 4096
 
 @serve.deployment
 class PredictDeployment:
     def __init__(self, inferenceConfig: InferenceConfig):
+        if inferenceConfig.ipex:
+            import intel_extension_for_pytorch as ipex
         self.device = torch.device(inferenceConfig.device)
         self.tokenizer = AutoTokenizer.from_pretrained(inferenceConfig.model_description.tokenizer_name_or_path)
         if self.tokenizer.pad_token_id is None:
@@ -45,7 +56,7 @@ class PredictDeployment:
             module = __import__("chat_process")
             chat_processor = getattr(module, chat_processor_name, None)
             if chat_processor is None:
-                raise ValueError(model_id + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
+                raise ValueError(inferenceConfig.name + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
             self.process_tool = chat_processor(**prompt.dict())
         stop_words = prompt.stop_words
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
@@ -55,10 +66,16 @@ class PredictDeployment:
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
             self.streamer = self.create_streamer()
+            # now deepspeed predictor don't have the model
+            # this should be solved in the next pr
+            # where it is also a worker
+            if self.tokenizer.pad_token_id is None:
+                self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
             self.predictor = DeepSpeedPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)
         else:
             from transformer_predictor import TransformerPredictor
-            self.predictor = TransformerPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)
+            self.predictor = TransformerPredictor(inferenceConfig, self.amp_dtype, self.stopping_criteria)
+            self.predictor.configure_tokenizer(inferenceConfig.model_description.model_id_or_path, self.tokenizer)
         self.loop = asyncio.get_running_loop()
 
     def create_streamer(self):
@@ -92,10 +109,20 @@ class PredictDeployment:
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
     def tokenize_inputs(self, text: List[str]):
-        input_tokens = self.tokenizer.batch_encode_plus(
-            text, return_tensors="pt", padding=True
-        )
-        input_token_len = input_tokens.input_ids.shape[-1]
+        if self.device.type == "hpu":
+            input_tokens_no_pad = self.tokenizer(text, return_tensors="pt")
+            input_token_len = input_tokens_no_pad.input_ids.shape[-1]
+            input_tokens = self.tokenizer.batch_encode_plus(
+                text,
+                return_tensors="pt",
+                padding="max_length",
+                max_length=max_input_len(input_token_len),
+            )
+        else:
+            input_tokens = self.tokenizer.batch_encode_plus(
+                text, return_tensors="pt", padding=True
+            )
+            input_token_len = input_tokens.input_ids.shape[-1]
         inputs = {k: v.to(device=self.device) \
                   for k,v in input_tokens.items() \
                   if torch.is_tensor(v)}
@@ -218,7 +245,18 @@ def main(argv=None):
             runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
         if inferCfg.deepspeed:
             runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
-        deployment = PredictDeployment.options(ray_actor_options={"num_gpus": min(inferCfg.gpus_per_worker, 1), "num_cpus": inferCfg.cpus_per_worker, "runtime_env": runtime_env}).bind(inferCfg)
+        # now PredictDeployment itself is a worker, we should require resources for it
+        ray_actor_options = {"runtime_env": runtime_env}
+        if inferCfg.device == "cpu":
+            ray_actor_options["num_cpus"] = inferCfg.cpus_per_worker
+        elif inferCfg.device == "cuda":
+            ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
+        elif inferCfg.device == "hpu":
+            ray_actor_options["resources"] = {"HPU": 1}
+        else:
+            # TODO add xpu
+            pass
+        deployment = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
         handle = serve.run(deployment, _blocking=True, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
         deployments.append(handle)
 

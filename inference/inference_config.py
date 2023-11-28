@@ -22,6 +22,8 @@ class ModelDescription(BaseModel):
     quantization_type: str = None
     peft_model_id_or_path: str = None
     peft_type: str = None
+    # only effective when device is hpu
+    use_hpu_graphs: bool = True
     prompt: Prompt = Prompt()
     config: ModelConfig = ModelConfig()
 
