@@ -38,9 +38,8 @@ cd llm-ray-gpu
 Suppose you have installed [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html)
 
 ``` bash
-pip install -r requirements.intel.gpu.txt
 # install ipex/oneccl/torch/torchvision with intel gpu version
-pip install torch==2.0.1a0 torchvision==0.15.2a0 intel-extension-for-pytorch==2.0.110+xpu oneccl-bind-pt --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
+pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
 ```
 More versions are available [here](https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/torch/). More detail information's are [here](https://intel.github.io/intel-extension-for-pytorch/)
 

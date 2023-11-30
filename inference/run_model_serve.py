@@ -188,10 +188,6 @@ _predictor_runtime_env_ipex = {
     "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000"
 }
 
-_predictor_runtime_env_deepspeed_template = {
-    "DS_ACCELERATOR": "<device>"
-}
-
 # make it unittest friendly
 def main(argv=None):
     # args

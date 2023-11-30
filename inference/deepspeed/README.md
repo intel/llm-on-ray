@@ -1,8 +1,7 @@
 ## Serving with Deepspeed
-* First you need to install general dependencies properly before adding deepspeed by following [install general dependencies](../../README.md#installdep).
-* Then, install deepspeed dependencies and Intel OneAPI.
+* First you need to install llm-on-ray with deespeed dependencies as well as Intel OneAPI.
 ```bash
-pip install -r ./requirements.cpu.txt
+pip install .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
 sudo ./install-oneapi.sh
 # optonal
 ds_report

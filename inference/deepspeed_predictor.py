@@ -1,7 +1,6 @@
 import ray
 import torch
 import deepspeed
-import oneccl_bindings_for_pytorch
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from ray.air.util.torch_dist import (

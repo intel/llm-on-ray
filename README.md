@@ -45,7 +45,7 @@ Workflow has been tested on Linux-4.18.0-408.el8.x86_64 and Ubuntu 22.04
 ```bash
 git clone https://github.com/intel-sandbox/llm-ray.git
 cd llm-ray
-pip install -r ./requirements.txt -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
 #### 2. Launch ray cluster

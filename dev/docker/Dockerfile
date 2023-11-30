@@ -23,13 +23,10 @@ RUN conda init bash && \
     conda config --add channels intel && \
     conda install python==3.9
 
-COPY ./requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt -f https://developer.intel.com/ipex-whl-stable-cpu \
+COPY ./ .
+RUN pip install -e .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
 
-# For serving with DeepSpeed
-COPY ./inference/deepspeed/requirements.cpu.txt /tmp
-RUN pip install -r /tmp/requirements.cpu.txt
 RUN ds_report
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
