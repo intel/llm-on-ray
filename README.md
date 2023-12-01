@@ -46,6 +46,8 @@ Workflow has been tested on Linux-4.18.0-408.el8.x86_64 and Ubuntu 22.04
 git clone https://github.com/intel-sandbox/llm-ray.git
 cd llm-ray
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+# Dynamic link oneCCL and Intel MPI libraries
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 #### 2. Launch ray cluster
