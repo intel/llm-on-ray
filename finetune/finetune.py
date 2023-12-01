@@ -149,15 +149,15 @@ def main(external_config = None):
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
+    accelerate_mode = config["Training"].get("accelerate_mode")
+    if accelerate_mode is None:
+        accelerate_mode = "CPU_DDP"
+
+    use_cpu = True if accelerate_mode.startswith("CPU") else False
+    use_gpu = True if accelerate_mode.startswith("GPU") else False
+    ccl_worker_count = 1 if use_cpu is True else num_training_workers
+
     if not ray.is_initialized():
-        accelerate_mode = config["Training"].get("accelerate_mode")
-        if accelerate_mode is None:
-            accelerate_mode = "CPU_DDP"
-
-        use_cpu = True if accelerate_mode.startswith("CPU") else False
-        use_gpu = True if accelerate_mode.startswith("GPU") else False
-        ccl_worker_count = 1 if use_cpu is True else num_training_workers
-
         runtime_env = {
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 

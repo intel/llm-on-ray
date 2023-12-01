@@ -1,5 +1,5 @@
 import requests
-from inference_config import all_models, base_models, ModelDescription, Prompt
+from inference_config import all_models, ModelDescription, Prompt
 from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
@@ -125,7 +125,10 @@ class ChatBotUI():
         return messages
 
     def clear(self):
-        return None
+        return None, f"""| <!-- --> | <!-- --> |
+                         |---|---|
+                         | Total Latency [s] | - |
+                         | Tokens | - |"""
 
     def reset(self, id):
         id = int(id)
@@ -153,6 +156,7 @@ class ChatBotUI():
         prompt = self.history_to_messages(history)
         request_url = model_endpoint
         time_start = time.time()
+        token_num = 0
         config = {
             "max_new_tokens": Max_new_tokens,
             "temperature": Temperature,
@@ -169,8 +173,14 @@ class ChatBotUI():
                 else:
                     history[-1][1]+=output
                 history[-1][1] = self.process_tool.convert_output(history[-1][1])
-                time_spend = time_end - time_start
-                yield [history, time_spend] 
+                time_spend = round(time_end - time_start, 3)
+                token_num += 1
+                new_token_latency = f"""
+                                    | <!-- --> | <!-- --> |
+                                    |---|---|
+                                    | Total Latency [s] | {time_spend} |
+                                    | Tokens | {token_num} |"""
+                yield [history, new_token_latency] 
 
     def bot_test(self, bot_queue, queue_id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         prompt = self.history_to_messages(history)
@@ -205,13 +215,22 @@ class ChatBotUI():
             res = self.bot_queue[id].get()
             if res[1] == "":
                 break
-            yield [res[1], res[2]]
+            yield res[1]
 
-    def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker):
-        model_desc = self._base_models[model_name].model_description
-        origin_model_path = model_desc.model_id_or_path
-        tokenizer_path = model_desc.tokenizer_name_or_path
-        gpt_base_model = model_desc.gpt_base_model
+    def finetune(self, model_name, custom_model_name, custom_tokenizer_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker_ftn):
+        if model_name == "specify other models":
+            model_desc = None
+            origin_model_path = custom_model_name
+            tokenizer_path = custom_tokenizer_name
+            if "gpt" in model_name.lower() or "pythia" in model_name.lower():
+                gpt_base_model = True
+            else:
+                gpt_base_model = False
+        else:
+            model_desc = self._base_models[model_name].model_description
+            origin_model_path = model_desc.model_id_or_path
+            tokenizer_path = model_desc.tokenizer_name_or_path
+            gpt_base_model = model_desc.gpt_base_model
         last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name) if self.finetuned_checkpoint_path != "" else None
@@ -219,17 +238,17 @@ class ChatBotUI():
         finetune_config = self.config.copy()
         training_config = finetune_config.get("Training")
         exist_worker = int(training_config["num_training_workers"])
-        exist_cpus_per_worker = int(training_config["resources_per_worker"]["CPU"])
+        exist_cpus_per_worker_ftn = int(training_config["resources_per_worker"]["CPU"])
 
         ray_resources = ray.available_resources()
-        if "CPU" not in ray_resources or cpus_per_worker * worker_num + 1 > int(ray.available_resources()["CPU"]):
+        if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
-        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker or not (gpt_base_model and last_gpt_base_model):
+        if worker_num != exist_worker or cpus_per_worker_ftn != exist_cpus_per_worker_ftn or not (gpt_base_model and last_gpt_base_model):
             ray.shutdown()
             new_ray_init_config = {
                 "runtime_env": {
                     "env_vars": {
-                        "OMP_NUM_THREADS": str(cpus_per_worker), 
+                        "OMP_NUM_THREADS": str(cpus_per_worker_ftn), 
                         "ACCELERATE_USE_CPU": "True", 
                         "ACCELERATE_MIXED_PRECISION": "no",
                         "CCL_WORKER_COUNT": "1",
@@ -246,16 +265,17 @@ class ChatBotUI():
                 new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
             last_gpt_base_model = gpt_base_model
             finetune_config["Training"]["num_training_workers"] = int(worker_num)
-            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
+            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
 
             ray.init(**new_ray_init_config)
             exist_worker = worker_num
-            exist_cpus_per_worker = cpus_per_worker
+            exist_cpus_per_worker_ftn = cpus_per_worker_ftn
 
         finetune_config["Dataset"]["train_file"] = dataset
         finetune_config["General"]["base_model"] = origin_model_path
         finetune_config["Training"]["epochs"] = num_epochs
         finetune_config["General"]["output_dir"] = finetuned_model_path
+        finetune_config["General"]["config"]["trust_remote_code"] = True
         if finetuned_checkpoint_path:
             finetune_config["General"]["checkpoint_dir"] = finetuned_checkpoint_path
         finetune_config["Training"]["batch_size"] = batch_size
@@ -282,12 +302,15 @@ class ChatBotUI():
             if main is None:
                 raise Exception("An error occurred, main cannot be null")
             results = main(finetune_config)
-            if results.metrics["done"]:
-                self.finetune_status = True
+            if "done" not in results.metrics:
+                gr.Warning("the finetune is terminated")
         except TrainingFailedError as e:
-            self.finetune_status = True
             print("An error occurred, possibly due to failed recovery")
             print(e)
+        except EnvironmentError as e:
+            raise gr.Error(e)
+        finally:
+            self.finetune_status = True
 
         finetune_config["total_epochs"].shutdown(force=True)
         finetune_config["total_steps"].shutdown(force=True)
@@ -304,8 +327,9 @@ class ChatBotUI():
         new_model_desc = ModelDescription(model_id_or_path=finetuned_model_path,
                                           tokenizer_name_or_path=tokenizer_path,
                                           prompt=new_prompt,
-                                          chat_processor=model_desc.chat_processor
+                                          chat_processor=model_desc.chat_processor if model_desc is not None else "ChatModelGptJ",
                                           )
+        new_model_desc.config.trust_remote_code = True
         new_finetuned = FinetunedConfig(name=new_model_name,
                                   route_prefix="/" + new_model_name,
                                   model_description=new_model_desc
@@ -335,9 +359,9 @@ class ChatBotUI():
         self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
-    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker: int):
+    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker_deploy: int):
         self.shutdown_deploy()
-        if cpus_per_worker * replica_num > int(ray.available_resources()["CPU"]):
+        if cpus_per_worker_deploy * replica_num > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
@@ -357,8 +381,13 @@ class ChatBotUI():
         finetuned_deploy.device = 'cpu'
         finetuned_deploy.precision = 'bf16'
         finetuned_deploy.model_description.prompt.stop_words = stop_words
-        finetuned_deploy.cpus_per_worker = cpus_per_worker
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker}).bind(finetuned_deploy)
+        finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
+        # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
+        if "neural-chat" in model_name:
+            pip_env = "transformers==4.35.0"
+        else:
+            pip_env = "transformers==4.31.0"
+        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
         handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
         return self.ip_port + finetuned_deploy.route_prefix
 
@@ -382,14 +411,19 @@ class ChatBotUI():
     def get_cpu_memory(self, index):
         if self.ray_nodes[index]["Alive"] == "False":
             return cpu_memory_html.format(str(round(0, 1)), str(round(0, 1)))
-        command = 'export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)'
-        stdin, stdout, stderr = self.ssh_connect[index].exec_command(command)
-        out = stdout.read().decode('utf-8')
-        out_words = out.split(" ")
-        cpu_value = 100 - float(out_words[7])
-        total_memory = float(out_words[20].split('+')[0])
-        free_memory = float(out_words[21].split('+')[0])
-        used_memory = 1 - free_memory/total_memory
+        cpu_command = 'export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)'
+        _, cpu_stdout, _ = self.ssh_connect[index].exec_command(cpu_command)
+        cpu_out = cpu_stdout.read().decode('utf-8')
+        cpu_out_words = cpu_out.split(" ")
+        cpu_value = 100 - float(cpu_out_words[7])
+        memory_command = 'export TERM=xterm; echo $(free -h)'
+        _, memory_stdout, _ = self.ssh_connect[index].exec_command(memory_command)
+        memory_out = memory_stdout.read().decode('utf-8')
+        memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split("G")
+        total_memory = float(memory_out_words[0].strip())
+        free_memory = float(memory_out_words[2].strip())
+        buffer_memory = float(memory_out_words[4].strip())
+        used_memory =(total_memory - free_memory - buffer_memory) / total_memory
         return cpu_memory_html.format(str(round(cpu_value, 1)), str(round(used_memory*100, 1)))
     
     def kill_node(self, btn_txt, index):
@@ -414,6 +448,10 @@ class ChatBotUI():
             return "<p style='color: rgb(244, 67, 54); background-color: rgba(244, 67, 54, 0.125);'>DEAD</p>"
         else:
             return "<p style='color: rgb(76, 175, 80); background-color: rgba(76, 175, 80, 0.125);'>ALIVE</p>"
+
+    def set_custom_model(self, base_model_name):
+        visible = True if base_model_name == "specify other models" else False
+        return gr.Textbox.update(visible=visible), gr.Textbox.update(visible=visible)
     
     def _init_ui(self):
         mark_alive = None
@@ -432,13 +470,13 @@ class ChatBotUI():
         self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
         self.ssh_connect[-1].connect(hostname=self.ray_nodes[mark_alive]["NodeName"], port=self.node_port, username=self.user_name)
         
-        title = "LLM on Ray Workflow as a Service Demo"
+        title = "Manage LLM Lifecycle"
         with gr.Blocks(css=custom_css,title=title) as gr_chat:
             head_content = """
                 <div style="color: #fff;text-align: center;">
                     <div style="position:absolute; left:15px; top:15px; "><img  src="/file=inference/ui_images/logo.png" width="50" height="50"/></div>
-                    <p style="color: #fff; font-size: 1.0rem;">LLM on Ray Workflow as a Service Demo</p> 
-                    <p style="color: #fff; font-size: 0.8rem;">Build your own LLM models with proprietary data, deploy an online inference service in production, all in a few simple clicks.</p>
+                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
+                    <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
             """
             foot_content = """
@@ -451,10 +489,13 @@ class ChatBotUI():
             with gr.Tab("Finetune"):
                 step1 = "Finetune the model with the base model and data"
                 gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ step1 + "</h3>")
-                with gr.Row():
+                with gr.Group():
                     base_models_list = list(self._base_models.keys())
-                    base_model_dropdown = gr.Dropdown(base_models_list, value=base_models_list[0],
-                                                label="Select Base Model")
+                    base_models_list.append("specify other models")
+                    base_model_dropdown = gr.Dropdown(base_models_list, value=base_models_list[2],
+                                                label="Select Base Model", allow_custom_value=True)
+                    custom_model_name = gr.Textbox(label="Model id", placeholder="The model id of a pretrained model configuration hosted inside a model repo on huggingface.co", visible=False, interactive=True, elem_classes="disable_status")
+                    custom_tokenizer_name = gr.Textbox(label="Tokenizer id", placeholder="The model id of a predefined tokenizer hosted inside a model repo on huggingface.co", visible=False, interactive=True, elem_classes="disable_status")
 
                 with gr.Accordion("Parameters", open=False, visible=True):
                     batch_size = gr.Slider(0, 1000, 2, step=1, interactive=True, label="Batch Size", info="train batch size per worker.")
@@ -462,7 +503,8 @@ class ChatBotUI():
                     max_train_step = gr.Slider(0, 1000, 10, step=1, interactive=True, label="Step per Epoch", info="value 0 means use the entire dataset.")
                     lr = gr.Slider(0, 0.001, 0.00001, step=0.00001, interactive=True, label="Learning Rate")
                     worker_num = gr.Slider(1, 8, 2, step=1, interactive=True, label="Worker Number", info="the number of workers used for finetuning.")
-                    cpus_per_worker = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    cpus_per_worker_ftn = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    gpus_per_worker_ftn = gr.Slider(0, 16, 0, step=1, interactive=True, label="Gpus per Worker", info="the number of gpu used for every worker.")
 
                 with gr.Row():
                     with gr.Column(scale=0.6):
@@ -476,7 +518,7 @@ class ChatBotUI():
                         stop_finetune_btn = gr.Button("Stop")
                 
                 with gr.Row():
-                    finetune_res = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>")
+                    finetune_res = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>", show_label=False, elem_classes="disable_status")
 
             with gr.Tab("Deployment"):
                 step2 = "Deploy the finetuned model as an online inference service"
@@ -484,18 +526,20 @@ class ChatBotUI():
                 with gr.Row():
                     with gr.Column(scale=0.8):
                         all_models_list = list(self._all_models.keys())
-                        all_model_dropdown = gr.Dropdown(all_models_list, value=all_models_list[0],
-                                                    label="Select Model to Deploy")
+                        all_model_dropdown = gr.Dropdown(all_models_list, value=all_models_list[3], label="Select Model to Deploy",
+                                                         elem_classes="disable_status", allow_custom_value=True)
                     with gr.Column(scale=0.2, min_width=0):
                         deploy_btn = gr.Button("Deploy")
                         stop_deploy_btn = gr.Button("Stop")
                 
                 with gr.Accordion("Parameters", open=False, visible=True):
-                    replica_num = gr.Slider(1, 8, 4, step=1, interactive=True, label="Maximum Concurrent Requests")
+                    replica_num = gr.Slider(1, 8, 4, step=1, interactive=True, label="Model Replica Number")
+                    cpus_per_worker_deploy = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    gpus_per_worker_deploy = gr.Slider(0, 16, 0, step=1, interactive=True, label="Gpus per Worker", info="the number of gpu used for every worker.")
 
                 with gr.Row():
                     with gr.Column(scale=1):
-                        deployed_model_endpoint = gr.Text(label="Deployed Model Endpoint", value="")
+                        deployed_model_endpoint = gr.Text(label="Deployed Model Endpoint", value="" ,elem_classes="disable_status")
 
             with gr.Tab("Inference"):
                 step3 = "Access the online inference service in your own application"
@@ -507,23 +551,23 @@ class ChatBotUI():
                     Top_k = gr.Slider(0, 100, 0, step=1, interactive=True, label="Top k", info="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
                 
                 with gr.Tab("Dialogue"):
-                    chatbot = gr.Chatbot(elem_id="chatbot", label="chatbot")
+                    chatbot = gr.Chatbot(elem_id="chatbot", label="chatbot", elem_classes="disable_status")
 
                     with gr.Row():
-                        with gr.Column(scale=0.6):
+                        with gr.Column(scale=0.8):
                             msg = gr.Textbox(show_label=False, container=False,
                                             placeholder="Input your question and press Enter")
-                        with gr.Column(scale=0.2, min_width=0):
-                            send_btn = gr.Button("Send")
-                        with gr.Column(scale=0.2, min_width=0):
-                            clear_btn = gr.Button("Clear")
-
-
+                        with gr.Column(scale=0.2, min_width=20):
+                            latency_status = gr.Markdown("""
+                                                | <!-- --> | <!-- --> |
+                                                |---|---|
+                                                | Total Latency [s] | - |
+                                                | Tokens | - |""", elem_classes=["disable_status", "output-stats", "disablegenerating", "div_height"])
                     with gr.Row():
-                        with gr.Column(scale=0.1):
-                            latency = gr.Text(label="Inference latency (s)", value="0", visible=False)
-                        with gr.Column(scale=0.1):
-                            model_used = gr.Text(label="Inference Model", value="", visible=False)
+                        with gr.Column(scale=0.5, min_width=0):
+                            send_btn = gr.Button("Send")
+                        with gr.Column(scale=0.5, min_width=0):
+                            clear_btn = gr.Button("Clear")
 
                 with gr.Tab("Multi-Session"):
                     scale_num = 1 / self.test_replica
@@ -532,7 +576,7 @@ class ChatBotUI():
                         msgs = list(range(self.test_replica))
                         for i in range(self.test_replica):
                             with gr.Column(scale=scale_num, min_width=1):
-                                chatbots[i] = gr.Chatbot(elem_id="chatbot"+str(i+1), label="chatbot"+str(i+1), min_width=1)
+                                chatbots[i] = gr.Chatbot(elem_id="chatbot"+str(i+1), label="chatbot"+str(i+1), min_width=1, elem_classes="disable_status")
                                 msgs[i] = gr.Textbox(show_label=False, container=False,
                                                 placeholder="Input your question and press Enter",
                                                 value=self.messages[i], min_width=1)
@@ -617,19 +661,19 @@ class ChatBotUI():
 
             msg.submit(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency]
+                           [chatbot, latency_status]
             )
-            clear_btn.click(self.clear, None, chatbot, queue=False)
+            clear_btn.click(self.clear, None, [chatbot, latency_status], queue=False)
 
             send_btn.click(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency]
+                           [chatbot, latency_status]
             )
 
             for i in range(self.test_replica):
                 send_all_btn.click(self.user, [msgs[i], chatbots[i]], [msgs[i], chatbots[i]], queue=False).then(
                     self.send_all_bot, [ids[i], chatbots[i], deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                    [chatbots[i], latency]
+                    chatbots[i]
                 )
             for i in range(self.test_replica):
                 reset_all_btn.click(self.reset, [ids[i]], [msgs[i], chatbots[i]], queue=False)
@@ -637,10 +681,11 @@ class ChatBotUI():
             for i in range(len(stop_btn)):
                 stop_btn[i].click(self.kill_node, [stop_btn[i], node_index[i]], [stop_btn[i], deployed_model_endpoint])
 
-            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker], [all_model_dropdown])
+            base_model_dropdown.select(self.set_custom_model, [base_model_dropdown], [custom_model_name, custom_tokenizer_name])
+            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, custom_model_name, custom_tokenizer_name, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker_ftn], [all_model_dropdown])
             finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_res])
             stop_finetune_btn.click(fn=self.shutdown_finetune, inputs=None, outputs=None, cancels=[finetune_event, finetune_progress_event])
-            deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker], [deployed_model_endpoint])
+            deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker_deploy], [deployed_model_endpoint])
             stop_deploy_btn.click(fn=self.shutdown_deploy, inputs=None, outputs=None, cancels=[deploy_event])
 
             gr.Markdown(foot_content)
@@ -663,7 +708,7 @@ if __name__ == "__main__":
     default_data_path = os.path.abspath(infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl")
 
     sys.path.append(repo_path)
-
+    from finetune.finetune import get_accelerate_environment_variable
     finetune_config = {
         "General": {
             "config": {}
@@ -681,6 +726,7 @@ if __name__ == "__main__":
             "resources_per_worker": {
                 "CPU": 24
             },
+            "accelerate_mode": "CPU_DDP"
         },
         "failure_config": {
             "max_failures": 5
@@ -701,11 +747,14 @@ if __name__ == "__main__":
         "address": "auto",
         "_node_ip_address": "127.0.0.1",
     }
+    accelerate_env_vars = get_accelerate_environment_variable(finetune_config["Training"]["accelerate_mode"])
+    ray_init_config["runtime_env"]["env_vars"].update(accelerate_env_vars)
     context = ray.init(**ray_init_config)
     head_node_ip = context.get("address").split(":")[0]
 
     finetune_model_path = args.finetune_model_path
     finetune_checkpoint_path = args.finetune_checkpoint_path
 
-    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
+    initial_model_list = {k : all_models[k] for k in sorted(all_models.keys())}
+    ui = ChatBotUI(initial_model_list, initial_model_list, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
     ui.gr_chat.queue(concurrency_count=10).launch(share=True, server_port=8080, server_name="0.0.0.0")
