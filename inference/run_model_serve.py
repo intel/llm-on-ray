@@ -200,10 +200,11 @@ def main(argv=None):
     parser.add_argument("--route_prefix", default="custom_model", type=str, help="the route prefix for HTTP requests.")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
     parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
+    parser.add_argument("--hpus_per_worker", default=0, type=float, help="hpus per worker, used when --device is hpu")
     parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
     parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu or cuda")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
 
     args = parser.parse_args(argv)
@@ -248,7 +249,7 @@ def main(argv=None):
         elif inferCfg.device == "cuda":
             ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
         elif inferCfg.device == "hpu":
-            ray_actor_options["resources"] = {"HPU": 1}
+            ray_actor_options["resources"] = {"HPU": inferCfg.hpus_per_worker}
         else:
             # TODO add xpu
             pass

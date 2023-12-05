@@ -50,6 +50,7 @@ class InferenceConfig(BaseModel):
     precision: str = 'bf16'
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
+    hpus_per_worker: int = 0
     deepspeed: bool = False
     workers_per_group: int = 2
     ipex: bool = False
