@@ -6,7 +6,7 @@ from ray import serve
 from starlette.requests import Request
 from queue import Empty
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+from transformers import AutoTokenizer, TextIteratorStreamer
 from transformers import StoppingCriteria, StoppingCriteriaList
 from inference_config import ModelDescription, InferenceConfig, all_models
 import sys
@@ -43,8 +43,6 @@ def max_input_len(input_text_length):
 @serve.deployment
 class PredictDeployment:
     def __init__(self, inferenceConfig: InferenceConfig):
-        if inferenceConfig.ipex:
-            import intel_extension_for_pytorch as ipex
         self.device = torch.device(inferenceConfig.device)
         self.tokenizer = AutoTokenizer.from_pretrained(inferenceConfig.model_description.tokenizer_name_or_path)
         if self.tokenizer.pad_token_id is None:

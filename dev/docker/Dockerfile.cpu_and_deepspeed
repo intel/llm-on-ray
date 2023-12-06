@@ -24,6 +24,7 @@ RUN conda init bash && \
     conda install python==3.9
 
 COPY ./ .
+
 RUN pip install -e .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
 
@@ -31,5 +32,5 @@ RUN ds_report
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
-COPY ./inference/deepspeed/install-oneapi.sh /tmp
+COPY ./inference/deep/install-oneapi.sh /tmp
 RUN /tmp/install-oneapi.sh

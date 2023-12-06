@@ -12,9 +12,21 @@ class Prompt(BaseModel):
 class ModelConfig(BaseModel):
     trust_remote_code: bool = False
     use_auth_token: str = None
+    load_in_4bit: bool = False
+
+# for bigdl model
+class BigDLModelConfig(BaseModel):
+    load_in_low_bit: str = ""
+
+    @validator("load_in_low_bit")
+    def _check_load_in_low_bit(cls, v: str):
+        if v:
+            assert v in ["sym_int4", "asym_int4", "sym_int5", "asym_int5", "sym_int8"]
+        return v
 
 class ModelDescription(BaseModel):
     model_id_or_path: str = None
+    bigdl: bool = False
     tokenizer_name_or_path: str = None
     chat_processor: str = None
     gpt_base_model: bool = False
@@ -26,6 +38,7 @@ class ModelDescription(BaseModel):
     use_hpu_graphs: bool = True
     prompt: Prompt = Prompt()
     config: ModelConfig = ModelConfig()
+    bigdl_config: BigDLModelConfig = BigDLModelConfig()
 
     # prevent warning of protected namespaces
     # DO NOT TOUCH
@@ -91,7 +104,10 @@ _models : Dict[str, InferenceConfig] = {}
 _cur = os.path.dirname(os.path.abspath(__file__))
 _models_folder = _cur + "/models"
 for model_file in os.listdir(_models_folder):
-    with open(_models_folder + "/" + model_file, "r") as f:
+    file_path = _models_folder + "/" + model_file
+    if os.path.isdir(file_path):
+        continue
+    with open(file_path, "r") as f:
         m: InferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
         _models[m.name] = m
 

@@ -10,19 +10,34 @@ class TransformerPredictor(Predictor):
         model_desc = inferenceConfig.model_description
         model_config = model_desc.config
         config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
+
         if self.device.type == "hpu":
             from optimum.habana.transformers.modeling_utils import (
                 adapt_transformers_to_gaudi,
             )
 
             adapt_transformers_to_gaudi()
-        model = AutoModelForCausalLM.from_pretrained(
-            model_desc.model_id_or_path,
-            torch_dtype=amp_dtype,
-            config=config,
-            low_cpu_mem_usage=True,
-            **model_config.dict()
-        )
+        if model_desc.bigdl:
+            from bigdl.llm.transformers import AutoModelForCausalLM as BigDLAutoModelForCLM
+            bmodel_config = {}
+            bmodel_config.update(model_config.dict())
+            if model_desc.bigdl_config.load_in_low_bit:
+                bmodel_config.update(model_desc.bigdl_config.dict())
+            model = BigDLAutoModelForCLM.from_pretrained(
+                model_desc.model_id_or_path,
+                torch_dtype=amp_dtype,
+                config=config,
+                low_cpu_mem_usage=True,
+                **bmodel_config
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_desc.model_id_or_path,
+                torch_dtype=amp_dtype,
+                config=config,
+                low_cpu_mem_usage=True,
+                **model_config.dict()
+            )
         if model_desc.peft_model_id_or_path:
             from peft import PeftModel
             model = PeftModel.from_pretrained(model, model_desc.peft_model_id_or_path)

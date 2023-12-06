@@ -18,12 +18,11 @@ classifiers = [
     "Framework :: Ray"
 ]
 dependencies = [
-    "accelerate==0.21.0",
-    "datasets==2.14.6",
+    "accelerate>=0.21.0",
+    "datasets>=2.14.6",
     "numpy",
     "ray @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp39-cp39-manylinux2014_x86_64.whl",
-    "transformers==4.31.0",
-    "typing==3.7.4.3",
+    "typing>=3.7.4.3",
     "tabulate",
     "ray[tune]",
     "ray[serve]",
@@ -33,7 +32,7 @@ dependencies = [
     "tensorboard",
     "scikit-image",
     "einops",
-    "peft==0.4.0",
+    "peft>=0.4.0",
     "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
@@ -42,12 +41,14 @@ dependencies = [
 
 [project.optional-dependencies]
 cpu = [
+    "transformers>=4.35.0",
     "intel_extension_for_pytorch==2.1.0+cpu",
     "torch==2.1.0+cpu",
     "oneccl_bind_pt==2.1.0"
 ]
 
 gpu = [
+    "transformers>=4.35.0",
     "torch==2.0.1a0",
     "torchvision==0.15.2a0",
     "intel-extension-for-pytorch==2.0.110+xpu",
@@ -65,10 +66,6 @@ deepspeed = [
 
 bigdl-cpu = [
     "bigdl-llm[all]"
-]
-
-bigdl-xpu = [
-    "bigdl-llm[xpu]"
 ]
 
 [tool.setuptools]

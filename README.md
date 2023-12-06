@@ -163,9 +163,11 @@ python inference/run_model_serve.py --model $model --tokenizer $tokenizer
 python inference/run_model_infer.py --model_endpoint http://127.0.0.1:8000/custom-model --streaming_response
 ```
 Otherwise, all the models placed under `inference/models` folder will be deployed by default. If you want to choose a specific model to deploy, you can set env var, "MODEL_TO_SERVE", to your choice. You can also specify your model by either `--model` or `--config_file`.
-For `--config_file`, you can copy one of them from `inference/models` and make necessary changes.
+For `--config_file`, you can copy one of them from `inference/models` or `inference/models/template` and make necessary changes.
 
-Llm-ray also supports serving with deepspeed. Please follow the [guide](inference/deepspeed/README.md) under inference/deepspeed folder.
+Llm-ray also supports serving with deepspeed. Please follow the [guide](inference/deep/README.md) under inference/deep folder.
+
+Llm-ray integrates [BigDL-LLM](https://github.com/intel-analytics/BigDL/tree/main/python/llm) for serving. Please check the [integration](inference/bigdllm/README.md) for details.
 
 ### <a name="pretrain"></a>Pretrain
 
