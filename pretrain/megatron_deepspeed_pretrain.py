@@ -12,7 +12,7 @@ import common
 import importlib
 loader = importlib.util.find_spec('habana_frameworks')
 if loader is not None:
-    from plugin.habana_backend import TorchConfig
+    from backend.habana_backend import TorchConfig
 else:
     from ray.train.torch import TorchConfig
 

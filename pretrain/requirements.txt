@@ -17,5 +17,7 @@ pydantic==1.10.11
 tensorboard
 einops
 gpustat==1.0.0
-peft==0.5.0
--e git+https://github.com/microsoft/Megatron-DeepSpeed.git@2032dbb#egg=megatron-core
+peft==0.4.0
+evaluate
+deltatuner==1.1.9
+-e git+https://github.com/microsoft/Megatron-DeepSpeed.git#egg=megatron-core
