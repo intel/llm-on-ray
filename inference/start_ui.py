@@ -19,6 +19,10 @@ from ray.util import queue
 import paramiko
 from html_format import cpu_memory_html, ray_status_html, custom_css
 from typing import Any, Dict
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+from pyrecdp.LLM import TextPipeline
+from pyrecdp.primitives.operations import UrlLoader, DirectoryLoader, DocumentSplit, DocumentIngestion
 
 class CustomStopper(Stopper):
     def __init__(self):
@@ -77,6 +81,7 @@ class ChatBotUI():
         finetuned_checkpoint_path: str,
         repo_code_path: str,
         default_data_path: str,
+        default_rag_path: str,
         config: dict,
         head_node_ip: str,
         node_port: str,
@@ -106,6 +111,9 @@ class ChatBotUI():
         self.process_tool = None
         self.finetune_actor = None
         self.finetune_status = False
+        self.default_rag_path = default_rag_path
+        self.embedding_model_name = "sentence-transformers/all-mpnet-base-v2"
+        self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
 
         self._init_ui()
 
@@ -123,6 +131,11 @@ class ChatBotUI():
                     "content": bot_text,
                 })
         return messages
+    
+    @staticmethod
+    def add_knowledge(prompt, enhance_knowledge):
+        description = "Known knowledge: {knowledge}. Then please answer the question based on follow conversation: {conversation}."
+        return description.format(knowledge=enhance_knowledge, conversation=prompt)
 
     def clear(self):
         return None, f"""| <!-- --> | <!-- --> |
@@ -140,7 +153,6 @@ class ChatBotUI():
 
     def model_generate(self, prompt, request_url, config):
         print("prompt: ", prompt)
-        prompt = self.process_tool.get_prompt(prompt)
         
         sample_input = {"text": prompt, "config": config, "stream": True}
         proxies = { "http": None, "https": None}
@@ -152,14 +164,18 @@ class ChatBotUI():
                 output = output[len(prompt):]
             yield output
 
-    def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
+    def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, enhance_knowledge=None):
         prompt = self.history_to_messages(history)
+        prompt = self.process_tool.get_prompt(prompt)
+        if enhance_knowledge:
+            prompt = self.add_knowledge(prompt, enhance_knowledge)
         request_url = model_endpoint
         time_start = time.time()
         token_num = 0
         config = {
             "max_new_tokens": Max_new_tokens,
             "temperature": Temperature,
+            "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
         }
@@ -184,11 +200,13 @@ class ChatBotUI():
 
     def bot_test(self, bot_queue, queue_id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         prompt = self.history_to_messages(history)
+        prompt = self.process_tool.get_prompt(prompt)
         request_url = model_endpoint
         time_start = time.time()
         config = {
             "max_new_tokens": Max_new_tokens,
             "temperature": Temperature,
+            "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
         }
@@ -205,6 +223,78 @@ class ChatBotUI():
                 time_spend = time_end - time_start
                 bot_queue.put([queue_id, history, time_spend])
         bot_queue.put([queue_id, "", ""])
+
+    def bot_rag(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, rag_selector, rag_path, returned_k):
+        enhance_knowledge = None
+        if os.path.isabs(rag_path):
+            tmp_folder = os.getcwd()
+            load_dir = os.path.join(tmp_folder, rag_path)
+        else:
+            load_dir = rag_path
+        if not os.path.exists(load_dir):
+            raise gr.Error("The specified path does not exist")
+        if rag_selector:
+            question = history[-1][0]
+            print("history: ", history)
+            print("question: ", question)
+            vectorstore = FAISS.load_local(load_dir, self.embeddings, index_name="knowledge_db")
+            sim_res = vectorstore.similarity_search(question, k=int(returned_k))
+            enhance_knowledge = sim_res[0].page_content
+
+        bot_generator = self.bot(history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, enhance_knowledge)
+        for output in bot_generator:
+            yield output
+
+    def regenerate(self, db_dir, web_urls, data_pdfs, embedding_model, splitter_chunk_size, cpus_per_worker):
+        pdf_folder = []
+        if data_pdfs:
+            for _, file in enumerate(data_pdfs):
+                pdf_folder.append(file.name)
+        if os.path.isabs(db_dir):
+            tmp_folder = os.getcwd()
+            save_dir = os.path.join(tmp_folder, db_dir)
+        else:
+            save_dir = db_dir
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        web_urls = web_urls.split(";")
+        target_urls = [url.strip() for url in web_urls if url!=""]
+        if len(target_urls) > 0 and len(pdf_folder) > 0:
+            raise gr.Warning("Setting both 'web urls' and 'pdf files' is not supported")
+
+        vector_store_type = "FAISS"
+        index_name = "knowledge_db"
+        text_splitter = "RecursiveCharacterTextSplitter"
+        splitter_chunk_size = int(splitter_chunk_size)
+        text_splitter_args = {"chunk_size": splitter_chunk_size, "chunk_overlap": 0, "separators": ["\n\n", "\n", " ", ""]}
+        embeddings_type = "HuggingFaceEmbeddings"
+        embeddings_args = {'model_name': embedding_model}
+        if embedding_model != self.embedding_model_name:
+            self.embedding_model_name = embedding_model
+            self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
+
+        pipeline = TextPipeline()
+        ops = []
+        if len(target_urls) > 0:
+            ops.append(UrlLoader(urls=target_urls, target_tag='div', target_attrs={'class': 'main-content'}))
+        if len(pdf_folder) > 0:
+            ops.append(DirectoryLoader(input_files=pdf_folder))
+        ops.extend([
+            DocumentSplit(text_splitter=text_splitter, text_splitter_args=text_splitter_args),
+            DocumentIngestion(
+                vector_store=vector_store_type,
+                vector_store_args={
+                    "output_dir": save_dir,
+                    "index": index_name
+                },
+                embeddings=embeddings_type,
+                embeddings_args=embeddings_args,
+                num_cpus=cpus_per_worker
+            )
+        ])
+        pipeline.add_operations(ops)
+        pipeline.execute()
+        return db_dir
 
     def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         id = int(id)
@@ -302,15 +392,12 @@ class ChatBotUI():
             if main is None:
                 raise Exception("An error occurred, main cannot be null")
             results = main(finetune_config)
-            if "done" not in results.metrics:
-                gr.Warning("the finetune is terminated")
+            if results.metrics["done"]:
+                self.finetune_status = True
         except TrainingFailedError as e:
+            self.finetune_status = True
             print("An error occurred, possibly due to failed recovery")
             print(e)
-        except EnvironmentError as e:
-            raise gr.Error(e)
-        finally:
-            self.finetune_status = True
 
         finetune_config["total_epochs"].shutdown(force=True)
         finetune_config["total_steps"].shutdown(force=True)
@@ -355,7 +442,7 @@ class ChatBotUI():
                     continue
                 progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
             except Exception as e:
-                progress(0, "Restarting...")
+                pass
         self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
@@ -416,10 +503,11 @@ class ChatBotUI():
         cpu_out = cpu_stdout.read().decode('utf-8')
         cpu_out_words = cpu_out.split(" ")
         cpu_value = 100 - float(cpu_out_words[7])
-        memory_command = 'export TERM=xterm; echo $(free -h)'
+        memory_command = 'export TERM=xterm; echo $(free -m)'
         _, memory_stdout, _ = self.ssh_connect[index].exec_command(memory_command)
         memory_out = memory_stdout.read().decode('utf-8')
-        memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split("G")
+        memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split(" ")
+        memory_out_words = [m for m in memory_out_words if m != ""]
         total_memory = float(memory_out_words[0].strip())
         free_memory = float(memory_out_words[2].strip())
         buffer_memory = float(memory_out_words[4].strip())
@@ -453,12 +541,18 @@ class ChatBotUI():
         visible = True if base_model_name == "specify other models" else False
         return gr.Textbox.update(visible=visible), gr.Textbox.update(visible=visible)
     
+    def set_rag_default_path(self, selector, rag_path):
+        if rag_path:
+            return rag_path
+        if selector == False:
+            return None
+        else:
+            return self.default_rag_path
+    
     def _init_ui(self):
         mark_alive = None
         for index in range(len(self.ray_nodes)):
-            if self.ray_nodes[index]["Alive"] == False:
-                continue
-            if mark_alive is None:
+            if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
                 mark_alive = index
             node_ip = self.ray_nodes[index]["NodeName"]
             self.ssh_connect[index] = paramiko.SSHClient()
@@ -592,6 +686,58 @@ class ChatBotUI():
                         with gr.Column(scale=0.5):
                             reset_all_btn = gr.Button("Reset")
             
+            with gr.Tab("RAG"):
+                step3_rag = "Use RAG to enhance generation capabilities"
+                gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ step3_rag + "</h3>")
+                with gr.Accordion("Configuration", open=False, visible=True):
+                    max_new_tokens_rag = gr.Slider(1, 2000, 128, step=1, interactive=True, label="Max New Tokens", info="The maximum numbers of tokens to generate.")
+                    Temperature_rag = gr.Slider(0, 1, 0.7, step=0.01, interactive=True, label="Temperature", info="The value used to modulate the next token probabilities.")
+                    Top_p_rag = gr.Slider(0, 1, 1.0, step=0.01, interactive=True, label="Top p", info="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation.")
+                    Top_k_rag = gr.Slider(0, 100, 0, step=1, interactive=True, label="Top k", info="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+
+                with gr.Accordion("RAG parameters", open=False, visible=True):
+                    with gr.Row():
+                        with gr.Column(scale=0.5):
+                            data_web_urls = gr.Textbox(label="web urls", value="https://www.intc.com/news-events/press-releases/detail/1655/intel-reports-third-quarter-2023-financial-results", placeholder="The urls of web dataset. Support multiple web urls seperated by ';'")
+                        with gr.Column(scale=0.5):
+                            # data_pdf_path = gr.Textbox(label="pdf folder", value='', placeholder="The folder of pdf files")
+                            data_pdfs = gr.File(label="upload pdf files", file_count="multiple", file_types=[".pdf"], elem_classes="file_height")
+                    with gr.Row():
+                        with gr.Column(scale=0.4):
+                            embedding_model = gr.Textbox(label="embedding model", value="sentence-transformers/all-mpnet-base-v2", placeholder="Model name to use")
+                        with gr.Column(scale=0.3):
+                            splitter_chunk_size = gr.Textbox(label="splitter_chunk_size", value="500", placeholder="Maximum size of chunks to return")
+                        with gr.Column(scale=0.3):
+                            returned_k = gr.Textbox(label="returned_k", value=1, placeholder="Number of retrieved chunks to return")
+                    
+                
+                with gr.Row():
+                    with gr.Column(scale=0.2):
+                        rag_selector = gr.Checkbox(label="RAG", min_width=0)
+                    with gr.Column(scale=0.6):
+                        rag_path = gr.Textbox(show_label=False, container=False, placeholder="The path of vectorstore", elem_classes="disable_status")
+                    with gr.Column(scale=0.2):
+                        regenerate_btn = gr.Button("Regenerate", min_width=0)
+
+                with gr.Tab("Dialogue"):
+                    chatbot_rag = gr.Chatbot(elem_id="chatbot", label="chatbot", elem_classes="disable_status")
+
+                    with gr.Row():
+                        with gr.Column(scale=0.8):
+                            msg_rag = gr.Textbox(show_label=False, container=False,
+                                            placeholder="Input your question and press Enter")
+                        with gr.Column(scale=0.2, min_width=0):
+                            latency_status_rag = gr.Markdown("""
+                                                | <!-- --> | <!-- --> |
+                                                |---|---|
+                                                | Total Latency [s] | - |
+                                                | Tokens | - |""", elem_classes=["disable_status", "output-stats", "disablegenerating", "div_height"])
+                    with gr.Row():
+                        with gr.Column(scale=0.5, min_width=0):
+                            send_btn_rag = gr.Button("Send")
+                        with gr.Column(scale=0.5, min_width=0):
+                            clear_btn_rag = gr.Button("Clear")
+
             with gr.Accordion("Cluster Status", open=False, visible=True):
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
@@ -670,6 +816,18 @@ class ChatBotUI():
                            [chatbot, latency_status]
             )
 
+            regenerate_btn.click(self.regenerate, [rag_path, data_web_urls, data_pdfs, embedding_model, splitter_chunk_size, cpus_per_worker_deploy], [rag_path])
+            clear_btn_rag.click(self.clear, None, [chatbot_rag, latency_status_rag], queue=False)
+            rag_selector.select(self.set_rag_default_path, [rag_selector, rag_path], rag_path)
+            msg_rag.submit(self.user, [msg_rag, chatbot_rag], [msg_rag, chatbot_rag], queue=False).then(
+                self.bot_rag, [chatbot_rag, deployed_model_endpoint, max_new_tokens_rag, Temperature_rag, Top_p_rag, Top_k_rag, rag_selector, rag_path, returned_k],
+                           [chatbot_rag, latency_status_rag]
+            )
+            send_btn_rag.click(self.user, [msg_rag, chatbot_rag], [msg_rag, chatbot_rag], queue=False).then(
+                self.bot_rag, [chatbot_rag, deployed_model_endpoint, max_new_tokens_rag, Temperature_rag, Top_p_rag, Top_k_rag, rag_selector, rag_path, returned_k],
+                           [chatbot_rag, latency_status_rag]
+            )
+
             for i in range(self.test_replica):
                 send_all_btn.click(self.user, [msgs[i], chatbots[i]], [msgs[i], chatbots[i]], queue=False).then(
                     self.send_all_bot, [ids[i], chatbots[i], deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
@@ -696,6 +854,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("Start UI", add_help=False)
     parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     parser.add_argument("--finetune_checkpoint_path", default="", type=str, help="Where to save checkpoints.")
+    parser.add_argument("--default_rag_path", default="./vector_store/", type=str, help="The path of vectorstore used by RAG.")
     parser.add_argument("--node_port", default="22", type=str, help="The node port that ssh connects.")
     parser.add_argument("--node_user_name", default="root", type=str, help="The node user name that ssh connects.")
     parser.add_argument("--conda_env_name", default="test_gradio", type=str, help="The environment used to execute ssh commands.")
@@ -754,7 +913,8 @@ if __name__ == "__main__":
 
     finetune_model_path = args.finetune_model_path
     finetune_checkpoint_path = args.finetune_checkpoint_path
+    default_rag_path = args.default_rag_path
 
     initial_model_list = {k : all_models[k] for k in sorted(all_models.keys())}
-    ui = ChatBotUI(initial_model_list, initial_model_list, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
+    ui = ChatBotUI(initial_model_list, initial_model_list, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, default_rag_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
     ui.gr_chat.queue(concurrency_count=10).launch(share=True, server_port=8080, server_name="0.0.0.0")

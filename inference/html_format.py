@@ -123,6 +123,11 @@ OpenChatKit .overflow-y-auto{height:500px}
     border: none !important
 }
 
+.file_height{
+    height: 90px !important;
+    overflow :auto !important
+}
+
 gradio-app {
     background: linear-gradient(to bottom, #86ccf5, #3273bf) !important;
     padding: 3%;
