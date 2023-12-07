@@ -23,7 +23,9 @@ RUN conda init bash && \
     conda config --add channels intel && \
     conda install python==3.9
 
-COPY ./ .
+COPY ./pyproject.toml .
+
+RUN mkdir ./finetune && mkdir ./inference
 
 RUN pip install -e .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
