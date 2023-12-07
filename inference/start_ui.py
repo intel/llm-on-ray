@@ -373,8 +373,7 @@ class ChatBotUI():
         if max_train_step != 0:
             finetune_config["Training"]["max_train_steps"] = max_train_step
 
-        if not hasattr(globals().get("main"), '__call__'):
-            from finetune.finetune import main
+        from finetune.finetune import main
         finetune_config["total_epochs"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
         finetune_config["total_steps"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
         finetune_config["epoch_value"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
@@ -389,8 +388,6 @@ class ChatBotUI():
         self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
-            if main is None:
-                raise Exception("An error occurred, main cannot be null")
             results = main(finetune_config)
             if results.metrics["done"]:
                 self.finetune_status = True
