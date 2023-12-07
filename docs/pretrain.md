@@ -1,16 +1,16 @@
-## Pretrain
+## Pretrain LLMs on Intel Gaudi
 ### Prepare Environment
 #### 1. Download the Workflow Repository
 Create a working directory for the workflow and clone the repository into your working directory.
 ```bash
 mkdir ~/workspace && cd ~/workspace
-git clone https://github.com/intel-sandbox/llm-ray.git
-cd llm-ray
+git clone https://github.com/intel/llm-on-ray.git
+cd llm-on-ray
 git checkout main
 ```
 #### 2. build Docker images for pretrain
 ```bash
-cd llm-ray/tools/workload_in_containers
+cd llm-on-ray/tools/workload_in_containers
 ./build-image.sh megatron-habana # for Gaudi2 platform
 ```
 or
@@ -65,7 +65,7 @@ wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
 
 #### 3. Pretrain Command
 
-Please ensure that you check and modify the configuration files located in ~/workspace/llm-ray/pretrain/config/ before proceeding.
+Please ensure that you check and modify the configuration files located in ~/workspace/llm-on-ray/pretrain/config/ before proceeding.
 
 After your environment configuration are properly set up, you can use the following instructions to pretrain the language model:
 
@@ -74,7 +74,7 @@ After your environment configuration are properly set up, you can use the follow
 Set up `megatron_deepspeed_path` in the configuration.
 
 ```bash
-cd /home/user/workspace/llm-ray
+cd /home/user/workspace/llm-on-ray
 #Bloom-7B
 python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/bloom_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
 #llama-7B
@@ -82,7 +82,7 @@ python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/lla
 ```
 ##### Nvidia GPU:
 ```bash
-cd /home/user/workspace/llm-ray
+cd /home/user/workspace/llm-on-ray
 #llama2-7B
 python pretrain/megatron_deepspeed_pretrain.py --config_path pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
 ```
