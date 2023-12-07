@@ -204,6 +204,7 @@ def main(argv=None):
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
     parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
+    parser.add_argument("--serve_local_only", action="store_true", help="Only support local access to url")
 
     args = parser.parse_args(argv)
 
@@ -222,6 +223,7 @@ def main(argv=None):
             model_desc.model_id_or_path = args.model
             model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
             inferenceConfig = InferenceConfig(model_description=model_desc)
+            inferenceConfig.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
             inferenceConfig.port = args.port
             rp = args.route_prefix if args.route_prefix else "custom_model"
             inferenceConfig.route_prefix = "/{}".format(rp)
@@ -252,7 +254,18 @@ def main(argv=None):
             # TODO add xpu
             pass
         deployment = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
-        handle = serve.run(deployment, _blocking=True, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
+        handle = serve.run(deployment, _blocking=True, host=inferCfg.host, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
+        deployment_name = inferCfg.name
+        if inferCfg.host == "0.0.0.0":
+            all_nodes = ray.nodes()
+            for node in all_nodes:
+                if "node:__internal_head__" in node["Resources"]:
+                    host_ip = node["NodeManagerAddress"]
+                    break
+        else:
+            host_ip = inferCfg.host
+        url = f"http://{host_ip}:{inferCfg.port}{inferCfg.route_prefix}"
+        print(f"Deployment '{deployment_name}' is ready at `{url}`.")
         deployments.append(handle)
 
     msg = "Service is deployed successfully"

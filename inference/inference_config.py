@@ -57,6 +57,7 @@ class ModelDescription(BaseModel):
         return v
 
 class InferenceConfig(BaseModel):
+    host: str = "0.0.0.0"
     port: int = 8000
     name: str = None
     route_prefix: str = None
@@ -73,6 +74,12 @@ class InferenceConfig(BaseModel):
     # prevent warning of protected namespaces
     # DO NOT TOUCH
     model_config = ConfigDict(protected_namespaces=())
+
+    @validator('host')
+    def _check_host(cls, v: str):
+        if v:
+            assert v in ["0.0.0.0", "127.0.0.1"]
+        return v
 
     @validator('port')
     def _check_port(cls, v: int):
