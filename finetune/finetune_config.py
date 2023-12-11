@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 
 
@@ -53,39 +53,40 @@ class Training(BaseModel):
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
-    mixed_precision: str = "no"
 
-    @validator("device")
+    @field_validator("device")
+    @classmethod
     def check_device(cls, v: str):
         devices = ["CPU", "GPU"]
         if v not in devices:
             raise ValueError(f"device must be one of {devices}")
         return v
 
-    @validator("accelerate_mode")
+    @field_validator("accelerate_mode")
+    @classmethod
     def check_accelerate_mode(cls, v: str):
         modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
         return v
 
-    # @model_validator(mode='after')
-    # def check_device_and_accelerate_mode(self) -> "Training":
-    #     dev = self.device
-    #     res = self.resources_per_worker
-    #     mode = self.accelerate_mode
-    #     if dev == "CPU":
-    #         if res.GPU is not None and res.GPU > 0:
-    #             raise ValueError("Please not specified GPU resource when use CPU only in Ray.")
-    #         if mode != "CPU_DDP":
-    #             raise ValueError("Please specified CPU related accelerate mode when use CPU only in Ray.")
-    #     elif dev == "GPU":
-    #         if res.GPU is None or res.GPU == 0:
-    #             raise ValueError("Please specified GPU resource when use GPU to fine tune in Ray.")
-    #         if mode not in ["GPU_DDP", "GPU_FSDP"]:
-    #             raise ValueError("Please speicifed GPU related accelerate mode when use GPU to fine tune in Ray.")
+    @model_validator(mode='after')
+    def check_device_and_accelerate_mode(self) -> "Training":
+        dev = self.device
+        res = self.resources_per_worker
+        mode = self.accelerate_mode
+        if dev == "CPU":
+            if res.GPU is not None and res.GPU > 0:
+                raise ValueError("Please not specified GPU resource when use CPU only in Ray.")
+            if mode != "CPU_DDP":
+                raise ValueError("Please specified CPU related accelerate mode when use CPU only in Ray.")
+        elif dev == "GPU":
+            if res.GPU is None or res.GPU == 0:
+                raise ValueError("Please specified GPU resource when use GPU to fine tune in Ray.")
+            if mode not in ["GPU_DDP", "GPU_FSDP"]:
+                raise ValueError("Please speicifed GPU related accelerate mode when use GPU to fine tune in Ray.")
 
-    #     return self
+        return self
 
 
 class FinetuneConfig(BaseModel):

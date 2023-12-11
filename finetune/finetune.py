@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import os
+import time
 import argparse
+import traceback
 from typing import Any, Dict, Union
 
 import accelerate
@@ -25,7 +27,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
 from finetune.finetune_config import FinetuneConfig
-
 
 def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
     mixed_precision = config["Training"]["mixed_precision"] if config else "no"
@@ -187,11 +188,27 @@ def get_finetune_config():
     return finetune_config.dict()
 
 
-def main(external_config=None):
-    if not external_config:
-        config = get_finetune_config()
-    else:
-        config = external_config
+def get_finetune_config():
+    parser = argparse.ArgumentParser(description="Finetune a transformers model on a causal language modeling task")
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        required=True,
+        default=None,
+        help="The name of the dataset to use (via the datasets library).",
+    )
+    args = parser.parse_args()
+    config_file = args.config_file
+
+    with open(config_file) as f:
+        finetune_config = parse_yaml_raw_as(FinetuneConfig, f)
+    return finetune_config.model_dump()
+
+
+def main(external_config = None):
+    config = get_finetune_config()
+    if external_config is not None:
+        config.merge(external_config)
 
     config["cwd"] = os.getcwd()
     num_training_workers = config["Training"].get("num_training_workers")

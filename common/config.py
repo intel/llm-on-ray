@@ -1,3 +1,4 @@
+import os
 import yaml
 import argparse
 from typing import Dict
@@ -16,7 +17,6 @@ def parse_args():
     )
     args, unparsed = parser.parse_known_args()
     return args
-
 
 def parse_config(config_file=None):
     if config_file is None:

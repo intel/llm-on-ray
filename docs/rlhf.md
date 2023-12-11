@@ -2,7 +2,38 @@
 
 ## Supervised Finetuning (SFT) Workflow
 
-Please follow the [finetuning document](finetune.md).
+### 1. Prepare Dataset
+
+The standard data format should be as follows:
+
+```json
+{
+    "instruction": "Why can camels survive for long without water?",
+    "context": "",
+    "response": "Camels use the fat in their humps to keep them filled with energy and hydration for long periods of time."
+}
+// ...
+```
+
+If you want to use you customed data, you can convert your data to the format by referring to `Finetune/process_data.py`.
+
+After you have prepared you own data, you can use it by setting `train_file` in `rlhf/reward.conf` as following:
+
+```json
+"train_file": "/path/to/your/sft_data.jsonl",
+```
+
+Additionally, we provide a simple data example at the path `examples/data/sample_finetune_data.json`.
+
+### 2. Training SFT model
+
+You can run the following command to start a SFT model training:
+
+```bash
+python Finetune/finetune.py --config_file Finetune/finetune.conf 
+```
+
+Once the model training is completed, based on your settings in the configuration file (such as `"checkpoint_dir": "/tmp/llm-ray/checkpoint/sft"`), you will obtain the final trained model in the `/tmp/llm-ray/checkpoint/sft` directory. This trained model will be utilized in the final stage of the PPO training process.
 
 ## Reward Model Workflow
 
