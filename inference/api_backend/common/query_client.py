@@ -3,6 +3,7 @@ from run_model_serve import PredictDeployment
 from typing import AsyncIterator, Dict, List, Optional
 from fastapi import HTTPException, Request
 from api_backend.common.models import ModelData, Prompt, QueuePriority
+from api_backend.common.models import Prompt, ModelResponse
 from api_backend.plugin.router_query_engine import StreamingErrorHandler
 from enum import IntEnum
 
@@ -18,7 +19,7 @@ class RouterQueryClient():
             request,
         )
         responses = [resp async for resp in response_stream]
-        return responses
+        return ModelResponse.merge_stream(*responses)
 
     async def stream(
         self, model: str, prompt: Prompt, request, priority=None

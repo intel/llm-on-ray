@@ -119,7 +119,7 @@ class DeltaEOS(BaseModel):
 class MessageChoices(BaseModel):
     message: Message
     index: int
-    finish_reason: str
+    finish_reason: Optional[str]
 
 
 class DeltaChoices(BaseModel):
@@ -135,7 +135,7 @@ class ChatCompletion(BaseModel):
     model: str
     choices: List[Union[MessageChoices, DeltaChoices]]
     usage: Optional[Usage]
-    
+
     @classmethod
     def create(
         cls,

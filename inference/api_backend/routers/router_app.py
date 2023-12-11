@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 from typing import AsyncGenerator, List
@@ -65,7 +66,7 @@ async def _completions_wrapper(
     body: VLLMCompletions,
     request: Request,
     response: Response,
-    generator,
+    generator: AsyncGenerator[ModelResponse, None],
 ) -> AsyncGenerator[str, None]:
     had_error = False
     async with async_timeout.timeout(TIMEOUT):
@@ -80,7 +81,6 @@ async def _completions_wrapper(
                     # for errors in streaming
                     subresult_dict["finish_reason"] = None
                     logger.error(f"{subresult_dict['error']}")
-                    yield "data: " +  subresult
                     all_results.pop()
                     had_error = True
                     yield "data: " + ModelResponse(
@@ -321,8 +321,7 @@ class Router:
         """
         prompt = Prompt(prompt=body.messages, parameters=body)
 
-        # completion_id = body.model + "-" + request.state.request_id
-        completion_id = body.model
+        completion_id = body.model + "-" + request.state.request_id
 
         if body.stream:
             return StreamingResponse(
@@ -339,7 +338,6 @@ class Router:
                 ),
                 media_type="text/event-stream",
             )
-            
         else:
             async with async_timeout.timeout(TIMEOUT):
                 results = await self.query_engine.query(body.model, prompt, request)
@@ -370,7 +368,7 @@ class Router:
                     created=int(time.time()),
                     model=body.model,
                     choices=choices,
-                    result=results,
+                    usage=usage,
                 )
 
     @router_app.get("/v1/health_check")
