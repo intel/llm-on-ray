@@ -1,0 +1,29 @@
+General:
+  base_model: bigscience/bloom-560m
+  gpt_base_model: false
+  output_dir: /tmp/llm-ray/output
+  checkpoint_dir: /tmp/llm-ray/checkpoint
+  config:
+    trust_remote_code: false
+    use_auth_token: null
+  lora_config:
+    task_type: CAUSAL_LM
+    r: 8
+    lora_alpha: 32
+    lora_dropout: 0.1
+Dataset:
+  train_file: examples/data/sample_finetune_data_small.jsonl
+  validation_file: null
+  validation_split_percentage: 5
+Training:
+  optimizer: AdamW
+  batch_size: 2
+  epochs: 3
+  learning_rate: 1.0e-05
+  lr_scheduler: linear
+  weight_decay: 0.0
+  device: CPU
+  num_training_workers: 2
+  resources_per_worker:
+    CPU: 32
+  accelerate_mode: CPU_DDP
