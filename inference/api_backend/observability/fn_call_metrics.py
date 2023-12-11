@@ -17,7 +17,6 @@ from typing import (
 
 from opentelemetry import context, trace
 from ray.util import metrics
-from api_backend.observability.metrics import NonExceptionThrowingCounter as Counter
 
 tracer = trace.get_tracer(__name__)
 
@@ -63,113 +62,6 @@ class MsClock:
 
 
 T = TypeVar("T")
-
-
-class FnCallMetrics:
-    """Instrument a function to get call metrics
-
-    This class combines 3 OpenTelemetry metrics. When used to instrument a function,
-    it tracks the number of times a function is called, the latency and count for successes,
-    and the latency and count for failures.
-
-    Usage:
-    metrics = FnCallMetrics(...)
-
-    # this will record open telemetry metrics for your function
-    @metrics.wrap
-    def my_function(self):
-        ...
-    """
-
-    def __init__(
-        self,
-        prefix: str,
-        description: str = "",
-        tag_keys: Optional[Sequence[str]] = None,
-        latency_range: Optional[List[float]] = None,
-    ):
-        self.prefix = prefix
-        self.description_prefix = description
-
-        self.num_started = Counter(
-            self._suffix("total"),
-            description=self._description("Total number of calls"),
-            tag_keys=tag_keys,
-        )
-
-        self.latency_range = latency_range or LatencyRange.short.value
-        self.success_latency = metrics.Histogram(
-            self._suffix("succeeded_latency_ms"),
-            description=self._description("Latency of succeeded calls"),
-            boundaries=self.latency_range,
-            tag_keys=tag_keys,
-        )
-        self.failure_latency = metrics.Histogram(
-            self._suffix("failed_latency_ms"),
-            description=self._description("Latency of failed calls"),
-            boundaries=self.latency_range,
-            tag_keys=tag_keys,
-        )
-
-    def _suffix(self, name: str):
-        return f"{self.prefix}_{name}"
-
-    def _description(self, suffix: str):
-        return f"{self.description_prefix} -- {suffix}"
-
-    @contextmanager
-    def record(self, **tags):
-        """Manage the incrementing of counters and recording of latency."""
-        tags = tags or {}
-        clock = MsClock()
-        try:
-            self.num_started.inc(tags=tags)
-            yield
-            # Record the success latency
-            self.success_latency.observe(clock.interval(), tags=tags)
-        except BaseException:
-            # Record the error latency
-            self.failure_latency.observe(clock.interval(), tags=tags)
-            # Raise the error
-            raise
-
-    def wrap(self, wrapped: Callable[..., T]) -> Callable[..., T]:
-        """Provides an API to decorate methods enabling metrics recording"""
-
-        if inspect.iscoroutinefunction(wrapped):
-
-            @wraps(wrapped)
-            async def async_wrapper(*args, **kwargs):
-                with self.record():
-                    return await wrapped(*args, **kwargs)
-
-            return async_wrapper
-
-        else:
-
-            @wraps(wrapped)
-            def wrapper(*args, **kwargs):
-                with self.record():
-                    return wrapped(*args, **kwargs)
-
-            return wrapper
-
-
-class FnCallMetricsContainer:
-    """Container for multiple FnCallMetrics objects intended
-    to be used for one class. Will automatically derive
-    names for the metrics based on the class/function name.
-    """
-
-    def __init__(self, prefix: str) -> None:
-        self.prefix = prefix
-        self.metrics: Dict[str, FnCallMetrics] = {}
-
-    def wrap(self, wrapped: Callable[..., T]) -> Callable[..., T]:
-        self.metrics[wrapped.__name__] = FnCallMetrics(
-            f"{self.prefix}_{wrapped.__name__}"
-        )
-        return self.metrics[wrapped.__name__].wrap(wrapped)
 
 
 class InstrumentTokenAsyncGenerator:

@@ -1,21 +1,17 @@
 import asyncio
-from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Optional
+from typing import AsyncIterator, List, Optional
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError as PydanticValidationError
 from starlette.requests import Request
 
-
 from api_backend.util.logger import get_logger
-from api_backend.common.models import Prompt, ModelResponse, ErrorResponse, ModelData
-from api_backend.llm.generation import FinishReason
+from api_backend.common.models import Prompt, ModelResponse, ErrorResponse, FinishReason
 from api_backend.util.utils import extract_message_from_exception, OpenAIHTTPException
 from api_backend.observability.fn_call_metrics import (
     InstrumentTokenAsyncGenerator,
 )
-from api_backend.server.metrics import Metrics
-
+from api_backend.observability.metrics import Metrics
 from api_backend.plugin.execution_hooks import (
     ExecutionHooks,
     ShieldedTaskSet,

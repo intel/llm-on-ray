@@ -1,4 +1,3 @@
-import sys
 import os
 import time
 from typing import AsyncGenerator, List
@@ -15,8 +14,8 @@ from api_backend.util.utils import _replace_prefix, OpenAIHTTPException
 
 from api_backend.common.models import Prompt, ModelResponse
 from api_backend.routers.middleware import add_request_id
-from api_backend.common.query_client import RouterQueryClient
-from api_backend.common.llm_models import VLLMCompletions, VLLMChatCompletions
+from api_backend.plugin.query_client import RouterQueryClient
+from api_backend.common.llm_models import Completions, ChatCompletions
 from api_backend.common.models import (
     ChatCompletion,
     Completion,
@@ -63,7 +62,7 @@ router_app = init()
 
 async def _completions_wrapper(
     completion_id: str,
-    body: VLLMCompletions,
+    body: Completions,
     request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
@@ -121,7 +120,7 @@ async def _completions_wrapper(
 
 async def _chat_completions_wrapper(
     completion_id: str,
-    body: VLLMChatCompletions,
+    body: ChatCompletions,
     request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
@@ -242,7 +241,7 @@ class Router:
     @router_app.post("/v1/completions")
     async def completions(
         self,
-        body: VLLMCompletions,
+        body: Completions,
         request: Request,
         response: FastAPIResponse,
     ):
@@ -309,7 +308,7 @@ class Router:
     @router_app.post("/v1/chat/completions")
     async def chat(
         self,
-        body: VLLMChatCompletions,
+        body: ChatCompletions,
         request: Request,
         response: FastAPIResponse,
     ):

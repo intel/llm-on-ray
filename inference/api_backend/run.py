@@ -2,7 +2,7 @@ from ray import serve
 from app import RouterDeployment
 from run_model_serve import PredictDeployment, _ray_env_key, _predictor_runtime_env_ipex
 from inference_config import all_models
-from api_backend.common.query_client import RouterQueryClient
+from api_backend.plugin.query_client import RouterQueryClient
 
 
 def router_application(model_ids, hooks=None):

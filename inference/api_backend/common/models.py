@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Any, Dict, Literal, List, TypeVar, Union, Optional, Protocol, Set, Tuple, Type, TypeVar, Union
 
 from pydantic import BaseModel, Extra, Field, PrivateAttr, root_validator, validator
+from enum import IntEnum, Enum
 import time
 import yaml
-from enum import IntEnum
 
 TModel = TypeVar("TModel", bound="Model")
 TCompletion = TypeVar("TCompletion", bound="Completion")
@@ -464,3 +464,27 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
 
     def unpack(self) -> Tuple["ModelResponse", ...]:
         return (self,)
+
+
+class FinishReason(str, Enum):
+    LENGTH = "length"
+    STOP = "stop"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def from_vllm_finish_reason(
+        cls, finish_reason: Optional[str]
+    ) -> Optional["FinishReason"]:
+        if finish_reason is None:
+            return None
+        if finish_reason == "stop":
+            return cls.STOP
+        if finish_reason == "length":
+            return cls.LENGTH
+        if finish_reason == "abort":
+            return cls.CANCELLED
+        return cls.STOP

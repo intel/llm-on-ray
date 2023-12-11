@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
 from run_model_serve import PredictDeployment
-from typing import AsyncIterator, Dict, List, Optional
+from typing import Dict, List, Optional
 from fastapi import HTTPException, Request
 from api_backend.common.models import ModelData, Prompt, QueuePriority
 from api_backend.common.models import Prompt, ModelResponse
