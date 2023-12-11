@@ -2,11 +2,14 @@ import os
 import math
 import time
 import shutil
+import tempfile
+from pathlib import Path
 
 import torch
 import transformers
 from megatron import get_args
-from ray.air.checkpoint import Checkpoint
+from ray.train import Checkpoint
+from ray.train.torch import TorchCheckpoint
 
 from common import dataprocesser
 from .pretrainer import PreTrainer
@@ -72,16 +75,22 @@ class MegatronPreTrainer(PreTrainer):
         local_checkpoint_path = self._get_local_path(root_path, step)
         try:
             logger.info(f"start recovery from {local_checkpoint_path}")
-            checkpoint_dict = Checkpoint.from_directory(local_checkpoint_path).to_dict()
-            model_state = checkpoint_dict["model"]
-            self.model.load_state_dict(model_state)
-            # update optimizer status
-            optimizer_state = checkpoint_dict["optimizer_state_dict"]
-            self.optimizer.load_state_dict(optimizer_state)
-            # update lr_scheduler status
-            if "lr_scheduler" in checkpoint_dict and hasattr(self, "lr_scheduler"):
-                scheduler_state = checkpoint_dict["lr_scheduler"]
-                self.lr_scheduler.load_state_dict(scheduler_state)
+            checkpoint = Checkpoint.from_directory(local_checkpoint_path)
+            with checkpoint.as_directory() as checkpoint_dir:
+                checkpoint_dir = Path(checkpoint_dir)
+                # update model status
+                model_state = torch.load(checkpoint_dir / "model.pt", map_location="cpu")
+                self.model.load_state_dict(model_state)
+
+                # update optimizer status
+                optimizer_state = torch.load(checkpoint_dir / "optim.pt", map_location="cpu")
+                self.optimizer.load_state_dict(optimizer_state)
+
+                # update lr_scheduler status
+                if Path.exists(checkpoint_dir / "lr_scheduler.pt") and hasattr(self, "lr_scheduler"):
+                    scheduler_state = torch.load(checkpoint_dir / "lr_schduler.pt", map_location="cpu")
+                    self.lr_scheduler.load_state_dict(scheduler_state)
+
             logger.info(f"recovery to step {int(step)}")
             self.starting_step = int(step) + 1
         except Exception as e:
@@ -229,15 +238,14 @@ class MegatronPreTrainer(PreTrainer):
 
     def _save(self, local_checkpoint_path):
         logger.info(f"save checkpoint to {local_checkpoint_path}")
-        unwrapped_model = self.accelerator.unwrap_model(self.model)
-        status = {
-            "model": unwrapped_model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-        }
-        if self.lr_scheduler:
-            status["lr_scheduler"] = self.lr_scheduler.state_dict()
-        checkpoint = Checkpoint.from_dict(status)
-        Checkpoint.to_directory(checkpoint, local_checkpoint_path)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            torch.save(unwrapped_model.state_dict(), os.path.join(tmpdir, "model.pt"))
+            torch.save(self.optimizer.state_dict(), os.path.join(tmpdir, "optim.pt"))
+            if self.lr_scheduler:
+                torch.save(self.lr_scheduler.state_dict(), os.path.join(tmpdir, "lr_schduler.pt"))
+            checkpoint = Checkpoint.from_directory(tmpdir)
+            checkpoint.to_directory(local_checkpoint_path)
         logger.info(f"save checkpoint finish")
 
     def _get_donefile_path(self, root_path, step):
@@ -247,10 +255,10 @@ class MegatronPreTrainer(PreTrainer):
         donefile_path = self._get_donefile_path(root_path, step)
         return f"{donefile_path}/{self.rank}-of-{self.size}"
 
-    def _save_done(self, root_path, step):
-        placeholder = Checkpoint.from_dict({0:0})
-        donefile = self._get_local_donefile_path(root_path, step)
-        Checkpoint.to_directory(placeholder, donefile)
+    def _save_done(self, root_path, episode):
+        placeholder = TorchCheckpoint.from_state_dict({"0": 0})
+        donefile = self._get_local_donefile_path(root_path, episode)
+        placeholder.to_directory(donefile)
 
     def _remove_stale_checkpoint(self, root_path, num_to_keep):
         checkpoints = self._get_all_checkpoint_step(root_path)

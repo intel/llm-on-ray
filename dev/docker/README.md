@@ -1,0 +1,1 @@
+Dockerfiles for CI tests. There could be one Dockerfile with ARG declared to distinguish different pip extras. However, ARG will bust cache of 'pip install', which usually takes long time, when build docker image. Instead, we have two almost identical Dockerfiles here to improve CI efficiency. 

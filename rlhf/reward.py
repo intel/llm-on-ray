@@ -10,7 +10,6 @@ import accelerate
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
-from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
 
 import sys
@@ -118,7 +117,7 @@ def main(external_config = None):
         placement_strategy = "SPREAD"
     )
 
-    torch_config = TorchConfig(backend = "ccl")
+    torch_config = common.TorchConfig(backend = "ccl")
 
     failure_config = FailureConfig()
 

@@ -33,8 +33,7 @@ class RouterQueryClient():
             model=model,
             request=request,
             prompt=prompt,
-            async_iterator=deploy_handle.options(stream=True, use_new_handle_api=True).\
-                test_generate.options(stream=True, use_new_handle_api=True).remote(prompt, streaming_response=True),
+            async_iterator=deploy_handle.options(stream=True).stream_response.options(stream=True, use_new_handle_api=True).remote(prompt)
         ):
             yield x
 

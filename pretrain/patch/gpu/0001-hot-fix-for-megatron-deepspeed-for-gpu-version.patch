@@ -1,0 +1,51 @@
+From b05913b108e857e98fe7f561bfe276e92f1066df Mon Sep 17 00:00:00 2001
+From: root <root@skyocean.sh.intel.com>
+Date: Mon, 4 Dec 2023 03:47:02 +0000
+Subject: [PATCH] hot fix for megatron-deepspeed for gpu version
+
+Signed-off-by: root <root@skyocean.sh.intel.com>
+---
+ megatron/initialize.py | 4 +++-
+ megatron/training.py   | 4 ++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/megatron/initialize.py b/megatron/initialize.py
+index 3aa035a..d41a19e 100644
+--- a/megatron/initialize.py
++++ b/megatron/initialize.py
+@@ -29,7 +29,7 @@ is_rocm_pytorch = OpBuilder.is_rocm_pytorch()
+ 
+ 
+ def initialize_megatron(extra_args_provider=None, args_defaults={},
+-                        ignore_unknown_args=False, allow_no_cuda=False):
++                        ignore_unknown_args=True, allow_no_cuda=False):
+     """Set global variables, initialize distributed, and
+     set autoresume and random seeds.
+     `allow_no_cuda` should not be set unless using megatron for cpu only 
+@@ -208,6 +208,8 @@ def _initialize_distributed():
+                   'skipping initialization ...', flush=True)
+         args.rank = torch.distributed.get_rank()
+         args.world_size = torch.distributed.get_world_size()
++        device = args.rank % device_count
++        get_accelerator().set_device(device) # only do so when device_count > 0
+ 
+     else:
+         if args.rank == 0:
+diff --git a/megatron/training.py b/megatron/training.py
+index 0f05d7c..c98738a 100644
+--- a/megatron/training.py
++++ b/megatron/training.py
+@@ -133,8 +133,8 @@ def pretrain(train_valid_test_dataset_provider,
+     # image ... launches.
+     global _TRAIN_START_TIME
+     start_time_tensor = get_accelerator().DoubleTensor([_TRAIN_START_TIME])
+-    torch.distributed.all_reduce(start_time_tensor,
+-                                 op=torch.distributed.ReduceOp.MIN)
++    #torch.distributed.all_reduce(start_time_tensor,
++    #                             op=torch.distributed.ReduceOp.MIN)
+     _TRAIN_START_TIME = start_time_tensor.item()
+     print_rank_0('time to initialize megatron (seconds): {:.3f}'.format(
+         time.time() - _TRAIN_START_TIME))
+-- 
+2.25.1
+

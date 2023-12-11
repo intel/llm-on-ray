@@ -1,4 +1,4 @@
-From 264a9337b19185b40595e9fb34a5015aecf311d4 Mon Sep 17 00:00:00 2001
+From d3f2303bd03cab539c94b6dc743fa73d5a5fcbc2 Mon Sep 17 00:00:00 2001
 From: yuanwu <yuan.wu@intel.com>
 Date: Mon, 4 Sep 2023 09:01:09 +0000
 Subject: [PATCH] Init megatron-deepspeed with Ray cluster
@@ -7,7 +7,8 @@ Signed-off-by: yuanwu <yuan.wu@intel.com>
 ---
  .../Megatron-DeepSpeed/megatron/arguments.py  | 31 ++++---
  .../Megatron-DeepSpeed/megatron/initialize.py | 88 ++++++++++---------
- 2 files changed, 61 insertions(+), 58 deletions(-)
+ .../Megatron-DeepSpeed/megatron/training.py   |  9 +-
+ 3 files changed, 67 insertions(+), 61 deletions(-)
 
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
 index 0bb85226..ad3b1676 100644
@@ -63,13 +64,6 @@ index 0bb85226..ad3b1676 100644
      if args.position_embedding_type == PositionEmbeddingType.absolute \
              or args.position_embedding_type == PositionEmbeddingType.alibi \
              or args.position_embedding_type == PositionEmbeddingType.learnable:
-@@ -1101,4 +1100,4 @@ def _add_deterministic_args(parser):
-     group.add_argument("--hpu-deterministic", action='store_true',
-                         help="sets deterministic flag run for hpu")
- 
--    return parser
-\ No newline at end of file
-+    return parser
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
 index 55828072..5d227ba6 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
@@ -189,6 +183,33 @@ index 55828072..5d227ba6 100644
      # Set the tensor model-parallel, pipeline model-parallel, and
      # data-parallel communicators.
      if device_count > 0:
+diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
+index bc6f8064..b02d7ef9 100644
+--- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
++++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
+@@ -102,7 +102,7 @@ def pretrain(train_valid_test_dataset_provider,
+     """
+ 
+     # Initalize and get arguments, timers, and Tensorboard writer.
+-    initialize_megatron(extra_args_provider=extra_args_provider,
++    initialize_megatron(extra_args_provider=extra_args_provider, ignore_unknown_args=True,
+                         args_defaults=args_defaults)
+ 
+     args = get_args()
+@@ -129,8 +129,11 @@ def pretrain(train_valid_test_dataset_provider,
+     timers = get_timers()
+ 
+     if args.deepspeed:
+-        args.deepspeed_configuration = json.load(
+-            open(args.deepspeed_config, 'r', encoding='utf-8'))
++        if isinstance(args.deepspeed_config, dict) :
++            args.deepspeed_configuration = args.deepspeed_config
++        else:
++            args.deepspeed_configuration = json.load(
++                open(args.deepspeed_config, 'r', encoding='utf-8'))
+         if "curriculum_learning" in args.deepspeed_configuration and \
+             "enabled" in args.deepspeed_configuration["curriculum_learning"]:
+             args.curriculum_learning = args.deepspeed_configuration[ \
 -- 
 2.25.1
 

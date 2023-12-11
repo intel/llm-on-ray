@@ -1,8 +1,9 @@
 import requests
-from config import all_models, base_models
+from inference_config import all_models, ModelDescription, Prompt
+from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
-from chat_process import ChatModelGptJ
+from chat_process import ChatModelGptJ, ChatModelLLama
 import torch
 from run_model_serve import PredictDeployment
 from ray import serve
@@ -10,7 +11,6 @@ import ray
 import gradio as gr
 import sys
 import argparse
-from ray.air import session
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
 from ray.tune.logger import LoggerCallback
@@ -19,6 +19,10 @@ from ray.util import queue
 import paramiko
 from html_format import cpu_memory_html, ray_status_html, custom_css
 from typing import Any, Dict
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+from pyrecdp.LLM import TextPipeline
+from pyrecdp.primitives.operations import UrlLoader, DirectoryLoader, DocumentSplit, DocumentIngestion
 
 class CustomStopper(Stopper):
     def __init__(self):
@@ -71,17 +75,19 @@ class LoggingCallback(LoggerCallback):
 class ChatBotUI():
     def __init__(
         self,
-        all_models: dict,
-        base_models: dict,
+        all_models: Dict[str, FinetunedConfig],
+        base_models: Dict[str, FinetunedConfig],
         finetune_model_path: str,
         finetuned_checkpoint_path: str,
         repo_code_path: str,
         default_data_path: str,
+        default_rag_path: str,
         config: dict,
         head_node_ip: str,
         node_port: str,
         node_user_name: str,
         conda_env_name: str,
+        master_ip_port: str
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -94,6 +100,7 @@ class ChatBotUI():
         self.node_port = node_port
         self.user_name = node_user_name
         self.conda_env_name = conda_env_name
+        self.master_ip_port = master_ip_port
         self.ray_nodes = ray.nodes()
         self.ssh_connect = [None] * (len(self.ray_nodes)+1)
         self.ip_port = "http://127.0.0.1:8000"
@@ -104,6 +111,9 @@ class ChatBotUI():
         self.process_tool = None
         self.finetune_actor = None
         self.finetune_status = False
+        self.default_rag_path = default_rag_path
+        self.embedding_model_name = "sentence-transformers/all-mpnet-base-v2"
+        self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
 
         self._init_ui()
 
@@ -121,9 +131,17 @@ class ChatBotUI():
                     "content": bot_text,
                 })
         return messages
+    
+    @staticmethod
+    def add_knowledge(prompt, enhance_knowledge):
+        description = "Known knowledge: {knowledge}. Then please answer the question based on follow conversation: {conversation}."
+        return description.format(knowledge=enhance_knowledge, conversation=prompt)
 
     def clear(self):
-        return None
+        return None, f"""| <!-- --> | <!-- --> |
+                         |---|---|
+                         | Total Latency [s] | - |
+                         | Tokens | - |"""
 
     def reset(self, id):
         id = int(id)
@@ -135,7 +153,6 @@ class ChatBotUI():
 
     def model_generate(self, prompt, request_url, config):
         print("prompt: ", prompt)
-        prompt = self.process_tool.get_prompt(prompt)
         
         sample_input = {"text": prompt, "config": config, "stream": True}
         proxies = { "http": None, "https": None}
@@ -147,13 +164,18 @@ class ChatBotUI():
                 output = output[len(prompt):]
             yield output
 
-    def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
+    def bot(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, enhance_knowledge=None):
         prompt = self.history_to_messages(history)
+        prompt = self.process_tool.get_prompt(prompt)
+        if enhance_knowledge:
+            prompt = self.add_knowledge(prompt, enhance_knowledge)
         request_url = model_endpoint
         time_start = time.time()
+        token_num = 0
         config = {
             "max_new_tokens": Max_new_tokens,
             "temperature": Temperature,
+            "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
         }
@@ -167,16 +189,24 @@ class ChatBotUI():
                 else:
                     history[-1][1]+=output
                 history[-1][1] = self.process_tool.convert_output(history[-1][1])
-                time_spend = time_end - time_start
-                yield [history, time_spend] 
+                time_spend = round(time_end - time_start, 3)
+                token_num += 1
+                new_token_latency = f"""
+                                    | <!-- --> | <!-- --> |
+                                    |---|---|
+                                    | Total Latency [s] | {time_spend} |
+                                    | Tokens | {token_num} |"""
+                yield [history, new_token_latency] 
 
     def bot_test(self, bot_queue, queue_id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         prompt = self.history_to_messages(history)
+        prompt = self.process_tool.get_prompt(prompt)
         request_url = model_endpoint
         time_start = time.time()
         config = {
             "max_new_tokens": Max_new_tokens,
             "temperature": Temperature,
+            "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
         }
@@ -194,6 +224,78 @@ class ChatBotUI():
                 bot_queue.put([queue_id, history, time_spend])
         bot_queue.put([queue_id, "", ""])
 
+    def bot_rag(self, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, rag_selector, rag_path, returned_k):
+        enhance_knowledge = None
+        if os.path.isabs(rag_path):
+            tmp_folder = os.getcwd()
+            load_dir = os.path.join(tmp_folder, rag_path)
+        else:
+            load_dir = rag_path
+        if not os.path.exists(load_dir):
+            raise gr.Error("The specified path does not exist")
+        if rag_selector:
+            question = history[-1][0]
+            print("history: ", history)
+            print("question: ", question)
+            vectorstore = FAISS.load_local(load_dir, self.embeddings, index_name="knowledge_db")
+            sim_res = vectorstore.similarity_search(question, k=int(returned_k))
+            enhance_knowledge = sim_res[0].page_content
+
+        bot_generator = self.bot(history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k, enhance_knowledge)
+        for output in bot_generator:
+            yield output
+
+    def regenerate(self, db_dir, web_urls, data_pdfs, embedding_model, splitter_chunk_size, cpus_per_worker):
+        pdf_folder = []
+        if data_pdfs:
+            for _, file in enumerate(data_pdfs):
+                pdf_folder.append(file.name)
+        if os.path.isabs(db_dir):
+            tmp_folder = os.getcwd()
+            save_dir = os.path.join(tmp_folder, db_dir)
+        else:
+            save_dir = db_dir
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        web_urls = web_urls.split(";")
+        target_urls = [url.strip() for url in web_urls if url!=""]
+        if len(target_urls) > 0 and len(pdf_folder) > 0:
+            raise gr.Warning("Setting both 'web urls' and 'pdf files' is not supported")
+
+        vector_store_type = "FAISS"
+        index_name = "knowledge_db"
+        text_splitter = "RecursiveCharacterTextSplitter"
+        splitter_chunk_size = int(splitter_chunk_size)
+        text_splitter_args = {"chunk_size": splitter_chunk_size, "chunk_overlap": 0, "separators": ["\n\n", "\n", " ", ""]}
+        embeddings_type = "HuggingFaceEmbeddings"
+        embeddings_args = {'model_name': embedding_model}
+        if embedding_model != self.embedding_model_name:
+            self.embedding_model_name = embedding_model
+            self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
+
+        pipeline = TextPipeline()
+        ops = []
+        if len(target_urls) > 0:
+            ops.append(UrlLoader(urls=target_urls, target_tag='div', target_attrs={'class': 'main-content'}))
+        if len(pdf_folder) > 0:
+            ops.append(DirectoryLoader(input_files=pdf_folder))
+        ops.extend([
+            DocumentSplit(text_splitter=text_splitter, text_splitter_args=text_splitter_args),
+            DocumentIngestion(
+                vector_store=vector_store_type,
+                vector_store_args={
+                    "output_dir": save_dir,
+                    "index": index_name
+                },
+                embeddings=embeddings_type,
+                embeddings_args=embeddings_args,
+                num_cpus=cpus_per_worker
+            )
+        ])
+        pipeline.add_operations(ops)
+        pipeline.execute()
+        return db_dir
+
     def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
         id = int(id)
         self.bot_queue[id] = Queue()
@@ -203,27 +305,40 @@ class ChatBotUI():
             res = self.bot_queue[id].get()
             if res[1] == "":
                 break
-            yield [res[1], res[2]]
+            yield res[1]
 
-    def finetune(self, model_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker):
-        origin_model_path = self._base_models[model_name]["model_id_or_path"]
-        tokenizer_path = self._base_models[model_name]["tokenizer_name_or_path"]
+    def finetune(self, model_name, custom_model_name, custom_tokenizer_name, dataset, new_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker_ftn):
+        if model_name == "specify other models":
+            model_desc = None
+            origin_model_path = custom_model_name
+            tokenizer_path = custom_tokenizer_name
+            if "gpt" in model_name.lower() or "pythia" in model_name.lower():
+                gpt_base_model = True
+            else:
+                gpt_base_model = False
+        else:
+            model_desc = self._base_models[model_name].model_description
+            origin_model_path = model_desc.model_id_or_path
+            tokenizer_path = model_desc.tokenizer_name_or_path
+            gpt_base_model = model_desc.gpt_base_model
+        last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name) if self.finetuned_checkpoint_path != "" else None
 
-        training_config = self.config.get("Training")
+        finetune_config = self.config.copy()
+        training_config = finetune_config.get("Training")
         exist_worker = int(training_config["num_training_workers"])
-        exist_cpus_per_worker = int(training_config["resources_per_worker"]["CPU"])
+        exist_cpus_per_worker_ftn = int(training_config["resources_per_worker"]["CPU"])
 
         ray_resources = ray.available_resources()
-        if "CPU" not in ray_resources or cpus_per_worker * worker_num + 1 > int(ray.available_resources()["CPU"]):
+        if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
-        if worker_num != exist_worker or cpus_per_worker != exist_cpus_per_worker:
+        if worker_num != exist_worker or cpus_per_worker_ftn != exist_cpus_per_worker_ftn or not (gpt_base_model and last_gpt_base_model):
             ray.shutdown()
             new_ray_init_config = {
                 "runtime_env": {
                     "env_vars": {
-                        "OMP_NUM_THREADS": str(cpus_per_worker), 
+                        "OMP_NUM_THREADS": str(cpus_per_worker_ftn), 
                         "ACCELERATE_USE_CPU": "True", 
                         "ACCELERATE_MIXED_PRECISION": "no",
                         "CCL_WORKER_COUNT": "1",
@@ -234,103 +349,131 @@ class ChatBotUI():
                 "address": "auto",
                 "_node_ip_address": "127.0.0.1",
             }
-            self.config["Training"]["num_training_workers"] = int(worker_num)
-            self.config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker)
+            if gpt_base_model:
+                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
+            else:
+                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
+            last_gpt_base_model = gpt_base_model
+            finetune_config["Training"]["num_training_workers"] = int(worker_num)
+            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
 
             ray.init(**new_ray_init_config)
             exist_worker = worker_num
-            exist_cpus_per_worker = cpus_per_worker
+            exist_cpus_per_worker_ftn = cpus_per_worker_ftn
 
-        self.config["Dataset"]["train_file"] = dataset
-        self.config["General"]["base_model"]=origin_model_path
-        self.config["Training"]["epochs"]=num_epochs
-        self.config["General"]["output_dir"]=finetuned_model_path
+        finetune_config["Dataset"]["train_file"] = dataset
+        finetune_config["General"]["base_model"] = origin_model_path
+        finetune_config["Training"]["epochs"] = num_epochs
+        finetune_config["General"]["output_dir"] = finetuned_model_path
+        finetune_config["General"]["config"]["trust_remote_code"] = True
         if finetuned_checkpoint_path:
-            self.config["General"]["checkpoint_dir"]=finetuned_checkpoint_path
-        self.config["Training"]["batch_size"]=batch_size
-        self.config["Training"]["learning_rate"]=lr
-        if max_train_step!=0:
-            self.config["Training"]["max_train_steps"]=max_train_step
+            finetune_config["General"]["checkpoint_dir"] = finetuned_checkpoint_path
+        finetune_config["Training"]["batch_size"] = batch_size
+        finetune_config["Training"]["learning_rate"] = lr
+        if max_train_step != 0:
+            finetune_config["Training"]["max_train_steps"] = max_train_step
 
-        if not hasattr(globals().get("main"), '__call__'):
-            from finetune.finetune import main
+        from finetune.finetune import main
+        finetune_config["total_epochs"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["total_steps"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["epoch_value"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        finetune_config["step_value"] = queue.Queue(actor_options={"resources": {"queue_hardware": 1}})
+        self.finetune_actor = Progress_Actor.options(resources={"queue_hardware": 1}).remote(finetune_config)
 
-        self.config["total_epochs"] = queue.Queue()
-        self.config["total_steps"] = queue.Queue()
-        self.config["epoch_value"] = queue.Queue()
-        self.config["step_value"] = queue.Queue()
-        self.finetune_actor = Progress_Actor.remote(self.config)
-        
-        callback = LoggingCallback(self.config)
-        self.config["run_config"] = {}
-        self.config["run_config"]["callbacks"] = [callback]
+        callback = LoggingCallback(finetune_config)
+        finetune_config["run_config"] = {}
+        finetune_config["run_config"]["callbacks"] = [callback]
         self.stopper.stop(False)
-        self.config["run_config"]["stop"] = self.stopper
+        finetune_config["run_config"]["stop"] = self.stopper
         self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
-            if main is None:
-                raise Exception("An error occurred, main cannot be null")
-            results = main(self.config)
+            results = main(finetune_config)
             if results.metrics["done"]:
                 self.finetune_status = True
         except TrainingFailedError as e:
+            self.finetune_status = True
             print("An error occurred, possibly due to failed recovery")
             print(e)
 
-        model_config = {
-            "model_id_or_path": finetuned_model_path,
-            "tokenizer_name_or_path": tokenizer_path,
-            "port": "8000",
-            "name": new_model_name,
-            "route_prefix": "/" + new_model_name,
-            "chat_model": self._base_models[model_name]["chat_model"],
-            "prompt": {
-                "intro": "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n",
-                "human_id": "\n### Instruction",
-                "bot_id": "\n### Response",
-                "stop_words": ["### Instruction", "# Instruction", "### Question", "##", " ="]
-            }
-        }
-        self._all_models[new_model_name] = model_config
+        finetune_config["total_epochs"].shutdown(force=True)
+        finetune_config["total_steps"].shutdown(force=True)
+        finetune_config["epoch_value"].shutdown(force=True)
+        finetune_config["step_value"].shutdown(force=True)
+        ray.kill(self.finetune_actor)
+        self.finetune_actor = None
+
+        new_prompt = Prompt()
+        new_prompt.intro = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n"
+        new_prompt.human_id = "\n### Instruction"
+        new_prompt.bot_id = "\n### Response"
+        new_prompt.stop_words.extend(["### Instruction", "# Instruction", "### Question", "##", " ="])
+        new_model_desc = ModelDescription(model_id_or_path=finetuned_model_path,
+                                          tokenizer_name_or_path=tokenizer_path,
+                                          prompt=new_prompt,
+                                          chat_processor=model_desc.chat_processor if model_desc is not None else "ChatModelGptJ",
+                                          )
+        new_model_desc.config.trust_remote_code = True
+        new_finetuned = FinetunedConfig(name=new_model_name,
+                                  route_prefix="/" + new_model_name,
+                                  model_description=new_model_desc
+                                  )
+        self._all_models[new_model_name] = new_finetuned
         return gr.Dropdown.update(choices=list(self._all_models.keys()))
 
     def finetune_progress(self, progress=gr.Progress()):
+        finetune_flag = False
         while True:
             time.sleep(1)
             if self.finetune_actor is None:
-                continue
+                if finetune_flag == False:
+                    continue
+                else:
+                    break
             if self.finetune_status == True:
                 break
-            total_epochs, total_steps, value_epoch, value_step = ray.get(self.finetune_actor.track_progress.remote())
-            if value_epoch == -1:
-                continue
-            progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
+            finetune_flag = True
+            try:
+                total_epochs, total_steps, value_epoch, value_step = ray.get(self.finetune_actor.track_progress.remote())
+                if value_epoch == -1:
+                    continue
+                progress(float(int(value_step)/int(total_steps)), desc="Start Training: epoch "+ str(value_epoch)+" / "+str(total_epochs) +"  "+"step " + str(value_step)+ " / "+ str(total_steps))
+            except Exception as e:
+                pass
+        self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
-    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker: int):
+    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker_deploy: int):
         self.shutdown_deploy()
-        if cpus_per_worker * replica_num > int(ray.available_resources()["CPU"]):
+        if cpus_per_worker_deploy * replica_num > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
-        amp_enabled = True
-        amp_dtype = torch.bfloat16
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
-        model_config = self._all_models[model_name]
-        print("model path: ", model_config["model_id_or_path"])
+        finetuned = self._all_models[model_name]
+        model_desc = finetuned.model_description
+        prompt = model_desc.prompt if model_desc.prompt else {}
+        print("model path: ", model_desc.model_id_or_path)
 
-        chat_model = getattr(sys.modules[__name__], model_config["chat_model"], None)
+        chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
         if chat_model is None:
-            return model_name + " deployment failed. " + model_config["chat_model"] + " does not exist."
-        self.process_tool = chat_model(**model_config["prompt"])
+            return model_name + " deployment failed. " + model_desc.chat_processor + " does not exist."
+        self.process_tool = chat_model(**prompt.dict())
 
-        trust_remote_code = model_config.get("trust_remote_code")
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker, "runtime_env": {"pip": ["transformers==4.28.0"]}})\
-                                      .bind(model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code, amp_enabled, amp_dtype, stop_words=stop_words)
-        handle = serve.run(deployment, _blocking=True, port=model_config["port"], name=model_config["name"], route_prefix=model_config["route_prefix"])
-        return self.ip_port + model_config["route_prefix"]
+        finetuned_deploy = finetuned.copy(deep=True)
+        finetuned_deploy.device = 'cpu'
+        finetuned_deploy.precision = 'bf16'
+        finetuned_deploy.model_description.prompt.stop_words = stop_words
+        finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
+        # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
+        if "neural-chat" in model_name:
+            pip_env = "transformers==4.35.0"
+        else:
+            pip_env = "transformers==4.31.0"
+        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
+        handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
+        return self.ip_port + finetuned_deploy.route_prefix
 
     def shutdown_finetune(self):
         self.stopper.stop(True)
@@ -352,34 +495,61 @@ class ChatBotUI():
     def get_cpu_memory(self, index):
         if self.ray_nodes[index]["Alive"] == "False":
             return cpu_memory_html.format(str(round(0, 1)), str(round(0, 1)))
-        command = 'export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)'
-        stdin, stdout, stderr = self.ssh_connect[index].exec_command(command)
-        out = stdout.read().decode('utf-8')
-        out_words = out.split(" ")
-        cpu_value = 100 - float(out_words[7])
-        total_memory = int(out_words[20].split('+')[0])
-        free_memory = int(out_words[21].split('+')[0])
-        used_memory = 1 - free_memory/total_memory
+        cpu_command = 'export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)'
+        _, cpu_stdout, _ = self.ssh_connect[index].exec_command(cpu_command)
+        cpu_out = cpu_stdout.read().decode('utf-8')
+        cpu_out_words = cpu_out.split(" ")
+        cpu_value = 100 - float(cpu_out_words[7])
+        memory_command = 'export TERM=xterm; echo $(free -m)'
+        _, memory_stdout, _ = self.ssh_connect[index].exec_command(memory_command)
+        memory_out = memory_stdout.read().decode('utf-8')
+        memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split(" ")
+        memory_out_words = [m for m in memory_out_words if m != ""]
+        total_memory = float(memory_out_words[0].strip())
+        free_memory = float(memory_out_words[2].strip())
+        buffer_memory = float(memory_out_words[4].strip())
+        used_memory =(total_memory - free_memory - buffer_memory) / total_memory
         return cpu_memory_html.format(str(round(cpu_value, 1)), str(round(used_memory*100, 1)))
     
-    def kill_node(self, index):
-        index = int(index)
-        command = 'conda activate ' + self.conda_env_name + '; ray status'
-        self.ssh_connect[index].exec_command(command)
-        self.ray_nodes[index]["Alive"] = "False"
+    def kill_node(self, btn_txt, index):
+        serve.shutdown()
+        if btn_txt=="Kill":
+            index = int(index)
+            command = 'conda activate ' + self.conda_env_name + '; ray stop'
+            self.ssh_connect[index].exec_command(command)
+            self.ray_nodes[index]["Alive"] = "False"
+            time.sleep(2)
+            return "Start", ""
+        elif btn_txt=="Start":
+            index = int(index)
+            command = "conda activate " + self.conda_env_name + "; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address=" + self.master_ip_port + r""" --resources='{"special_hardware": 2}'"""
+            self.ssh_connect[index].exec_command(command)
+            self.ray_nodes[index]["Alive"] = "True"
+            time.sleep(2)
+            return "Kill", ""
     
     def watch_node_status(self, index):
         if self.ray_nodes[index]["Alive"] == "False":
             return "<p style='color: rgb(244, 67, 54); background-color: rgba(244, 67, 54, 0.125);'>DEAD</p>"
         else:
             return "<p style='color: rgb(76, 175, 80); background-color: rgba(76, 175, 80, 0.125);'>ALIVE</p>"
+
+    def set_custom_model(self, base_model_name):
+        visible = True if base_model_name == "specify other models" else False
+        return gr.Textbox.update(visible=visible), gr.Textbox.update(visible=visible)
+    
+    def set_rag_default_path(self, selector, rag_path):
+        if rag_path:
+            return rag_path
+        if selector == False:
+            return None
+        else:
+            return self.default_rag_path
     
     def _init_ui(self):
         mark_alive = None
         for index in range(len(self.ray_nodes)):
-            if self.ray_nodes[index]["Alive"] == False:
-                continue
-            if mark_alive is None:
+            if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
                 mark_alive = index
             node_ip = self.ray_nodes[index]["NodeName"]
             self.ssh_connect[index] = paramiko.SSHClient()
@@ -391,12 +561,13 @@ class ChatBotUI():
         self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
         self.ssh_connect[-1].connect(hostname=self.ray_nodes[mark_alive]["NodeName"], port=self.node_port, username=self.user_name)
         
-        title = "LLM on Ray Workflow as a Service Demo"
+        title = "Manage LLM Lifecycle"
         with gr.Blocks(css=custom_css,title=title) as gr_chat:
             head_content = """
                 <div style="color: #fff;text-align: center;">
-                    <p style="color: #fff; font-size: 1.0rem;">LLM on Ray Workflow as a Service Demo</p> 
-                    <p style="color: #fff; font-size: 0.8rem;">Build your own LLM models with proprietary data, deploy an online inference service in production, all in a few simple clicks.</p>
+                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=inference/ui_images/logo.png" width="50" height="50"/></div>
+                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
+                    <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
             """
             foot_content = """
@@ -409,10 +580,13 @@ class ChatBotUI():
             with gr.Tab("Finetune"):
                 step1 = "Finetune the model with the base model and data"
                 gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ step1 + "</h3>")
-                with gr.Row():
+                with gr.Group():
                     base_models_list = list(self._base_models.keys())
-                    base_model_dropdown = gr.Dropdown(base_models_list, value=base_models_list[0],
-                                                label="Select Base Model")
+                    base_models_list.append("specify other models")
+                    base_model_dropdown = gr.Dropdown(base_models_list, value=base_models_list[2],
+                                                label="Select Base Model", allow_custom_value=True)
+                    custom_model_name = gr.Textbox(label="Model id", placeholder="The model id of a pretrained model configuration hosted inside a model repo on huggingface.co", visible=False, interactive=True, elem_classes="disable_status")
+                    custom_tokenizer_name = gr.Textbox(label="Tokenizer id", placeholder="The model id of a predefined tokenizer hosted inside a model repo on huggingface.co", visible=False, interactive=True, elem_classes="disable_status")
 
                 with gr.Accordion("Parameters", open=False, visible=True):
                     batch_size = gr.Slider(0, 1000, 2, step=1, interactive=True, label="Batch Size", info="train batch size per worker.")
@@ -420,7 +594,8 @@ class ChatBotUI():
                     max_train_step = gr.Slider(0, 1000, 10, step=1, interactive=True, label="Step per Epoch", info="value 0 means use the entire dataset.")
                     lr = gr.Slider(0, 0.001, 0.00001, step=0.00001, interactive=True, label="Learning Rate")
                     worker_num = gr.Slider(1, 8, 2, step=1, interactive=True, label="Worker Number", info="the number of workers used for finetuning.")
-                    cpus_per_worker = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    cpus_per_worker_ftn = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    gpus_per_worker_ftn = gr.Slider(0, 16, 0, step=1, interactive=True, label="Gpus per Worker", info="the number of gpu used for every worker.")
 
                 with gr.Row():
                     with gr.Column(scale=0.6):
@@ -434,7 +609,7 @@ class ChatBotUI():
                         stop_finetune_btn = gr.Button("Stop")
                 
                 with gr.Row():
-                    finetune_status = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>")
+                    finetune_res = gr.HTML("<h4 style='text-align: left; margin-bottom: 1rem'></h4>", show_label=False, elem_classes="disable_status")
 
             with gr.Tab("Deployment"):
                 step2 = "Deploy the finetuned model as an online inference service"
@@ -442,18 +617,20 @@ class ChatBotUI():
                 with gr.Row():
                     with gr.Column(scale=0.8):
                         all_models_list = list(self._all_models.keys())
-                        all_model_dropdown = gr.Dropdown(all_models_list, value=all_models_list[0],
-                                                    label="Select Model to Deploy")
+                        all_model_dropdown = gr.Dropdown(all_models_list, value=all_models_list[3], label="Select Model to Deploy",
+                                                         elem_classes="disable_status", allow_custom_value=True)
                     with gr.Column(scale=0.2, min_width=0):
                         deploy_btn = gr.Button("Deploy")
                         stop_deploy_btn = gr.Button("Stop")
                 
                 with gr.Accordion("Parameters", open=False, visible=True):
-                    replica_num = gr.Slider(1, 8, 4, step=1, interactive=True, label="Maximum Concurrent Requests")
+                    replica_num = gr.Slider(1, 8, 4, step=1, interactive=True, label="Model Replica Number")
+                    cpus_per_worker_deploy = gr.Slider(1, 100, 24, step=1, interactive=True, label="Cpus per Worker", info="the number of cpu cores used for every worker.")
+                    gpus_per_worker_deploy = gr.Slider(0, 16, 0, step=1, interactive=True, label="Gpus per Worker", info="the number of gpu used for every worker.")
 
                 with gr.Row():
                     with gr.Column(scale=1):
-                        deployed_model_endpoint = gr.Text(label="Deployed Model Endpoint", value="")
+                        deployed_model_endpoint = gr.Text(label="Deployed Model Endpoint", value="" ,elem_classes="disable_status")
 
             with gr.Tab("Inference"):
                 step3 = "Access the online inference service in your own application"
@@ -465,23 +642,23 @@ class ChatBotUI():
                     Top_k = gr.Slider(0, 100, 0, step=1, interactive=True, label="Top k", info="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
                 
                 with gr.Tab("Dialogue"):
-                    chatbot = gr.Chatbot(elem_id="chatbot", label="chatbot")
+                    chatbot = gr.Chatbot(elem_id="chatbot", label="chatbot", elem_classes="disable_status")
 
                     with gr.Row():
-                        with gr.Column(scale=0.6):
+                        with gr.Column(scale=0.8):
                             msg = gr.Textbox(show_label=False, container=False,
                                             placeholder="Input your question and press Enter")
-                        with gr.Column(scale=0.2, min_width=0):
-                            send_btn = gr.Button("Send")
-                        with gr.Column(scale=0.2, min_width=0):
-                            clear_btn = gr.Button("Clear")
-
-
+                        with gr.Column(scale=0.2, min_width=20):
+                            latency_status = gr.Markdown("""
+                                                | <!-- --> | <!-- --> |
+                                                |---|---|
+                                                | Total Latency [s] | - |
+                                                | Tokens | - |""", elem_classes=["disable_status", "output-stats", "disablegenerating", "div_height"])
                     with gr.Row():
-                        with gr.Column(scale=0.1):
-                            latency = gr.Text(label="Inference latency (s)", value="0", visible=False)
-                        with gr.Column(scale=0.1):
-                            model_used = gr.Text(label="Inference Model", value="", visible=False)
+                        with gr.Column(scale=0.5, min_width=0):
+                            send_btn = gr.Button("Send")
+                        with gr.Column(scale=0.5, min_width=0):
+                            clear_btn = gr.Button("Clear")
 
                 with gr.Tab("Multi-Session"):
                     scale_num = 1 / self.test_replica
@@ -490,7 +667,7 @@ class ChatBotUI():
                         msgs = list(range(self.test_replica))
                         for i in range(self.test_replica):
                             with gr.Column(scale=scale_num, min_width=1):
-                                chatbots[i] = gr.Chatbot(elem_id="chatbot"+str(i+1), label="chatbot"+str(i+1), min_width=1)
+                                chatbots[i] = gr.Chatbot(elem_id="chatbot"+str(i+1), label="chatbot"+str(i+1), min_width=1, elem_classes="disable_status")
                                 msgs[i] = gr.Textbox(show_label=False, container=False,
                                                 placeholder="Input your question and press Enter",
                                                 value=self.messages[i], min_width=1)
@@ -506,6 +683,58 @@ class ChatBotUI():
                         with gr.Column(scale=0.5):
                             reset_all_btn = gr.Button("Reset")
             
+            with gr.Tab("RAG"):
+                step3_rag = "Use RAG to enhance generation capabilities"
+                gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>"+ step3_rag + "</h3>")
+                with gr.Accordion("Configuration", open=False, visible=True):
+                    max_new_tokens_rag = gr.Slider(1, 2000, 128, step=1, interactive=True, label="Max New Tokens", info="The maximum numbers of tokens to generate.")
+                    Temperature_rag = gr.Slider(0, 1, 0.7, step=0.01, interactive=True, label="Temperature", info="The value used to modulate the next token probabilities.")
+                    Top_p_rag = gr.Slider(0, 1, 1.0, step=0.01, interactive=True, label="Top p", info="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation.")
+                    Top_k_rag = gr.Slider(0, 100, 0, step=1, interactive=True, label="Top k", info="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+
+                with gr.Accordion("RAG parameters", open=False, visible=True):
+                    with gr.Row():
+                        with gr.Column(scale=0.5):
+                            data_web_urls = gr.Textbox(label="web urls", value="https://www.intc.com/news-events/press-releases/detail/1655/intel-reports-third-quarter-2023-financial-results", placeholder="The urls of web dataset. Support multiple web urls seperated by ';'")
+                        with gr.Column(scale=0.5):
+                            # data_pdf_path = gr.Textbox(label="pdf folder", value='', placeholder="The folder of pdf files")
+                            data_pdfs = gr.File(label="upload pdf files", file_count="multiple", file_types=[".pdf"], elem_classes="file_height")
+                    with gr.Row():
+                        with gr.Column(scale=0.4):
+                            embedding_model = gr.Textbox(label="embedding model", value="sentence-transformers/all-mpnet-base-v2", placeholder="Model name to use")
+                        with gr.Column(scale=0.3):
+                            splitter_chunk_size = gr.Textbox(label="splitter_chunk_size", value="500", placeholder="Maximum size of chunks to return")
+                        with gr.Column(scale=0.3):
+                            returned_k = gr.Textbox(label="returned_k", value=1, placeholder="Number of retrieved chunks to return")
+                    
+                
+                with gr.Row():
+                    with gr.Column(scale=0.2):
+                        rag_selector = gr.Checkbox(label="RAG", min_width=0)
+                    with gr.Column(scale=0.6):
+                        rag_path = gr.Textbox(show_label=False, container=False, placeholder="The path of vectorstore", elem_classes="disable_status")
+                    with gr.Column(scale=0.2):
+                        regenerate_btn = gr.Button("Regenerate", min_width=0)
+
+                with gr.Tab("Dialogue"):
+                    chatbot_rag = gr.Chatbot(elem_id="chatbot", label="chatbot", elem_classes="disable_status")
+
+                    with gr.Row():
+                        with gr.Column(scale=0.8):
+                            msg_rag = gr.Textbox(show_label=False, container=False,
+                                            placeholder="Input your question and press Enter")
+                        with gr.Column(scale=0.2, min_width=0):
+                            latency_status_rag = gr.Markdown("""
+                                                | <!-- --> | <!-- --> |
+                                                |---|---|
+                                                | Total Latency [s] | - |
+                                                | Tokens | - |""", elem_classes=["disable_status", "output-stats", "disablegenerating", "div_height"])
+                    with gr.Row():
+                        with gr.Column(scale=0.5, min_width=0):
+                            send_btn_rag = gr.Button("Send")
+                        with gr.Column(scale=0.5, min_width=0):
+                            clear_btn_rag = gr.Button("Clear")
+
             with gr.Accordion("Cluster Status", open=False, visible=True):
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
@@ -575,30 +804,43 @@ class ChatBotUI():
 
             msg.submit(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency]
+                           [chatbot, latency_status]
             )
-            clear_btn.click(self.clear, None, chatbot, queue=False)
+            clear_btn.click(self.clear, None, [chatbot, latency_status], queue=False)
 
             send_btn.click(self.user, [msg, chatbot], [msg, chatbot], queue=False).then(
                 self.bot, [chatbot, deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                           [chatbot, latency]
+                           [chatbot, latency_status]
+            )
+
+            regenerate_btn.click(self.regenerate, [rag_path, data_web_urls, data_pdfs, embedding_model, splitter_chunk_size, cpus_per_worker_deploy], [rag_path])
+            clear_btn_rag.click(self.clear, None, [chatbot_rag, latency_status_rag], queue=False)
+            rag_selector.select(self.set_rag_default_path, [rag_selector, rag_path], rag_path)
+            msg_rag.submit(self.user, [msg_rag, chatbot_rag], [msg_rag, chatbot_rag], queue=False).then(
+                self.bot_rag, [chatbot_rag, deployed_model_endpoint, max_new_tokens_rag, Temperature_rag, Top_p_rag, Top_k_rag, rag_selector, rag_path, returned_k],
+                           [chatbot_rag, latency_status_rag]
+            )
+            send_btn_rag.click(self.user, [msg_rag, chatbot_rag], [msg_rag, chatbot_rag], queue=False).then(
+                self.bot_rag, [chatbot_rag, deployed_model_endpoint, max_new_tokens_rag, Temperature_rag, Top_p_rag, Top_k_rag, rag_selector, rag_path, returned_k],
+                           [chatbot_rag, latency_status_rag]
             )
 
             for i in range(self.test_replica):
                 send_all_btn.click(self.user, [msgs[i], chatbots[i]], [msgs[i], chatbots[i]], queue=False).then(
                     self.send_all_bot, [ids[i], chatbots[i], deployed_model_endpoint, max_new_tokens, Temperature, Top_p, Top_k],
-                    [chatbots[i], latency]
+                    chatbots[i]
                 )
             for i in range(self.test_replica):
                 reset_all_btn.click(self.reset, [ids[i]], [msgs[i], chatbots[i]], queue=False)
             
             for i in range(len(stop_btn)):
-                stop_btn[i].click(self.kill_node, [node_index[i]], None)
+                stop_btn[i].click(self.kill_node, [stop_btn[i], node_index[i]], [stop_btn[i], deployed_model_endpoint])
 
-            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker], [all_model_dropdown])
-            finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_status])
+            base_model_dropdown.select(self.set_custom_model, [base_model_dropdown], [custom_model_name, custom_tokenizer_name])
+            finetune_event = finetune_btn.click(self.finetune, [base_model_dropdown, custom_model_name, custom_tokenizer_name, data_url, finetuned_model_name, batch_size, num_epochs, max_train_step, lr, worker_num, cpus_per_worker_ftn], [all_model_dropdown])
+            finetune_progress_event = finetune_btn.click(self.finetune_progress, None, [finetune_res])
             stop_finetune_btn.click(fn=self.shutdown_finetune, inputs=None, outputs=None, cancels=[finetune_event, finetune_progress_event])
-            deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker], [deployed_model_endpoint])
+            deploy_event = deploy_btn.click(self.deploy_func, [all_model_dropdown, replica_num, cpus_per_worker_deploy], [deployed_model_endpoint])
             stop_deploy_btn.click(fn=self.shutdown_deploy, inputs=None, outputs=None, cancels=[deploy_event])
 
             gr.Markdown(foot_content)
@@ -609,9 +851,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("Start UI", add_help=False)
     parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     parser.add_argument("--finetune_checkpoint_path", default="", type=str, help="Where to save checkpoints.")
+    parser.add_argument("--default_rag_path", default="./vector_store/", type=str, help="The path of vectorstore used by RAG.")
     parser.add_argument("--node_port", default="22", type=str, help="The node port that ssh connects.")
     parser.add_argument("--node_user_name", default="root", type=str, help="The node user name that ssh connects.")
     parser.add_argument("--conda_env_name", default="test_gradio", type=str, help="The environment used to execute ssh commands.")
+    parser.add_argument("--master_ip_port", default="None", type=str, help="The ip:port of head node to connect when restart a worker node.")
     args = parser.parse_args()
 
     file_path = os.path.abspath(__file__)
@@ -620,9 +864,11 @@ if __name__ == "__main__":
     default_data_path = os.path.abspath(infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl")
 
     sys.path.append(repo_path)
-
-    config = {
-        "General": {},
+    from finetune.finetune import get_accelerate_environment_variable
+    finetune_config = {
+        "General": {
+            "config": {}
+        },
         "Dataset": {
             "validation_file": None,
             "validation_split_percentage": 0
@@ -631,11 +877,16 @@ if __name__ == "__main__":
             "optimizer": "AdamW",
             "lr_scheduler": "linear",
             "weight_decay": 0.0,
+            "device": "CPU",
             "num_training_workers": 2,
             "resources_per_worker": {
                 "CPU": 24
             },
+            "accelerate_mode": "CPU_DDP"
         },
+        "failure_config": {
+            "max_failures": 5
+        }
     }
 
     ray_init_config = {
@@ -652,11 +903,15 @@ if __name__ == "__main__":
         "address": "auto",
         "_node_ip_address": "127.0.0.1",
     }
+    accelerate_env_vars = get_accelerate_environment_variable(finetune_config["Training"]["accelerate_mode"])
+    ray_init_config["runtime_env"]["env_vars"].update(accelerate_env_vars)
     context = ray.init(**ray_init_config)
     head_node_ip = context.get("address").split(":")[0]
 
     finetune_model_path = args.finetune_model_path
     finetune_checkpoint_path = args.finetune_checkpoint_path
+    default_rag_path = args.default_rag_path
 
-    ui = ChatBotUI(all_models, base_models, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name)
+    initial_model_list = {k : all_models[k] for k in sorted(all_models.keys())}
+    ui = ChatBotUI(initial_model_list, initial_model_list, finetune_model_path, finetune_checkpoint_path, repo_path, default_data_path, default_rag_path, finetune_config, head_node_ip, args.node_port, args.node_user_name, args.conda_env_name, args.master_ip_port)
     ui.gr_chat.queue(concurrency_count=10).launch(share=True, server_port=8080, server_name="0.0.0.0")

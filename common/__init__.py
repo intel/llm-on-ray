@@ -1,4 +1,5 @@
 from .config import Config, parse_args, parse_config
+from .torch_config import TorchConfig
 from .logging import get_logger, logger
 from .load import *
 from .init import init

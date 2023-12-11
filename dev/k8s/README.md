@@ -2,7 +2,7 @@ With this guide, you can run llm-ray with Ray clusters on Kubernetes. The deploy
 # Prepare code and resources
 Clone repository
 ```bash
-git clone https://github.com/intel-sandbox/llm-ray.git
+git clone https://github.com/intel/llm-on-ray.git
 ```
 
 # Deployment

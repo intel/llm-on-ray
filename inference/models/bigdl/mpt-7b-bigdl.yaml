@@ -1,0 +1,30 @@
+port: 8000
+name: mpt-7b-bigdl
+route_prefix: /mpt-7b-bigdl
+precision: 'bf16'
+cpus_per_worker: 24
+gpus_per_worker: 0
+deepspeed: false
+workers_per_group: 2
+ipex: false
+device: "cpu"
+model_description:
+  model_id_or_path: mosaicml/mpt-7b
+  bigdl: true
+  tokenizer_name_or_path: EleutherAI/gpt-neox-20b
+  chat_processor: ChatModelGptJ
+  prompt:
+    intro: 'Below is an instruction that describes a task, paired with an input that
+      provides further context. Write a response that appropriately completes the request.
+
+      '
+    human_id: '
+
+      ### Instruction'
+    bot_id: '
+
+      ### Response'
+    stop_words: []
+  config:
+    trust_remote_code: true
+    load_in_4bit: true

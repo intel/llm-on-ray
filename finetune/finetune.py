@@ -6,17 +6,53 @@ import traceback
 from typing import Any, Dict
 
 import accelerate
+from accelerate.utils import is_xpu_available
 
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
-from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
+
+from accelerate import FullyShardedDataParallelPlugin
+from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import common
+
+
+def get_accelerate_environment_variable(mode: str) -> dict:
+    mode_env_vars = {
+        "CPU_DDP": {
+            "ACCELERATE_USE_CPU": "True", 
+            "ACCELERATE_USE_IPEX": "False",
+            "ACCELERATE_MIXED_PRECISION": "no",
+        },
+        "GPU_DDP": {
+            "ACCELERATE_USE_CPU": "False",
+            "ACCELERATE_USE_XPU": "True",
+            "ACCELERATE_USE_IPEX": "True",
+        },
+        "GPU_FSDP": {
+            "ACCELERATE_USE_CPU": "False",
+            "ACCELERATE_USE_XPU": "True",
+            "ACCELERATE_USE_IPEX": "True",
+            "ACCELERATE_USE_FSDP": "true",
+            "FSDP_SHARDING_STRATEGY": "1",
+            "FSDP_OFFLOAD_PARAMS": "false",
+            "FSDP_AUTO_WRAP_POLICY": "NO_WRAP ",
+            "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
+            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
+            "FSDP_FORWARD_PREFETCH": "false",
+            "FSDP_USE_ORIG_PARAMS": "false",
+            "FSDP_SYNC_MODULE_STATES": "true",
+        }
+    }
+    if mode not in mode_env_vars:
+        raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
+    return mode_env_vars[mode]
+
 
 def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
@@ -24,8 +60,18 @@ def train_func(config: Dict[str, Any]):
         os.chdir(cwd)
     
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
-    accelerator = accelerate.Accelerator(gradient_accumulation_steps = gradient_accumulation_steps)
-    common.logger.info(f"accelerator generate finish")
+
+    accelerate_mode = config["Training"]["accelerate_mode"]
+    if accelerate_mode in ["GPU_FSDP"]:
+        fsdp_plugin = FullyShardedDataParallelPlugin(
+            state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
+            optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=False, rank0_only=False)
+        )
+    else:
+        fsdp_plugin = None
+    accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
+                                         fsdp_plugin=fsdp_plugin)
+    common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
     if seed is not None:
@@ -77,15 +123,16 @@ def train_func(config: Dict[str, Any]):
         } if config["General"].get("checkpoint_dir") else None
     })
 
-    try :
+    try:
         common.logger.info(f"trainer prepare start")
+        model.training = True
         trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
     except Exception as e:
         common.logger.critical(e, exc_info=True)
         exit(1)
     common.logger.info(f"trainer prepare finish")
 
-    try :
+    try:
         common.logger.info(f"train start")
         trainer.train()
     except Exception as e:
@@ -102,46 +149,76 @@ def main(external_config = None):
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
+    accelerate_mode = config["Training"].get("accelerate_mode")
+    if accelerate_mode is None:
+        accelerate_mode = "CPU_DDP"
+
+    use_cpu = True if accelerate_mode.startswith("CPU") else False
+    use_gpu = True if accelerate_mode.startswith("GPU") else False
+    ccl_worker_count = 1 if use_cpu is True else num_training_workers
+
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
-                "ACCELERATE_USE_CPU": "True", 
-                "ACCELERATE_USE_IPEX": "False",
-                "ACCELERATE_MIXED_PRECISION": "no",
-                "CCL_WORKER_COUNT": "1",
+                "CCL_ZE_IPC_EXCHANGE": "sockets",
+                "CCL_WORKER_COUNT": str(ccl_worker_count),
                 "CCL_LOG_LEVEL": "info",
                 "WORLD_SIZE": str(num_training_workers),
+                "FI_TCP_IFACE": "lo",
+                "FI_PROVIDER": "tcp"
             }
         }
+
+        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode)
+        runtime_env["env_vars"].update(accelerate_env_vars)
+
         if config["General"]["gpt_base_model"] == True:
             runtime_env["pip"] = ["transformers==4.26.0"]
+
         ray.init(runtime_env = runtime_env)
 
     scaling_config = ScalingConfig(
         num_workers = num_training_workers,
+        use_gpu = use_gpu,
         resources_per_worker = resources_per_worker,
-        placement_strategy = "SPREAD"
+        placement_strategy = "SPREAD",
     )
 
-    torch_config = TorchConfig(backend = "ccl")
+    device = config["Training"]["device"].lower()
+    if device == "gpu" and is_xpu_available():
+        device = "xpu"
 
-    failure_config = FailureConfig()
+    if config.get("torch_config", None) is None:
+        backend = "ccl" if device == "cpu" or device == "xpu" else None
+        torch_config = common.TorchConfig(backend=backend, device=device)
+    else:
+        customer_torch_config = config.get("torch_config")
+        torch_config = common.TorchConfig(**customer_torch_config, device=device)
+    
+    if config.get("failure_config", None) is None:
+        failure_config = FailureConfig()
+    else:
+        customer_failure_config = config.get("failure_config")
+        failure_config = FailureConfig(**customer_failure_config)
 
     if config.get("run_config", None) is None:
         run_config = RunConfig(failure_config=failure_config)
     else:
         customer_run_config = config.get("run_config")
+        if customer_run_config.get("failure_config", None) is None:
+            customer_run_config["failure_config"] = failure_config
         run_config = RunConfig(**customer_run_config)
 
     trainer = TorchTrainer(
         train_func,
         train_loop_config=config,
         scaling_config=scaling_config,
-        torch_config = torch_config,
-        run_config = run_config
+        torch_config=torch_config,
+        run_config=run_config
     )
     results = trainer.fit()
+
     return results
 
 if __name__ == "__main__":

@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-on-ray"
+version = "0.0.1"
+description = "LLM on Ray Workflow"
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["llm", "ray"]
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3",
+    "Environment :: GPU :: Intel Data Center GPU",
+    "Environment :: HPU :: Gaudi",
+    "Framework :: Ray"
+]
+dependencies = [
+    "accelerate>=0.21.0",
+    "datasets>=2.14.6",
+    "numpy",
+    "ray @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp39-cp39-manylinux2014_x86_64.whl",
+    "typing>=3.7.4.3",
+    "tabulate",
+    "ray[tune]",
+    "ray[serve]",
+    "gradio==3.36.1",
+    "gymnasium",
+    "dm-tree",
+    "tensorboard",
+    "scikit-image",
+    "einops",
+    "peft>=0.4.0",
+    "deltatuner==1.1.9",
+    "py-cpuinfo",
+    "pydantic-yaml",
+    "paramiko==3.2.0",
+]
+
+[project.optional-dependencies]
+cpu = [
+    "transformers>=4.35.0",
+    "intel_extension_for_pytorch==2.1.0+cpu",
+    "torch==2.1.0+cpu",
+    "oneccl_bind_pt==2.1.0"
+]
+
+gpu = [
+    "transformers>=4.35.0",
+    "torch==2.0.1a0",
+    "torchvision==0.15.2a0",
+    "intel-extension-for-pytorch==2.0.110+xpu",
+    "oneccl_bind_pt",
+    "dpctl"
+]
+
+deepspeed = [
+    "packaging>=20.0",
+    "psutil",
+    "tqdm",
+    # 0.10.2 is required to support bloom
+    "deepspeed==0.10.2"
+]
+
+bigdl-cpu = [
+    "bigdl-llm[all]"
+]
+
+[tool.setuptools]
+packages = ["finetune", "inference"]
+
+[project.urls]
+Repository = "https://github.com/intel/llm-on-ray.git"
+Issues = "https://github.com/intel/llm-on-ray.git/issues"

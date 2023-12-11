@@ -35,21 +35,4 @@ class MegatronProcesser(DataProcesser):
                 valid_ds, args.consumed_valid_samples)
             test_dataloader = build_pretraining_data_loader(test_ds, 0)
 
-            # Flags to know if we need to do training/validation/testing.
-            do_train = train_dataloader is not None and args.train_iters > 0
-            do_valid = valid_dataloader is not None and args.eval_iters > 0
-            do_test = test_dataloader is not None and args.eval_iters > 0
-            # Need to broadcast num_tokens and num_type_tokens.
-            flags = get_accelerator().LongTensor(
-                [int(do_train), int(do_valid), int(do_test)])
-        else:
-            flags = get_accelerator().LongTensor([0, 0, 0])
-
-        # Broadcast num tokens.
-        torch.distributed.broadcast(flags,
-                                    mpu.get_tensor_model_parallel_src_rank(),
-                                    group=mpu.get_tensor_model_parallel_group())
-        args.do_train = flags[0].item()
-        args.do_valid = flags[1].item()
-        args.do_test = flags[2].item()
         return train_dataloader, valid_dataloader, test_dataloader

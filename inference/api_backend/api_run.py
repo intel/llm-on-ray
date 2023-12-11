@@ -1,8 +1,7 @@
 from ray import serve
 from app import RouterDeployment
-from run_model_serve import PredictDeployment
-from config import all_models
-import torch
+from run_model_serve import PredictDeployment, _ray_env_key, _predictor_runtime_env_ipex
+from inference_config import all_models
 from api_backend.common.query_client import RouterQueryClient
 
 
@@ -15,16 +14,26 @@ def router_application(model_ids, hooks=None):
 
     deployment_map = {}
     for model_id in model_ids:
+        if model_id not in all_models.keys():
+            raise(f"The config file of {model_id} doesn't exist, please add it.")
         model_config = all_models[model_id]
-        trust_remote_code = model_config.get("trust_remote_code")
-        deployment_map[model_id]\
-            = PredictDeployment\
-            .bind(
-            model_config["model_id_or_path"], model_config["tokenizer_name_or_path"], trust_remote_code,
-                                            "cpu", True, torch.bfloat16,
-                                            stop_words=model_config["prompt"]["stop_words"],
-                                            ipex_enabled=False, deepspeed_enabled=False, cpus_per_worker=24, workers_per_group=2)
-
+        runtime_env = {_ray_env_key: {}}
+        if model_config.ipex:
+            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
+        if model_config.deepspeed:
+            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = model_config.device
+        # now PredictDeployment itself is a worker, we should require resources for it
+        ray_actor_options = {"runtime_env": runtime_env}
+        if model_config.device == "cpu":
+            ray_actor_options["num_cpus"] = model_config.cpus_per_worker
+        elif model_config.device == "cuda":
+            ray_actor_options["num_gpus"] = model_config.gpus_per_worker
+        elif model_config.device == "hpu":
+            ray_actor_options["resources"] = {"HPU": model_config.hpus_per_worker}
+        else:
+            # TODO add xpu
+            pass
+        deployment_map[model_id] = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(model_config)
     merged_client = RouterQueryClient(deployment_map)
 
 

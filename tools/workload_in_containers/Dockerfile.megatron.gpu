@@ -3,17 +3,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /home/user
 
-COPY requirements.txt /home/user/
-COPY pretrain/patch/gpu/0001-workaround-and-hot-fix-for-llm-ray.patch /home/user/
+COPY pretrain/requirements.txt /home/user/
+COPY pretrain/patch/gpu/0001-hot-fix-for-megatron-deepspeed-for-gpu-version.patch /home/user/
 RUN pip install -r requirements.txt
 RUN pip install deepspeed lz4
 RUN pip install -U numpy
 ENV MAX_JOBS=32
-RUN git clone https://github.com/microsoft/Megatron-DeepSpeed.git && \
-    cd Megatron-DeepSpeed && \
-    git checkout 319c9b1c9acd97016aa3f7b86f81b16b17bd61fe && \
-    git am ../0001-workaround-and-hot-fix-for-llm-ray.patch && \
-    pip install -e .
+RUN git config --global user.email "root@example.com" 
+RUN git config --global user.name "root" 
+RUN cd src/megatron-core && \
+    git am /home/user/0001-hot-fix-for-megatron-deepspeed-for-gpu-version.patch
 RUN git clone https://github.com/NVIDIA/apex && \
     cd apex && \
     git checkout 22.04-dev &&\

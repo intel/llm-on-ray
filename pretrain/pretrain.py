@@ -10,13 +10,20 @@ import accelerate
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
-from raydp.torch.config import TorchConfig
 from ray.air import RunConfig, FailureConfig
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import common
+
+import importlib
+loader = importlib.util.find_spec('habana_frameworks')
+if loader is not None:
+    from backend.habana_backend import TorchConfig
+else:
+    from ray.train.torch import TorchConfig
+    from backend.deepspeed_backend import TorchConfig as DeepSpeedTorchConfig
+
 
 def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
@@ -25,7 +32,6 @@ def train_func(config: Dict[str, Any]):
     from common.common import import_all_module
     import_all_module(f"{os.path.dirname(os.path.realpath(__file__))}/plugin","plugin")
     common.init(config)
-    
     initializer_config = config.get("initializer")
     if initializer_config:
         try :
@@ -63,19 +69,19 @@ def train_func(config: Dict[str, Any]):
     if tokenizer_config:
         tokenizer = common.load_tokenizer(tokenizer_config)
     else:
-        common.logger.warn(f"No tokenizer plugin provided, use the built-in datasets of trainer")
+        common.logger.warn(f"No tokenizer plugin provided, use the built-in tokenizer of trainer")
     
     model_config = config.get("model")
     if model_config:
         model = common.load_model(model_config)
     else:
-        common.logger.warn(f"No model plugin provided, use the built-in datasets of trainer")
+        common.logger.warn(f"No model plugin provided, use the built-in model of trainer")
     
     optimizer_config = config.get("optimizer")
     if optimizer_config:
         optimizer = common.load_optimizer(model, config.get("optimizer"))
     else:
-        common.logger.warn(f"No optimizer plugin provided, use the built-in datasets of trainer")
+        common.logger.warn(f"No optimizer plugin provided, use the built-in optimizer of trainer")
 
     trainer_config = config.get("trainer") 
     if trainer_config:
@@ -118,7 +124,13 @@ def main(external_config = None):
         scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))
         common.logger.info(f"ray scaling config: {scaling_config}")
 
-        torch_config = TorchConfig(**ray_config.get("torch_config", {}))
+        if (
+            config['trainer'].get("training_config", None) and
+            config['trainer'].get("training_config").get("deepspeed", None)
+        ):
+            torch_config = DeepSpeedTorchConfig(**ray_config.get("torch_config", {}))
+        else:  
+            torch_config = TorchConfig(**ray_config.get("torch_config", {}))
         common.logger.info(f"ray torch config: {torch_config}")
 
         failure_config = FailureConfig(**ray_config.get("failure_config", {}))

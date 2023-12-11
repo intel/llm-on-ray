@@ -84,6 +84,31 @@ OpenChatKit .overflow-y-auto{height:500px}
     display: none;
 }
 
+.disable_status div.progress-text {display: none !important}
+.disable_border div>textbox {
+    border: none; !important;
+    outline: none; !important;
+}
+
+.output-stats {
+    flex-grow: 1 !important;
+}
+.output-stats > table {
+    width: 100% !important;
+}
+.output-stats td,
+.output-stats th {
+    color: var(--body-text-color-subdued) !important;
+    padding: 0 !important;
+}
+.output-stats th,
+.output-stats td {
+    border-bottom-color: var(--body-text-color-subdued) !important;
+}
+.div_height{
+    min-height: 100% !important
+}
+
 .notice_markdown {
     text-align: center;
     background: #2e78c4;
@@ -96,6 +121,11 @@ OpenChatKit .overflow-y-auto{height:500px}
 
 .disablegenerating div:first-child {
     border: none !important
+}
+
+.file_height{
+    height: 90px !important;
+    overflow :auto !important
 }
 
 gradio-app {

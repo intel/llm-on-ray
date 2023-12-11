@@ -1,0 +1,25 @@
+name: Finetune on Intel GPU
+
+on:
+  workflow_call:
+
+jobs:
+  finetune:
+    name: finetune on gpu test
+    strategy:
+      matrix:
+        model: [ pythia-6.9b, gpt-j-6b ]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Running task on Intel GPU
+        run: |
+          rm ~/borealis-runner/llm-ray.tar.gz -f
+          tar zcf ~/borealis-runner/llm-ray.tar.gz -C ~/actions-runner/_work/llm-ray .
+          cd ~/borealis-runner/
+          python3 finetune_on_pvc.py --base_model "${{ matrix.model }}"
+
+      - name: Test Summary
+        run: echo "to be continued"

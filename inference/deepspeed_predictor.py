@@ -1,56 +1,67 @@
 import ray
 import torch
-import oneccl_bindings_for_pytorch
 import deepspeed
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from ray.air.util.torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
     shutdown_torch_dist_process_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
-from ray.air import Checkpoint, ScalingConfig
+from ray.air import ScalingConfig
 from typing import List
 import os
-# import math
+from predictor import Predictor
+from peft import PeftModel
+from deltatuner import DeltaTunerModel
+from inference_config import InferenceConfig
 
 class DSPipeline:
     def __init__(
         self,
-        model_id_or_path,
-        trust_remote_code,
+        inferenceConfig: InferenceConfig,
         pad_token_id,
         stopping_criteria,
-        dtype,
-        device
+        dtype
     ):
 
         self.dtype = dtype
-        self.device = device
+        self.device = torch.device(inferenceConfig.device)
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
-        self.model = AutoModelForCausalLM.from_pretrained(model_id_or_path,
-                                                          torch_dtype=dtype,
-                                                          low_cpu_mem_usage=True,
-                                                          trust_remote_code=trust_remote_code)
+        model_desc = inferenceConfig.model_description
+        model_config = model_desc.config
+        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
-        self.model = self.model.eval().to(device)
+        self.model = AutoModelForCausalLM.from_pretrained(model_desc.model_id_or_path,
+                                                          torch_dtype=dtype,
+                                                          config=config,
+                                                          low_cpu_mem_usage=True,
+                                                          **model_config.dict())
+        
+        if model_desc.peft_model_id_or_path:
+            self.model = PeftModel.from_pretrained(self.model, model_desc.peft_model_id_or_path)
+            if model_desc.peft_type == "deltatuner":
+                self.model = DeltaTunerModel.from_pretrained(self.model, model_desc.peft_model_id_or_path)
+            self.model = self.model.merge_and_unload()
+
+        self.model = self.model.eval().to(self.device)
         # to channels last
         self.model = self.model.to(memory_format=torch.channels_last)
         self.model.eval()
 
-    def streaming_generate(self, input_ids, streamer, **generate_kwargs):
-        self.model.generate(input_ids,
+    def streaming_generate(self, inputs, streamer, **generate_kwargs):
+        self.model.generate(**inputs,
                     pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
                     **generate_kwargs)
 
-    def generate(self, input_ids, **config):
+    def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
-            input_ids,
+            **inputs,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config
@@ -64,25 +75,19 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer=None, ipex_enabled=False):
+    def __init__(self, world_size: int, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria):
         self.world_size = world_size
-        self.model_id = model_id
-        self.trust_remote_code = trust_remote_code
-        self.device_name = device_name
-        self.device = torch.device(self.device_name)
-        self.amp_enabled = amp_enabled
+        self.inferenceConfig = inferenceConfig
         self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
-        self.ipex_enabled = ipex_enabled
 
     def init_model(self, local_rank: int):
         """Initialize model for inference."""
 
-        if self.device_name == 'cpu':
+        if self.inferenceConfig.device == 'cpu':
             replace_with_kernel_inject = False
-        elif self.device_name == 'xpu':
+        elif self.inferenceConfig.device == 'xpu':
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -91,12 +96,10 @@ class PredictionWorker(TorchDistributedWorker):
         os.environ['WORLD_SIZE'] = str(self.world_size)
 
         pipe = DSPipeline(
-            model_id_or_path=self.model_id,
-            trust_remote_code=self.model_id,
+            self.inferenceConfig,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
-            dtype=self.amp_dtype,
-            device=self.device
+            dtype=self.amp_dtype
         )
 
         pipe.model = deepspeed.init_inference(
@@ -110,36 +113,33 @@ class PredictionWorker(TorchDistributedWorker):
             import intel_extension_for_pytorch as ipex
             try: ipex._C.disable_jit_linear_repack()
             except: pass
-            pipe.model = ipex.optimize(pipe.model.eval(), dtype=self.amp_dtype, inplace=True)
+            pipe.model = ipex.optimize_transformers(pipe.model.eval(), dtype=self.amp_dtype, inplace=True)
 
         self.generator = pipe
 
-    def streaming_generate(self, input_ids, **config):
-        return self.generator.streaming_generate(input_ids, self.streamer, config)
+    def streaming_generate(self, inputs, streamer, **config):
+        self.generator.streaming_generate(inputs, streamer, **config)
 
-    def generate(self, input_ids, **config):
-        return self.generator.generate(input_ids, **config)
+    def generate(self, inputs, **config):
+        return self.generator.generate(inputs, **config)
 
-class DeepSpeedPredictor:
-    def __init__(self, model_id, trust_remote_code, device_name, amp_enabled, amp_dtype, pad_token_id, stopping_criteria, streamer,
-                 ipex_enabled, cpus_per_worker, workers_per_group) -> None:
-        self.model_id = model_id
-        self.trust_remote_code = trust_remote_code
-        self.device_name = device_name
-        self.amp_enabled = amp_enabled
+class DeepSpeedPredictor(Predictor):
+    def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria) -> None:
+        self.inferenceConfig = inferenceConfig
         self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
-        self.streamer = streamer
-        self.ipex_enabled = ipex_enabled
 
-        use_gpu = True if (device_name == "xpu") else False
+        use_gpu = True if (inferenceConfig.device == "cuda") else False
 
         # Scaling config for one worker group.
+        resource = {"CPU": inferenceConfig.cpus_per_worker}
+        if inferenceConfig.device == "cuda":
+            resource["GPU"] = inferenceConfig.gpus_per_worker
         scaling_conf = ScalingConfig(
             use_gpu=use_gpu,
-            num_workers=workers_per_group,
-            resources_per_worker={"CPU": cpus_per_worker},
+            num_workers=inferenceConfig.workers_per_group,
+            resources_per_worker=resource
         )
 
         print(scaling_conf)
@@ -148,6 +148,17 @@ class DeepSpeedPredictor:
 
     def __del__(self):
         shutdown_torch_dist_process_group(self.prediction_workers)
+
+    # Use dummy streamer to ignore other workers' ouputs
+    def _create_dummy_streamer(self):
+        class DummyStreamer():
+            def put(self, value):
+                pass
+
+            def end(self):
+                pass
+
+        return DummyStreamer()
 
     def _init_worker_group(self, scaling_config: ScalingConfig):
         """Create the worker group.
@@ -162,6 +173,7 @@ class DeepSpeedPredictor:
         self.pg = scaling_config.as_placement_group_factory().to_placement_group()
         prediction_worker_cls = PredictionWorker.options(
             num_cpus=scaling_config.num_cpus_per_worker,
+            num_gpus=scaling_config.num_gpus_per_worker,
             scheduling_strategy=PlacementGroupSchedulingStrategy(
                 placement_group=self.pg, placement_group_capture_child_tasks=True
             ),
@@ -169,14 +181,13 @@ class DeepSpeedPredictor:
 
         # Create the prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(scaling_config.num_workers, self.model_id, self.trust_remote_code, self.
-                                         device_name, self.amp_enabled, self.amp_dtype,
-                                         self.pad_token_id, self.stopping_criteria, self.streamer, self.ipex_enabled)
+            prediction_worker_cls.remote(scaling_config.num_workers, self.inferenceConfig, self.amp_dtype,
+                self.pad_token_id, self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]
 
         # Initialize torch distributed process group for the workers.
-        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl")
+        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl" if self.inferenceConfig.device != "cuda" else "nccl")
 
         # Initialize the model on each worker.
         ray.get([
@@ -184,21 +195,17 @@ class DeepSpeedPredictor:
             for worker, local_rank in zip(self.prediction_workers, local_ranks)
         ])
 
-    def streaming_generate(self, input_ids, **config):
-        input_ids_ref = ray.put(input_ids)
-        prediction = ray.get(
-            [
-                worker.streaming_generate.remote(input_ids_ref, **config)
-                for worker in self.prediction_workers
-            ]
-        )
-        return prediction
+    def streaming_generate(self, inputs, streamer, **config):
+        inputs_ref = ray.put(inputs)
+        self.prediction_workers[0].streaming_generate.remote(inputs_ref, streamer, **config)
+        for worker in self.prediction_workers[1:]:
+                worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, input_ids, **config):
-        input_ids_ref = ray.put(input_ids)
+    def generate(self, inputs, **config):
+        inputs_ref = ray.put(inputs)
         prediction = ray.get(
             [
-                worker.generate.remote(input_ids_ref, **config)
+                worker.generate.remote(inputs_ref, **config)
                 for worker in self.prediction_workers
             ]
         )[0]

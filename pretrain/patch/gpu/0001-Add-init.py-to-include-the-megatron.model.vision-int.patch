@@ -1,0 +1,17 @@
+From df70ad8023d4dbec119e32a9a382e8feb06a9a93 Mon Sep 17 00:00:00 2001
+From: yuanwu <yuan.wu@intel.com>
+Date: Thu, 26 Oct 2023 13:41:25 +0000
+Subject: [PATCH] Add init.py to include the megatron.model.vision into package
+
+Signed-off-by: yuanwu <yuan.wu@intel.com>
+---
+ megatron/model/vision/__init__.py | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 megatron/model/vision/__init__.py
+
+diff --git a/megatron/model/vision/__init__.py b/megatron/model/vision/__init__.py
+new file mode 100644
+index 0000000..e69de29
+-- 
+2.25.1
+
