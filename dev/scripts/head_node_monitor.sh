@@ -85,7 +85,7 @@ do
         echo "Restart ray cluster on head node: ${head_node}, worker nodes: ${worker_node[*]}"
         ray_cluster up
         echo "Resubmit job."
-        RAY_ADDRESS="http://${head_node}:8265" ray job submit --no-wait --working-dir $CURRENT_DIR/Finetune/ -- python $CURRENT_DIR/Finetune/main.py --config_path $CURRENT_DIR/Finetune/llm_finetune_template.conf
+        RAY_ADDRESS="http://${head_node}:8265" ray job submit --no-wait --working-dir $CURRENT_DIR/Finetune/ -- python $CURRENT_DIR/Finetune/main.py --config_file $CURRENT_DIR/Finetune/llm_finetune_template.conf
 
     else
         echo "Report: head node ${head_node} works well"

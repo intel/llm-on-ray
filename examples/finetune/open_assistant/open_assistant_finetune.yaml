@@ -1,0 +1,29 @@
+General:
+  base_model: EleutherAI/gpt-j-6b
+  gpt_base_model: true
+  output_dir: /tmp/llm-ray/output
+  checkpoint_dir: /tmp/llm-ray/checkpoint
+  config:
+    trust_remote_code: false
+    use_auth_token: null
+  lora_config:
+    task_type: CAUSAL_LM
+    r: 8
+    lora_alpha: 32
+    lora_dropout: 0.1
+Dataset:
+  train_file: examples/finetune/open_assistant/data/train/train.jsonl
+  validation_file: examples/finetune/open_assistant/data/validation/validation.jsonl
+  validation_split_percentage: 0
+Training:
+  optimizer: AdamW
+  batch_size: 2
+  epochs: 3
+  learning_rate: 1.0e-05
+  lr_scheduler: linear
+  weight_decay: 0.0
+  device: CPU
+  num_training_workers: 2
+  resources_per_worker:
+    CPU: 32
+  accelerate_mode: CPU_DDP
