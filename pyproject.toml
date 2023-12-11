@@ -35,6 +35,7 @@ dependencies = [
     "peft>=0.4.0",
     "deltatuner==1.1.9",
     "py-cpuinfo",
+    "pydantic>=2.4",
     "pydantic-yaml",
 ]
 
@@ -60,7 +61,7 @@ deepspeed = [
     "psutil",
     "tqdm",
     # 0.10.2 is required to support bloom
-    "deepspeed>=0.10.2, <0.11.2"
+    "deepspeed>=0.10.2"
 ]
 
 bigdl-cpu = [
