@@ -12,10 +12,12 @@ from starlette.responses import Response, StreamingResponse
 from api_backend.util.logger import get_logger
 from api_backend.util.utils import _replace_prefix, OpenAIHTTPException
 
-from api_backend.common.models import Prompt, ModelResponse
+from api_backend.openai_compat.openai_middleware import openai_exception_handler
+from api_backend.observability.telemetry import configure_telemetry
 from api_backend.routers.middleware import add_request_id
 from api_backend.plugin.query_client import RouterQueryClient
 from api_backend.common.llm_models import Completions, ChatCompletions
+from api_backend.common.models import Prompt, ModelResponse
 from api_backend.common.models import (
     ChatCompletion,
     Completion,
@@ -40,7 +42,7 @@ TIMEOUT = float(os.environ.get("AVIARY_ROUTER_HTTP_TIMEOUT", 600))
 
 def init() -> FastAPI:
     router_app = FastAPI()
-
+    router_app.add_exception_handler(OpenAIHTTPException, openai_exception_handler)
     router_app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -52,7 +54,7 @@ def init() -> FastAPI:
     # Add a unique per-request ID
     router_app.middleware("http")(add_request_id)
     # # Configure common FastAPI app telemetry
-    # configure_telemetry(router_app, "model_router_app")
+    configure_telemetry(router_app, "model_router_app")
 
     return router_app
 
