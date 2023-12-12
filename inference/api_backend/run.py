@@ -1,8 +1,12 @@
+import sys
+import os
+inference_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
+sys.path.append(inference_path)
 from ray import serve
-from app import RouterDeployment
 from run_model_serve import PredictDeployment, _ray_env_key, _predictor_runtime_env_ipex
+from app import RouterDeployment
 from inference_config import all_models
-from api_backend.plugin.query_client import RouterQueryClient
+from plugin.query_client import RouterQueryClient
 
 
 def router_application(model_ids, hooks=None):

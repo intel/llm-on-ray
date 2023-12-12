@@ -9,16 +9,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 
-from api_backend.util.logger import get_logger
-from api_backend.util.utils import _replace_prefix, OpenAIHTTPException
+from util.logger import get_logger
+from util.utils import _replace_prefix, OpenAIHTTPException
 
-from api_backend.openai_compat.openai_middleware import openai_exception_handler
-from api_backend.observability.telemetry import configure_telemetry
-from api_backend.routers.middleware import add_request_id
-from api_backend.plugin.query_client import RouterQueryClient
-from api_backend.common.llm_models import Completions, ChatCompletions
-from api_backend.common.models import Prompt, ModelResponse
-from api_backend.common.models import (
+from openai_compat.openai_middleware import openai_exception_handler
+from observability.telemetry import configure_telemetry
+from routers.middleware import add_request_id
+from plugin.query_client import RouterQueryClient
+from common.llm_models import Completions, ChatCompletions
+from common.models import Prompt, ModelResponse
+from common.models import (
     ChatCompletion,
     Completion,
     DeltaChoices,

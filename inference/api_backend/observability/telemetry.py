@@ -8,11 +8,11 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from api_backend.observability.event_loop_monitoring import (
+from observability.event_loop_monitoring import (
     _LATENCY_HISTOGRAM_BOUNDARIES,
     setup_event_loop_monitoring,
 )
-from api_backend.observability.tracing.fastapi import (
+from observability.tracing.fastapi import (
     FastAPIInstrumentor,
     _get_route_details,
 )

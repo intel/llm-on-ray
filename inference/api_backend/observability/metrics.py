@@ -1,4 +1,4 @@
-from api_backend.common.models import ModelResponse
+from common.models import ModelResponse
 from typing import Dict, Union
 from ray.util import metrics
 

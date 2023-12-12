@@ -1,9 +1,9 @@
 from run_model_serve import PredictDeployment
 from typing import Dict, List, Optional
 from fastapi import HTTPException, Request
-from api_backend.common.models import ModelData, Prompt, QueuePriority
-from api_backend.common.models import Prompt, ModelResponse
-from api_backend.plugin.router_query_engine import StreamingErrorHandler
+from common.models import ModelData, Prompt, QueuePriority
+from common.models import Prompt, ModelResponse
+from plugin.router_query_engine import StreamingErrorHandler
 from enum import IntEnum
 
 class RouterQueryClient():

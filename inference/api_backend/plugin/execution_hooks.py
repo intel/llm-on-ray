@@ -2,7 +2,7 @@ import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Coroutine
 from starlette.requests import Request
-from api_backend.common.models import (
+from common.models import (
     ModelResponse,
 )
 

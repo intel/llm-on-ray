@@ -5,14 +5,14 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError as PydanticValidationError
 from starlette.requests import Request
 
-from api_backend.util.logger import get_logger
-from api_backend.common.models import Prompt, ModelResponse, ErrorResponse, FinishReason
-from api_backend.util.utils import extract_message_from_exception, OpenAIHTTPException
-from api_backend.observability.fn_call_metrics import (
+from util.logger import get_logger
+from common.models import Prompt, ModelResponse, ErrorResponse, FinishReason
+from util.utils import extract_message_from_exception, OpenAIHTTPException
+from observability.fn_call_metrics import (
     InstrumentTokenAsyncGenerator,
 )
-from api_backend.observability.metrics import Metrics
-from api_backend.plugin.execution_hooks import (
+from observability.metrics import Metrics
+from plugin.execution_hooks import (
     ExecutionHooks,
     ShieldedTaskSet,
 )
