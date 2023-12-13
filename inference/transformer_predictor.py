@@ -1,15 +1,15 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig
-from inference_config import InferenceConfig
+from inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
 
 class TransformerPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, stopping_criteria):
-        self.amp_dtype = amp_dtype
+    def __init__(self, inferenceConfig: InferenceConfig, stopping_criteria):
+        super().__init__(inferenceConfig)
         self.device = torch.device(inferenceConfig.device)
         model_desc = inferenceConfig.model_description
         model_config = model_desc.config
-        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
         if self.device.type == "hpu":
             from optimum.habana.transformers.modeling_utils import (
@@ -17,6 +17,8 @@ class TransformerPredictor(Predictor):
             )
 
             adapt_transformers_to_gaudi()
+        # get correct torch type for loading HF model
+        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import AutoModelForCausalLM as BigDLAutoModelForCLM
             bmodel_config = {}
@@ -25,16 +27,16 @@ class TransformerPredictor(Predictor):
                 bmodel_config.update(model_desc.bigdl_config.dict())
             model = BigDLAutoModelForCLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=amp_dtype,
-                config=config,
+                torch_dtype=torch_dtype,
+                config=hf_config,
                 low_cpu_mem_usage=True,
                 **bmodel_config
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=amp_dtype,
-                config=config,
+                torch_dtype=torch_dtype,
+                config=hf_config,
                 low_cpu_mem_usage=True,
                 **model_config.dict()
             )
@@ -58,7 +60,7 @@ class TransformerPredictor(Predictor):
             # to channels last
             model = model.to(memory_format=torch.channels_last)
             # to ipex
-            if inferenceConfig.ipex:
+            if inferenceConfig.ipex.enabled:
                 import intel_extension_for_pytorch as ipex
 
                 torch._C._jit_set_texpr_fuser_enabled(False)
@@ -66,7 +68,7 @@ class TransformerPredictor(Predictor):
                 except: pass
                 model = ipex.optimize_transformers(
                     model.eval(),
-                    dtype=amp_dtype,
+                    dtype=torch.bfloat16 if inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
                     inplace=True
                 )
         self.model = model

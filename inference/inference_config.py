@@ -3,6 +3,14 @@ from pydantic import BaseModel, validator, ConfigDict
 from pydantic_yaml import parse_yaml_raw_as
 from typing import List, Dict
 
+IPEX_PRECISION_BF16 = 'bf16'
+IPEX_PRECISION_FP32 = 'fp32'
+
+DEVICE_CPU = "cpu"
+DEVICE_HPU = "hpu"
+DEVICE_XPU = "xpu"
+DEVICE_CUDA = "cuda"
+
 class Prompt(BaseModel):
     intro: str = ""
     human_id: str = ""
@@ -13,6 +21,16 @@ class ModelConfig(BaseModel):
     trust_remote_code: bool = False
     use_auth_token: str = None
     load_in_4bit: bool = False
+
+class Ipex(BaseModel):
+    enabled: bool = True
+    precision: str = 'bf16'
+
+    @validator('precision')
+    def _check_precision(cls, v: str):
+        if v:
+            assert v in [IPEX_PRECISION_BF16, IPEX_PRECISION_FP32]
+        return v
 
 # for bigdl model
 class BigDLModelConfig(BaseModel):
@@ -61,14 +79,13 @@ class InferenceConfig(BaseModel):
     port: int = 8000
     name: str = None
     route_prefix: str = None
-    precision: str = 'bf16'
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
     deepspeed: bool = False
     workers_per_group: int = 2
-    ipex: bool = False
-    device: str = "cpu"
+    device: str = DEVICE_CPU
+    ipex: Ipex = Ipex()
     model_description: ModelDescription = ModelDescription()
 
     # prevent warning of protected namespaces
@@ -89,13 +106,7 @@ class InferenceConfig(BaseModel):
     @validator('device')
     def _check_device(cls, v: str):
         if v:
-            assert v in ['cpu', 'xpu', 'cuda', 'hpu']
-        return v
-
-    @validator('precision')
-    def _check_precision(cls, v: str):
-        if v:
-            assert v in ['bf16', 'fp32']
+            assert v in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
         return v
 
     @validator('workers_per_group')

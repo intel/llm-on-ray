@@ -1,13 +1,14 @@
 port: 8000
 name: mpt-7b
 route_prefix: /mpt-7b
-precision: 'bf16'
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: true
 workers_per_group: 2
-ipex: false
 device: "cpu"
+ipex:
+  enabled: false
+  precision: bf16
 model_description:
   model_id_or_path: mosaicml/mpt-7b
   tokenizer_name_or_path: EleutherAI/gpt-neox-20b
