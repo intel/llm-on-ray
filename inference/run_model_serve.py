@@ -28,15 +28,24 @@ class PredictDeployment:
             if chat_processor is None:
                 raise ValueError(infer_conf.name + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
             self.process_tool = chat_processor(**prompt.dict())
-        
-        self.use_deepspeed = infer_conf.deepspeed
+
+        stop_words = prompt.stop_words
+        stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
+        self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.use_deepspeed = inferenceConfig.deepspeed
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
-            self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
+            self.streamer = self.create_streamer()
+            # now deepspeed predictor don't have the model
+            # this should be solved in the next pr
+            # where it is also a worker
+            if self.tokenizer.pad_token_id is None:
+                self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+            self.predictor = DeepSpeedPredictor(inferenceConfig, self.tokenizer.pad_token_id, self.stopping_criteria)
         else:
             from transformer_predictor import TransformerPredictor
-            self.predictor = TransformerPredictor(infer_conf)
+            self.predictor = TransformerPredictor(inferenceConfig, self.stopping_criteria)
+            self.predictor.configure_tokenizer(inferenceConfig.model_description.model_id_or_path, self.tokenizer)
         self.loop = asyncio.get_running_loop()
     
     def consume_streamer(self):
@@ -118,9 +127,9 @@ def main(argv=None):
             infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
             infer_conf.port = args.port
             rp = args.route_prefix if args.route_prefix else "custom_model"
-            infer_conf.route_prefix = "/{}".format(rp)
-            infer_conf.name = rp
-            infer_conf.ipex.enabled = args.ipex
+            inferenceConfig.route_prefix = "/{}".format(rp)
+            inferenceConfig.name = rp
+            inferenceConfig.ipex.enabled = args.ipex
         model_list = {}
         model_list[infer_conf.name] = infer_conf
 
@@ -129,11 +138,26 @@ def main(argv=None):
     deployments = []
     for model_id, infer_conf in model_list.items():
         print("deploy model: ", model_id)
-        ray_actor_options = get_deployment_actor_options(infer_conf)
-        deployment = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
-        handle = serve.run(deployment, _blocking=True, host=infer_conf.host, port=infer_conf.port, name=infer_conf.name, route_prefix=infer_conf.route_prefix)
-        deployment_name = infer_conf.name
-        if infer_conf.host == "0.0.0.0":
+        runtime_env = {_ray_env_key: {}}
+        if inferCfg.ipex.enabled:
+            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
+        if inferCfg.deepspeed:
+            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
+        # now PredictDeployment itself is a worker, we should require resources for it
+        ray_actor_options = {"runtime_env": runtime_env}
+        if inferCfg.device == "cpu":
+            ray_actor_options["num_cpus"] = inferCfg.cpus_per_worker
+        elif inferCfg.device == "cuda":
+            ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
+        elif inferCfg.device == "hpu":
+            ray_actor_options["resources"] = {"HPU": inferCfg.hpus_per_worker}
+        else:
+            # TODO add xpu
+            pass
+        deployment = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
+        handle = serve.run(deployment, _blocking=True, host=inferCfg.host, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
+        deployment_name = inferCfg.name
+        if inferCfg.host == "0.0.0.0":
             all_nodes = ray.nodes()
             for node in all_nodes:
                 if "node:__internal_head__" in node["Resources"]:

@@ -1,15 +1,14 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
-from transformers import TextIteratorStreamer
+from transformers import AutoModelForCausalLM, AutoConfig
 from inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
 from utils import get_torch_dtype
 
 class TransformerPredictor(Predictor):
-    def __init__(self, infer_conf: InferenceConfig):
-        super().__init__(infer_conf)
-        
-        model_desc = infer_conf.model_description
+    def __init__(self, inferenceConfig: InferenceConfig, stopping_criteria):
+        super().__init__(inferenceConfig)
+        self.device = torch.device(inferenceConfig.device)
+        model_desc = inferenceConfig.model_description
         model_config = model_desc.config
         hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
@@ -20,7 +19,7 @@ class TransformerPredictor(Predictor):
 
             adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import (
                 AutoModelForCausalLM as BigDLAutoModelForCLM,
@@ -70,7 +69,7 @@ class TransformerPredictor(Predictor):
             # to channels last
             model = model.to(memory_format=torch.channels_last)
             # to ipex
-            if infer_conf.ipex.enabled:
+            if inferenceConfig.ipex.enabled:
                 import intel_extension_for_pytorch as ipex
 
                 torch._C._jit_set_texpr_fuser_enabled(False)
@@ -80,7 +79,7 @@ class TransformerPredictor(Predictor):
                     pass
                 model = ipex.optimize_transformers(
                     model.eval(),
-                    dtype=torch.bfloat16 if infer_conf.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
+                    dtype=torch.bfloat16 if inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
                     inplace=True
                 )
         self.model = model
