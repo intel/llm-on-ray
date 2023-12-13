@@ -13,39 +13,33 @@ from ray.air import ScalingConfig
 from typing import List
 import os
 from predictor import Predictor
-from utils import get_torch_dtype
-from inference.inference_config import (
-    InferenceConfig,
-    DEVICE_CPU,
-    DEVICE_XPU,
-    PRECISION_BF16,
-)
-
+from peft import PeftModel
+from deltatuner import DeltaTunerModel
+from inference_config import InferenceConfig, DEVICE_CPU, DEVICE_XPU, IPEX_PRECISION_BF16
 
 class DSPipeline:
-    def __init__(self, infer_conf: InferenceConfig, pad_token_id, stopping_criteria):
-        self.device = torch.device(infer_conf.device)
+    def __init__(
+        self,
+        inferenceConfig: InferenceConfig,
+        pad_token_id,
+        stopping_criteria
+    ):
+        self.device = torch.device(inferenceConfig.device)
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
         model_desc = infer_conf.model_description
         model_config = model_desc.config
-        hf_config = AutoConfig.from_pretrained(
-            model_desc.model_id_or_path,
-            torchscript=True,
-            trust_remote_code=model_config.trust_remote_code,
-        )
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
         # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_desc.model_id_or_path,
-            config=hf_config,
-            torch_dtype=torch_dtype,
-            low_cpu_mem_usage=True,
-            **model_config.dict(),
-        )
-
+        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
+        self.model = AutoModelForCausalLM.from_pretrained(model_desc.model_id_or_path,
+                                                          config=hf_config,
+                                                          torch_dtype=torch_dtype,
+                                                          low_cpu_mem_usage=True,
+                                                          **model_config.dict())
+        
         if model_desc.peft_model_id_or_path:
             from peft import PeftModel
 
@@ -90,25 +84,18 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP
     process group and work together under the orchestration of DeepSpeed.
     """
-
-    def __init__(
-        self,
-        world_size: int,
-        infer_conf: InferenceConfig,
-        pad_token_id,
-        stopping_criteria,
-    ):
+    def __init__(self, world_size: int, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria):
         self.world_size = world_size
-        self.infer_conf = infer_conf
+        self.inferenceConfig = inferenceConfig
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
     def init_model(self, local_rank: int):
         """Initialize model for inference."""
 
-        if self.infer_conf.device == DEVICE_CPU:
+        if self.inferenceConfig.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.infer_conf.device == DEVICE_XPU:
+        elif self.inferenceConfig.device == DEVICE_XPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -129,20 +116,14 @@ class PredictionWorker(TorchDistributedWorker):
             replace_with_kernel_inject=replace_with_kernel_inject,
         )
 
-        if self.infer_conf.ipex.enabled:
+        if self.inferenceConfig.ipex.enabled:
             import intel_extension_for_pytorch as ipex
-
-            try:
-                ipex._C.disable_jit_linear_repack()
-            except Exception:
-                pass
+            try: ipex._C.disable_jit_linear_repack()
+            except: pass
             pipe.model = ipex.optimize_transformers(
                 pipe.model.eval(),
-                dtype=torch.bfloat16
-                if self.infer_conf.ipex.precision == PRECISION_BF16
-                else torch.float32,
-                inplace=True,
-            )
+                dtype=torch.bfloat16 if self.inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
+                inplace=True)
 
         self.generator = pipe
 
@@ -152,6 +133,13 @@ class PredictionWorker(TorchDistributedWorker):
     def generate(self, inputs, **config):
         return self.generator.generate(inputs, **config)
 
+class DeepSpeedPredictor(Predictor):
+    def __init__(self, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria) -> None:
+        self.inferenceConfig = inferenceConfig
+        self.pad_token_id = pad_token_id
+        self.stopping_criteria = stopping_criteria
+
+        use_gpu = True if (inferenceConfig.device == "cuda") else False
 
 class DeepSpeedPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig) -> None:
@@ -208,12 +196,8 @@ class DeepSpeedPredictor(Predictor):
 
         # Create the prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(
-                scaling_config.num_workers,
-                self.infer_conf,
-                self.pad_token_id,
-                self.stopping_criteria,
-            )
+            prediction_worker_cls.remote(scaling_config.num_workers, self.inferenceConfig,
+                self.pad_token_id, self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]
 

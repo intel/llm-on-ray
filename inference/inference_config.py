@@ -12,6 +12,14 @@ DEVICE_XPU = "xpu"
 DEVICE_CUDA = "cuda"
 
 
+IPEX_PRECISION_BF16 = 'bf16'
+IPEX_PRECISION_FP32 = 'fp32'
+
+DEVICE_CPU = "cpu"
+DEVICE_HPU = "hpu"
+DEVICE_XPU = "xpu"
+DEVICE_CUDA = "cuda"
+
 class Prompt(BaseModel):
     intro: str = ""
     human_id: str = ""
@@ -24,28 +32,15 @@ class ModelConfig(BaseModel):
     use_auth_token: Union[str, None] = None
     load_in_4bit: bool = False
 
-
 class Ipex(BaseModel):
     enabled: bool = True
-    precision: str = "bf16"
+    precision: str = 'bf16'
 
-    @validator("precision")
+    @validator('precision')
     def _check_precision(cls, v: str):
         if v:
-            assert v in [PRECISION_BF16, PRECISION_FP32]
+            assert v in [IPEX_PRECISION_BF16, IPEX_PRECISION_FP32]
         return v
-
-
-class Vllm(BaseModel):
-    enabled: bool = False
-    precision: str = "bf16"
-
-    @validator("precision")
-    def _check_precision(cls, v: str):
-        if v:
-            assert v in [PRECISION_BF16, PRECISION_FP32]
-        return v
-
 
 # for bigdl model
 class BigDLModelConfig(BaseModel):
@@ -94,8 +89,8 @@ class ModelDescription(BaseModel):
 class InferenceConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
-    name: str = "default"
-    route_prefix: Union[str, None] = None
+    name: str = None
+    route_prefix: str = None
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
@@ -124,8 +119,8 @@ class InferenceConfig(BaseModel):
     @validator("device")
     def _check_device(cls, v: str):
         if v:
-            assert v.lower() in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
-        return v.lower()
+            assert v in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
+        return v
 
     @validator("workers_per_group")
     def _check_workers_per_group(cls, v: int):
