@@ -46,12 +46,9 @@ if __name__ == "__main__":
 
     import argparse
     parser = argparse.ArgumentParser('GPT-J generation script', add_help=False)
-    parser.add_argument('--precision', default='bf16', type=str, help="fp32 or bf16")
     parser.add_argument('--model', default='EleutherAI/gpt-j-6B', type=str, help="model name or path")
     parser.add_argument('--max-new-tokens', default=100, type=int, help="output max new tokens")
     args = parser.parse_args()
-    amp_enabled = True if args.precision != "fp32" else False
-    amp_dtype = torch.bfloat16 if args.precision != "fp32" else torch.float32
 
     ray.init(address="auto")
     prompt = (
@@ -68,8 +65,6 @@ if __name__ == "__main__":
             batch_size=4,
             fn_constructor_kwargs=dict(
                 model_id=args.model,
-                amp_enabled=amp_enabled,
-                amp_dtype=amp_dtype,
                 max_new_tokens=args.max_new_tokens
             ),
             compute="actors"

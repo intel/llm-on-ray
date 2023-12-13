@@ -60,7 +60,6 @@ class PredictDeployment:
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
         self.use_deepspeed = inferenceConfig.deepspeed
-        self.amp_dtype = torch.bfloat16 if inferenceConfig.precision != "fp32" else torch.float32
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
             self.streamer = self.create_streamer()
@@ -69,10 +68,10 @@ class PredictDeployment:
             # where it is also a worker
             if self.tokenizer.pad_token_id is None:
                 self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-            self.predictor = DeepSpeedPredictor(inferenceConfig, self.amp_dtype, self.tokenizer.pad_token_id, self.stopping_criteria)
+            self.predictor = DeepSpeedPredictor(inferenceConfig, self.tokenizer.pad_token_id, self.stopping_criteria)
         else:
             from transformer_predictor import TransformerPredictor
-            self.predictor = TransformerPredictor(inferenceConfig, self.amp_dtype, self.stopping_criteria)
+            self.predictor = TransformerPredictor(inferenceConfig, self.stopping_criteria)
             self.predictor.configure_tokenizer(inferenceConfig.model_description.model_id_or_path, self.tokenizer)
         self.loop = asyncio.get_running_loop()
 
@@ -203,7 +202,6 @@ def main(argv=None):
     parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
-    parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
     parser.add_argument("--serve_local_only", action="store_true", help="Only support local access to url")
 
     args = parser.parse_args(argv)
@@ -228,7 +226,7 @@ def main(argv=None):
             rp = args.route_prefix if args.route_prefix else "custom_model"
             inferenceConfig.route_prefix = "/{}".format(rp)
             inferenceConfig.name = rp
-            inferenceConfig.ipex = args.ipex
+            inferenceConfig.ipex.enabled = args.ipex
         model_list = {}
         model_list[inferenceConfig.name] = inferenceConfig
 
@@ -238,7 +236,7 @@ def main(argv=None):
     for model_id, inferCfg in model_list.items():
         print("deploy model: ", model_id)
         runtime_env = {_ray_env_key: {}}
-        if inferCfg.ipex:
+        if inferCfg.ipex.enabled:
             runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
         if inferCfg.deepspeed:
             runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
