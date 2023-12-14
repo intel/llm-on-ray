@@ -102,6 +102,7 @@ class PredictionWorker(TorchDistributedWorker):
         pipe.model = deepspeed.init_inference(
             pipe.model,
             mp_size=self.world_size,
+            dtype=torch.bfloat16,
             replace_with_kernel_inject=replace_with_kernel_inject
         )
 

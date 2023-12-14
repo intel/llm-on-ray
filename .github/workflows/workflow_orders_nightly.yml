@@ -2,7 +2,7 @@ name: llm-ray inference & finetune
 
 on:
   schedule:
-    - cron: "0 21 * * *"
+    - cron: "0 19 * * *"
 
 jobs:
 
