@@ -9,7 +9,6 @@ from util.logger import get_logger
 from common.models import Prompt, ModelResponse, ErrorResponse, FinishReason
 from util.utils import extract_message_from_exception, OpenAIHTTPException
 
-from observability.metrics import Metrics
 from plugin.execution_hooks import (
     ExecutionHooks,
     ShieldedTaskSet,
@@ -21,19 +20,16 @@ class StreamingErrorHandler:
     """Handle errors and finalizers for an AviaryModelResopnse stream.
 
     This class:
-    1. Tracks request level metrics for the response stream
-    2. Handles errors in the router level code for the response stream
-    3. Registers finalizers [eg. execute post execution hooks]
+    1. Handles errors in the router level code for the response stream
+    2. Registers finalizers [eg. execute post execution hooks]
     """
 
     def __init__(
         self,
         hooks: Optional[ExecutionHooks] = None,
-        metrics: Optional[Metrics] = None,
         task_set: Optional[ShieldedTaskSet] = None,
     ):
         self.hooks = hooks or ExecutionHooks()
-        self.metrics = metrics or Metrics()
         self.task_set = task_set or ShieldedTaskSet()
 
     async def handle_failure(
@@ -46,18 +42,12 @@ class StreamingErrorHandler:
         req_id = request.state.request_id
         model_tags = {"model_id": model}
         print("handle_failue: ", model_tags)
-        self.metrics.requests_started.inc(tags=model_tags)
-        is_first_token = True
 
         responses: List[ModelResponse] = []
         try:
             async with self.hooks.context():
                 async for response in async_iterator:
                     responses.append(response)
-
-                    # Track metrics per token
-                    self.metrics.track(response, is_first_token, model)
-                    is_first_token = False
                     yield response
         except asyncio.CancelledError as e:
             # The request is cancelled. Try to return a last Aviary Model response, then raise
