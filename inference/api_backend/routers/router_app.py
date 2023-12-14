@@ -4,8 +4,10 @@ from typing import AsyncGenerator, List
 
 import async_timeout
 from fastapi import FastAPI, status
+from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry import trace
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 
@@ -13,7 +15,6 @@ from util.logger import get_logger
 from util.utils import _replace_prefix, OpenAIHTTPException
 
 from openai_compat.openai_middleware import openai_exception_handler
-from routers.middleware import add_request_id
 from plugin.query_client import RouterQueryClient
 from common.llm_models import Completions, ChatCompletions
 from common.models import Prompt, ModelResponse
@@ -37,6 +38,13 @@ logger = get_logger(__name__)
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
 TIMEOUT = float(os.environ.get("AVIARY_ROUTER_HTTP_TIMEOUT", 600))
+
+async def add_request_id(request: FastAPIRequest, call_next):
+    request.state.request_id = trace.format_trace_id(
+        trace.get_current_span().get_span_context().trace_id
+    )
+
+    return await call_next(request)
 
 
 def init() -> FastAPI:
