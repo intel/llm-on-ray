@@ -192,14 +192,14 @@ class PredictDeployment:
         self.loop.run_in_executor(None, functools.partial(self.predict_stream, prompts, streamer, **config))
         response_handle = self.consume_streamer_async(streamer)
         async for output in response_handle:
-            aviary_model_response = ModelResponse(
+            model_response = ModelResponse(
                 generated_text=output,
                 num_input_tokens=len(prompts[0]),
                 num_input_tokens_batch=len(prompts[0]),
                 num_generated_tokens=1,
                 preprocessing_time=0,
             )
-            yield aviary_model_response
+            yield model_response
 
 _ray_env_key = "env_vars"
 # OMP_NUM_THREADS will be set by num_cpus, so not set in env

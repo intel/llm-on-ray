@@ -37,7 +37,7 @@ logger = get_logger(__name__)
 
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
-TIMEOUT = float(os.environ.get("AVIARY_ROUTER_HTTP_TIMEOUT", 600))
+TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600))
 
 async def add_request_id(request: FastAPIRequest, call_next):
     request.state.request_id = trace.format_trace_id(
@@ -224,16 +224,16 @@ class Router:
 
     @router_app.get("/v1/models", response_model=Model)
     async def models(self) -> Model:
-        """OpenAI API-compliant endpoint to get all Aviary models."""
+        """OpenAI API-compliant endpoint to get all models."""
         models = await self.query_engine.models()
         return Model(data=list(models.values()))
 
     # :path allows us to have slashes in the model name
     @router_app.get("/v1/models/{model:path}", response_model=ModelData)
     async def model_data(self, model: str) -> ModelData:
-        """OpenAI API-compliant endpoint to get one Aviary model.
+        """OpenAI API-compliant endpoint to get one model.
 
-        :param model: The Aviary model ID (e.g. "amazon/LightGPT")
+        :param model: The model ID (e.g. "amazon/LightGPT")
         """
         model = _replace_prefix(model)
         model_data = await self.query_engine.model(model)
