@@ -113,7 +113,7 @@ class PredictionWorker(TorchDistributedWorker):
             pipe.model,
             mp_size=self.world_size,
             dtype=torch.bfloat16,
-            replace_with_kernel_inject=replace_with_kernel_inject,
+            replace_with_kernel_inject=replace_with_kernel_inject
         )
 
         if self.inferenceConfig.ipex.enabled:

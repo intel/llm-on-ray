@@ -202,7 +202,7 @@ def get_finetune_config():
 
     with open(config_file) as f:
         finetune_config = parse_yaml_raw_as(FinetuneConfig, f)
-    return finetune_config.model_dump()
+    return finetune_config.dict()
 
 
 def main(external_config = None):
