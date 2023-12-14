@@ -8,9 +8,7 @@ from starlette.requests import Request
 from util.logger import get_logger
 from common.models import Prompt, ModelResponse, ErrorResponse, FinishReason
 from util.utils import extract_message_from_exception, OpenAIHTTPException
-from observability.fn_call_metrics import (
-    InstrumentTokenAsyncGenerator,
-)
+
 from observability.metrics import Metrics
 from plugin.execution_hooks import (
     ExecutionHooks,
@@ -38,7 +36,6 @@ class StreamingErrorHandler:
         self.metrics = metrics or Metrics()
         self.task_set = task_set or ShieldedTaskSet()
 
-    @InstrumentTokenAsyncGenerator("router_get_response_stream")
     async def handle_failure(
         self,
         model: str,
