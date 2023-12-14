@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         # for mistral-7b-v0.1, we use bigdl-cpu to verify
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, llama-2-7b-chat-hf ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
