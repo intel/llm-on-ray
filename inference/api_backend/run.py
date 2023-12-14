@@ -19,7 +19,7 @@ def router_application(model_ids, hooks=None):
     deployment_map = {}
     for model_id in model_ids:
         if model_id not in all_models.keys():
-            raise(f"The config file of {model_id} doesn't exist, please add it.")
+            raise ValueError(f"The config file of {model_id} doesn't exist, please add it.")
         model_config = all_models[model_id]
         runtime_env = {_ray_env_key: {}}
         if model_config.ipex:

@@ -13,7 +13,6 @@ from util.logger import get_logger
 from util.utils import _replace_prefix, OpenAIHTTPException
 
 from openai_compat.openai_middleware import openai_exception_handler
-from observability.telemetry import configure_telemetry
 from routers.middleware import add_request_id
 from plugin.query_client import RouterQueryClient
 from common.llm_models import Completions, ChatCompletions
@@ -53,8 +52,6 @@ def init() -> FastAPI:
 
     # Add a unique per-request ID
     router_app.middleware("http")(add_request_id)
-    # # Configure common FastAPI app telemetry
-    configure_telemetry(router_app, "model_router_app")
 
     return router_app
 
