@@ -21,7 +21,7 @@ class ModelData(BaseModel):
     object: str
     owned_by: str
     permission: List[str]
-    aviary_metadata: Dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 class Model(BaseModel):

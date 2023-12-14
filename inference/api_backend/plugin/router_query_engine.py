@@ -17,7 +17,7 @@ from plugin.execution_hooks import (
 logger = get_logger(__name__)
 
 class StreamingErrorHandler:
-    """Handle errors and finalizers for an AviaryModelResopnse stream.
+    """Handle errors and finalizers for an ModelResopnse stream.
 
     This class:
     1. Handles errors in the router level code for the response stream
@@ -50,7 +50,7 @@ class StreamingErrorHandler:
                     responses.append(response)
                     yield response
         except asyncio.CancelledError as e:
-            # The request is cancelled. Try to return a last Aviary Model response, then raise
+            # The request is cancelled. Try to return a last Model response, then raise
             # We raise here because we don't want to interrupt the cancellation
             yield _get_response_for_error(e, request_id=req_id)
             raise

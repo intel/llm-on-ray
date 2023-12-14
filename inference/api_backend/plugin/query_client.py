@@ -43,7 +43,7 @@ class RouterQueryClient():
             object="model",
             owned_by="serve owner",
             permission=["serve permission"],
-            aviary_metadata={
+            metadata={
                 "serve_metadata": "serve_metadata",
                 "engine_config": {
                     "model_description": "serve_description",
