@@ -3,7 +3,7 @@
 LLM-on-Ray introduces a Web UI, allowing users to easily finetune and deploy LLMs through a user-friendly interface. Additionally, the UI includes a chatbot application, enabling users to immediately test and refine the models.
 
 ## Setup
-Please follow [docs/setup.md](docs/setup.md) to setup the environment first.
+Please follow [setup.md](setup.md) to setup the environment first.
 
 ## Start Web UI
 
@@ -17,17 +17,19 @@ python -u inference/start_ui.py --node_user_name $user --conda_env_name $conda_e
 ## Finetune LLMs
 On the `Finetune` tab, you can configure the base model, finetuning parameters, the dataset path and the new model name. Click `Start To Finetune` to start finetuning.
 
-![image](https://github.com/carsonwang/llm-ray/assets/9278199/38cb6f1f-b5de-495e-a4db-741eb1e15980)
+![webui1](https://github.com/intel/llm-on-ray/assets/9278199/895be765-13d3-455e-a00d-c9ba67ac6781)
+
 
 
 ## Deploy and Serve LLM
 On the `Deployment` tab, you can choose a model to deploy, configure parameter `Model Replica Number`, `Cpus per Worker` and `Gpus per Worker`. Click `Deploy` and you will get a model endpoint.
 
-![image](https://github.com/carsonwang/llm-ray/assets/9278199/937613ad-951c-4543-9e2d-e5b8e7f38d1b)
+![webui2](https://github.com/intel/llm-on-ray/assets/9278199/2a1fb8f2-a2a8-4868-9d1c-418c5c2a6180)
+
 
 ## Chatbot
 On the `Inferenc` tab, you can now test the model by asking questions.
 
-![image](https://github.com/carsonwang/llm-ray/assets/9278199/5aa3dace-238a-4b34-9ce2-b3abbd6de2ba)
+![webui3](https://github.com/intel/llm-on-ray/assets/9278199/f7b9dc79-92fe-4e75-85fa-2cf7f36bb58d)
 
 
