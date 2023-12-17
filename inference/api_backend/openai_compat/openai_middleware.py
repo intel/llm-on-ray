@@ -1,10 +1,10 @@
 from fastapi import Request, status
 from starlette.responses import JSONResponse
 
-from common.models import ModelResponse
-from openai_compat.openai_exception import OpenAIHTTPException
-from util.utils import extract_message_from_exception
-from common.models import ErrorResponse
+from ..common.models import ModelResponse
+from ..openai_compat.openai_exception import OpenAIHTTPException
+from ..util.utils import extract_message_from_exception
+from ..common.models import ErrorResponse
 
 
 def openai_exception_handler(request: Request, exc: OpenAIHTTPException):

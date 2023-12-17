@@ -1,6 +1,6 @@
 from typing import Dict, List, Set, Optional, TypeVar
 from pydantic import BaseModel
-from common.models import Message
+from ..common.models import Message
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
