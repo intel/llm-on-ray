@@ -4,7 +4,7 @@ from inference_config import ModelDescription, InferenceConfig, all_models
 
 from pydantic_yaml import parse_yaml_raw_as
 
-from api_server import serve_run
+from api_server import serve_run, PredictDeployment
 from api_server_openai import openai_serve_run
 
 _ray_env_key = "env_vars"
@@ -64,14 +64,34 @@ def main(argv=None):
         model_list[inferenceConfig.name] = inferenceConfig
 
     ray.init(address="auto")
+
+    deployment_map = {}
+    for model_id, inferCfg in model_list.items():
+        runtime_env = {_ray_env_key: {}}
+        if inferCfg.ipex:
+            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
+        if inferCfg.deepspeed:
+            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
+        # now PredictDeployment itself is a worker, we should require resources for it
+        ray_actor_options = {"runtime_env": runtime_env}
+        if inferCfg.device == "cpu":
+            ray_actor_options["num_cpus"] = inferCfg.cpus_per_worker
+        elif inferCfg.device == "cuda":
+            ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
+        elif inferCfg.device == "hpu":
+            ray_actor_options["resources"] = {"HPU": inferCfg.hpus_per_worker}
+        else:
+            # TODO add xpu
+            pass
+        deployment_map[model_id] = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
+
     if args.openai_api:
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else "custom_model"
         route_prefix = "/{}".format(rp)
-        model_ids = list(model_list.keys())
-        openai_serve_run(model_ids, model_list, host, route_prefix, args.port)
+        openai_serve_run(deployment_map, host, route_prefix, args.port)
     else:
-        serve_run(model_list)
+        serve_run(model_list, deployment_map)
 
 
 if __name__ == "__main__":

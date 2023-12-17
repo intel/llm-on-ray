@@ -1,13 +1,12 @@
-from run_model_serve import PredictDeployment
 from typing import Dict, List, Optional
 from fastapi import HTTPException, Request
-from ..common.models import ModelData, Prompt, QueuePriority
-from ..common.models import Prompt, ModelResponse
+from ..common.openai_protocol import ModelData, Prompt, QueuePriority
+from ..common.openai_protocol import Prompt, ModelResponse
 from ..plugin.router_query_engine import StreamingErrorHandler
 from enum import IntEnum
 
 class RouterQueryClient():
-    def __init__(self, serve_deployments: PredictDeployment, hooks=None):
+    def __init__(self, serve_deployments, hooks=None):
         self.serve_deployments = serve_deployments
         self.error_hook = StreamingErrorHandler(hooks=hooks)
 

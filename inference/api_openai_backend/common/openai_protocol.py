@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Any, Dict, Literal, List, TypeVar, Union, Optional, Protocol, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Literal, List, TypeVar, Optional, Set, Tuple, Type, Union
 
-from pydantic import BaseModel, Extra, Field, PrivateAttr, root_validator, validator
+from pydantic import BaseModel, Field, root_validator, validator
 from enum import IntEnum, Enum
 import time
 import yaml
@@ -278,6 +278,7 @@ class PromptFormat(BaseModel):
         prompt.append(self.trailing_assistant)
         return "".join(prompt)
 
+
 class BaseModelExtended(BaseModel):
     @classmethod
     def parse_yaml(cls: Type[ModelT], file, **kwargs) -> ModelT:
@@ -342,6 +343,7 @@ class ComputedPropertyMixin:
         )
 
         return super().json(*args, **kwargs)  # type: ignore
+
 
 class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
     generated_text: Optional[str] = None
@@ -464,6 +466,46 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
 
     def unpack(self) -> Tuple["ModelResponse", ...]:
         return (self,)
+
+
+class Completions(BaseModel):
+    model: str
+    prompt: str
+    suffix: Optional[str] = None
+    stream: bool = False
+    echo: Optional[bool] = False
+    user: Optional[str] = None
+    max_tokens: Optional[int] = 16
+    top_k: Optional[int] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    n: int = 1
+    logprobs: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
+    stop: Optional[List[str]] = None
+    presence_penalty: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    best_of: int = 1
+
+
+class ChatCompletions(BaseModel):
+    model: str
+    messages: List[Message]
+    stream: bool = False
+    echo: Optional[bool] = False
+    user: Optional[str] = None
+    top_k: Optional[int] = None
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    n: int = 1
+    logprobs: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
+    stop: Optional[List[str]] = None
+    presence_penalty: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    best_of: int = 1
+    _ignored_fields: Set[str] = set()
 
 
 class FinishReason(str, Enum):

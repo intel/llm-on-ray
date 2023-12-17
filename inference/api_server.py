@@ -12,10 +12,8 @@ from inference_config import InferenceConfig
 
 from typing import Generator, Union, List
 from starlette.responses import StreamingResponse
-from api_backend.common.models import ModelResponse
+from api_openai_backend.common.openai_protocol import ModelResponse
 
-from pydantic_yaml import parse_yaml_raw_as
-from run_model_serve import _ray_env_key, _predictor_runtime_env_ipex
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -201,27 +199,10 @@ class PredictDeployment:
             )
             yield model_response
 
-def serve_run(model_list):
-    deployments = []
+def serve_run(model_list, deployments):
     for model_id, inferCfg in model_list.items():
         print("deploy model: ", model_id)
-        runtime_env = {_ray_env_key: {}}
-        if inferCfg.ipex:
-            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
-        if inferCfg.deepspeed:
-            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
-        # now PredictDeployment itself is a worker, we should require resources for it
-        ray_actor_options = {"runtime_env": runtime_env}
-        if inferCfg.device == "cpu":
-            ray_actor_options["num_cpus"] = inferCfg.cpus_per_worker
-        elif inferCfg.device == "cuda":
-            ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
-        elif inferCfg.device == "hpu":
-            ray_actor_options["resources"] = {"HPU": inferCfg.hpus_per_worker}
-        else:
-            # TODO add xpu
-            pass
-        deployment = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
+        deployment = deployments[model_id]
         handle = serve.run(deployment, _blocking=True, host=inferCfg.host, port=inferCfg.port, name=inferCfg.name, route_prefix=inferCfg.route_prefix)
         deployment_name = inferCfg.name
         if inferCfg.host == "0.0.0.0":
@@ -234,7 +215,6 @@ def serve_run(model_list):
             host_ip = inferCfg.host
         url = f"http://{host_ip}:{inferCfg.port}{inferCfg.route_prefix}"
         print(f"Deployment '{deployment_name}' is ready at `{url}`.")
-        deployments.append(handle)
 
     msg = "Service is deployed successfully"
     env_name = "KEEP_SERVE_TERMINAL"

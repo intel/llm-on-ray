@@ -16,9 +16,8 @@ from ..util.utils import _replace_prefix, OpenAIHTTPException
 
 from ..openai_compat.openai_middleware import openai_exception_handler
 from ..plugin.query_client import RouterQueryClient
-from ..common.llm_models import Completions, ChatCompletions
-from ..common.models import Prompt, ModelResponse
-from ..common.models import (
+from ..common.openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
+from ..common.openai_protocol import (
     ChatCompletion,
     Completion,
     DeltaChoices,
