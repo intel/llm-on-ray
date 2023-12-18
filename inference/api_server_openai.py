@@ -1,7 +1,7 @@
 import os
 from ray import serve
-from api_openai_backend.plugin.query_client import RouterQueryClient
-from api_openai_backend.routers.router_app import Router, router_app
+from api_openai_backend.query_client import RouterQueryClient
+from api_openai_backend.router_app import Router, router_app
 
 
 def router_application(deployments, hooks=None):

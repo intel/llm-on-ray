@@ -12,7 +12,7 @@ from inference_config import InferenceConfig
 
 from typing import Generator, Union, List
 from starlette.responses import StreamingResponse
-from api_openai_backend.common.openai_protocol import ModelResponse
+from api_openai_backend.openai_protocol import ModelResponse
 
 
 class StoppingCriteriaSub(StoppingCriteria):

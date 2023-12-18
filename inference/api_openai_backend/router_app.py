@@ -10,11 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-from ..util.logger import get_logger
-from ..error_handler.openai_exception import OpenAIHTTPException, openai_exception_handler
-from ..plugin.query_client import RouterQueryClient
-from ..common.openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
-from ..common.openai_protocol import (
+from ..utils.logger import get_logger
+from .error_handler.openai_exception import OpenAIHTTPException, openai_exception_handler
+from .query_client import RouterQueryClient
+from .openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
+from .openai_protocol import (
     ChatCompletion,
     CompletionResponse,
     DeltaChoices,

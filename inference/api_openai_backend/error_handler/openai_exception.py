@@ -1,8 +1,8 @@
 from fastapi import Request, status
 from starlette.responses import JSONResponse
 
-from ..common.openai_protocol import ModelResponse
-from ..common.openai_protocol import ErrorResponse
+from ..openai_protocol import ModelResponse
+from ..openai_protocol import ErrorResponse
 import traceback
 
 

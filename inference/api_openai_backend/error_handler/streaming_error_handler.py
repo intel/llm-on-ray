@@ -5,9 +5,9 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError as PydanticValidationError
 from starlette.requests import Request
 
-from ..util.logger import get_logger
+from ...utils.logger import get_logger
 from ..error_handler.openai_exception import OpenAIHTTPException, extract_message_from_exception
-from ..common.openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
+from ..openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
 
 from ..error_handler.execution_hooks import (
     ExecutionHooks,
@@ -15,6 +15,7 @@ from ..error_handler.execution_hooks import (
 )
 
 logger = get_logger(__name__)
+
 
 class StreamingErrorHandler:
     """Handle errors and finalizers for an ModelResopnse stream.
