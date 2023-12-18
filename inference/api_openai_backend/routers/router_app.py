@@ -10,11 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
-
 from ..util.logger import get_logger
-from ..util.utils import _replace_prefix, OpenAIHTTPException
-
-from ..openai_compat.openai_middleware import openai_exception_handler
+from ..openai_compat.openai_exception import OpenAIHTTPException, openai_exception_handler
 from ..plugin.query_client import RouterQueryClient
 from ..common.openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
 from ..common.openai_protocol import (
@@ -233,7 +230,7 @@ class Router:
 
         :param model: The model ID (e.g. "amazon/LightGPT")
         """
-        model = _replace_prefix(model)
+        model = model.replace("--", "/")
         model_data = await self.query_engine.model(model)
         if model_data is None:
             raise OpenAIHTTPException(
