@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from fastapi import HTTPException, Request
-from ..common.openai_protocol import ModelData, Prompt, QueuePriority
+from ..common.openai_protocol import ModelCard, Prompt, QueuePriority
 from ..common.openai_protocol import Prompt, ModelResponse
 from ..plugin.router_query_engine import StreamingErrorHandler
 from enum import IntEnum
@@ -35,23 +35,15 @@ class RouterQueryClient():
         ):
             yield x
 
-    async def model(self, model_id: str) -> ModelData:
+    async def model(self, model_id: str) -> ModelCard:
         """Get configurations for a supported model"""
-        return ModelData(
+        return ModelCard(
             id=model_id,
-            object="model",
-            owned_by="serve owner",
+            root=model_id,
             permission=["serve permission"],
-            metadata={
-                "serve_metadata": "serve_metadata",
-                "engine_config": {
-                    "model_description": "serve_description",
-                    "model_url": "serve_url",
-                },
-            },
         )
 
-    async def models(self) -> Dict[str, ModelData]:
+    async def models(self) -> Dict[str, ModelCard]:
         """Get configurations for supported models"""
         metadatas = {}
         for model_id in self.serve_deployments:

@@ -19,17 +19,17 @@ from ..plugin.query_client import RouterQueryClient
 from ..common.openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
 from ..common.openai_protocol import (
     ChatCompletion,
-    Completion,
+    CompletionResponse,
     DeltaChoices,
     DeltaContent,
     DeltaEOS,
     DeltaRole,
-    Message,
+    ChatMessage,
     MessageChoices,
-    Model,
-    ModelData,
-    TextChoice,
-    Usage,
+    ModelList,
+    ModelCard,
+    CompletionResponseChoice,
+    UsageInfo,
 )
 
 logger = get_logger(__name__)
@@ -94,23 +94,22 @@ async def _completions_wrapper(
                     # Return early in case of an error
                     break
                 choices = [
-                    TextChoice(
-                        text=subresult_dict["generated_text"] or "",
+                    CompletionResponseChoice(
                         index=0,
-                        logprobs={},
+                        text=subresult_dict["generated_text"] or "",
                         finish_reason=subresult_dict["finish_reason"],
                     )
                 ]
                 usage = None
                 if subresult_dict["finish_reason"]:
                     usage = (
-                        Usage.from_response(
+                        UsageInfo.from_response(
                             ModelResponse.merge_stream(*all_results)
                         )
                         if all_results
                         else None
                     )
-                yield "data: " + Completion(
+                yield "data: " + CompletionResponse(
                     id=completion_id,
                     object="text_completion",
                     created=int(time.time()),
@@ -199,7 +198,7 @@ async def _chat_completions_wrapper(
                 )
             ]
             usage = (
-                Usage.from_response(ModelResponse.merge_stream(*all_results))
+                UsageInfo.from_response(ModelResponse.merge_stream(*all_results))
                 if all_results
                 else None
             )
@@ -221,15 +220,15 @@ class Router:
     ) -> None:
         self.query_engine = query_engine
 
-    @router_app.get("/v1/models", response_model=Model)
-    async def models(self) -> Model:
+    @router_app.get("/v1/models", response_model=ModelList)
+    async def models(self) -> ModelList:
         """OpenAI API-compliant endpoint to get all models."""
         models = await self.query_engine.models()
-        return Model(data=list(models.values()))
+        return ModelList(data=list(models.values()))
 
     # :path allows us to have slashes in the model name
-    @router_app.get("/v1/models/{model:path}", response_model=ModelData)
-    async def model_data(self, model: str) -> ModelData:
+    @router_app.get("/v1/models/{model:path}", response_model=ModelCard)
+    async def model_data(self, model: str) -> ModelCard:
         """OpenAI API-compliant endpoint to get one model.
 
         :param model: The model ID (e.g. "amazon/LightGPT")
@@ -292,17 +291,16 @@ class Router:
                 results = results.dict()
 
                 choices = [
-                    TextChoice(
-                        text=results["generated_text"] or "",
+                    CompletionResponseChoice(
                         index=0,
-                        logprobs={},
+                        text=results["generated_text"] or "",
                         finish_reason=results["finish_reason"],
                     )
                 ]
-                usage = Usage.from_response(results)
+                usage = UsageInfo.from_response(results)
                 # TODO: pick up parameters that make sense, remove the rest
 
-                return Completion(
+                return CompletionResponse(
                     id=completion_id,
                     object="text_completion",
                     created=int(time.time()),
@@ -358,14 +356,14 @@ class Router:
 
                 choices: List[MessageChoices] = [
                     MessageChoices(
-                        message=Message(
+                        message=ChatMessage(
                             role="assistant", content=results["generated_text"] or ""
                         ),
                         index=0,
                         finish_reason=results["finish_reason"],
                     )
                 ]
-                usage = Usage.from_response(results)
+                usage = UsageInfo.from_response(results)
 
                 return ChatCompletion(
                     id=completion_id,

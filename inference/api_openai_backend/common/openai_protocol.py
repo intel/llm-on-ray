@@ -2,11 +2,12 @@ from typing import Any, Dict, Literal, List, TypeVar, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, Field, root_validator, validator
 from enum import IntEnum, Enum
+import uuid
 import time
 import yaml
 
-TModel = TypeVar("TModel", bound="Model")
-TCompletion = TypeVar("TCompletion", bound="Completion")
+TModel = TypeVar("TModel", bound="ModelList")
+TCompletion = TypeVar("TCompletion", bound="CompletionResponse")
 TChatCompletion = TypeVar("TChatCompletion", bound="ChatCompletion")
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
@@ -16,39 +17,39 @@ class QueuePriority(IntEnum):
     GENERATE_TEXT = 0
     BATCH_GENERATE_TEXT = 1
 
-class ModelData(BaseModel):
+class ErrorResponse(BaseModel):
+    object: str = "error"
+    message: str
+    internal_message: str
+    type: str
+    param: Dict[str, Any] = {}
+    code: int
+
+
+class ModelCard(BaseModel):
     id: str
-    object: str
-    owned_by: str
-    permission: List[str]
-    metadata: Dict[str, Any]
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    owned_by: str = "llmonray"
+    root: Optional[str] = None
+    parent: Optional[str] = None
+    permission: List[str]       # todo: not aligned
 
 
-class Model(BaseModel):
-    data: List[ModelData]
+class ModelList(BaseModel):
     object: str = "list"
-
-    @classmethod
-    def list(cls) -> TModel:
-        pass
+    data: List[ModelCard] = []
 
 
-class TextChoice(BaseModel):
-    text: str
-    index: int
-    logprobs: dict
-    finish_reason: Optional[str]
-
-
-class Usage(BaseModel):
+class UsageInfo(BaseModel):
     prompt_tokens: int
-    completion_tokens: int
     total_tokens: int
+    completion_tokens: Optional[int] = 0
 
     @classmethod
     def from_response(
         cls, response: Union["ModelResponse", Dict[str, Any]]
-    ) -> "Usage":
+    ) -> "UsageInfo":
         if isinstance(response, BaseModel):
             response_dict = response.dict()
         else:
@@ -61,35 +62,23 @@ class Usage(BaseModel):
         )
 
 
-class Completion(BaseModel):
-    id: str
-    object: str
-    created: int
+class CompletionResponseChoice(BaseModel):
+    index: int
+    text: str
+    logprobs: Optional[int] = None
+    finish_reason: Optional[str]
+
+
+class CompletionResponse(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-{str(uuid.uuid4().hex)}")
+    object: str = "text_completion"
+    created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    choices: List[TextChoice]
-    usage: Optional[Usage]
-
-    @classmethod
-    def create(
-        cls,
-        model: str,
-        prompt: str,
-        use_prompt_format: bool = True,
-        max_tokens: Optional[int] = 16,
-        temperature: Optional[float] = 1.0,
-        top_p: Optional[float] = 1.0,
-        stream: bool = False,
-        stop: Optional[List[str]] = None,
-        frequency_penalty: float = 0.0,
-        top_k: Optional[int] = None,
-        typical_p: Optional[float] = None,
-        watermark: Optional[bool] = False,
-        seed: Optional[int] = None,
-    ) -> TCompletion:
-        pass
+    choices: List[CompletionResponseChoice]
+    usage: Optional[UsageInfo]
 
 
-class Message(BaseModel):
+class ChatMessage(BaseModel):
     role: Literal["system", "assistant", "user"]
     content: str
 
@@ -117,7 +106,7 @@ class DeltaEOS(BaseModel):
 
 
 class MessageChoices(BaseModel):
-    message: Message
+    message: ChatMessage
     index: int
     finish_reason: Optional[str]
 
@@ -134,39 +123,13 @@ class ChatCompletion(BaseModel):
     created: int
     model: str
     choices: List[Union[MessageChoices, DeltaChoices]]
-    usage: Optional[Usage]
-
-    @classmethod
-    def create(
-        cls,
-        model: str,
-        messages: List[Dict[str, str]],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = 1.0,
-        top_p: Optional[float] = 1.0,
-        stream: bool = False,
-        stop: Optional[List[str]] = None,
-        frequency_penalty: float = 0.0,
-        top_k: Optional[int] = None,
-        typical_p: Optional[float] = None,
-        watermark: Optional[bool] = False,
-        seed: Optional[int] = None,
-    ) -> TChatCompletion:
-        pass
+    usage: Optional[UsageInfo]
 
 
 class Prompt(BaseModel):
-    prompt: Union[str, List[Message]]
+    prompt: Union[str, List[ChatMessage]]
     use_prompt_format: bool = True
     parameters: Optional[Union[Dict[str, Any], BaseModel]] = None
-
-
-class ErrorResponse(BaseModel):
-    message: str
-    internal_message: str
-    code: int
-    type: str
-    param: Dict[str, Any] = {}
 
 
 class PromptFormat(BaseModel):
@@ -209,7 +172,7 @@ class PromptFormat(BaseModel):
             ), "If system_in_user=True, user must contain '{system}'"
         return values
 
-    def generate_prompt(self, messages: Union[Prompt, List[Message]]) -> str:
+    def generate_prompt(self, messages: Union[Prompt, List[ChatMessage]]) -> str:
         if isinstance(messages, Prompt):
             if isinstance(messages.prompt, str):
                 if not messages.use_prompt_format:
@@ -217,10 +180,10 @@ class PromptFormat(BaseModel):
                 new_messages = []
                 if self.default_system_message:
                     new_messages.append(
-                        Message(role="system", content=self.default_system_message),
+                        ChatMessage(role="system", content=self.default_system_message),
                     )
                 new_messages.append(
-                    Message(role="user", content=messages.prompt),
+                    ChatMessage(role="user", content=messages.prompt),
                 )
                 messages = new_messages
             else:
@@ -241,7 +204,7 @@ class PromptFormat(BaseModel):
         elif (
             self.default_system_message or self.add_system_tags_even_if_message_is_empty
         ):
-            system_message = Message(role="system", content=self.default_system_message)
+            system_message = ChatMessage(role="system", content=self.default_system_message)
         if (
             system_message is not None
             and (
@@ -490,7 +453,7 @@ class Completions(BaseModel):
 
 class ChatCompletions(BaseModel):
     model: str
-    messages: List[Message]
+    messages: List[ChatMessage]
     stream: bool = False
     echo: Optional[bool] = False
     user: Optional[str] = None
