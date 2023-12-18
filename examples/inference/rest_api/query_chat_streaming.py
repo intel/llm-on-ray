@@ -20,7 +20,8 @@ body = {
   "stream": True,
 }
 
-with s.post(url, json=body) as response:
+proxies = { "http": None, "https": None}
+with s.post(url, json=body, proxies=proxies) as response:
     for chunk in response.iter_lines(decode_unicode=True):
         if chunk is not None:
             try:
