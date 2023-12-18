@@ -33,7 +33,7 @@ jobs:
 
     runs-on: self-hosted
     container:
-      image: llmray-build
+      image: 10.1.2.13:5000/llmray-build
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
