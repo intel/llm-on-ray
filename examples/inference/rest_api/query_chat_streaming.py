@@ -6,11 +6,12 @@ s = requests.Session()
 
 api_base = os.getenv("ENDPOINT_URL")
 if api_base is None:
-    api_base = "http://localhost:8000/v1"
+    api_base = "http://localhost:8000/custom_model/v1"
 url = f"{api_base}/chat/completions"
 
+model_name = os.getenv("MODEL_TO_SERVE", "gpt2")
 body = {
-  "model": "llama-2-7b-chat-hf",
+  "model": model_name,
   "messages": [
     {"role": "assistant", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Tell me a long story with many words."}
