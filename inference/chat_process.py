@@ -81,6 +81,7 @@ class ChatModelLLama(ChatModel):
         """Prepare prompt from history messages."""
         prompt = self.intro
         for msg in messages:
+            msg = dict(msg)
             role, content = msg["role"], msg["content"]
             if role == "user":
                 if self.human_id != "":

@@ -180,9 +180,11 @@ class PredictDeployment:
         prompt = content.prompt
         prompts = []
         if isinstance(prompt, list):
-            for message in prompt:
-                prompts.append(message.content)
-            prompts = [" ".join(prompts)]
+            if self.process_tool is not None:
+                prompt = self.process_tool.get_prompt(prompt)
+                prompts.append(prompt)
+            else:
+                prompts.extend(prompt)
         else:
             prompts.append(prompt)
 

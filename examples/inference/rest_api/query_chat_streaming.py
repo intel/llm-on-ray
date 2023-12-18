@@ -10,9 +10,9 @@ if api_base is None:
 url = f"{api_base}/chat/completions"
 
 body = {
-  "model": "gpt2",
+  "model": "llama-2-7b-chat-hf",
   "messages": [
-    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "assistant", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Tell me a long story with many words."}
   ],
   "temperature": 0.7,

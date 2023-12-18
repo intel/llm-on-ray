@@ -48,5 +48,10 @@ def openai_serve_run(deployments, host, route_prefix, port, hooks=None):
         use_new_handle_api=True,
     )
     deployment_address = f"http://{host}:{port}{route_prefix}"
-    print(f"Deployment is ready at `{deployment_address}`.")
+    msg = f"Deployment is ready at `{deployment_address}`."
+    env_name = "KEEP_SERVE_TERMINAL"
+    if env_name not in os.environ or os.environ[env_name].lower() in ['true', '1', 't', 'y', 'yes', 'yeah', 'yup']:
+        input(msg)
+    else:
+        print(msg)
     return deployment_address
