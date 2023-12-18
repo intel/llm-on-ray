@@ -1,9 +1,8 @@
-from typing import Dict, List, Optional
+from typing import Dict
 from fastapi import HTTPException, Request
 from ..common.openai_protocol import ModelCard, Prompt, QueuePriority
 from ..common.openai_protocol import Prompt, ModelResponse
-from ..plugin.router_query_engine import StreamingErrorHandler
-from enum import IntEnum
+from ..error_handler.streaming_error_handler import StreamingErrorHandler
 
 class RouterQueryClient():
     def __init__(self, serve_deployments, hooks=None):

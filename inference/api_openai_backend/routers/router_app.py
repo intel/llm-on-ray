@@ -11,7 +11,7 @@ from opentelemetry import trace
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from ..util.logger import get_logger
-from ..openai_compat.openai_exception import OpenAIHTTPException, openai_exception_handler
+from ..error_handler.openai_exception import OpenAIHTTPException, openai_exception_handler
 from ..plugin.query_client import RouterQueryClient
 from ..common.openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
 from ..common.openai_protocol import (

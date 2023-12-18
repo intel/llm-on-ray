@@ -6,10 +6,10 @@ from pydantic import ValidationError as PydanticValidationError
 from starlette.requests import Request
 
 from ..util.logger import get_logger
-from ..openai_compat.openai_exception import OpenAIHTTPException, extract_message_from_exception
+from ..error_handler.openai_exception import OpenAIHTTPException, extract_message_from_exception
 from ..common.openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
 
-from ..plugin.execution_hooks import (
+from ..error_handler.execution_hooks import (
     ExecutionHooks,
     ShieldedTaskSet,
 )
