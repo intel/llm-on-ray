@@ -1,10 +1,11 @@
+import yaml
 import argparse
 
 
 def update_finetune_config(base_model):
-    conf_file = "finetune/finetune.conf"
+    conf_file = "finetune/finetune.yaml"
     with open(conf_file) as f:
-        config = eval(f.read())
+        config = yaml.load(f, Loader=yaml.FullLoader)
         # due to compute node can't connect network
         # base models are downloaded as local files in directory ~/models/
         # avaiable base models are:
@@ -29,7 +30,7 @@ def update_finetune_config(base_model):
         config["Training"]["accelerate_mode"] = "GPU_DDP"
 
     with open(conf_file, "w") as f:
-        f.write(str(config))
+        yaml.dump(config, f, sort_keys=False)
 
 
 def get_parser():

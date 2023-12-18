@@ -30,7 +30,7 @@ Additionally, we provide a simple data example at the path `examples/data/sample
 You can run the following command to start a SFT model training:
 
 ```bash
-python Finetune/finetune.py --config_path Finetune/finetune.conf 
+python Finetune/finetune.py --config_file Finetune/finetune.conf 
 ```
 
 Once the model training is completed, based on your settings in the configuration file (such as `"checkpoint_dir": "/tmp/llm-ray/checkpoint/sft"`), you will obtain the final trained model in the `/tmp/llm-ray/checkpoint/sft` directory. This trained model will be utilized in the final stage of the PPO training process.
@@ -67,7 +67,7 @@ Additionally, we provide a simple data example at the path `examples/data/sample
 You can run the following command to start a reward model training:
 
 ```bash
-python rlhf/reward_trainer.py --config_path rlhf/reward.conf
+python rlhf/reward_trainer.py --config_file rlhf/reward.conf
 ```
 Once the reward model training is complete, based on your settings in the configuration file (such as `"checkpoint_dir": "/tmp/llm-ray/checkpoint/rm"`), you will obtain the final trained model in the `/tmp/llm-ray/checkpoint/rm` directory. This trained reward model will also be utilized in the final stage of the PPO training process.
 
@@ -151,7 +151,7 @@ Additionally, we provide a simple data example at the path `examples/data/sample
 You can run the following command to start a ppo training:
 
 ```bash
-python rlhf/ppo_trainer.py --config_path rlhf/ppo.conf
+python rlhf/ppo_trainer.py --config_file rlhf/ppo.conf
 ```
 
 It is important to note that before training, we need to configure the corresponding settings in `ppo.conf` based on the saved paths of the SFT (Structured Fine-Tuning) model and the RM (Reward Model) model. Assuming that we are using pre-trained models of `EleutherAI/gpt2` and considering the previous model save settings, we should configure the following in the `ppo.conf`:

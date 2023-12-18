@@ -1,0 +1,18 @@
+General:
+  model_name: EleutherAI/gpt2
+  model_pretrain: null
+  rm_name: EleutherAI/gpt2
+  rm_pretrain: null
+Dataset:
+  train_file: examples/data/sample_ppo_data.jsonl
+  validation_file: null
+  validation_split_percentage: 5
+Training:
+  optimizer: AdamW
+  experience_batch_size: 2
+  training_iteration: 1000
+  learning_rate: 1.0e-05
+  kl_coeff: 0.2
+  num_training_workers: 2
+  resources_per_worker:
+    CPU: 56

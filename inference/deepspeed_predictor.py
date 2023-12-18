@@ -15,29 +15,28 @@ import os
 from predictor import Predictor
 from peft import PeftModel
 from deltatuner import DeltaTunerModel
-from inference_config import InferenceConfig
+from inference_config import InferenceConfig, DEVICE_CPU, DEVICE_XPU, IPEX_PRECISION_BF16
 
 class DSPipeline:
     def __init__(
         self,
         inferenceConfig: InferenceConfig,
         pad_token_id,
-        stopping_criteria,
-        dtype
+        stopping_criteria
     ):
-
-        self.dtype = dtype
         self.device = torch.device(inferenceConfig.device)
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
         model_desc = inferenceConfig.model_description
         model_config = model_desc.config
-        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
+        # get correct torch type for loading HF model
+        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(model_desc.model_id_or_path,
-                                                          torch_dtype=dtype,
-                                                          config=config,
+                                                          config=hf_config,
+                                                          torch_dtype=torch_dtype,
                                                           low_cpu_mem_usage=True,
                                                           **model_config.dict())
         
@@ -75,19 +74,18 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria):
+    def __init__(self, world_size: int, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria):
         self.world_size = world_size
         self.inferenceConfig = inferenceConfig
-        self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
     def init_model(self, local_rank: int):
         """Initialize model for inference."""
 
-        if self.inferenceConfig.device == 'cpu':
+        if self.inferenceConfig.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.inferenceConfig.device == 'xpu':
+        elif self.inferenceConfig.device == DEVICE_XPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -99,21 +97,23 @@ class PredictionWorker(TorchDistributedWorker):
             self.inferenceConfig,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
-            dtype=self.amp_dtype
         )
 
         pipe.model = deepspeed.init_inference(
             pipe.model,
-            dtype=self.amp_dtype,
             mp_size=self.world_size,
+            dtype=torch.bfloat16,
             replace_with_kernel_inject=replace_with_kernel_inject
         )
 
-        if self.ipex_enabled:
+        if self.inferenceConfig.ipex.enabled:
             import intel_extension_for_pytorch as ipex
             try: ipex._C.disable_jit_linear_repack()
             except: pass
-            pipe.model = ipex.optimize_transformers(pipe.model.eval(), dtype=self.amp_dtype, inplace=True)
+            pipe.model = ipex.optimize_transformers(
+                pipe.model.eval(),
+                dtype=torch.bfloat16 if self.inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
+                inplace=True)
 
         self.generator = pipe
 
@@ -124,9 +124,8 @@ class PredictionWorker(TorchDistributedWorker):
         return self.generator.generate(inputs, **config)
 
 class DeepSpeedPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, pad_token_id, stopping_criteria) -> None:
+    def __init__(self, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria) -> None:
         self.inferenceConfig = inferenceConfig
-        self.amp_dtype = amp_dtype
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
@@ -181,7 +180,7 @@ class DeepSpeedPredictor(Predictor):
 
         # Create the prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(scaling_config.num_workers, self.inferenceConfig, self.amp_dtype,
+            prediction_worker_cls.remote(scaling_config.num_workers, self.inferenceConfig,
                 self.pad_token_id, self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]

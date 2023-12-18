@@ -33,7 +33,6 @@ def main(argv=None):
     parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
-    parser.add_argument("--precision", default="bf16", type=str, help="fp32 or bf16")
     parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
     parser.add_argument("--openai_api", action="store_true", help="whether to serve OpenAI-compatible API")
 
@@ -59,7 +58,7 @@ def main(argv=None):
             rp = args.route_prefix if args.route_prefix else "custom_model"
             inferenceConfig.route_prefix = "/{}".format(rp)
             inferenceConfig.name = rp
-            inferenceConfig.ipex = args.ipex
+            inferenceConfig.ipex.enabled = args.ipex
         model_list = {}
         model_list[inferenceConfig.name] = inferenceConfig
 
@@ -68,7 +67,7 @@ def main(argv=None):
     deployment_map = {}
     for model_id, inferCfg in model_list.items():
         runtime_env = {_ray_env_key: {}}
-        if inferCfg.ipex:
+        if inferCfg.ipex.enabled:
             runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
         if inferCfg.deepspeed:
             runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device

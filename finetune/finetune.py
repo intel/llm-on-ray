@@ -2,6 +2,7 @@
 
 import os
 import time
+import argparse
 import traceback
 from typing import Any, Dict
 
@@ -13,6 +14,8 @@ from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from ray.air import RunConfig, FailureConfig
 
+from pydantic_yaml import parse_yaml_raw_as
+
 from accelerate import FullyShardedDataParallelPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
@@ -20,6 +23,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import common
+from finetune_config import FinetuneConfig
 
 
 def get_accelerate_environment_variable(mode: str) -> dict:
@@ -140,8 +144,26 @@ def train_func(config: Dict[str, Any]):
         exit(1)
     common.logger.info(f"train finish")
 
+
+def get_finetune_config():
+    parser = argparse.ArgumentParser(description="Finetune a transformers model on a causal language modeling task")
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        required=True,
+        default=None,
+        help="The name of the dataset to use (via the datasets library).",
+    )
+    args = parser.parse_args()
+    config_file = args.config_file
+
+    with open(config_file) as f:
+        finetune_config = parse_yaml_raw_as(FinetuneConfig, f)
+    return finetune_config.dict()
+
+
 def main(external_config = None):
-    config = common.Config()
+    config = get_finetune_config()
     if external_config is not None:
         config.merge(external_config)
 

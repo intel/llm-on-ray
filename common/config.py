@@ -1,11 +1,12 @@
 import os
+import yaml
 import argparse
 from typing import Dict
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Finetune a transformers model on a causal language modeling task")
     parser.add_argument(
-        "--config_path",
+        "--config_file",
         type=str,
         required=False,
         default=None,
@@ -14,14 +15,18 @@ def parse_args():
     args, unparsed = parser.parse_known_args()
     return args
 
-def parse_config(config_path=None):
-    if config_path is None:
+def parse_config(config_file=None):
+    if config_file is None:
         args = parse_args()
-        config_path = args.config_path
-    if config_path is None:
+        config_file = args.config_file
+    if config_file is None:
         return {}
-    with open(config_path) as f:
-        config = eval(f.read())
+    if config_file.endswith("yaml"):
+        with open(config_file) as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+    else:
+        with open(config_file) as f:
+            config = eval(f.read())
     assert isinstance(config, dict)
     return config
 
