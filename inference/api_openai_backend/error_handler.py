@@ -5,7 +5,7 @@ from fastapi import Request, status, HTTPException
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 from pydantic import ValidationError as PydanticValidationError
-from utils.logger import get_logger
+from logger import get_logger
 from .openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
 
 logger = get_logger(__name__)

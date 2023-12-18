@@ -1,20 +1,10 @@
 import sys
 import ray
 from inference_config import ModelDescription, InferenceConfig, all_models
-
 from pydantic_yaml import parse_yaml_raw_as
-
 from api_server import serve_run, PredictDeployment
 from api_server_openai import openai_serve_run
-
-_ray_env_key = "env_vars"
-# OMP_NUM_THREADS will be set by num_cpus, so not set in env
-_predictor_runtime_env_ipex = {
-    "KMP_BLOCKTIME": "1",
-    "KMP_SETTINGS": "1",
-    "KMP_AFFINITY": "granularity=fine,compact,1,0",
-    "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000"
-}
+from utils import get_deployment_actor_options
 
 # make it unittest friendly
 def main(argv=None):
@@ -46,43 +36,28 @@ def main(argv=None):
         if args.config_file:
             print("reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
-                inferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
+                infer_conf = parse_yaml_raw_as(InferenceConfig, f)
         else: # args.model should be set
             print("reading from command line, " + args.model)
             model_desc = ModelDescription()
             model_desc.model_id_or_path = args.model
             model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
-            inferenceConfig = InferenceConfig(model_description=model_desc)
-            inferenceConfig.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-            inferenceConfig.port = args.port
+            infer_conf = InferenceConfig(model_description=model_desc)
+            infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
+            infer_conf.port = args.port
             rp = args.route_prefix if args.route_prefix else "custom_model"
-            inferenceConfig.route_prefix = "/{}".format(rp)
-            inferenceConfig.name = rp
-            inferenceConfig.ipex.enabled = args.ipex
+            infer_conf.route_prefix = "/{}".format(rp)
+            infer_conf.name = rp
+            infer_conf.ipex.enabled = args.ipex
         model_list = {}
-        model_list[inferenceConfig.name] = inferenceConfig
+        model_list[infer_conf.name] = infer_conf
 
     ray.init(address="auto")
 
     deployment_map = {}
-    for model_id, inferCfg in model_list.items():
-        runtime_env = {_ray_env_key: {}}
-        if inferCfg.ipex.enabled:
-            runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
-        if inferCfg.deepspeed:
-            runtime_env[_ray_env_key]["DS_ACCELERATOR"] = inferCfg.device
-        # now PredictDeployment itself is a worker, we should require resources for it
-        ray_actor_options = {"runtime_env": runtime_env}
-        if inferCfg.device == "cpu":
-            ray_actor_options["num_cpus"] = inferCfg.cpus_per_worker
-        elif inferCfg.device == "cuda":
-            ray_actor_options["num_gpus"] = inferCfg.gpus_per_worker
-        elif inferCfg.device == "hpu":
-            ray_actor_options["resources"] = {"HPU": inferCfg.hpus_per_worker}
-        else:
-            # TODO add xpu
-            pass
-        deployment_map[model_id] = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(inferCfg)
+    for model_id, infer_conf in model_list.items():
+        ray_actor_options = get_deployment_actor_options(infer_conf)
+        deployment_map[model_id] = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
 
     if args.openai_api:
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
@@ -91,7 +66,6 @@ def main(argv=None):
         openai_serve_run(deployment_map, host, route_prefix, args.port)
     else:
         serve_run(model_list, deployment_map)
-
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -6,7 +6,7 @@ from fastapi import FastAPI, status
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response, StreamingResponse
-from utils.logger import get_logger
+from logger import get_logger
 from .error_handler import OpenAIHTTPException, openai_exception_handler
 from .query_client import RouterQueryClient
 from .openai_protocol import Prompt, ModelResponse, CompletionRequest, ChatCompletionRequest
