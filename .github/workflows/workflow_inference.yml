@@ -32,6 +32,9 @@ jobs:
             model: mpt-7b
 
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
     container:
       image: 10.1.2.13:5000/llmray-build
       env:
