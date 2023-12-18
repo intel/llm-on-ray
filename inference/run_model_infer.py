@@ -32,7 +32,7 @@ for i in range(num_iter):
     print("iter: ", i)
     tic = time.time()
     proxies = { "http": None, "https": None}
-    outputs = requests.post(args.model_endpoint, proxies=proxies, json=[sample_input], stream=args.streaming_response)
+    outputs = requests.post(args.model_endpoint, proxies=proxies, json=sample_input, stream=args.streaming_response)
     if args.streaming_response:
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):

@@ -13,27 +13,28 @@ from ray.air import ScalingConfig
 from typing import List
 import os
 from predictor import Predictor
-from peft import PeftModel
-from deltatuner import DeltaTunerModel
+from utils import get_torch_dtype
+
+
 from inference_config import InferenceConfig, DEVICE_CPU, DEVICE_XPU, IPEX_PRECISION_BF16
 
 class DSPipeline:
     def __init__(
         self,
-        inferenceConfig: InferenceConfig,
+        infer_conf: InferenceConfig,
         pad_token_id,
         stopping_criteria
     ):
-        self.device = torch.device(inferenceConfig.device)
+        self.device = torch.device(infer_conf.device)
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
-        model_desc = inferenceConfig.model_description
+        model_desc = infer_conf.model_description
         model_config = model_desc.config
         hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
         # get correct torch type for loading HF model
-        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
+        torch_dtype = get_torch_dtype(infer_conf, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(model_desc.model_id_or_path,
                                                           config=hf_config,
                                                           torch_dtype=torch_dtype,
@@ -41,8 +42,10 @@ class DSPipeline:
                                                           **model_config.dict())
         
         if model_desc.peft_model_id_or_path:
+            from peft import PeftModel
             self.model = PeftModel.from_pretrained(self.model, model_desc.peft_model_id_or_path)
             if model_desc.peft_type == "deltatuner":
+                from deltatuner import DeltaTunerModel
                 self.model = DeltaTunerModel.from_pretrained(self.model, model_desc.peft_model_id_or_path)
             self.model = self.model.merge_and_unload()
 
@@ -52,7 +55,7 @@ class DSPipeline:
         self.model.eval()
 
     def streaming_generate(self, inputs, streamer, **generate_kwargs):
-        self.model.generate(**inputs,
+        self.model.generate(inputs,
                     pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
@@ -60,7 +63,7 @@ class DSPipeline:
 
     def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
-            **inputs,
+            inputs,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config
@@ -74,18 +77,18 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria):
+    def __init__(self, world_size: int, infer_conf: InferenceConfig, pad_token_id, stopping_criteria):
         self.world_size = world_size
-        self.inferenceConfig = inferenceConfig
+        self.infer_conf = infer_conf
         self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
     def init_model(self, local_rank: int):
         """Initialize model for inference."""
 
-        if self.inferenceConfig.device == DEVICE_CPU:
+        if self.infer_conf.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.inferenceConfig.device == DEVICE_XPU:
+        elif self.infer_conf.device == DEVICE_XPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -94,7 +97,7 @@ class PredictionWorker(TorchDistributedWorker):
         os.environ['WORLD_SIZE'] = str(self.world_size)
 
         pipe = DSPipeline(
-            self.inferenceConfig,
+            self.infer_conf,
             pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
         )
@@ -106,13 +109,13 @@ class PredictionWorker(TorchDistributedWorker):
             replace_with_kernel_inject=replace_with_kernel_inject
         )
 
-        if self.inferenceConfig.ipex.enabled:
+        if self.infer_conf.ipex.enabled:
             import intel_extension_for_pytorch as ipex
             try: ipex._C.disable_jit_linear_repack()
             except: pass
             pipe.model = ipex.optimize_transformers(
                 pipe.model.eval(),
-                dtype=torch.bfloat16 if self.inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
+                dtype=torch.bfloat16 if self.infer_conf.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
                 inplace=True)
 
         self.generator = pipe
@@ -124,20 +127,18 @@ class PredictionWorker(TorchDistributedWorker):
         return self.generator.generate(inputs, **config)
 
 class DeepSpeedPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig, pad_token_id, stopping_criteria) -> None:
-        self.inferenceConfig = inferenceConfig
-        self.pad_token_id = pad_token_id
-        self.stopping_criteria = stopping_criteria
-
-        use_gpu = True if (inferenceConfig.device == "cuda") else False
-
+    def __init__(self, infer_conf: InferenceConfig) -> None:
+        super().__init__(infer_conf)
+        # TODO this should be removed later
+        self.pad_token_id = self.tokenizer.pad_token_id
         # Scaling config for one worker group.
-        resource = {"CPU": inferenceConfig.cpus_per_worker}
-        if inferenceConfig.device == "cuda":
-            resource["GPU"] = inferenceConfig.gpus_per_worker
+        resource = {"CPU": infer_conf.cpus_per_worker}
+        use_gpu = True if (infer_conf.device == "cuda") else False
+        if use_gpu:
+            resource["GPU"] = infer_conf.gpus_per_worker
         scaling_conf = ScalingConfig(
             use_gpu=use_gpu,
-            num_workers=inferenceConfig.workers_per_group,
+            num_workers=infer_conf.workers_per_group,
             resources_per_worker=resource
         )
 
@@ -180,13 +181,13 @@ class DeepSpeedPredictor(Predictor):
 
         # Create the prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(scaling_config.num_workers, self.inferenceConfig,
+            prediction_worker_cls.remote(scaling_config.num_workers, self.infer_conf,
                 self.pad_token_id, self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]
 
         # Initialize torch distributed process group for the workers.
-        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl" if self.inferenceConfig.device != "cuda" else "nccl")
+        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl" if self.infer_conf.device != "cuda" else "nccl")
 
         # Initialize the model on each worker.
         ray.get([
@@ -194,21 +195,53 @@ class DeepSpeedPredictor(Predictor):
             for worker, local_rank in zip(self.prediction_workers, local_ranks)
         ])
 
-    def streaming_generate(self, inputs, streamer, **config):
-        inputs_ref = ray.put(inputs)
+    def streaming_generate(self, prompt, streamer, **config):
+        input_ids = self.tokenize_inputs(prompt)
+        inputs_ref = ray.put(input_ids)
         self.prediction_workers[0].streaming_generate.remote(inputs_ref, streamer, **config)
         for worker in self.prediction_workers[1:]:
                 worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, inputs, **config):
-        inputs_ref = ray.put(inputs)
-        prediction = ray.get(
+    def generate(self, prompt, **config):
+        input_ids = self.tokenize_inputs(prompt)
+        inputs_ref = ray.put(input_ids)
+        gen_tokens = ray.get(
             [
                 worker.generate.remote(inputs_ref, **config)
                 for worker in self.prediction_workers
             ]
         )[0]
-        return prediction
+        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
+
+    def get_streamer(self):
+        from transformers import TextStreamer
+        from typing import Optional
+        from ray.util.queue import Queue
+
+        class RayTextIteratorStreamer(TextStreamer):
+            def __init__(
+                self, tokenizer: "AutoTokenizer", skip_prompt: bool = False, timeout: Optional[float] = None, **decode_kwargs
+            ):
+                super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+                self.text_queue = Queue()
+                self.stop_signal = None
+                self.timeout = timeout
+
+            def on_finalized_text(self, text: str, stream_end: bool = False):
+                self.text_queue.put(text, timeout=self.timeout)
+                if stream_end:
+                    self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                value = self.text_queue.get(timeout=self.timeout)
+                if value == self.stop_signal:
+                    raise StopIteration()
+                else:
+                    return value
+        return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
     def predict(
         self,
