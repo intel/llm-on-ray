@@ -12,13 +12,6 @@ TChatCompletion = TypeVar("TChatCompletion", bound="ChatCompletionResponse")
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
-class QueuePriority(IntEnum):
-    """Lower value = higher priority"""
-
-    GENERATE_TEXT = 0
-    BATCH_GENERATE_TEXT = 1
-
-
 class ErrorResponse(BaseModel):
     object: str = "error"
     message: str

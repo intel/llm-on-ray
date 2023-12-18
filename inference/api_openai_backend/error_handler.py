@@ -27,7 +27,7 @@ def openai_exception_handler(request: Request, exc: OpenAIHTTPException):
         exc, OpenAIHTTPException
     ), f"Unable to handle invalid exception {type(exc)}"
     if exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
-        message = f"Internal Server Error (Request ID: {request.state.request_id})"
+        message = f"Internal Server Error"
         internal_message = message
         exc_type = "InternalServerError"
     else:
@@ -65,12 +65,11 @@ def extract_message_from_exception(e: Exception) -> str:
 
 async def handle_failure(
     model: str,
-    request: Request,
+    request_id: str,
     prompt: Prompt,
     async_iterator: AsyncIterator[ModelResponse],
 ):
     # Handle errors for an ModelResopnse stream.
-    req_id = request.state.request_id
     model_tags = {"model_id": model}
     print("handle_failue: ", model_tags)
 
@@ -82,11 +81,11 @@ async def handle_failure(
     except asyncio.CancelledError as e:
         # The request is cancelled. Try to return a last Model response, then raise
         # We raise here because we don't want to interrupt the cancellation
-        yield _get_response_for_error(e, request_id=req_id)
+        yield _get_response_for_error(e, request_id=request_id)
         raise
     except Exception as e:
         # Something went wrong.
-        yield _get_response_for_error(e, request_id=req_id)
+        yield _get_response_for_error(e, request_id=request_id)
         # DO NOT RAISE.
         # We do not raise here because that would cause a disconnection for streaming.
 

@@ -1,14 +1,10 @@
 import os
-import time
 from typing import AsyncGenerator, List
-
+import uuid
 import async_timeout
 from fastapi import FastAPI, status
-from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
-from opentelemetry import trace
-from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from utils.logger import get_logger
 from .error_handler import OpenAIHTTPException, openai_exception_handler
@@ -31,17 +27,8 @@ from .openai_protocol import (
 
 logger = get_logger(__name__)
 
-
 # timeout in 10 minutes. Streaming can take longer than 3 min
 TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600))
-
-async def add_request_id(request: FastAPIRequest, call_next):
-    request.state.request_id = trace.format_trace_id(
-        trace.get_current_span().get_span_context().trace_id
-    )
-
-    return await call_next(request)
-
 
 def init() -> FastAPI:
     router_app = FastAPI()
@@ -54,9 +41,6 @@ def init() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Add a unique per-request ID
-    router_app.middleware("http")(add_request_id)
-
     return router_app
 
 
@@ -64,8 +48,8 @@ router_app = init()
 
 
 async def _completions_wrapper(
+    completion_id: str,
     body: CompletionRequest,
-    request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
 ) -> AsyncGenerator[str, None]:
@@ -106,6 +90,7 @@ async def _completions_wrapper(
                         else None
                     )
                 yield "data: " + CompletionResponse(
+                    id=completion_id,
                     object="text_completion",
                     model=body.model,
                     choices=choices,
@@ -118,8 +103,8 @@ async def _completions_wrapper(
 
 
 async def _chat_completions_wrapper(
+    completion_id: str,
     body: ChatCompletionRequest,
-    request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
 ) -> AsyncGenerator[str, None]:
@@ -134,6 +119,7 @@ async def _chat_completions_wrapper(
             )
         ]
         yield "data: " + ChatCompletionResponse(
+            id=completion_id,
             object="chat.completion.chunk",
             model=body.model,
             choices=choices,
@@ -170,6 +156,7 @@ async def _chat_completions_wrapper(
                         )
                     ]
                     yield "data: " + ChatCompletionResponse(
+                        id=completion_id,
                         object="chat.completion.chunk",
                         model=body.model,
                         choices=choices,
@@ -192,6 +179,7 @@ async def _chat_completions_wrapper(
                 else None
             )
             yield "data: " + ChatCompletionResponse(
+                id=completion_id,
                 object="chat.completion.result",
                 model=body.model,
                 choices=choices,
@@ -234,7 +222,6 @@ class Router:
     async def completions(
         self,
         body: CompletionRequest,
-        request: Request,
         response: FastAPIResponse,
     ):
         """Given a prompt, the model will return one or more predicted completions,
@@ -248,24 +235,25 @@ class Router:
             parameters=body,
             use_prompt_format=False,
         )
+        request_id = f"cmpl-{str(uuid.uuid4().hex)}"
 
         if body.stream:
             return StreamingResponse(
                 _completions_wrapper(
+                    request_id,
                     body,
-                    request,
                     response,
                     self.query_engine.stream(
                         body.model,
                         prompt,
-                        request,
+                        request_id,
                     ),
                 ),
                 media_type="text/event-stream",
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_engine.query(body.model, prompt, request)
+                results = await self.query_engine.query(body.model, prompt, request_id)
                 if results.error:
                     raise OpenAIHTTPException(
                         message=results.error.message,
@@ -284,6 +272,7 @@ class Router:
                 usage = UsageInfo.from_response(results)
 
                 return CompletionResponse(
+                    id=request_id,
                     object="text_completion",
                     model=body.model,
                     choices=choices,
@@ -294,7 +283,6 @@ class Router:
     async def chat(
         self,
         body: ChatCompletionRequest,
-        request: Request,
         response: FastAPIResponse,
     ):
         """Given a prompt, the model will return one or more predicted completions,
@@ -304,24 +292,25 @@ class Router:
             A response object with completions.
         """
         prompt = Prompt(prompt=body.messages, parameters=body)
+        request_id = f"chatcmpl-{str(uuid.uuid4().hex)}"
 
         if body.stream:
             return StreamingResponse(
                 _chat_completions_wrapper(
+                    request_id,
                     body,
-                    request,
                     response,
                     self.query_engine.stream(
                                     body.model,
                                     prompt,
-                                    request
+                                    request_id
                                 )
                 ),
                 media_type="text/event-stream",
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_engine.query(body.model, prompt, request)
+                results = await self.query_engine.query(body.model, prompt, request_id)
                 if results.error:
                     raise OpenAIHTTPException(
                         message=results.error.message,
@@ -342,6 +331,7 @@ class Router:
                 usage = UsageInfo.from_response(results)
 
                 return ChatCompletionResponse(
+                    id=request_id,
                     object="chat.completion",
                     model=body.model,
                     choices=choices,

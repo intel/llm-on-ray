@@ -1,6 +1,6 @@
 from typing import Dict
-from fastapi import HTTPException, Request
-from .openai_protocol import ModelCard, Prompt, QueuePriority
+from fastapi import HTTPException
+from .openai_protocol import ModelCard, Prompt
 from .openai_protocol import Prompt, ModelResponse
 from .error_handler import handle_failure
 
@@ -8,17 +8,17 @@ class RouterQueryClient():
     def __init__(self, serve_deployments, hooks=None):
         self.serve_deployments = serve_deployments
 
-    async def query(self, model: str, prompt: Prompt, request: Request):
+    async def query(self, model: str, prompt: Prompt, request_id: str):
         response_stream = self.stream(
             model,
             prompt,
-            request,
+            request_id,
         )
         responses = [resp async for resp in response_stream]
         return ModelResponse.merge_stream(*responses)
 
     async def stream(
-        self, model: str, prompt: Prompt, request, priority=None
+        self, model: str, prompt: Prompt, request_id: str
     ):
         if model in self.serve_deployments:
             deploy_handle = self.serve_deployments[model]
@@ -27,8 +27,8 @@ class RouterQueryClient():
 
         async for x in handle_failure(
             model=model,
-            request=request,
             prompt=prompt,
+            request_id=request_id,
             async_iterator=deploy_handle.options(stream=True).stream_response.options(stream=True, use_new_handle_api=True).remote(prompt)
         ):
             yield x
