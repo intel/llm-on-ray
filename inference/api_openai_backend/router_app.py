@@ -13,16 +13,16 @@ from starlette.responses import Response, StreamingResponse
 from utils.logger import get_logger
 from .error_handler import OpenAIHTTPException, openai_exception_handler
 from .query_client import RouterQueryClient
-from .openai_protocol import Prompt, ModelResponse, Completions, ChatCompletions
+from .openai_protocol import Prompt, ModelResponse, CompletionRequest, ChatCompletionRequest
 from .openai_protocol import (
-    ChatCompletion,
+    ChatCompletionResponse,
     CompletionResponse,
     DeltaChoices,
     DeltaContent,
     DeltaEOS,
     DeltaRole,
     ChatMessage,
-    MessageChoices,
+    ChatCompletionResponseChoice,
     ModelList,
     ModelCard,
     CompletionResponseChoice,
@@ -64,8 +64,7 @@ router_app = init()
 
 
 async def _completions_wrapper(
-    completion_id: str,
-    body: Completions,
+    body: CompletionRequest,
     request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
@@ -107,9 +106,7 @@ async def _completions_wrapper(
                         else None
                     )
                 yield "data: " + CompletionResponse(
-                    id=completion_id,
                     object="text_completion",
-                    created=int(time.time()),
                     model=body.model,
                     choices=choices,
                     usage=usage,
@@ -121,8 +118,7 @@ async def _completions_wrapper(
 
 
 async def _chat_completions_wrapper(
-    completion_id: str,
-    body: ChatCompletions,
+    body: ChatCompletionRequest,
     request: Request,
     response: Response,
     generator: AsyncGenerator[ModelResponse, None],
@@ -137,10 +133,8 @@ async def _chat_completions_wrapper(
                 finish_reason=None,
             )
         ]
-        yield "data: " + ChatCompletion(
-            id=completion_id,
-            object="text_completion",
-            created=int(time.time()),
+        yield "data: " + ChatCompletionResponse(
+            object="chat.completion.chunk",
             model=body.model,
             choices=choices,
             usage=None,
@@ -175,10 +169,8 @@ async def _chat_completions_wrapper(
                             finish_reason=None,
                         )
                     ]
-                    yield "data: " + ChatCompletion(
-                        id=completion_id,
-                        object="text_completion",
-                        created=int(time.time()),
+                    yield "data: " + ChatCompletionResponse(
+                        object="chat.completion.chunk",
                         model=body.model,
                         choices=choices,
                         usage=None,
@@ -199,10 +191,8 @@ async def _chat_completions_wrapper(
                 if all_results
                 else None
             )
-            yield "data: " + ChatCompletion(
-                id=completion_id,
-                object="text_completion",
-                created=int(time.time()),
+            yield "data: " + ChatCompletionResponse(
+                object="chat.completion.result",
                 model=body.model,
                 choices=choices,
                 usage=usage,
@@ -243,7 +233,7 @@ class Router:
     @router_app.post("/v1/completions")
     async def completions(
         self,
-        body: Completions,
+        body: CompletionRequest,
         request: Request,
         response: FastAPIResponse,
     ):
@@ -259,12 +249,9 @@ class Router:
             use_prompt_format=False,
         )
 
-        completion_id = body.model + "-" + request.state.request_id
-
         if body.stream:
             return StreamingResponse(
                 _completions_wrapper(
-                    completion_id,
                     body,
                     request,
                     response,
@@ -295,12 +282,9 @@ class Router:
                     )
                 ]
                 usage = UsageInfo.from_response(results)
-                # TODO: pick up parameters that make sense, remove the rest
 
                 return CompletionResponse(
-                    id=completion_id,
                     object="text_completion",
-                    created=int(time.time()),
                     model=body.model,
                     choices=choices,
                     usage=usage,
@@ -309,7 +293,7 @@ class Router:
     @router_app.post("/v1/chat/completions")
     async def chat(
         self,
-        body: ChatCompletions,
+        body: ChatCompletionRequest,
         request: Request,
         response: FastAPIResponse,
     ):
@@ -321,12 +305,9 @@ class Router:
         """
         prompt = Prompt(prompt=body.messages, parameters=body)
 
-        completion_id = body.model + "-" + request.state.request_id
-
         if body.stream:
             return StreamingResponse(
                 _chat_completions_wrapper(
-                    completion_id,
                     body,
                     request,
                     response,
@@ -349,23 +330,19 @@ class Router:
                     )
                 results = results.dict()
 
-                # TODO: pick up parameters that make sense, remove the rest
-
-                choices: List[MessageChoices] = [
-                    MessageChoices(
+                choices: List[ChatCompletionResponseChoice] = [
+                    ChatCompletionResponseChoice(
+                        index=0,
                         message=ChatMessage(
                             role="assistant", content=results["generated_text"] or ""
                         ),
-                        index=0,
                         finish_reason=results["finish_reason"],
                     )
                 ]
                 usage = UsageInfo.from_response(results)
 
-                return ChatCompletion(
-                    id=completion_id,
-                    object="text_completion",
-                    created=int(time.time()),
+                return ChatCompletionResponse(
+                    object="chat.completion",
                     model=body.model,
                     choices=choices,
                     usage=usage,

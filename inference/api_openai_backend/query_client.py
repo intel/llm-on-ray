@@ -38,7 +38,6 @@ class RouterQueryClient():
         return ModelCard(
             id=model_id,
             root=model_id,
-            permission=["serve permission"],
         )
 
     async def models(self) -> Dict[str, ModelCard]:

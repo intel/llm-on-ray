@@ -8,7 +8,7 @@ import yaml
 
 TModel = TypeVar("TModel", bound="ModelList")
 TCompletion = TypeVar("TCompletion", bound="CompletionResponse")
-TChatCompletion = TypeVar("TChatCompletion", bound="ChatCompletion")
+TChatCompletion = TypeVar("TChatCompletion", bound="ChatCompletionResponse")
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
@@ -35,7 +35,6 @@ class ModelCard(BaseModel):
     owned_by: str = "llmonray"
     root: Optional[str] = None
     parent: Optional[str] = None
-    permission: List[str]       # todo: not aligned
 
 
 class ModelList(BaseModel):
@@ -72,7 +71,7 @@ class CompletionResponseChoice(BaseModel):
 
 
 class CompletionResponse(BaseModel):
-    id: str = Field(default_factory=lambda: f"chatcmpl-{str(uuid.uuid4().hex)}")
+    id: str = Field(default_factory=lambda: f"cmpl-{str(uuid.uuid4().hex)}")
     object: str = "text_completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
@@ -86,6 +85,12 @@ class ChatMessage(BaseModel):
 
     def __str__(self):
         return self.content
+
+
+class ChatCompletionResponseChoice(BaseModel):
+    index: int
+    message: ChatMessage
+    finish_reason: Optional[str]
 
 
 class DeltaRole(BaseModel):
@@ -107,24 +112,18 @@ class DeltaEOS(BaseModel):
         extra = "forbid"
 
 
-class MessageChoices(BaseModel):
-    message: ChatMessage
-    index: int
-    finish_reason: Optional[str]
-
-
 class DeltaChoices(BaseModel):
     delta: Union[DeltaRole, DeltaContent, DeltaEOS]
     index: int
     finish_reason: Optional[str]
 
 
-class ChatCompletion(BaseModel):
-    id: str
+class ChatCompletionResponse(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-{str(uuid.uuid4().hex)}")
     object: str
-    created: int
+    created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    choices: List[Union[MessageChoices, DeltaChoices]]
+    choices: List[Union[ChatCompletionResponseChoice, DeltaChoices]]
     usage: Optional[UsageInfo]
 
 
@@ -323,44 +322,37 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
         return (self,)
 
 
-class Completions(BaseModel):
+class CompletionRequest(BaseModel):
     model: str
-    prompt: str
+    prompt: Union[str, List[Any]]
     suffix: Optional[str] = None
-    stream: bool = False
-    echo: Optional[bool] = False
-    user: Optional[str] = None
-    max_tokens: Optional[int] = 16
-    top_k: Optional[int] = None
     temperature: Optional[float] = None
-    top_p: Optional[float] = None
     n: int = 1
-    logprobs: Optional[int] = None
-    logit_bias: Optional[Dict[str, float]] = None
+    max_tokens: Optional[int] = 16
     stop: Optional[List[str]] = None
+    stream: bool = False
+    top_p: Optional[float] = None
+    logprobs: Optional[int] = None
+    echo: Optional[bool] = False
     presence_penalty: Optional[float] = None
     frequency_penalty: Optional[float] = None
-    best_of: int = 1
+    user: Optional[str] = None
 
 
-class ChatCompletions(BaseModel):
+class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
-    stream: bool = False
-    echo: Optional[bool] = False
-    user: Optional[str] = None
-    top_k: Optional[int] = None
-    max_tokens: Optional[int] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     n: int = 1
-    logprobs: Optional[int] = None
-    logit_bias: Optional[Dict[str, float]] = None
+    max_tokens: Optional[int] = None
     stop: Optional[List[str]] = None
+    stream: bool = False
     presence_penalty: Optional[float] = None
     frequency_penalty: Optional[float] = None
-    best_of: int = 1
-    _ignored_fields: Set[str] = set()
+    user: Optional[str] = None
+    logprobs: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
 
 
 class FinishReason(str, Enum):
