@@ -2,12 +2,11 @@ from typing import Dict
 from fastapi import HTTPException, Request
 from .openai_protocol import ModelCard, Prompt, QueuePriority
 from .openai_protocol import Prompt, ModelResponse
-from .error_handler.streaming_error_handler import StreamingErrorHandler
+from .error_handler import handle_failure
 
 class RouterQueryClient():
     def __init__(self, serve_deployments, hooks=None):
         self.serve_deployments = serve_deployments
-        self.error_hook = StreamingErrorHandler(hooks=hooks)
 
     async def query(self, model: str, prompt: Prompt, request: Request):
         response_stream = self.stream(
@@ -26,7 +25,7 @@ class RouterQueryClient():
         else:
             raise HTTPException(404, f"Could not find model with id {model}")
 
-        async for x in self.error_hook.handle_failure(
+        async for x in handle_failure(
             model=model,
             request=request,
             prompt=prompt,
