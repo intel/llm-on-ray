@@ -26,29 +26,39 @@ def train_func(config: Dict[str, Any]):
         os.chdir(cwd)
 
     try:
-        import pretrain_gpt
+        import pretrain_gpt as pretrain_module
     except ImportError:
         megatron_deepspeed_path = config.get("megatron_deepspeed_path", None)
         if megatron_deepspeed_path is not None:
             sys.path.append(megatron_deepspeed_path)
-            pretrain_gpt = importlib.import_module('pretrain_gpt')
+            pretrain_module_name = config.get("pretrain_module", None)
+            if pretrain_module_name is not None:
+                pretrain_module = importlib.import_module(pretrain_module_name)
+            else:
+                pretrain_module = importlib.import_module('pretrain_gpt')
         else:
             raise ImportError("Please set megatron_deepspeed_path in config")
             
     common.init(config)
     megatron_config = config.get('megatron_config', {})
     
-    if hasattr(pretrain_gpt, 'ModelType'):
-        pretrain(pretrain_gpt.train_valid_test_datasets_provider,
-                 pretrain_gpt.model_provider,
-                 pretrain_gpt.ModelType.encoder_or_decoder,
-                 pretrain_gpt.forward_step,
+    if hasattr(pretrain_module, 'ModelType'):
+        pretrain(pretrain_module.train_valid_test_datasets_provider,
+                 pretrain_module.model_provider,
+                 pretrain_module.ModelType.encoder_or_decoder,
+                 pretrain_module.forward_step,
                  args_defaults=megatron_config,
-                 data_post_process=pretrain_gpt.data_post_process)
+                 data_post_process=pretrain_module.data_post_process)
+    elif hasattr(pretrain_module, 'llama_argument_handler'):
+        pretrain(pretrain_module.train_valid_test_datasets_provider,
+                 pretrain_module.model_provider,
+                 pretrain_module.forward_step,
+                 pretrain_module.llama_argument_handler,
+                 args_defaults=megatron_config)
     else:
-        pretrain(pretrain_gpt.train_valid_test_datasets_provider, 
-                 pretrain_gpt.model_provider, 
-                 pretrain_gpt.forward_step,
+        pretrain(pretrain_module.train_valid_test_datasets_provider,
+                 pretrain_module.model_provider,
+                 pretrain_module.forward_step,
                  args_defaults=megatron_config)
 
 def main(external_config = None):
