@@ -36,7 +36,7 @@ jobs:
       image: node:18
       env:
         NODE_ENV: development
-      volumns:
+      volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Checkout
