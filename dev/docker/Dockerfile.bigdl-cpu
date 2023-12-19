@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 ENV LANG C.UTF-8
 
-WORKDIR /root/llm-ray
+WORKDIR /root/llm-on-ray
 
 RUN apt-get update -y \
     && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
