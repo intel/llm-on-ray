@@ -69,7 +69,7 @@ python inference/run_model_serve.py --config_file inference/models/gpt2.yaml
 
 After deploying the model endpoint, you can access and test it through curl, OpenAI SDK, or by using the script below:
 ```bash
-python examples/inference/test_api_server/run_model_infer.py --model_endpoint http://127.0.0.1:8000/gpt2
+python examples/inference/api_server/run_model_infer.py --model_endpoint http://127.0.0.1:8000/gpt2
 ```
 
 ## Documents

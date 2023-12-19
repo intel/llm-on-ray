@@ -36,6 +36,6 @@ To deploy and serve multiple models concurrently, place all models' configuratio
 ## Test the Model Endpoint
 After deploying the model endpoint, you can access and test it through curl, OpenAI SDK, or by using the script below:
 ```bash
-python examples/inference/test_api_server/run_model_infer.py --model_endpoint <the model endpoint URL>
+python examples/inference/api_server/run_model_infer.py --model_endpoint <the model endpoint URL>
 ```
 
