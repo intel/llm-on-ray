@@ -1,23 +1,7 @@
 FROM vault.habana.ai/gaudi-docker/1.13.0/ubuntu20.04/habanalabs/pytorch-installer-2.1.0:latest
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /home/user
-RUN pip install lz4 numpy==1.24.4 \
-    https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl \
-    tensorboard gpustat==1.0.0 sentencepiece \
-    accelerate==0.19.0 \
-    datasets==2.12.0 gymnasium transformers==4.34.0 \
-    dm-tree scikit-image evaluate peft==0.5.0 scikit-learn
+COPY pretrain/requirements.optimum-habana.txt /home/user/
+RUN pip install -r requirements.optimum-habana.txt
 RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.13.0
 RUN pip install --upgrade-strategy eager optimum[habana]
-COPY pretrain/patch/hpu/constants.py /usr/local/lib/python3.8/dist-packages/deepspeed/checkpoint/
-COPY pretrain/patch/hpu/state.py /usr/local/lib/python3.8/dist-packages/optimum/habana/accelerate/
-COPY pretrain/patch/gpu/0001-Change-the-sample-s-column-name.patch .
-COPY pretrain/patch/gpu/0001-Add-init.py-to-include-the-megatron.model.vision-int.patch .
-RUN git config --global user.email "root@example.com" 
-RUN git config --global user.name "root" 
-RUN git clone https://github.com/microsoft/Megatron-DeepSpeed.git && \
-    cd Megatron-DeepSpeed && \
-    git checkout -b ray 796866fa74f23850b977d4023a7ed4f0031844ae && \
-    git am /home/user/0001-Change-the-sample-s-column-name.patch && \
-    git am /home/user/0001-Add-init.py-to-include-the-megatron.model.vision-int.patch && \
-    pip install .
