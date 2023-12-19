@@ -1,3 +1,7 @@
+"""
+Reference:
+  - https://github.com/ray-project/ray-llm/blob/b3560aa55dadf6978f0de0a6f8f91002a5d2bed1/aviary/backend/server/plugins/router_query_engine.py
+"""
 from typing import Dict
 from fastapi import HTTPException
 from .openai_protocol import ModelCard, Prompt

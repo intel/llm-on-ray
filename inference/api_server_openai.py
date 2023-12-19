@@ -1,3 +1,7 @@
+"""
+Reference:
+  - https://github.com/ray-project/ray-llm/blob/b3560aa55dadf6978f0de0a6f8f91002a5d2bed1/aviary/backend/server/run.py
+"""
 import os
 from ray import serve
 from api_openai_backend.query_client import RouterQueryClient

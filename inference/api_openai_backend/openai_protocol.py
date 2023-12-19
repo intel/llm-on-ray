@@ -1,3 +1,8 @@
+"""
+Reference:
+  - https://github.com/ray-project/ray-llm/blob/b3560aa55dadf6978f0de0a6f8f91002a5d2bed1/aviary/common/models.py
+  - https://github.com/lm-sys/FastChat/blob/168ccc29d3f7edc50823016105c024fe2282732a/fastchat/protocol/openai_api_protocol.py
+"""
 from typing import Any, Dict, Literal, List, TypeVar, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel, Field, root_validator, validator

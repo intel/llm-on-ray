@@ -1,3 +1,7 @@
+"""
+Reference:
+  - https://github.com/ray-project/ray-llm/blob/b3560aa55dadf6978f0de0a6f8f91002a5d2bed1/aviary/backend/server/routers/router_app.py
+"""
 import os
 from typing import AsyncGenerator, List
 import uuid
