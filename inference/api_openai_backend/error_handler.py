@@ -67,7 +67,7 @@ def extract_message_from_exception(e: Exception) -> str:
     message = message.strip()
     return message
 
-async def handle_failure(
+async def handle_request(
     model: str,
     request_id: str,
     prompt: Prompt,
@@ -75,7 +75,7 @@ async def handle_failure(
 ):
     # Handle errors for an ModelResopnse stream.
     model_tags = {"model_id": model}
-    print("handle_failue: ", model_tags)
+    print("handle_request: ", model_tags)
 
     responses: List[ModelResponse] = []
     try:

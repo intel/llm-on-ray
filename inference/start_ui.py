@@ -5,7 +5,7 @@ import time
 import os
 from chat_process import ChatModelGptJ, ChatModelLLama
 import torch
-from run_model_serve import PredictDeployment
+from run_model_serve import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
@@ -471,7 +471,7 @@ class ChatBotUI():
             pip_env = "transformers==4.35.0"
         else:
             pip_env = "transformers==4.31.0"
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
+        deployment = PredictorDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
         handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
         return self.ip_port + finetuned_deploy.route_prefix
 

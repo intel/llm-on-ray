@@ -6,10 +6,10 @@ from typing import Dict
 from fastapi import HTTPException
 from .openai_protocol import ModelCard, Prompt
 from .openai_protocol import Prompt, ModelResponse
-from .error_handler import handle_failure
+from .error_handler import handle_request
 
 class RouterQueryClient():
-    def __init__(self, serve_deployments, hooks=None):
+    def __init__(self, serve_deployments):
         self.serve_deployments = serve_deployments
 
     async def query(self, model: str, prompt: Prompt, request_id: str):
@@ -29,7 +29,7 @@ class RouterQueryClient():
         else:
             raise HTTPException(404, f"Could not find model with id {model}")
 
-        async for x in handle_failure(
+        async for x in handle_request(
             model=model,
             prompt=prompt,
             request_id=request_id,

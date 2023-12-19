@@ -1,10 +1,11 @@
-import sys
 import ray
 from inference_config import ModelDescription, InferenceConfig, all_models
-from pydantic_yaml import parse_yaml_raw_as
-from api_server import serve_run, PredictDeployment
-from api_server_openai import openai_serve_run
+import sys
 from utils import get_deployment_actor_options
+from pydantic_yaml import parse_yaml_raw_as
+from api_server import serve_run
+from api_server_openai import openai_serve_run
+from predictor_deployment import PredictorDeployment
 
 # make it unittest friendly
 def main(argv=None):
@@ -57,15 +58,17 @@ def main(argv=None):
     deployment_map = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-        deployment_map[model_id] = PredictDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
+        deployment_map[model_id] = PredictorDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
 
     if args.openai_api:
+        # all models are served under the same URL and then accessed through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else "custom_model"
         route_prefix = "/{}".format(rp)
         openai_serve_run(deployment_map, host, route_prefix, args.port)
     else:
-        serve_run(model_list, deployment_map)
+        # models can be served to custom URLs according to the configuration.
+        serve_run(deployment_map, model_list)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

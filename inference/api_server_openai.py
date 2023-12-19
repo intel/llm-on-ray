@@ -8,7 +8,7 @@ from api_openai_backend.query_client import RouterQueryClient
 from api_openai_backend.router_app import Router, router_app
 
 
-def router_application(deployments, hooks=None):
+def router_application(deployments):
     """Create a Router Deployment.
 
     Router Deployment will point to a Serve Deployment for each specified base model,
@@ -38,8 +38,8 @@ def router_application(deployments, hooks=None):
         }
     ).bind(merged_client)
 
-def openai_serve_run(deployments, host, route_prefix, port, hooks=None):
-    router_app = router_application(deployments, hooks=hooks)
+def openai_serve_run(deployments, host, route_prefix, port):
+    router_app = router_application(deployments)
 
     serve.run(
           router_app,
