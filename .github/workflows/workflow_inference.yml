@@ -42,7 +42,6 @@ jobs:
         https_proxy: http://proxy-chain.intel.com:911
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - /mnt/DP_disk1/code-repo:/__w
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -74,7 +73,7 @@ jobs:
           cid=$(docker ps -q --filter "name=${PREFIX}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
           echo "pass is ${GITHUB_WORKSPACE}"
-          docker run -tid -v /mnt/DP_disk1/huggingface/cache/:/root/.cache/huggingface/hub -v /mnt/DP_disk1/code-repo/llm-on-ray/llm-on-ray:/root/llm-on-ray -e http_proxy=http://proxy-chain.intel.com:911 -e https_proxy=http://proxy-chain.intel.com:911 --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
+          docker run -tid -v /mnt/DP_disk1/huggingface/cache/:/root/.cache/huggingface/hub -v /home/ci/actions-runner/_work/llm-on-ray/llm-on-ray:/root/llm-on-ray -e http_proxy=http://proxy-chain.intel.com:911 -e https_proxy=http://proxy-chain.intel.com:911 --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
 
       - name: Start Ray Cluster
         run: |
