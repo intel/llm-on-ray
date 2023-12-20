@@ -59,11 +59,23 @@ class RouterQueryClient():
         else:
             raise HTTPException(404, f"Could not find model with id {model}")
 
+        prompt_content = prompt.prompt
+        request_config = prompt.parameters
+        gen_config = {}
+        if request_config.temperature:
+            gen_config["temperature"] = request_config.temperature
+            gen_config["do_sample"] = True
+        if request_config.top_p:
+            gen_config["top_p"] = request_config.top_p
+            gen_config["do_sample"] = True
+        if request_config.max_tokens:
+            gen_config["max_new_tokens"] = request_config.max_tokens
+
         async for x in handle_request(
             model=model,
             prompt=prompt,
             request_id=request_id,
-            async_iterator=deploy_handle.options(stream=True).stream_response.options(stream=True, use_new_handle_api=True).remote(prompt)
+            async_iterator=deploy_handle.options(stream=True).stream_response.options(stream=True, use_new_handle_api=True).remote(prompt_content, gen_config)
         ):
             yield x
 

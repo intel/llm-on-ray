@@ -91,8 +91,7 @@ class PredictorDeployment:
             self.loop.run_in_executor(None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config))
             return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
         
-    async def stream_response(self, content: str, **config):
-        prompt = content.prompt
+    async def stream_response(self, prompt, config):
         prompts = []
         if isinstance(prompt, list):
             if self.process_tool is not None:

@@ -356,15 +356,16 @@ class CompletionRequest(BaseModel):
     prompt: str
     suffix: Optional[str] = None
     temperature: Optional[float] = None
+    top_p: Optional[float] = None
     n: int = 1
     max_tokens: Optional[int] = 16
     stop: Optional[List[str]] = None
     stream: bool = False
-    top_p: Optional[float] = None
-    logprobs: Optional[int] = None
     echo: Optional[bool] = False
     presence_penalty: Optional[float] = None
     frequency_penalty: Optional[float] = None
+    logprobs: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
     user: Optional[str] = None
 
 
@@ -379,9 +380,9 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     presence_penalty: Optional[float] = None
     frequency_penalty: Optional[float] = None
-    user: Optional[str] = None
     logprobs: Optional[int] = None
     logit_bias: Optional[Dict[str, float]] = None
+    user: Optional[str] = None
 
 
 class FinishReason(str, Enum):
