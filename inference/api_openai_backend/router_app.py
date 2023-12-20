@@ -266,7 +266,7 @@ class Router:
         """
         prompt = Prompt(
             prompt=body.prompt,
-            parameters=body,
+            parameters=dict(body),
             use_prompt_format=False,
         )
         request_id = f"cmpl-{str(uuid.uuid4().hex)}"
@@ -325,7 +325,7 @@ class Router:
         Returns:
             A response object with completions.
         """
-        prompt = Prompt(prompt=body.messages, parameters=body)
+        prompt = Prompt(prompt=body.messages, parameters=dict(body))
         request_id = f"chatcmpl-{str(uuid.uuid4().hex)}"
 
         if body.stream:

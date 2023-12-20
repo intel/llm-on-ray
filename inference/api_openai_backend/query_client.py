@@ -61,17 +61,16 @@ class RouterQueryClient():
 
         prompt_content = prompt.prompt
         request_config = prompt.parameters
-        gen_config = {}
-        if request_config.temperature:
-            gen_config["temperature"] = request_config.temperature
-            if gen_config["temperature"] != 1.0:
-                gen_config["do_sample"] = True
-        if request_config.top_p:
-            gen_config["top_p"] = request_config.top_p
-            if request_config.top_p != 1.0:
-                gen_config["do_sample"] = True
-        if request_config.max_tokens:
-            gen_config["max_new_tokens"] = request_config.max_tokens
+        temperature = request_config.get("temperature", 1.0)
+        top_p = request_config.get("top_p", 1.0)
+        max_new_tokens = request_config.get("max_tokens", None)
+        gen_config = {
+            "max_new_tokens": max_new_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+        if temperature != 1.0 or top_p != 1.0:
+            gen_config.update({"do_sample": True})
 
         async for x in handle_request(
             model=model,

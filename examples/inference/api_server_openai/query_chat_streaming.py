@@ -32,7 +32,7 @@ body = {
     {"role": "assistant", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Tell me a long story with many words."}
   ],
-  "temperature": 1.0,
+  "temperature": 0.7,
   "stream": True,
 }
 
