@@ -322,7 +322,7 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
 
 class CompletionRequest(BaseModel):
     model: str
-    prompt: Union[str, List[Any]]
+    prompt: str
     suffix: Optional[str] = None
     temperature: Optional[float] = None
     n: int = 1
