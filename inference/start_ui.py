@@ -21,7 +21,7 @@ import time
 import os
 from chat_process import ChatModelGptJ, ChatModelLLama
 import torch
-from run_model_serve import PredictorDeployment
+from predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr

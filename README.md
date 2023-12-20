@@ -67,9 +67,25 @@ Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2
 python inference/run_model_serve.py --config_file inference/models/gpt2.yaml
 ```
 
-After deploying the model endpoint, you can access and test it through curl, OpenAI SDK, or by using the script below:
+After deploying the model endpoint, you can access and test it in many ways:
 ```bash
-python examples/inference/api_server/run_model_infer.py --model_endpoint http://127.0.0.1:8000/gpt2
+# using curl
+export ENDPOINT_URL=http://localhost:8000/v1
+curl $ENDPOINT_URL/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+    "model": "gpt2",
+    "messages": [{"role": "assistant", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}],
+    "temperature": 0.7
+    }'
+
+# using requests library
+python examples/inference/test_api_server_openai/query_chat_streaming.py
+
+# using OpenAI SDK
+export OPENAI_API_BASE=http://localhost:8000/v1
+export OPENAI_API_KEY=$your_openai_api_key
+python examples/inference/test_api_server_openai/query_openai_sdk.py
 ```
 
 ## Documents

@@ -32,7 +32,7 @@ def main(argv=None):
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
     parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
-    parser.add_argument("--route_prefix", default="custom_model", type=str, help="the route prefix for HTTP requests.")
+    parser.add_argument("--route_prefix", default=None, type=str, help="the route prefix for HTTP requests.")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
     parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
     parser.add_argument("--hpus_per_worker", default=0, type=float, help="hpus per worker, used when --device is hpu")
@@ -41,7 +41,7 @@ def main(argv=None):
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
     parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
-    parser.add_argument("--openai_api", action="store_true", help="whether to serve OpenAI-compatible API")
+    parser.add_argument("--serve_customed_url", action="store_true", help="whether to keep serving urls based on model conf files, or serve OpenAI-compatible API for all models.")
 
     args = parser.parse_args(argv)
 
@@ -60,7 +60,7 @@ def main(argv=None):
             model_desc.model_id_or_path = args.model
             model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
             infer_conf = InferenceConfig(model_description=model_desc)
-            infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
+            infer_conf.host = "127.0.0.1" if args.serve_local_only else ""
             infer_conf.port = args.port
             rp = args.route_prefix if args.route_prefix else "custom_model"
             infer_conf.route_prefix = "/{}".format(rp)
@@ -76,15 +76,17 @@ def main(argv=None):
         ray_actor_options = get_deployment_actor_options(infer_conf)
         deployment_map[model_id] = PredictorDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
 
-    if args.openai_api:
-        # all models are served under the same URL and then accessed through model_id, so it needs to pass in a unified URL.
-        host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        rp = args.route_prefix if args.route_prefix else "custom_model"
-        route_prefix = "/{}".format(rp)
-        openai_serve_run(deployment_map, host, route_prefix, args.port)
-    else:
+    if args.serve_customed_url:
+        # compatible with previous url versions
         # models can be served to custom URLs according to the configuration.
         serve_run(deployment_map, model_list)
+    else:
+        # provide openai compatible api to run LLM models
+        # all models are served under the same URL and then accessed through model_id, so it needs to pass in a unified URL.
+        host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
+        rp = args.route_prefix if args.route_prefix else ""
+        route_prefix = "/{}".format(rp)
+        openai_serve_run(deployment_map, host, route_prefix, args.port)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
