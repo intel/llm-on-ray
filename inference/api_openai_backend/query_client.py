@@ -64,10 +64,12 @@ class RouterQueryClient():
         gen_config = {}
         if request_config.temperature:
             gen_config["temperature"] = request_config.temperature
-            gen_config["do_sample"] = True
+            if gen_config["temperature"] != 1.0:
+                gen_config["do_sample"] = True
         if request_config.top_p:
             gen_config["top_p"] = request_config.top_p
-            gen_config["do_sample"] = True
+            if request_config.top_p != 1.0:
+                gen_config["do_sample"] = True
         if request_config.max_tokens:
             gen_config["max_new_tokens"] = request_config.max_tokens
 
