@@ -60,9 +60,9 @@ def main(argv=None):
             model_desc.model_id_or_path = args.model
             model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
             infer_conf = InferenceConfig(model_description=model_desc)
-            infer_conf.host = "127.0.0.1" if args.serve_local_only else ""
+            infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
             infer_conf.port = args.port
-            rp = args.route_prefix if args.route_prefix else "custom_model"
+            rp = args.route_prefix if args.route_prefix else ""
             infer_conf.route_prefix = "/{}".format(rp)
             infer_conf.name = rp
             infer_conf.ipex.enabled = args.ipex
