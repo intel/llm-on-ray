@@ -1,0 +1,20 @@
+name: llm-ray inference & finetune nightly
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+
+jobs:
+
+  call-inference:
+    uses: ./.github/workflows/workflow_inference.yml
+    with:
+      ci_type: nightly
+
+  call-finetune:
+    uses: ./.github/workflows/workflow_finetune.yml
+    with:
+      ci_type: nightly
+
+  call-finetune-on-intel-gpu:
+    uses: ./.github/workflows/workflow_finetune_gpu.yml
