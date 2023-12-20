@@ -74,8 +74,6 @@ jobs:
           PREFIX=${{steps.prefix.outputs.prefix}}
           cid=$(docker ps -q --filter "name=${PREFIX}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          echo "pass is ${GITHUB_WORKSPACE}"
-          docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
           docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
 
       - name: Start Ray Cluster
