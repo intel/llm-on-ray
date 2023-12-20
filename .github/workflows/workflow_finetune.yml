@@ -38,13 +38,14 @@ jobs:
         https_proxy: ${{ vars.HTTPS_PROXY_CONTAINER }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
+        - ${{ vars.ACTIONS_RUNNER_CONFIG_PATH }}:/root/actions-runner-config
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Load environment variables
-        run: cat ~/llm-ray-actions-runner/.env >> $GITHUB_ENV
+        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: |
