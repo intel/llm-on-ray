@@ -10,16 +10,20 @@ git checkout main
 ```
 #### 2. build Docker images for pretrain
 ```bash
-cd llm-on-ray/tools/workload_in_containers
-./build-image.sh megatron-habana # for Megatron-DeepSpeed pretrain on Gaudi2 platform
+cd llm-on-ray/pretrain/docker
 ```
-or
+Build the habana docker image for Megatron-DeepSpeed.
 ```bash
-./build-image.sh megatron-nvidia # for Nvidia GPU platform
-`or
+./build-image.sh megatron-habana
+```
+Build the habana docker image for Huggingface trainer
 ```bash
-./build-image.sh optimum-habana # for Huggingface trainer pretrain on Gaudi2 platform
-`````
+./build-image.sh optimum-habana
+```
+Build the Nvidia docker image for both Megatron-DeepSpeed and Huggingface trainer
+```bash
+./build-image.sh nvidia
+```
 
 #### 3. Run the docker containers on head node and worker nodes for pretrain.
 make the logs directory for saving the ray logs.
@@ -27,12 +31,19 @@ make the logs directory for saving the ray logs.
 mkdir ~/workspace/logs
 ```
 Gaudi2:
+
+##### Megatron-DeepSpeed
 ```bash
 docker run -it --name megatron-habana --runtime=habana -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none -v ~/workspace:/home/user/workspace -v ~/workspace/logs:/tmp --cap-add=sys_nice --net=host --ipc=host llm-ray:megatron-habana
 ```
+
+##### Huggingface trainer
+```bash
+docker run -it --name megatron-habana --runtime=habana -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none -v ~/workspace:/home/user/workspace -v ~/workspace/logs:/tmp --cap-add=sys_nice --net=host --ipc=host llm-ray:optimum-habana
+```
 Nvidia GPU:
 ```bash
-docker run --gpus all -it --ulimit memlock=-1 --ulimit stack=67108864 --network host --name megatron-nvidia --shm-size=64g -v ~/workspace/logs:/tmp -v ~/workspace:/home/user/workspace llm-ray:megatron-gpu  /bin/bash
+docker run --gpus all -it --ulimit memlock=-1 --ulimit stack=67108864 --network host --name megatron-nvidia --shm-size=64g -v ~/workspace/logs:/tmp -v ~/workspace:/home/user/workspace llm-ray:nvidia  /bin/bash
 ```
 
 #### 4. Launch ray cluster
