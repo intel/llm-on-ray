@@ -1,15 +1,15 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+from transformers import TextIteratorStreamer
 from inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
 from utils import get_torch_dtype
 
-
 class TransformerPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig, stopping_criteria):
-        super().__init__(inferenceConfig)
-        self.device = torch.device(inferenceConfig.device)
-        model_desc = inferenceConfig.model_description
+    def __init__(self, infer_conf: InferenceConfig):
+        super().__init__(infer_conf)
+        
+        model_desc = infer_conf.model_description
         model_config = model_desc.config
         hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
@@ -20,7 +20,7 @@ class TransformerPredictor(Predictor):
 
             adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
-        torch_dtype = Predictor.get_torch_dtype(inferenceConfig, hf_config)
+        torch_dtype = get_torch_dtype(infer_conf, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import (
                 AutoModelForCausalLM as BigDLAutoModelForCLM,
@@ -70,7 +70,7 @@ class TransformerPredictor(Predictor):
             # to channels last
             model = model.to(memory_format=torch.channels_last)
             # to ipex
-            if inferenceConfig.ipex.enabled:
+            if infer_conf.ipex.enabled:
                 import intel_extension_for_pytorch as ipex
 
                 torch._C._jit_set_texpr_fuser_enabled(False)
@@ -80,7 +80,7 @@ class TransformerPredictor(Predictor):
                     pass
                 model = ipex.optimize_transformers(
                     model.eval(),
-                    dtype=torch.bfloat16 if inferenceConfig.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
+                    dtype=torch.bfloat16 if infer_conf.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
                     inplace=True
                 )
         self.model = model
@@ -98,22 +98,20 @@ class TransformerPredictor(Predictor):
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
         input_ids = self.tokenize_inputs(prompt)
-        self.model.generate(
-            input_ids,
-            stopping_criteria=self.stopping_criteria,
-            streamer=streamer,
-            **config,
-        )
+        self.model.generate(input_ids,
+                    stopping_criteria=self.stopping_criteria,
+                    streamer=streamer,
+                    **config)
 
     def generate(self, prompt, **config):
         self._process_config(config)
         input_ids = self.tokenize_inputs(prompt)
         gen_tokens = self.model.generate(
-            input_ids, stopping_criteria=self.stopping_criteria, **config
+            input_ids,
+            stopping_criteria=self.stopping_criteria,
+            **config
         )
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
 
     def get_streamer(self):
-        return TextIteratorStreamer(
-            self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
-        )
+        return TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)

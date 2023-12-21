@@ -1,24 +1,7 @@
-#
-# Copyright 2023 The LLM-on-Ray Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
 from transformers import StoppingCriteria
 import torch
-from inference.inference_config import InferenceConfig, DEVICE_CPU
-from typing import Dict, Any, List, Union
 
+from inference_config import InferenceConfig, DEVICE_CPU
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):
     _ray_env_key = "env_vars"
@@ -27,16 +10,15 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         "KMP_BLOCKTIME": "1",
         "KMP_SETTINGS": "1",
         "KMP_AFFINITY": "granularity=fine,compact,1,0",
-        "MALLOC_CONF": "oversize_threshold:1,background_thread:true,\
-            metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
+        "MALLOC_CONF": "oversize_threshold:1,background_thread:true,metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000"
     }
-    runtime_env: Dict[str, Any] = {_ray_env_key: {}}
+    runtime_env = {_ray_env_key: {}}
     if infer_conf.ipex.enabled:
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
-    # now PredictorDeployment itself is a worker, we should require resources for it
-    ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
+    # now PredictDeployment itself is a worker, we should require resources for it
+    ray_actor_options = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
         ray_actor_options["num_cpus"] = infer_conf.cpus_per_worker
     elif infer_conf.device == "cuda":
@@ -48,19 +30,18 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         pass
     return ray_actor_options
 
-
 class StoppingCriteriaSub(StoppingCriteria):
-    def __init__(self, stops=[], encounters=1):
+
+    def __init__(self, stops = [], encounters=1):
         super().__init__()
         self.stops = stops
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
         for stop in self.stops:
-            length = 1 if len(stop.size()) == 0 else stop.size()[0]
+            length = 1  if len(stop.size())==0 else stop.size()[0]
             if torch.all((stop == input_ids[0][-length:])).item():
                 return True
         return False
-
 
 # used in inference with Gaudi
 def max_input_len(input_text_length):
@@ -74,37 +55,22 @@ def max_input_len(input_text_length):
         print("Max support length is 4096")
         return 4096
 
-
 def get_torch_dtype(infer_conf: InferenceConfig, hf_config) -> torch.dtype:
-    """
-    return torch default dtype, a.k.a float32, if it's cpu only inference without
-    ipex because bfloat16 is too slow and float16 is not supported in CPU
-    """
+    '''
+    return torch default dtype, a.k.a float32, if it's cpu only inference without ipex because
+    bfloat16 is too slow and float16 is not supported in CPU
+    '''
     if hf_config is None or is_cpu_without_ipex(infer_conf):
         return torch.get_default_dtype()
-    if hasattr(hf_config, "torch_dtype"):
+    if hasattr(hf_config, 'torch_dtype'):
         t = hf_config.torch_dtype
         if t:
             return t
-    if hasattr(hf_config, "__getitem__"):
-        t = hf_config["torch_dtype"]
+    if hasattr(hf_config, '__getitem__'):
+        t = hf_config['torch_dtype']
         if t:
             return t
     return torch.get_default_dtype()
 
-
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
     return (not infer_conf.ipex.enabled) and infer_conf.device == DEVICE_CPU
-
-
-def get_input_format(input: Union[List[str], List[dict]]):
-    chat_format = True
-    prompts_format = True
-    for item in input:
-        if isinstance(item, str):
-            chat_format = False
-        elif isinstance(item, dict):
-            prompts_format = False
-        else:
-            return False, False
-    return chat_format, prompts_format

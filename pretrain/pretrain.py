@@ -15,13 +15,11 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import common
 
-from importlib import util
-
+import importlib
 use_habana = False
-loader = util.find_spec("habana_frameworks")
+loader = importlib.util.find_spec('habana_frameworks')
 if loader is not None:
     from backend.habana_backend import TorchConfig
-
     use_habana = True
 else:
     from ray.train.torch import TorchConfig
@@ -128,9 +126,9 @@ def main(external_config=None):
         common.logger.info(f"ray scaling config: {scaling_config}")
 
         if (
-            config["trainer"].get("training_config", None)
-            and config["trainer"].get("training_config").get("deepspeed", None)
-            and use_habana is False
+            config['trainer'].get("training_config", None) and
+            config['trainer'].get("training_config").get("deepspeed", None) and
+            use_habana == False
         ):
             torch_config = DeepSpeedTorchConfig(**ray_config.get("torch_config", {}))
         else:
