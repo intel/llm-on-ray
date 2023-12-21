@@ -1,15 +1,17 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoConfig
-from inference_config import InferenceConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+from transformers import TextIteratorStreamer
+from inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
+from utils import get_torch_dtype
 
 class TransformerPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig, amp_dtype, stopping_criteria):
-        self.amp_dtype = amp_dtype
-        self.device = torch.device(inferenceConfig.device)
-        model_desc = inferenceConfig.model_description
+    def __init__(self, infer_conf: InferenceConfig):
+        super().__init__(infer_conf)
+        
+        model_desc = infer_conf.model_description
         model_config = model_desc.config
-        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
         if self.device.type == "hpu":
             from optimum.habana.transformers.modeling_utils import (
@@ -17,6 +19,8 @@ class TransformerPredictor(Predictor):
             )
 
             adapt_transformers_to_gaudi()
+        # get correct torch type for loading HF model
+        torch_dtype = get_torch_dtype(infer_conf, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import AutoModelForCausalLM as BigDLAutoModelForCLM
             bmodel_config = {}
@@ -25,16 +29,16 @@ class TransformerPredictor(Predictor):
                 bmodel_config.update(model_desc.bigdl_config.dict())
             model = BigDLAutoModelForCLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=amp_dtype,
-                config=config,
+                torch_dtype=torch_dtype,
+                config=hf_config,
                 low_cpu_mem_usage=True,
                 **bmodel_config
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=amp_dtype,
-                config=config,
+                torch_dtype=torch_dtype,
+                config=hf_config,
                 low_cpu_mem_usage=True,
                 **model_config.dict()
             )
@@ -58,7 +62,7 @@ class TransformerPredictor(Predictor):
             # to channels last
             model = model.to(memory_format=torch.channels_last)
             # to ipex
-            if inferenceConfig.ipex:
+            if infer_conf.ipex.enabled:
                 import intel_extension_for_pytorch as ipex
 
                 torch._C._jit_set_texpr_fuser_enabled(False)
@@ -66,13 +70,12 @@ class TransformerPredictor(Predictor):
                 except: pass
                 model = ipex.optimize_transformers(
                     model.eval(),
-                    dtype=amp_dtype,
+                    dtype=torch.bfloat16 if infer_conf.ipex.precision == IPEX_PRECISION_BF16 else torch.float32,
                     inplace=True
                 )
         self.model = model
-        self.stopping_criteria = stopping_criteria
 
-    def _process_config(self, **config):
+    def _process_config(self, config):
         if self.device.type == "hpu":
             if "max_new_tokens" not in config:
                 # hpu requires setting max_new_tokens
@@ -82,18 +85,23 @@ class TransformerPredictor(Predictor):
                 # lazy mode should be True when using hpu graphs
                 config["lazy_mode"] = True
 
-    def streaming_generate(self, inputs, streamer, **config):
-        self._process_config(**config)
-        self.model.generate(**inputs,
+    def streaming_generate(self, prompt, streamer, **config):
+        self._process_config(config)
+        input_ids = self.tokenize_inputs(prompt)
+        self.model.generate(input_ids,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
                     **config)
 
-    def generate(self, inputs, **config):
-        self._process_config(**config)
+    def generate(self, prompt, **config):
+        self._process_config(config)
+        input_ids = self.tokenize_inputs(prompt)
         gen_tokens = self.model.generate(
-            **inputs,
+            input_ids,
             stopping_criteria=self.stopping_criteria,
             **config
         )
-        return gen_tokens
+        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
+
+    def get_streamer(self):
+        return TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)

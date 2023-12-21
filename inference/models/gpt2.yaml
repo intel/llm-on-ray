@@ -1,13 +1,14 @@
 port: 8000
 name: gpt2
 route_prefix: /gpt2
-precision: 'bf16'
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2
-ipex: false
 device: "cpu"
+ipex:
+  enabled: true
+  precision: bf16
 model_description:
   model_id_or_path: gpt2
   tokenizer_name_or_path: gpt2

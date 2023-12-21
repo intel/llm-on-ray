@@ -57,7 +57,7 @@ ray start --head
 Use the following command to finetune a model using an example dataset and default configurations. The finetuned model will be stored in `/tmp/llm-ray/output` by default. To customize the base model, dataset and configurations, please see the [finetuning document](#finetune):
 
 ```bash
-python finetune/finetune.py --config_path finetune/finetune.conf
+python finetune/finetune.py --config_file finetune/finetune.yaml
 ```
 
 ### Serving
