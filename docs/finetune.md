@@ -46,7 +46,7 @@ Training:
     GPU: 1
   accelerate_mode: GPU_DDP
 ```
-Please see [docs/finetune_parameters.md](docs/finetune_parameters.md) for details of the parameters.
+Please see [finetune_parameters.md](finetune_parameters.md) for details of the parameters.
 
 
 ### Validated Models
