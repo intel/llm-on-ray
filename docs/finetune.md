@@ -27,26 +27,24 @@ An example dataset can be accessed at `examples/data/sample_finetune_data.jsonl
 
 ## Configure Finetuning Parameters
 
-We provide an example configuration file ([CPU version](../finetune/finetune.conf), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.conf)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
+We provide an example configuration file ([CPU version](../finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
 
 For CPU,  please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to CPU_DDP.
 ```
-"Training": {
-    "device": "CPU",
-    "accelerate_mode": "CPU_DDP",
-    "resources_per_worker": {
-        "CPU": 32
-    },
+Training:
+  device: CPU
+  resources_per_worker:
+    CPU: 32
+  accelerate_mode: CPU_DDP
 ```
 For GPU, please make sure you set `device` to GPU, set GPU number for `resources_per_worker` and set `accelerate_mode` to GPU_DDP or GPU_FSDP.
 ```
-"Training": {
-    "device": "GPU",
-    "accelerate_mode": "GPU_DDP",
-    "resources_per_worker": {
-        "CPU": 1,
-        "GPU": 1,
-    },
+Training:
+  device: GPU
+  resources_per_worker:
+    CPU: 1
+    GPU: 1
+  accelerate_mode: GPU_DDP
 ```
 Please see [docs/finetune_parameters.md](docs/finetune_parameters.md) for details of the parameters.
 
@@ -67,5 +65,5 @@ The following models have been verified on Intel CPUs or GPUs.
 ## Finetune the model
 To finetune your model, execute the following command. The finetuned model will be saved in /tmp/llm-ray/output by default.
 ``` bash
-python finetune/finetune.py --config_path <your finetuning conf file>
+python finetune/finetune.py --config_file <your finetuning conf file>
 ```
