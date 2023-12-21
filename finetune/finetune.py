@@ -16,11 +16,8 @@ from ray.air import RunConfig, FailureConfig
 
 from pydantic_yaml import parse_yaml_raw_as
 
-from accelerate import FullyShardedDataParallelPlugin
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-    FullOptimStateDictConfig,
-    FullStateDictConfig,
-)
+from accelerate import FullyShardedDataParallelPlugin, DeepSpeedPlugin
+from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
 import sys
 
@@ -55,7 +52,6 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "FSDP_FORWARD_PREFETCH": "false",
             "FSDP_USE_ORIG_PARAMS": "false",
             "FSDP_SYNC_MODULE_STATES": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
     }
     if mode not in mode_env_vars:
@@ -72,20 +68,19 @@ def train_func(config: Dict[str, Any]):
 
     accelerate_mode = config["Training"]["accelerate_mode"]
     if accelerate_mode in ["GPU_FSDP"]:
-        fsdp_plugin = FullyShardedDataParallelPlugin(
+        dp_plugin = FullyShardedDataParallelPlugin(
             state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
             optim_state_dict_config=FullOptimStateDictConfig(
                 offload_to_cpu=False, rank0_only=False
             ),
         )
+    elif accelerate_mode in ["GPU_DEEPSPEED"]:
+        dp_plugin = DeepSpeedPlugin(hf_ds_config=config["deepspeed_config"])
     else:
-        fsdp_plugin = None
-    accelerator = accelerate.Accelerator(
-        gradient_accumulation_steps=gradient_accumulation_steps, fsdp_plugin=fsdp_plugin
-    )
-    common.logger.info(
-        f"accelerator generate finish, accelerator device type = {accelerator.device}"
-    )
+        dp_plugin = None
+    accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
+                                         dp_plugin=dp_plugin)
+    common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
     if seed is not None:

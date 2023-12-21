@@ -27,3 +27,43 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
+
+deepspeed_config:
+  fp16:
+    enabled: auto
+    hysteresis: 2
+    initial_scale_power: 16
+    loss_scale: 0
+    loss_scale_window: 1000
+    min_loss_scale: 1
+  gradient_accumulation_steps: 1
+  gradient_clipping: auto
+  optimizer:
+    params:
+      adam_w_mode: true
+      lr: auto
+      torch_adam: true
+      weight_decay: auto
+    type: AdamW
+  scheduler:
+    params:
+      warmup_max_lr: auto
+      warmup_min_lr: auto
+      warmup_num_steps: auto
+    type: WarmupLR
+  steps_per_print: 2000
+  train_batch_size: auto
+  train_micro_batch_size_per_gpu: auto
+  wall_clock_breakdown: false
+  zero_optimization:
+    allgather_bucket_size: 2.0e8
+    allgather_partitions: true
+    contiguous_gradients: true
+    offload_optimizer:
+      device: cpu
+      pin_memory: true
+    overlap_comm: true
+    reduce_bucket_size: auto
+    reduce_scatter: true
+    stage: 2
+
