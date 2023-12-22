@@ -57,10 +57,10 @@ The following models have been verified on Intel CPUs or GPUs.
 |mistral|✅|✅|
 |pythia|✅|✅|
 |gpt-j|✅|✅|
-|bloom|✅||
-|opt|✅||
+|bloom|✅|✅|
+|opt|✅|✅|
 |mpt|✅||
-|gpt2|✅||
+|gpt2|✅|✅|
 
 ## Finetune the model
 To finetune your model, execute the following command. The finetuned model will be saved in /tmp/llm-ray/output by default.
