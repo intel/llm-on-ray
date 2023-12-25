@@ -57,8 +57,10 @@ class DefaultTrainer(Trainer):
                 self.starting_epoch = checkpoint_epoch["epoch"] + 1
 
             logger.info(f"recovery to epoch {self.starting_epoch}")
+        except FileNotFoundError as e:
+            logger.info(e)
         except Exception as e:
-            logger.warning(f"recovery error", exc_info=True)
+            logger.warning("recovery error", exc_info=True)
 
     def _coordinate(self, accelerator):
         self.accelerator = accelerator
@@ -174,7 +176,7 @@ class DefaultTrainer(Trainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
-                logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")
+                logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]")
 
             if checkpoint is not None:
                 self.save(checkpoint, idx)
