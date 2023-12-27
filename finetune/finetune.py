@@ -181,26 +181,25 @@ def main(external_config = None):
     num_cpus = num_training_workers * resources_per_worker["CPU"]
     ccl_worker_count = 1 if use_cpu is True else num_training_workers
 
-    if not ray.is_initialized():
-        runtime_env = {
-            "env_vars": {
-                "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
-                "CCL_ZE_IPC_EXCHANGE": "sockets",
-                "CCL_WORKER_COUNT": str(ccl_worker_count),
-                "CCL_LOG_LEVEL": "info",
-                "WORLD_SIZE": str(num_training_workers),
-                "FI_TCP_IFACE": "lo",
-                "FI_PROVIDER": "tcp"
-            }
+    runtime_env = {
+        "env_vars": {
+            "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
+            "CCL_ZE_IPC_EXCHANGE": "sockets",
+            "CCL_WORKER_COUNT": str(ccl_worker_count),
+            "CCL_LOG_LEVEL": "info",
+            "WORLD_SIZE": str(num_training_workers),
+            "FI_TCP_IFACE": "lo",
+            "FI_PROVIDER": "tcp"
         }
+    }
 
-        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode)
-        runtime_env["env_vars"].update(accelerate_env_vars)
+    accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode)
+    runtime_env["env_vars"].update(accelerate_env_vars)
 
-        if config["General"]["gpt_base_model"] == True:
-            runtime_env["pip"] = ["transformers==4.26.0"]
+    if config["General"]["gpt_base_model"] == True:
+        runtime_env["pip"] = ["transformers==4.26.0"]
 
-        ray.init(num_cpus=num_cpus + 1, runtime_env=runtime_env) # head worker need 1 cpu
+    ray.init(num_cpus=num_cpus + 1, address="auto", runtime_env=runtime_env) # head worker need 1 cpu
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
 
