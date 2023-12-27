@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
+        run: cat ${{ ACTIONS_RUNNER_CONFIG_PATH }}/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: |
