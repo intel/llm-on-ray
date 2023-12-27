@@ -108,6 +108,7 @@ def train_func(config: Dict[str, Any]):
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
+        "log_step": 1,
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
@@ -159,7 +160,7 @@ def get_finetune_config():
 
     with open(config_file) as f:
         finetune_config = parse_yaml_raw_as(FinetuneConfig, f)
-    return finetune_config.dict()
+    return finetune_config.model_dump()
 
 
 def main(external_config = None):
@@ -177,6 +178,7 @@ def main(external_config = None):
 
     use_cpu = True if accelerate_mode.startswith("CPU") else False
     use_gpu = True if accelerate_mode.startswith("GPU") else False
+    num_cpus = num_training_workers * resources_per_worker["CPU"]
     ccl_worker_count = 1 if use_cpu is True else num_training_workers
 
     if not ray.is_initialized():
@@ -198,7 +200,9 @@ def main(external_config = None):
         if config["General"]["gpt_base_model"] == True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        ray.init(runtime_env = runtime_env)
+        ray.init(num_cpus=num_cpus + 1, runtime_env=runtime_env) # head worker need 1 cpu
+
+    common.logger.info(f"ray available resources = {ray.available_resources()}")
 
     scaling_config = ScalingConfig(
         num_workers = num_training_workers,
