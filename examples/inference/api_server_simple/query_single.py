@@ -18,7 +18,7 @@ import requests
 import time
 import argparse
 
-parser = argparse.ArgumentParser("Model Inference Script", add_help=False)
+parser = argparse.ArgumentParser(description="Model Inference Script", add_help=False)
 parser.add_argument("--model_endpoint", default="http://127.0.0.1:8000", type=str, help="deployed model endpoint")
 parser.add_argument("--streaming_response", default=False, action="store_true", help="whether to enable streaming response")
 parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")

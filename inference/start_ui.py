@@ -864,7 +864,7 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Start UI", add_help=False)
+    parser = argparse.ArgumentParser(description="Start UI", add_help=False)
     parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     parser.add_argument("--finetune_checkpoint_path", default="", type=str, help="Where to save checkpoints.")
     parser.add_argument("--default_rag_path", default="./vector_store/", type=str, help="The path of vectorstore used by RAG.")

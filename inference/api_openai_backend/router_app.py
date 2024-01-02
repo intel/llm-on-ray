@@ -41,7 +41,7 @@ from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response, StreamingResponse
 from logger import get_logger
-from .error_handler import OpenAIHTTPException, openai_exception_handler
+from .request_handler import OpenAIHTTPException, openai_exception_handler
 from .query_client import RouterQueryClient
 from .openai_protocol import Prompt, ModelResponse, CompletionRequest, ChatCompletionRequest
 from .openai_protocol import (
@@ -225,14 +225,14 @@ async def _chat_completions_wrapper(
 class Router:
     def __init__(
         self,
-        query_engine: RouterQueryClient,
+        query_client: RouterQueryClient,
     ) -> None:
-        self.query_engine = query_engine
+        self.query_client = query_client
 
     @router_app.get("/v1/models", response_model=ModelList)
     async def models(self) -> ModelList:
         """OpenAI API-compliant endpoint to get all models."""
-        models = await self.query_engine.models()
+        models = await self.query_client.models()
         return ModelList(data=list(models.values()))
 
     # :path allows us to have slashes in the model name
@@ -243,7 +243,7 @@ class Router:
         :param model: The model ID (e.g. "amazon/LightGPT")
         """
         model = model.replace("--", "/")
-        model_data = await self.query_engine.model(model)
+        model_data = await self.query_client.model(model)
         if model_data is None:
             raise OpenAIHTTPException(
                 message=f"Invalid model '{model}'",
@@ -277,7 +277,7 @@ class Router:
                     request_id,
                     body,
                     response,
-                    self.query_engine.stream(
+                    self.query_client.stream(
                         body.model,
                         prompt,
                         request_id,
@@ -287,7 +287,7 @@ class Router:
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_engine.query(body.model, prompt, request_id)
+                results = await self.query_client.query(body.model, prompt, request_id)
                 if results.error:
                     raise OpenAIHTTPException(
                         message=results.error.message,
@@ -334,7 +334,7 @@ class Router:
                     request_id,
                     body,
                     response,
-                    self.query_engine.stream(
+                    self.query_client.stream(
                                     body.model,
                                     prompt,
                                     request_id
@@ -344,7 +344,7 @@ class Router:
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_engine.query(body.model, prompt, request_id)
+                results = await self.query_client.query(body.model, prompt, request_id)
                 if results.error:
                     raise OpenAIHTTPException(
                         message=results.error.message,

@@ -60,7 +60,7 @@ class PredictCallable:
 if __name__ == "__main__":
 
     import argparse
-    parser = argparse.ArgumentParser('GPT-J generation script', add_help=False)
+    parser = argparse.ArgumentParser(description='GPT-J generation script', add_help=False)
     parser.add_argument('--model', default='EleutherAI/gpt-j-6B', type=str, help="model name or path")
     parser.add_argument('--max-new-tokens', default=100, type=int, help="output max new tokens")
     args = parser.parse_args()

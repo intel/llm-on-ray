@@ -48,19 +48,17 @@ def get_deployed_models(args):
         model_list = {}
         model_list[infer_conf.name] = infer_conf
 
-    ray.init(address="auto")
-
-    deployment_map = {}
+    deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-        deployment_map[model_id] = PredictorDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
-    return deployment_map, model_list
+        deployments[model_id] = PredictorDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
+    return deployments, model_list
 
 # make it unittest friendly
 def main(argv=None):
     # args
     import argparse
-    parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
+    parser = argparse.ArgumentParser(description="Model Serve Script", add_help=False)
     parser.add_argument("--config_file", type=str, help="inference configuration file in YAML. If specified, all other arguments are ignored")
     parser.add_argument("--model", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
@@ -78,18 +76,20 @@ def main(argv=None):
     parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
 
     args = parser.parse_args(argv)
-    deployment_map, model_list = get_deployed_models(args)
+
+    ray.init(address="auto")
+    deployments, model_list = get_deployed_models(args)
     if args.serve_simple:
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.
-        serve_run(deployment_map, model_list)
+        serve_run(deployments, model_list)
     else:
         # provide OpenAI compatible api to run LLM models
         # all models are served under the same URL and then accessed through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else ""
         route_prefix = "/{}".format(rp)
-        openai_serve_run(deployment_map, host, route_prefix, args.port)
+        openai_serve_run(deployments, host, route_prefix, args.port)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:

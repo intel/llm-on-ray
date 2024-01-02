@@ -36,7 +36,7 @@ from typing import Dict
 from fastapi import HTTPException
 from .openai_protocol import ModelCard, Prompt
 from .openai_protocol import Prompt, ModelResponse
-from .error_handler import handle_request
+from .request_handler import handle_request
 
 class RouterQueryClient():
     def __init__(self, serve_deployments):
