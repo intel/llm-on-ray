@@ -26,22 +26,22 @@ device: "hpu"
 ```
 LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [BigDL-LLM](serve_bigdl.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
 
-## Deploy the Model
-To deploy your model, execute the following command with the model's configuration file. This will create an OpenAI-compatible API for serving.
+## Serving
+### OpenAI-compatible API
+To deploy your model, execute the following command with the model's configuration file. This will create an OpenAI-compatible API ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)) for serving.
 ```bash
 python inference/run_model_serve.py --config_file <path to the conf file>
 ```
 To deploy and serve multiple models concurrently, place all models' configuration files under `inference/models` and directly run `python inference/run_model_serve.py` without passing any conf file.
 
-## Test the Model Endpoint
-After deploying the model, you can access and test it  in many ways:
+After deploying the model, you can access and test it in many ways:
 ```bash
 # using curl
 export ENDPOINT_URL=http://localhost:8000/v1
 curl $ENDPOINT_URL/chat/completions \
     -H "Content-Type: application/json" \
     -d '{
-    "model": "gpt2",
+    "model": $MODEL_NAME,
     "messages": [{"role": "assistant", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}],
     "temperature": 0.7
     }'
@@ -53,5 +53,14 @@ python examples/inference/api_server_openai/query_chat_streaming.py
 export OPENAI_API_BASE=http://localhost:8000/v1
 export OPENAI_API_KEY=$your_openai_api_key
 python examples/inference/api_server_openai/query_openai_sdk.py
+```
+### Serving model to a customed Endpoint
+This will create a customed endpoint for serving according to the `port` and `route_prefix` parameters in conf file, for example: http://127.0.0.1:8000/gpt2.
+```bash
+python inference/run_model_serve.py --config_file <path to the conf file> --serve_customed_url
+```
+After deploying the model endpoint, you can access and test it by using the script below:
+```bash
+python inference/run_model_infer.py --model_endpoint <the model endpoint URL>
 ```
 
