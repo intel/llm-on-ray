@@ -1,0 +1,19 @@
+### For security concern, we usually don't run github workflow under root. But dockerfile and its container may use root as default.
+### As a consequence, some workflow actions, like checkout, fail to remove existing files, created by root in container, from the github workspace.
+### To fix it without compromising security, we can add a actions runner hook to remove the workspace just before the checkout action.
+### The hook script delegate the removing to an executable binary file, owned by root with stricky bit set.
+
+1. run below script with root to convert remove_workspace_source.sh to binary file so that we can use stricky bit to removing files 
+with right permission.
+
+shc -S -vrf ./script/remove_workspace_source.sh -o remove_workspace_bin
+chmod u+s remove_workspace_bin
+
+2. copy remove_workspace_bin and ./script/remove_workspace.sh to a github workflow folder, like actions-runner. 
+Make sure remove_workspace_bin's attributes and owner (root) are kept during copy. Use rsync instead of scp when copy to remote host.
+
+rsync -av remove_workspace_bin <host>:<path>
+
+3. edit your github workflow env file, e.g., actions-runner/.env, and append below line.
+
+ACTIONS_RUNNER_HOOK_JOB_STARTED=/home/ci/actions-runner/remove_workspace.sh

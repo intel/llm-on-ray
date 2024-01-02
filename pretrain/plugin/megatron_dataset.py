@@ -1,7 +1,7 @@
 import numpy as np
 
 from megatron import get_args, print_rank_0
-from megatron.training import build_train_valid_test_datasets
+from megatron.training import build_train_valid_test_datasets, update_train_iters
 from megatron.data import gpt_dataset
 from megatron.data.indexed_dataset import make_dataset as make_indexed_dataset
 
@@ -30,6 +30,8 @@ class MegatronDataset(Dataset):
 
             return train_ds, valid_ds, test_ds
 
+        args = get_args()
+        update_train_iters(args)
         datasets = build_train_valid_test_datasets(_train_valid_test_datasets_provider)
         print_rank_0(datasets)
         return datasets

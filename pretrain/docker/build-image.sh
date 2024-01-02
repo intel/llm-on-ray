@@ -1,9 +1,7 @@
 #!/bin/bash
 dockerfile=Dockerfile
-if [[ $1 = "megatron-gpu" ]]; then
-    dockerfile=Dockerfile.megatron.gpu
-elif [[ $1 = "dp" ]]; then
-    dockerfile=Dockerfile.dp 
+if [[ $1 = "nvidia" ]]; then
+    dockerfile=Dockerfile.nvidia
 elif [[ $1 = "megatron-habana" ]]; then
     dockerfile=Dockerfile.megatron.habana
 elif [[ $1 = "optimum-habana" ]]; then
