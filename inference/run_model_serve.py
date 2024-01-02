@@ -17,6 +17,7 @@
 import ray
 from inference_config import ModelDescription, InferenceConfig, all_models
 import sys
+import os
 from utils import get_deployment_actor_options
 from pydantic_yaml import parse_yaml_raw_as
 from api_server import serve_run
@@ -42,6 +43,7 @@ def main(argv=None):
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
     parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
     parser.add_argument("--serve_customed_url", action="store_true", help="whether to keep serving urls based on model conf files, or serve OpenAI-compatible API for all models.")
+    parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
 
     args = parser.parse_args(argv)
 
@@ -87,6 +89,12 @@ def main(argv=None):
         rp = args.route_prefix if args.route_prefix else ""
         route_prefix = "/{}".format(rp)
         openai_serve_run(deployment_map, host, route_prefix, args.port)
+
+    msg = "Service is deployed successfully."
+    if args.keep_serve_terminal:
+        input(msg)
+    else:
+        print(msg)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

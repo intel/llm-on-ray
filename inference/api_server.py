@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import os
 import ray
 from ray import serve
 
@@ -36,10 +35,4 @@ def serve_run(deployments, model_list):
         url = f"http://{host_ip}:{infer_conf.port}{infer_conf.route_prefix}"
         print(f"Deployment '{deployment_name}' is ready at `{url}`.")
 
-    msg = "Service is deployed successfully"
-    env_name = "KEEP_SERVE_TERMINAL"
-    if env_name not in os.environ or os.environ[env_name].lower() in ['true', '1', 't', 'y', 'yes', 'yeah', 'yup']:
-        input(msg)
-    else:
-        print(msg)
     return deployments
