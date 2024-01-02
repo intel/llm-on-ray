@@ -47,11 +47,11 @@ curl $ENDPOINT_URL/chat/completions \
     }'
 
 # using requests library
-python examples/inference/test_api_server_openai/query_chat_streaming.py
+python examples/inference/api_server_openai/query_chat_streaming.py
 
 # using OpenAI SDK
 export OPENAI_API_BASE=http://localhost:8000/v1
 export OPENAI_API_KEY=$your_openai_api_key
-python examples/inference/test_api_server_openai/query_openai_sdk.py
+python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 
