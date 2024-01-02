@@ -17,36 +17,13 @@
 import ray
 from inference_config import ModelDescription, InferenceConfig, all_models
 import sys
-import os
 from utils import get_deployment_actor_options
 from pydantic_yaml import parse_yaml_raw_as
 from api_server import serve_run
 from api_server_openai import openai_serve_run
 from predictor_deployment import PredictorDeployment
 
-# make it unittest friendly
-def main(argv=None):
-    # args
-    import argparse
-    parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
-    parser.add_argument("--config_file", type=str, help="inference configuration file in YAML. If specified, all other arguments are ignored")
-    parser.add_argument("--model", default=None, type=str, help="model name or path")
-    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
-    parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
-    parser.add_argument("--route_prefix", default=None, type=str, help="the route prefix for HTTP requests.")
-    parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
-    parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
-    parser.add_argument("--hpus_per_worker", default=0, type=float, help="hpus per worker, used when --device is hpu")
-    parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
-    parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
-    parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
-    parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
-    parser.add_argument("--serve_customed_url", action="store_true", help="whether to keep serving urls based on model conf files, or serve OpenAI-compatible API for all models.")
-    parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
-
-    args = parser.parse_args(argv)
-
+def get_deployed_models(args):
     # serve all pre-defined models, or model from MODEL_TO_SERVE env, if no model argument specified
     if args.model is None and args.config_file is None:
         model_list = all_models
@@ -77,13 +54,37 @@ def main(argv=None):
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
         deployment_map[model_id] = PredictorDeployment.options(ray_actor_options=ray_actor_options).bind(infer_conf)
+    return deployment_map, model_list
 
+# make it unittest friendly
+def main(argv=None):
+    # args
+    import argparse
+    parser = argparse.ArgumentParser("Model Serve Script", add_help=False)
+    parser.add_argument("--config_file", type=str, help="inference configuration file in YAML. If specified, all other arguments are ignored")
+    parser.add_argument("--model", default=None, type=str, help="model name or path")
+    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+    parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
+    parser.add_argument("--route_prefix", default=None, type=str, help="the route prefix for HTTP requests.")
+    parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
+    parser.add_argument("--gpus_per_worker", default=0, type=float, help="gpus per worker, used when --device is cuda")
+    parser.add_argument("--hpus_per_worker", default=0, type=float, help="hpus per worker, used when --device is hpu")
+    parser.add_argument("--deepspeed", action='store_true', help="enable deepspeed inference")
+    parser.add_argument("--workers_per_group", default="2", type=int, help="workers per group, used with --deepspeed")
+    parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
+    parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
+    parser.add_argument("--serve_customed_url", action="store_true", help="whether to keep serving urls based on model conf files, or serve OpenAI-compatible API for all models.")
+    parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
+
+    args = parser.parse_args(argv)
+    deployment_map, model_list = get_deployed_models(args)
     if args.serve_customed_url:
         # compatible with previous url versions
-        # models can be served to custom URLs according to the configuration.
+        # models can be served to customed URLs according to the configuration.
         serve_run(deployment_map, model_list)
     else:
-        # provide openai compatible api to run LLM models
+        # provide OpenAI compatible api to run LLM models
         # all models are served under the same URL and then accessed through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else ""
