@@ -68,18 +68,18 @@ def train_func(config: Dict[str, Any]):
 
     accelerate_mode = config["Training"]["accelerate_mode"]
     if accelerate_mode in ["GPU_FSDP"]:
-        dp_plugin = FullyShardedDataParallelPlugin(
+        fsdp_plugin = FullyShardedDataParallelPlugin(
             state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
             optim_state_dict_config=FullOptimStateDictConfig(
                 offload_to_cpu=False, rank0_only=False
             ),
         )
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
-        dp_plugin = DeepSpeedPlugin(hf_ds_config=config["deepspeed_config"])
+        fsdp_plugin = DeepSpeedPlugin(hf_ds_config=config["deepspeed_config"])
     else:
-        dp_plugin = None
+        fsdp_plugin = None
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
-                                         dp_plugin=dp_plugin)
+                                         fsdp_plugin=fsdp_plugin)
     common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
