@@ -64,7 +64,7 @@ python finetune/finetune.py --config_file finetune/finetune.yaml
 Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2 as an example, but more model configuration examples can be found in the [inference/models](inference/models) directory:
 
 ```bash
-python inference/run_model_serve.py --config_file inference/models/gpt2.yaml
+python inference/serve.py --config_file inference/models/gpt2.yaml
 ```
 
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
@@ -80,20 +80,20 @@ curl $ENDPOINT_URL/chat/completions \
     }'
 
 # using requests library
-python examples/inference/api_server_openai/query_chat_streaming.py
+python examples/inference/api_server_openai/query_requests_url.py
 
 # using OpenAI SDK
 export OPENAI_API_BASE=http://localhost:8000/v1
 export OPENAI_API_KEY=$your_openai_api_key
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
-Or you can serve specific model to a customed endpoint according to the `port` and `route_prefix` parameters in configuration file,
+Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python inference/run_model_serve.py --config_file inference/models/gpt2.yaml --serve_customed_url
+python inference/serve.py --config_file inference/models/gpt2.yaml --serve_simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
-python inference/run_model_infer.py --model_endpoint http://127.0.0.1:8000/gpt2
+python inference/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
 ```
 
 ## Documents

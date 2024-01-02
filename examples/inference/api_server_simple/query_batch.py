@@ -30,7 +30,6 @@ class PredictCallable:
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             low_cpu_mem_usage=True,
-            cache_dir="/mnt/DP_disk3/GPTJ_Model"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = model.eval()

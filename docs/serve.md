@@ -30,9 +30,9 @@ LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP
 ### OpenAI-compatible API
 To deploy your model, execute the following command with the model's configuration file. This will create an OpenAI-compatible API ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)) for serving.
 ```bash
-python inference/run_model_serve.py --config_file <path to the conf file>
+python inference/serve.py --config_file <path to the conf file>
 ```
-To deploy and serve multiple models concurrently, place all models' configuration files under `inference/models` and directly run `python inference/run_model_serve.py` without passing any conf file.
+To deploy and serve multiple models concurrently, place all models' configuration files under `inference/models` and directly run `python inference/serve.py` without passing any conf file.
 
 After deploying the model, you can access and test it in many ways:
 ```bash
@@ -47,20 +47,20 @@ curl $ENDPOINT_URL/chat/completions \
     }'
 
 # using requests library
-python examples/inference/api_server_openai/query_chat_streaming.py
+python examples/inference/api_server_openai/query_requests_url.py
 
 # using OpenAI SDK
 export OPENAI_API_BASE=http://localhost:8000/v1
 export OPENAI_API_KEY=$your_openai_api_key
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
-### Serving model to a customed Endpoint
-This will create a customed endpoint for serving according to the `port` and `route_prefix` parameters in conf file, for example: http://127.0.0.1:8000/gpt2.
+### Serving Model to a Simple Endpoint
+This will create a simple endpoint for serving according to the `port` and `route_prefix` parameters in conf file, for example: http://127.0.0.1:8000/gpt2.
 ```bash
-python inference/run_model_serve.py --config_file <path to the conf file> --serve_customed_url
+python inference/serve.py --config_file <path to the conf file> --serve_simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
-python inference/run_model_infer.py --model_endpoint <the model endpoint URL>
+python inference/query_single.py --model_endpoint <the model endpoint URL>
 ```
 
