@@ -53,6 +53,12 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "FSDP_USE_ORIG_PARAMS": "false",
             "FSDP_SYNC_MODULE_STATES": "true",
         },
+        "GPU_DEEPSPEED": {
+            "ACCELERATE_USE_CPU": "False",
+            "ACCELERATE_USE_XPU": "True",
+            "ACCELERATE_USE_IPEX": "True",
+            "ACCELERATE_USE_DEEPSPEED": "true"
+        }
     }
     if mode not in mode_env_vars:
         raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
