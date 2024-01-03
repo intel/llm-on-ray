@@ -106,15 +106,9 @@ jobs:
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${PREFIX}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
-<<<<<<< HEAD
             docker exec "${PREFIX}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --serve_simple"
             docker exec "${PREFIX}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${PREFIX}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
-=======
-            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
->>>>>>> opensource/main
           fi
 
       - name: Run Inference Test with DeepSpeed and Deltatuner
