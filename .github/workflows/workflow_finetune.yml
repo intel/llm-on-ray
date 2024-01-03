@@ -15,6 +15,15 @@ on:
       https_proxy:
         type: string
         default: 'http://proxy-chain.intel.com:911'
+      runner_config_path:
+        type: string
+        default: '/home/ci/llm-ray-actions-runner'
+      code_checkout_path:
+        type: string
+        default: '/home/ci/actions-runner/_work/llm-on-ray/llm-on-ray'
+      model_cache_path:
+        type: string
+        default: '/mnt/DP_disk1/huggingface/cache'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
@@ -47,7 +56,7 @@ jobs:
         https_proxy: ${{ inputs.https_proxy }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - DV_ACTIONS_RUNNER_CONFIG_PATH:/root/actions-runner-config
+        - ${{ inputs.runner_config_path }}:/root/actions-runner-config
 
     steps:
       - name: Checkout
@@ -65,7 +74,7 @@ jobs:
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          docker run -tid -v DV_MODEL_CACHE_PATH:/root/.cache/huggingface/hub -v DV_CODE_CHECKOUT_PATH:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="finetune" --hostname="finetune-container" finetune:latest
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="finetune" --hostname="finetune-container" finetune:latest
 
       - name: Run Finetune Test
         run: |
