@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import ray
 import ray.data
 import pandas as pd
@@ -14,7 +30,6 @@ class PredictCallable:
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             low_cpu_mem_usage=True,
-            cache_dir="/mnt/DP_disk3/GPTJ_Model"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = model.eval()
@@ -45,7 +60,7 @@ class PredictCallable:
 if __name__ == "__main__":
 
     import argparse
-    parser = argparse.ArgumentParser('GPT-J generation script', add_help=False)
+    parser = argparse.ArgumentParser(description='GPT-J generation script', add_help=False)
     parser.add_argument('--model', default='EleutherAI/gpt-j-6B', type=str, help="model name or path")
     parser.add_argument('--max-new-tokens', default=100, type=int, help="output max new tokens")
     args = parser.parse_args()

@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import requests
 from inference_config import all_models, ModelDescription, Prompt
 from inference_config import InferenceConfig as FinetunedConfig
@@ -5,7 +21,7 @@ import time
 import os
 from chat_process import ChatModelGptJ, ChatModelLLama
 import torch
-from run_model_serve import PredictDeployment
+from predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
@@ -471,7 +487,7 @@ class ChatBotUI():
             pip_env = "transformers==4.35.0"
         else:
             pip_env = "transformers==4.31.0"
-        deployment = PredictDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
+        deployment = PredictorDeployment.options(num_replicas=replica_num, ray_actor_options={"num_cpus": cpus_per_worker_deploy, "runtime_env": {"pip": [pip_env]}}).bind(finetuned_deploy)
         handle = serve.run(deployment, _blocking=True, port=finetuned_deploy.port, name=finetuned_deploy.name, route_prefix=finetuned_deploy.route_prefix)
         return self.ip_port + finetuned_deploy.route_prefix
 
@@ -848,7 +864,7 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Start UI", add_help=False)
+    parser = argparse.ArgumentParser(description="Start UI", add_help=False)
     parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     parser.add_argument("--finetune_checkpoint_path", default="", type=str, help="Where to save checkpoints.")
     parser.add_argument("--default_rag_path", default="./vector_store/", type=str, help="The path of vectorstore used by RAG.")
