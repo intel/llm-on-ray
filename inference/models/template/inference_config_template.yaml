@@ -6,7 +6,7 @@ gpus_per_worker: 0
 hpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2
-device: cpu
+device: CPU
 ipex:
   enabled: true
   precision: bf16
