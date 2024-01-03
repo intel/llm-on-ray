@@ -68,6 +68,10 @@ bigdl-cpu = [
     "bigdl-llm[all]"
 ]
 
+vllm = [
+    "vllm>=0.2.6"
+]
+
 [tool.setuptools]
 packages = ["finetune", "inference"]
 
