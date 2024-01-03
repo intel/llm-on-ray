@@ -11,6 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
   cancel-in-progress: true
 
+env:
+  ACTIONS_RUNNER_CONTAINER_IMAGE: 10.1.2.13:5000/llmray-build
+  HTTPS_PROXY_CONTAINER: http://proxy-chain.intel.com:911
+  HTTP_PROXY_CONTAINER: http://proxy-chain.intel.com:911
+
 jobs:
   inference:
     name: finetune test
@@ -32,13 +37,13 @@ jobs:
       run:
         shell: bash
     container:
-      image: ${{ vars.ACTIONS_RUNNER_CONTAINER_IMAGE }}
+      image: $ACTIONS_RUNNER_CONTAINER_IMAGE
       env:
-        http_proxy: ${{ vars.HTTP_PROXY_CONTAINER }}
-        https_proxy: ${{ vars.HTTPS_PROXY_CONTAINER }}
+        http_proxy: $HTTP_PROXY_CONTAINER
+        https_proxy: $HTTPS_PROXY_CONTAINER
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - ${{ vars.ACTIONS_RUNNER_CONFIG_PATH }}:/root/actions-runner-config
+        - DV_ACTIONS_RUNNER_CONFIG_PATH:/root/actions-runner-config
 
     steps:
       - name: Checkout
@@ -49,14 +54,15 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune && yes
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=$HTTP_PROXY_CONTAINER --build-arg https_proxy=$HTTPS_PROXY_CONTAINER -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune && yes
           docker image prune -f
 
       - name: Start Docker Container
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="finetune" --hostname="finetune-container" finetune:latest
+          docker run -tid -v DV_MODEL_CACHE_PATH:/root/.cache/huggingface/hub -v DV_CODE_CHECKOUT_PATH:/root/llm-on-ray -e http_proxy=$HTTP_PROXY_CONTAINER -e https_proxy=$HTTPS_PROXY_CONTAINER --name="finetune" --hostname="finetune-container" finetune:latest
+
       - name: Run Finetune Test
         run: |
           docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
@@ -143,6 +149,7 @@ jobs:
             docker exec "finetune" python -c "$CMD"
             docker exec "finetune" bash -c "python finetune/finetune.py --config_file finetune/finetune.yaml"
           fi
+
       - name: Stop Ray
         run: |
           cid=$(docker ps -q --filter "name=finetune")
@@ -155,5 +162,6 @@ jobs:
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+
       - name: Test Summary
         run: echo "to be continued"

@@ -11,6 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf
   cancel-in-progress: true
 
+env:
+  ACTIONS_RUNNER_CONTAINER_IMAGE: 10.1.2.13:5000/llmray-build
+  HTTPS_PROXY_CONTAINER: http://proxy-chain.intel.com:911
+  HTTP_PROXY_CONTAINER: http://proxy-chain.intel.com:911
+
 jobs:
   inference:
     name: inference test
@@ -36,10 +41,10 @@ jobs:
       run:
         shell: bash
     container:
-      image: ${{ vars.ACTIONS_RUNNER_CONTAINER_IMAGE }}
+      image: $ACTIONS_RUNNER_CONTAINER_IMAGE
       env:
-        http_proxy: ${{ vars.HTTP_PROXY_CONTAINER }}
-        https_proxy: ${{ vars.HTTPS_PROXY_CONTAINER }}
+        http_proxy: $HTTP_PROXY_CONTAINER
+        https_proxy: $HTTPS_PROXY_CONTAINER
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
@@ -47,15 +52,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       
-      - name: Set Name Prefix
-        id: "prefix"
+      - name: Determine Target
+        id: "target"
         run: |
-          prefix="inference"
+          target="inference"
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            prefix="${prefix}_bigdl_cpu"
+            target="${target}_bigdl_cpu"
           fi
-          echo "prefix is ${prefix}"
-          echo "prefix=$prefix" >> $GITHUB_OUTPUT
+          echo "target is ${target}"
+          echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
@@ -64,78 +69,78 @@ jobs:
           else
             DF_SUFFIX=".cpu_and_deepspeed"
           fi
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${PREFIX}:latest && yes | docker container prune && yes
+          TARGET=${{steps.target.outputs.target}}
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=$HTTP_PROXY_CONTAINER --build-arg https_proxy=$HTTPS_PROXY_CONTAINER -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           docker image prune -f
 
       - name: Start Docker Container
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          cid=$(docker ps -q --filter "name=${PREFIX}")
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
+          docker run -tid -v DV_MODEL_CACHE_PATH:/root/.cache/huggingface/hub -v DV_CODE_CHECKOUT_PATH:/root/llm-on-ray -e http_proxy=$HTTP_PROXY_CONTAINER -e https_proxy=$HTTPS_PROXY_CONTAINER --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
 
       - name: Start Ray Cluster
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          docker exec "${PREFIX}" bash -c "./inference/deep/start-ray-cluster.sh"
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./inference/deep/start-ray-cluster.sh"
 
       - name: Run Inference Test
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
+          TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false'  python inference/run_model_serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
+            docker exec "${TARGET}" bash -c "KEEP_SERVE_TERMINAL='false'  python inference/run_model_serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
           else
-            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
+            docker exec "${TARGET}" bash -c "KEEP_SERVE_TERMINAL='false' MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/run_model_serve.py"
           fi
-          docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-          docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+          docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
       
       - name: Run Inference Test with Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false'  python inference/run_model_serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml"
-          docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-          docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "KEEP_SERVE_TERMINAL='false'  python inference/run_model_serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml"
+          docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
       - name: Run Inference Test with DeepSpeed
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
+          TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} =~ ^(gpt2|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
-            docker exec "${PREFIX}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
-            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+            docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
+            docker exec "${TARGET}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed"
+            docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
 
       - name: Run Inference Test with DeepSpeed and Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
+          TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} =~ ^(gpt2|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
-            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+            docker exec "${TARGET}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml"
+            docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
 
       - name: Stop Ray
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          cid=$(docker ps -q --filter "name=${PREFIX}")
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then
-            docker exec "${PREFIX}" bash -c "ray stop"
+            docker exec "${TARGET}" bash -c "ray stop"
           fi
       
       - name: Stop Container
         if: success() || failure()
         run: |
-          PREFIX=${{steps.prefix.outputs.prefix}}
-          cid=$(docker ps -q --filter "name=${PREFIX}")
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
 
       - name: Test Summary
