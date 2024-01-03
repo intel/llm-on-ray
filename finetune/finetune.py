@@ -32,7 +32,7 @@ def get_accelerate_environment_variable(mode: str, config: Dict[str, Any]) -> di
         "CPU_DDP": {
             "ACCELERATE_USE_CPU": "True", 
             "ACCELERATE_USE_IPEX": "False",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision
+            "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
         "GPU_DDP": {
             "ACCELERATE_USE_CPU": "False",

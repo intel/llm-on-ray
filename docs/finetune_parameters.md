@@ -32,7 +32,7 @@ The following are the parameters supported in the finetuning workflow.
 |learning_rate|1e-5|Initial learning rate to use.|
 |lr_scheduler|linear|The scheduler type to use, supported value: "linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"|
 |weight_decay|0.0|Weight decay is a regularization technique that adds an L2 norm of all model weights to the loss function while increasing the probability of improving the model generalization.|
-|mixed_precision|no|Whether or not to use mixed precision training. Choose from 'no','fp16','bf16 or 'fp8'. Default is `no` if not set.
+|mixed_precision|no|Whether or not to use mixed precision training. Choose from "no", "fp16", "bf16" or "fp8". Default is "no" if not set.
 |device|CPU|The device type used, can be "CPU", "GPU".|
 |num_training_workers|2|The number of the training process.|
 |resources_per_worker|{"CPU": 32}|A dict to specify the resources for each worker. If `device` is "GPU", please set it like {"CPU": 32, "GPU": 1}.|
