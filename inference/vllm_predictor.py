@@ -8,15 +8,15 @@ from vllm.utils import random_uuid
 import json
 
 class VllmPredictor(Predictor):
-    def __init__(self, inferenceConfig: InferenceConfig):
-        super().__init__(inferenceConfig)
+    def __init__(self, infer_conf: InferenceConfig):
+        super().__init__(infer_conf)
 
-        model_desc = inferenceConfig.model_description
+        model_desc = infer_conf.model_description
         model_config = model_desc.config
 
         args = AsyncEngineArgs(model = model_desc.model_id_or_path,
                                trust_remote_code=model_config.trust_remote_code,
-                               device=inferenceConfig.device)
+                               device=infer_conf.device)
         self.engine = AsyncLLMEngine.from_engine_args(args)
 
     async def streaming_generate(self, prompt, streamer, **config):
