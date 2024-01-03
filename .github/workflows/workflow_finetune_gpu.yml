@@ -2,11 +2,16 @@ name: Finetune on Intel GPU
 
 on:
   workflow_call:
-
-env:
-  ACTIONS_RUNNER_CONTAINER_IMAGE: 10.1.2.13:5000/llmray-build
-  HTTPS_PROXY_CONTAINER: http://proxy-chain.intel.com:911
-  HTTP_PROXY_CONTAINER: http://proxy-chain.intel.com:911
+    inputs:
+      runner_container_image:
+        type: string
+        default: '10.1.2.13:5000/llmray-build'
+      http_proxy:
+        type: string
+        default: 'http://proxy-chain.intel.com:911'
+      https_proxy:
+        type: string
+        default: 'http://proxy-chain.intel.com:911'
 
 jobs:
   finetune:
@@ -20,10 +25,10 @@ jobs:
       run:
         shell: bash
     container:
-      image: "$ACTIONS_RUNNER_CONTAINER_IMAGE"
+      image: ${{ inputs.runner_container_image }}
       env:
-        http_proxy: "$HTTP_PROXY_CONTAINER"
-        https_proxy: "$HTTPS_PROXY_CONTAINER"
+        http_proxy: ${{ inputs.http_proxy }}
+        https_proxy: ${{ inputs.https_proxy }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
