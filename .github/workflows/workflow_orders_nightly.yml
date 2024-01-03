@@ -1,8 +1,8 @@
-name: llm-ray inference & finetune
+name: llm-ray inference & finetune nightly
 
 on:
   schedule:
-    - cron: "0 19 * * *"
+    - cron: "0 16 * * *"
 
 jobs:
 

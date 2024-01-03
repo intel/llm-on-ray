@@ -16,7 +16,6 @@ jobs:
     name: inference test
     strategy:
       matrix:
-        # for mistral-7b-v0.1, we use bigdl-cpu to verify
         model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
@@ -32,10 +31,22 @@ jobs:
             model: mpt-7b
 
     runs-on: self-hosted
+
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ${{ vars.ACTIONS_RUNNER_CONTAINER_IMAGE }}
+      env:
+        http_proxy: ${{ vars.HTTP_PROXY_CONTAINER }}
+        https_proxy: ${{ vars.HTTPS_PROXY_CONTAINER }}
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
+      
       - name: Set Name Prefix
         id: "prefix"
         run: |
@@ -54,14 +65,15 @@ jobs:
             DF_SUFFIX=".cpu_and_deepspeed"
           fi
           PREFIX=${{steps.prefix.outputs.prefix}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_IMAGE_BUILD }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_IMAGE_BUILD }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${PREFIX}:latest && yes | docker container prune && yes | docker image prune
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${PREFIX}:latest && yes | docker container prune && yes
+          docker image prune -f
 
       - name: Start Docker Container
         run: |
           PREFIX=${{steps.prefix.outputs.prefix}}
           cid=$(docker ps -q --filter "name=${PREFIX}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          docker run -tid -v /mnt/DP_disk1/huggingface/cache/:/root/.cache/huggingface/hub -v .:/root/llm-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER_RUN }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER_RUN }} --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
+          docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="${PREFIX}" --hostname="${PREFIX}-container" ${PREFIX}:latest
 
       - name: Start Ray Cluster
         run: |
@@ -94,9 +106,15 @@ jobs:
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${PREFIX}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
+<<<<<<< HEAD
             docker exec "${PREFIX}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --serve_simple"
             docker exec "${PREFIX}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${PREFIX}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+=======
+            docker exec "${PREFIX}" bash -c "KEEP_SERVE_TERMINAL='false' python inference/run_model_serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed"
+            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+            docker exec "${PREFIX}" bash -c "python inference/run_model_infer.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+>>>>>>> opensource/main
           fi
 
       - name: Run Inference Test with DeepSpeed and Deltatuner
@@ -138,3 +156,6 @@ jobs:
 
       - name: Test Summary
         run: echo "to be continued"
+
+
+      

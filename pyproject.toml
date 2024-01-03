@@ -21,7 +21,7 @@ dependencies = [
     "accelerate",
     "datasets>=2.14.6",
     "numpy",
-    "ray @ https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp39-cp39-manylinux2014_x86_64.whl",
+    "ray>=2.9",
     "typing>=3.7.4.3",
     "tabulate",
     "ray[tune]",
@@ -36,7 +36,7 @@ dependencies = [
     "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
-    "paramiko==3.2.0",
+    "paramiko==3.4.0",
 ]
 
 [project.optional-dependencies]
@@ -52,8 +52,8 @@ gpu = [
     "torch==2.0.1a0",
     "torchvision==0.15.2a0",
     "intel-extension-for-pytorch==2.0.110+xpu",
-    "oneccl_bind_pt",
-    "dpctl"
+    "oneccl_bind_pt==2.0.100+gpu",
+    "dpctl==0.14.5"
 ]
 
 deepspeed = [
