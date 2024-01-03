@@ -30,29 +30,29 @@ def get_accelerate_environment_variable(mode: str, config: Dict[str, Any]) -> di
     mixed_precision = config["Training"]["mixed_precision"]
     mode_env_vars = {
         "CPU_DDP": {
-            "ACCELERATE_USE_CPU": "True", 
-            "ACCELERATE_USE_IPEX": "False",
+            "ACCELERATE_USE_CPU": "true", 
+            "ACCELERATE_USE_IPEX": "false",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
         "GPU_DDP": {
-            "ACCELERATE_USE_CPU": "False",
-            "ACCELERATE_USE_XPU": "True",
-            "ACCELERATE_USE_IPEX": "True",
+            "ACCELERATE_USE_CPU": "false",
+            "ACCELERATE_USE_XPU": "true",
+            "ACCELERATE_USE_IPEX": "true",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
         "GPU_FSDP": {
-            "ACCELERATE_USE_CPU": "False",
-            "ACCELERATE_USE_XPU": "True",
-            "ACCELERATE_USE_IPEX": "True",
-            "ACCELERATE_USE_FSDP": "True",
+            "ACCELERATE_USE_CPU": "false",
+            "ACCELERATE_USE_XPU": "true",
+            "ACCELERATE_USE_IPEX": "true",
+            "ACCELERATE_USE_FSDP": "true",
             "FSDP_SHARDING_STRATEGY": "1",
-            "FSDP_OFFLOAD_PARAMS": "False",
+            "FSDP_OFFLOAD_PARAMS": "false",
             "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
             "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
             "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
-            "FSDP_FORWARD_PREFETCH": "False",
-            "FSDP_USE_ORIG_PARAMS": "False",
-            "FSDP_SYNC_MODULE_STATES": "True",
+            "FSDP_FORWARD_PREFETCH": "false",
+            "FSDP_USE_ORIG_PARAMS": "false",
+            "FSDP_SYNC_MODULE_STATES": "true",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
         }
     }
