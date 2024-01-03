@@ -1,8 +1,0 @@
-The CI workflow is based on docker, which generates huge amount of volumns. We need to prune these useless volumns to reclain space.
-The solution here is to setup a system daemon to check and prune volumns periodically.
-
-1. cp ./script/prune_docker_volumns.service /etc/systemd/system
-2. cp prune_docker_volumns.sh to /root/
-3. systemctl start prune_docker_volumns
-4. journalctl --unit prune_docker_volumns --follow
-5. systemctl enable prune_docker_volumns
