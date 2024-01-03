@@ -30,7 +30,7 @@ def get_accelerate_environment_variable(mode: str) -> dict:
     mode_env_vars = {
         "CPU_DDP": {
             "ACCELERATE_USE_CPU": "True", 
-            "ACCELERATE_USE_IPEX": "False",
+            "ACCELERATE_USE_IPEX": "true",
             "ACCELERATE_MIXED_PRECISION": "no",
         },
         "GPU_DDP": {
