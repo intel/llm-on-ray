@@ -34,12 +34,12 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
         exclude:
-          - { isPR: true }
+          - { isPR: false }
         include:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
