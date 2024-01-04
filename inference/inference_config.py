@@ -106,8 +106,8 @@ class InferenceConfig(BaseModel):
     @validator('device')
     def _check_device(cls, v: str):
         if v:
-            assert v in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
-        return v
+            assert v.lower() in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
+        return v.lower()
 
     @validator('workers_per_group')
     def _check_workers_per_group(cls, v: int):
