@@ -8,7 +8,7 @@ from utils import get_torch_dtype
 class TransformerPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig):
         super().__init__(infer_conf)
-        
+
         model_desc = infer_conf.model_description
         model_config = model_desc.config
         hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
