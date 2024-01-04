@@ -3,7 +3,7 @@ import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
 from inference_config import InferenceConfig
 from utils import max_input_len, StoppingCriteriaSub
-from typing import List
+from typing import List, AsyncGenerator
 
 class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
@@ -88,4 +88,7 @@ class Predictor:
         pass
 
     def get_streamer(self):
+        pass
+
+    async def stream_results(self, results_generator) -> AsyncGenerator[str]:
         pass

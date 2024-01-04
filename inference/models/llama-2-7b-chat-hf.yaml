@@ -4,6 +4,7 @@ route_prefix: /llama-2-7b-chat-hf
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
+vllm: true
 workers_per_group: 2
 device: "cpu"
 ipex:

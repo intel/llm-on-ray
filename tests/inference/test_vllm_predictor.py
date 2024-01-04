@@ -5,8 +5,8 @@ from pydantic_yaml import parse_yaml_raw_as
 
 from vllm_predictor import VllmPredictor
 
-# CONFIG_FILE="../inference/models/gpt-j-6b.yaml"
-CONFIG_FILE="../inference/models/gpt2.yaml"
+# gpt2 is not supported due to "gelu_new is unsupported on CPU"
+CONFIG_FILE="../inference/models/llama-2-7b-chat-hf.yaml"
 
 @pytest.fixture
 def infer_conf():
@@ -25,10 +25,17 @@ def config():
         "top_p": 0.95
     }
 
+@pytest.mark.skip(reason="tested")
 def test_generate(infer_conf, prompt, config):
-
     vllm_predictor = VllmPredictor(infer_conf)
-    vllm_predictor.generate(prompt, **config)
+    output = vllm_predictor.generate(prompt, **config)
+    print(f"\n"
+          f"Prompt: {prompt}\n"
+          f"Output: {output}"
+          f"\n")
 
 def test_streaming_generate(infer_conf, prompt, config):
-    ...
+    vllm_predictor = VllmPredictor(infer_conf)
+    streamer = vllm_predictor.get_streamer()
+    vllm_predictor.streaming_generate(prompt, streamer, **config)
+

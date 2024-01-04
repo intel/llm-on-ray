@@ -40,17 +40,22 @@ class PredictorDeployment:
             if chat_processor is None:
                 raise ValueError(infer_conf.name + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
             self.process_tool = chat_processor(**prompt.dict())
-        
+
         self.use_deepspeed = infer_conf.deepspeed
+        self.use_vllm = infer_conf.vllm
+
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
             self.predictor = DeepSpeedPredictor(infer_conf)
             self.streamer = self.predictor.get_streamer()
+        elif self.use_vllm:
+            from vllm_predictor import VllmPredictor
+            self.predictor = VllmPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()
-    
+
     def consume_streamer(self):
         for text in self.streamer:
             yield text
@@ -86,11 +91,14 @@ class PredictorDeployment:
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
             return StreamingResponse(self.consume_streamer(), status_code=200, media_type="text/plain")
+        elif self.use_vllm:
+            results_generator = self.predictor.streaming_generate_async(prompts, **config)
+            return StreamingResponse(self.predictor.stream_results(results_generator), status_code=200, media_type="text/plain")
         else:
             streamer = self.predictor.get_streamer()
             self.loop.run_in_executor(None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config))
             return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
-        
+
     async def stream_response(self, prompt, config):
         prompts = []
         if isinstance(prompt, list):
