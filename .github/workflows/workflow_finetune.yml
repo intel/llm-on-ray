@@ -74,6 +74,9 @@ jobs:
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=finetune")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="finetune" --hostname="finetune-container" finetune:latest
 
       - name: Run Finetune Test
