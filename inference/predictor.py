@@ -9,14 +9,7 @@ class Predictor:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(infer_conf.model_description.tokenizer_name_or_path)
         self.device = torch.device(infer_conf.device)
-        # now deepspeed predictor don't have the model
-        # so configure_tokenizer cannot be called
-        # this should be solved in the next pr
-        # where it is also a worker
-        # This can be removed then
-        if self.tokenizer.pad_token_id is None:
-            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-
+        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
         prompt = infer_conf.model_description.prompt
         stop_words = prompt.stop_words
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
