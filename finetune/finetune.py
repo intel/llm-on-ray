@@ -20,7 +20,7 @@ from accelerate import FullyShardedDataParallelPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.dirname(__file__))
 
 import common
 from finetune_config import FinetuneConfig
@@ -164,9 +164,10 @@ def get_finetune_config():
 
 
 def main(external_config = None):
-    config = get_finetune_config()
-    if external_config is not None:
-        config.merge(external_config)
+    if not external_config:
+        config = get_finetune_config()
+    else:
+        config = external_config
 
     config["cwd"] = os.getcwd()
     num_training_workers = config["Training"].get("num_training_workers")
