@@ -39,3 +39,12 @@ The following are the parameters supported in the finetuning workflow.
 |max_train_steps|None|Total number of training steps to perform. If provided, overrides epochs.|
 |gradient_accumulation_steps|1|Number of updates steps to accumulate before performing a backward/update pass.|
 |seed|None|A seed for reproducible training.|
+|report_to|none|A list of loggers to be setup for experiment tracking. Should be one or several of:
+    - `"none"`
+    - `"all"`
+    - `"tensorboard"`
+    - `"wandb"`
+    - `"comet_ml"`
+    - `"mlflow"`
+    - `"dvclive"`
+    If `"all"` is selected, will pick up all available trackers in the environment and initialize them.|

@@ -73,8 +73,17 @@ def train_func(config: Dict[str, Any]):
         )
     else:
         fsdp_plugin = None
+
+
+    report_to = config["Training"]["report_to"]
+    with_tracking = report_to != "none"
+    accelerator_log_kwargs = {}
+    if with_tracking:
+        accelerator_log_kwargs["log_with"] = report_to
+        accelerator_log_kwargs["project_dir"] = config["General"]["output_dir"]
+    
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
-                                         fsdp_plugin=fsdp_plugin)
+                                         fsdp_plugin=fsdp_plugin, **accelerator_log_kwargs)
     common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
@@ -137,7 +146,12 @@ def train_func(config: Dict[str, Any]):
         exit(1)
     common.logger.info(f"trainer prepare finish")
 
-    try:
+    try:        
+        # We need to initialize the trackers we use, and also store our configuration.
+        # The trackers initializes automatically on the main process.
+        if with_tracking:
+            accelerator.init_trackers("llm-on-ray finetuning", config)
+
         common.logger.info(f"train start")
         trainer.train()
     except Exception as e:

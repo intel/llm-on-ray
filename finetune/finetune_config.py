@@ -53,6 +53,7 @@ class Training(BaseModel):
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
+    report_to: str | list[str] = "none"
 
     @validator("device")
     def check_device(cls, v: str):
