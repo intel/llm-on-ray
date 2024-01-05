@@ -39,7 +39,7 @@ class VllmPredictor(Predictor):
         results_generator = self.engine.generate(prompt, sampling_params, request_id)
         return results_generator
 
-    async def stream_results(self, results_generator) -> AsyncGenerator[str]:
+    async def stream_results(self, results_generator) -> AsyncGenerator[str, None]:
         num_returned = 0
         async for request_output in results_generator:
             text_outputs = [output.text for output in request_output.outputs]

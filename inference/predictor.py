@@ -90,5 +90,5 @@ class Predictor:
     def get_streamer(self):
         pass
 
-    async def stream_results(self, results_generator) -> AsyncGenerator[str]:
+    async def stream_results(self, results_generator) -> AsyncGenerator[str, None]:
         pass
