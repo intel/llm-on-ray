@@ -1,4 +1,6 @@
 #!/bin/bash
+work_path=$(dirname $0)
+cd $(dirname $0)
 
 # This script runs pytest to execute all tests in the test_utils.py file.
 
@@ -9,8 +11,7 @@ set -e
 # source /path/to/your/venv/bin/activate
 
 # Run pytest with the test file
-pytest -vs ./inference/test_utils.py
-
+pytest  -vs ./inference/test_utils.py
 # Optional: deactivate your virtual environment if you used one
 # deactivate
 # pr draft

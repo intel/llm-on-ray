@@ -104,7 +104,7 @@ jobs:
       - name: Start tests-utils
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" cd tests; bash run_test.sh
+          docker exec "${TARGET}" bash -c "./tests/run_test.sh"
 
       # - name: Run Inference Test
       #   run: |
