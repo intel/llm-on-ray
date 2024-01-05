@@ -20,10 +20,9 @@ from accelerate import FullyShardedDataParallelPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
 import sys
-sys.path.append(os.path.dirname(__file__))
-
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import common
-from finetune_config import FinetuneConfig
+from finetune.finetune_config import FinetuneConfig
 
 
 def get_accelerate_environment_variable(mode: str) -> dict:
