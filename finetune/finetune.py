@@ -23,10 +23,10 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
-from finetune.finetune_config import FinetuneConfig
+from finetune_config import FinetuneConfig
+import yaml
 
-def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
-    mixed_precision = config["Training"]["mixed_precision"] if config else "no"
+def get_accelerate_environment_variable(mode: str) -> dict:
     mode_env_vars = {
         "CPU_DDP": {
             "ACCELERATE_USE_CPU": "true",
@@ -73,6 +73,11 @@ def train_func(config: Dict[str, Any]):
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
 
     accelerate_mode = config["Training"]["accelerate_mode"]
+    print("Training accleator mode : ", accelerate_mode)
+    # Convert the dictionary to YAML format
+    yaml_content = yaml.dump(config["deepspeed_config"], default_flow_style=False)
+    print("yaml_content : ", yaml_content)
+
     if accelerate_mode in ["GPU_FSDP"]:
         fsdp_plugin = FullyShardedDataParallelPlugin(
             state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
