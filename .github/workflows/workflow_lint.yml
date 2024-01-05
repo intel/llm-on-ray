@@ -1,0 +1,22 @@
+name: Lint
+
+on:
+  workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Run Lint
+        run: ./format.sh -a
