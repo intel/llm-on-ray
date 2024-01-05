@@ -61,7 +61,7 @@ class ModelDescription(BaseModel):
     # prevent warning of protected namespaces
     # DO NOT TOUCH
     model_config = ConfigDict(protected_namespaces=())
-    
+
     @validator('quantization_type')
     def _check_quant_type(cls, v: str):
         if v:
@@ -83,6 +83,7 @@ class InferenceConfig(BaseModel):
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
     deepspeed: bool = False
+    vllm: bool = False
     workers_per_group: int = 2
     device: str = DEVICE_CPU
     ipex: Ipex = Ipex()
