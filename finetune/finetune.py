@@ -74,8 +74,10 @@ def train_func(config: Dict[str, Any]):
 
     accelerate_mode = config["Training"]["accelerate_mode"]
     print("Training accleator mode : ", accelerate_mode)
+    print(config)
+
     # Convert the dictionary to YAML format
-    yaml_content = yaml.dump(config["deepspeed_config"], default_flow_style=False)
+    yaml_content = yaml.dump(config["DeepspeedConfig"], default_flow_style=False)
     print("yaml_content : ", yaml_content)
 
     if accelerate_mode in ["GPU_FSDP"]:

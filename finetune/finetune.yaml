@@ -27,7 +27,7 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
-deepspeed_config:
+DeepspeedConfig:
   fp16:
     enabled: auto
     hysteresis: 2
