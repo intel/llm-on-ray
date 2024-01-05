@@ -18,7 +18,7 @@ class VllmPredictor(Predictor):
 
         args = AsyncEngineArgs(model = model_desc.model_id_or_path,
                                trust_remote_code=model_config.trust_remote_code,
-                               device="cpu")
+                               device=infer_conf.device)
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
 
