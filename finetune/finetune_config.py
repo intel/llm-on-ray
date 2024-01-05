@@ -53,6 +53,7 @@ class Training(BaseModel):
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
+    mixed_precision: str = "no"
 
     @validator("device")
     def check_device(cls, v: str):
