@@ -1,6 +1,7 @@
 General:
   base_model: EleutherAI/gpt-j-6b
   gpt_base_model: true
+  log_step: 10
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
   config:
