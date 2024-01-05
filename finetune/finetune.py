@@ -26,6 +26,31 @@ import common
 from finetune_config import FinetuneConfig
 import yaml
 
+DEEPSPEED_CONFIG = {
+    "fp16": {
+        "enabled": True
+    },
+    "zero_optimization": {
+        "stage": 3,
+        "offload_optimizer": {
+            "device": "gpu",
+            "pin_memory": False
+        },
+        "overlap_comm": True,
+        "contiguous_gradients": True,
+        "reduce_bucket_size": "auto",
+        "stage3_prefetch_bucket_size": "auto",
+        "stage3_param_persistence_threshold": "auto",
+        "gather_16bit_weights_on_model_save": True,
+        "round_robin_gradients": True
+    },
+    "gradient_accumulation_steps": "auto",
+    "gradient_clipping": "auto",
+    "steps_per_print": 10,
+    "train_batch_size": "auto",
+    "train_micro_batch_size_per_gpu": "auto",
+    "wall_clock_breakdown": False
+}
 def get_accelerate_environment_variable(mode: str) -> dict:
     mode_env_vars = {
         "CPU_DDP": {
@@ -76,9 +101,9 @@ def train_func(config: Dict[str, Any]):
     print("Training accleator mode : ", accelerate_mode)
     print(config)
 
-    # Convert the dictionary to YAML format
-    yaml_content = yaml.dump(config["DeepspeedConfig"], default_flow_style=False)
-    print("yaml_content : ", yaml_content)
+    # # Convert the dictionary to YAML format
+    # yaml_content = yaml.dump(config["DeepspeedConfig"], default_flow_style=False)
+    # print("yaml_content : ", yaml_content)
 
     if accelerate_mode in ["GPU_FSDP"]:
         fsdp_plugin = FullyShardedDataParallelPlugin(
@@ -88,7 +113,7 @@ def train_func(config: Dict[str, Any]):
             ),
         )
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
-        fsdp_plugin = DeepSpeedPlugin(hf_ds_config=config["deepspeed_config"])
+        fsdp_plugin = DeepSpeedPlugin(hf_ds_config=DEEPSPEED_CONFIG)
     else:
         fsdp_plugin = None
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
