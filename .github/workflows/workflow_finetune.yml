@@ -97,10 +97,6 @@ jobs:
                   result['General']["gpt_base_model"] = True
               else:
                   result['General']["gpt_base_model"] = False
-              if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
-                  result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
-              else:
-                  result['General']['lora_config']['target_modules'] = None
               if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf":
                   result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
               else:
@@ -133,6 +129,10 @@ jobs:
                   "lora_alpha": 32,
                   "lora_dropout": 0.1
               }
+              if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
+                  result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              else:
+                  result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
               yaml.dump(result, output, sort_keys=False)
           EOF

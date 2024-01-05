@@ -111,7 +111,7 @@ def train_func(config: Dict[str, Any]):
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
-        "log_step": config["General"].get("log_step", 10),
+        "log_step": 1,
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
