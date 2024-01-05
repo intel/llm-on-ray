@@ -13,5 +13,5 @@ pytest -vs ./inference/test_utils.py
 
 # Optional: deactivate your virtual environment if you used one
 # deactivate
-
+# pr draft
 echo "Pytest finished running tests."
