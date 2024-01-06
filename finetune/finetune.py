@@ -118,6 +118,7 @@ def train_func(config: Dict[str, Any]):
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
         "log_step": 1,
+        "with_tracking": with_tracking,
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
