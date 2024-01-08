@@ -27,11 +27,9 @@ class DSPipeline:
     def __init__(
         self,
         infer_conf: InferenceConfig,
-        pad_token_id,
         stopping_criteria
     ):
         self.device = torch.device(infer_conf.device)
-        self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
         model_desc = infer_conf.model_description
@@ -61,7 +59,6 @@ class DSPipeline:
 
     def streaming_generate(self, inputs, streamer, **generate_kwargs):
         self.model.generate(inputs,
-                    pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
                     **generate_kwargs)
@@ -69,7 +66,6 @@ class DSPipeline:
     def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
             inputs,
-            pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config
         )
@@ -81,10 +77,9 @@ class PredictionWorker(TorchDistributedWorker):
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, infer_conf: InferenceConfig, pad_token_id, stopping_criteria):
+    def __init__(self, world_size: int, infer_conf: InferenceConfig, stopping_criteria):
         self.world_size = world_size
         self.infer_conf = infer_conf
-        self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
     def init_model(self, local_rank: int):
@@ -102,7 +97,6 @@ class PredictionWorker(TorchDistributedWorker):
 
         pipe = DSPipeline(
             self.infer_conf,
-            pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
         )
 
@@ -188,12 +182,12 @@ class DeepSpeedPredictor(Predictor):
         # this process itself is rank 0 worker
         # create the worker instance
         num_workers = self.infer_conf.workers_per_group
-        self.worker = PredictionWorker(num_workers, self.infer_conf, self.pad_token_id, self.stopping_criteria)
+        self.worker = PredictionWorker(num_workers, self.infer_conf, self.stopping_criteria)
 
         # Create the rest prediction workers.
         self.prediction_workers = [
             prediction_worker_cls.remote(num_workers, self.infer_conf,
-                self.pad_token_id, self.stopping_criteria)
+                self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]
 
