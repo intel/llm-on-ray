@@ -134,7 +134,6 @@ class DefaultTrainer(Trainer):
         log_step = self.config.get("log_step", 1)
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
-        with_tracking = self.config.get("with_tracking")
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             logger.info(f"start train epoch {idx}")
             self.model.train()
@@ -143,8 +142,7 @@ class DefaultTrainer(Trainer):
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     outputs = self.model(**batch)
-                    loss = outputs.loss       
-
+                    loss = outputs.loss
                     self.accelerator.backward(loss)
                     self.optimizer.step()
                     if self.lr_scheduler is not None:
@@ -160,16 +158,6 @@ class DefaultTrainer(Trainer):
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}")
                         # report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, total_steps) if max_train_step else total_steps})
                         report({"perplexity": perplexity, "train_loss": loss.item(), "epoch": idx, "step": self.completed_steps})
-                        if with_tracking:
-                            self.accelerator.log(
-                                {
-                                    "perplexity": perplexity,
-                                    "train_loss": loss,
-                                    "epoch": idx,
-                                    "step": self.completed_steps,
-                                },
-                                step = self.completed_steps,
-                            )
                         start = time.time()
 
                 if max_train_step is not None:
@@ -202,9 +190,6 @@ class DefaultTrainer(Trainer):
             if checkpoint is not None:
                 self.save(checkpoint, idx)
             self.accelerator.wait_for_everyone()
-
-        if with_tracking:
-            self.accelerator.end_training()
 
         output = self.config.get("output", "./output")
         if output is not None:

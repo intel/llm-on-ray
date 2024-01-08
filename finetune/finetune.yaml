@@ -27,4 +27,3 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
-  report_to: tensorboard

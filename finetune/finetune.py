@@ -75,15 +75,8 @@ def train_func(config: Dict[str, Any]):
         fsdp_plugin = None
 
 
-    report_to = config["Training"]["report_to"]
-    with_tracking = report_to != "none"
-    accelerator_log_kwargs = {}
-    if with_tracking:
-        accelerator_log_kwargs["log_with"] = report_to
-        accelerator_log_kwargs["project_dir"] = config["General"]["output_dir"]
-    
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
-                                         fsdp_plugin=fsdp_plugin, **accelerator_log_kwargs)
+                                         fsdp_plugin=fsdp_plugin)
     common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
@@ -118,7 +111,6 @@ def train_func(config: Dict[str, Any]):
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
         "log_step": 1,
-        "with_tracking": with_tracking,
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
@@ -147,18 +139,7 @@ def train_func(config: Dict[str, Any]):
         exit(1)
     common.logger.info(f"trainer prepare finish")
 
-    try:        
-        # We need to initialize the trackers we use, and also store our configuration.
-        # The trackers initializes automatically on the main process.
-        if with_tracking:
-            track_config = {
-                "learning_rate": config["Training"]["learning_rate"],
-            }
-            job_id = ray.get_runtime_context().get_job_id()
-            accelerator.init_trackers(job_id, track_config)
-            log_path = os.path.join(config["General"]["output_dir"], job_id)
-            common.logger.info(f"To visualize your results with TensorBoard, run: `tensorboard --logdir ${log_path}`")
-
+    try:
         common.logger.info(f"train start")
         trainer.train()
     except Exception as e:
