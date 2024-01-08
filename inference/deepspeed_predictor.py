@@ -142,7 +142,7 @@ class DeepSpeedPredictor(Predictor):
 
         self._init_worker_group(scaling_conf)
         # self.worker.generator.model is deepspeed engine
-        self.model = self.worker.generator.model.model
+        self.model = self.worker.generator.model.module
         self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
 
     def __del__(self):
