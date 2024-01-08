@@ -156,7 +156,6 @@ class DefaultTrainer(Trainer):
                     if self.completed_steps % logging_steps == 0:
                         perplexity = math.exp(loss)
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}")
-                        # report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, total_steps) if max_train_step else total_steps})
                         report({"perplexity": perplexity, "train_loss": loss.item(), "epoch": idx, "step": self.completed_steps})
                         start = time.time()
 
