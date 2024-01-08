@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import Optional, List
+from typing import Optional, List, Union
 
 
 class GeneralConfig(BaseModel):
@@ -53,7 +53,7 @@ class Training(BaseModel):
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
-    report_to: str | list[str] = "none"
+    report_to: Union[str, List[str]] = "none"
 
     @validator("device")
     def check_device(cls, v: str):

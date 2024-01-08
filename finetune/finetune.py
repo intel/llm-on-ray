@@ -151,7 +151,10 @@ def train_func(config: Dict[str, Any]):
         # We need to initialize the trackers we use, and also store our configuration.
         # The trackers initializes automatically on the main process.
         if with_tracking:
-            accelerator.init_trackers("llm-on-ray finetuning", config)
+            track_config = {
+                "learning_rate": config["Training"]["learning_rate"],
+            }
+            accelerator.init_trackers("llm-on-ray finetuning", track_config)
 
         common.logger.info(f"train start")
         trainer.train()
@@ -229,12 +232,12 @@ def main(external_config = None):
     if device == "gpu" and is_xpu_available():
         device = "xpu"
 
-    if config.get("torch_config", None) is None:
+    if (config["General"]["base_model"] == "gpt2" and device == "cpu"):
+        torch_config = ray.train.torch.config.TorchConfig(backend = "gloo")
+    else:
         backend = "ccl" if device == "cpu" or device == "xpu" else None
         torch_config = common.TorchConfig(backend=backend, device=device)
-    else:
-        customer_torch_config = config.get("torch_config")
-        torch_config = common.TorchConfig(**customer_torch_config, device=device)
+
     
     if config.get("failure_config", None) is None:
         failure_config = FailureConfig()
