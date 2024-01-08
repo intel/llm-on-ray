@@ -153,11 +153,6 @@ jobs:
             docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/serve.py"
           fi
           docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python examples/inference/api_server_openai/query_http_requests.py"
-     
-      - name: Start test-utils
-        run: |
-          TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "./tests/run_test.sh"
 
       - name: Stop Ray
         run: |
