@@ -73,8 +73,6 @@ def train_func(config: Dict[str, Any]):
         )
     else:
         fsdp_plugin = None
-
-
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
                                          fsdp_plugin=fsdp_plugin)
     common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
@@ -110,7 +108,7 @@ def train_func(config: Dict[str, Any]):
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
-        "logging_steps": config["General"]["logging_steps"],
+        "logging_steps": config["Training"]["logging_steps"],
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
@@ -216,13 +214,13 @@ def main(external_config = None):
     if device == "gpu" and is_xpu_available():
         device = "xpu"
 
-    if (config["General"]["base_model"] == "gpt2" and device == "cpu"):
-        torch_config = ray.train.torch.config.TorchConfig(backend = "gloo")
-    else:
+    if config.get("torch_config", None) is None:
         backend = "ccl" if device == "cpu" or device == "xpu" else None
         torch_config = common.TorchConfig(backend=backend, device=device)
+    else:
+        customer_torch_config = config.get("torch_config")
+        torch_config = common.TorchConfig(**customer_torch_config, device=device)
 
-    
     if config.get("failure_config", None) is None:
         failure_config = FailureConfig()
     else:
