@@ -39,3 +39,4 @@ The following are the parameters supported in the finetuning workflow.
 |max_train_steps|None|Total number of training steps to perform. If provided, overrides epochs.|
 |gradient_accumulation_steps|1|Number of updates steps to accumulate before performing a backward/update pass.|
 |seed|None|A seed for reproducible training.|
+|logging_steps|10|Number of update steps between two logs. Should be an integer.|

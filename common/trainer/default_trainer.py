@@ -131,7 +131,7 @@ class DefaultTrainer(Trainer):
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
-        log_step = self.config.get("log_step", 1)
+        logging_steps = self.config.get("logging_steps")
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
         for idx in range(self.starting_epoch, num_train_epochs, 1):
@@ -153,7 +153,7 @@ class DefaultTrainer(Trainer):
                     if self.accelerator.sync_gradients:
                         self.completed_steps += 1
 
-                    if self.completed_steps % log_step == 0:
+                    if self.completed_steps % logging_steps == 0:
                         perplexity = math.exp(loss)
                         logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}")
                         # report({"train_epoch": idx, "total_epochs": num_train_epochs, "train_step": step, "total_steps": min(max_train_step, total_steps) if max_train_step else total_steps})

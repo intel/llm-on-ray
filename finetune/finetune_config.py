@@ -53,6 +53,7 @@ class Training(BaseModel):
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
+    logging_steps: int = 10
 
     @validator("device")
     def check_device(cls, v: str):
@@ -66,6 +67,11 @@ class Training(BaseModel):
         modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
+        return v
+
+    @validator('logging_steps')
+    def _check_logging_steps(cls, v: int):
+        assert v > 0
         return v
 
     # @model_validator(mode='after')
