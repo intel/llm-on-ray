@@ -226,7 +226,7 @@ class DeepSpeedPredictor(Predictor):
                 worker.execute.remote(
                     _init_torch_distributed,
                     init_method="env",
-                    backend="ccl" if self.device_name != "cuda" else "nccl",
+                    backend="ccl" if self.infer_conf.device != "cuda" else "nccl",
                     rank=rank,
                     world_size=world_size,
                     local_rank=local_rank,
@@ -244,7 +244,7 @@ class DeepSpeedPredictor(Predictor):
         local_world_size = len(node_to_workers[node_id])
         _init_torch_distributed(
             init_method="env",
-            backend="ccl" if self.device_name != "cuda" else "nccl",
+            backend="ccl" if self.infer_conf.device != "cuda" else "nccl",
             rank=0,
             world_size=world_size,
             local_rank=local_rank,
