@@ -17,12 +17,13 @@ on:
       - 'tests/**'
 
 jobs:
-
+  call-tests:
+    uses: ./.github/workflows/workflow_tests.yml
+    
   call-inference:
     uses: ./.github/workflows/workflow_inference.yml
 
   call-finetune:
     uses: ./.github/workflows/workflow_finetune.yml
     
-  # call-tests:
-  #   uses: ./.github/workflows/workflow_tests.yml
+
