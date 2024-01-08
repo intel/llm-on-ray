@@ -11,6 +11,7 @@ set -e
 # source /path/to/your/venv/bin/activate
 
 # Run pytest with the test file
+pip install pytest
 pytest  -vs ./inference/test_utils.py
 # Optional: deactivate your virtual environment if you used one
 # deactivate
