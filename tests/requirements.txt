@@ -1,4 +1,3 @@
-llm_on_ray==0.0.1
 pytest==7.4.4
 torch==2.1.0+cpu
 transformers==4.35.2
