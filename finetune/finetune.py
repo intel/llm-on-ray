@@ -111,7 +111,7 @@ def train_func(config: Dict[str, Any]):
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
         "num_train_epochs": config["Training"]["epochs"],
         "max_train_step": config["Training"].get("max_train_steps", None),
-        "log_step": 1,
+        "logging_steps": config["Training"]["logging_steps"],
         "output": config["General"]["output_dir"],
         "dataprocesser": {
             "type": "GeneralProcesser",
@@ -223,7 +223,7 @@ def main(external_config = None):
     else:
         customer_torch_config = config.get("torch_config")
         torch_config = common.TorchConfig(**customer_torch_config, device=device)
-    
+
     if config.get("failure_config", None) is None:
         failure_config = FailureConfig()
     else:
