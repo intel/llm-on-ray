@@ -1,6 +1,6 @@
 General:
-  base_model: gpt2
-  gpt_base_model: false
+  base_model: EleutherAI/gpt-j-6b
+  gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
   config:
