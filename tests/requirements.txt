@@ -1,5 +1,5 @@
 pytest==7.4.4
-torch==2.1.0+cpu
+torch==2.1.0
 transformers==4.35.2
 ray==3.0.0.dev0
 starlette==0.34.0
