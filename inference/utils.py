@@ -16,8 +16,7 @@
 
 from transformers import StoppingCriteria
 import torch
-
-from inference_config import InferenceConfig, DEVICE_CPU
+from inference.inference_config import InferenceConfig, DEVICE_CPU
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):
     _ray_env_key = "env_vars"

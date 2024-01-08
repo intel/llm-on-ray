@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+import os
+import sys
 import asyncio
 import functools
 from ray import serve
@@ -21,10 +23,10 @@ from starlette.requests import Request
 from queue import Empty
 import torch
 from transformers import TextIteratorStreamer
-from inference_config import InferenceConfig
+from inference.inference_config import InferenceConfig
 from typing import Union
 from starlette.responses import StreamingResponse
-from api_openai_backend.openai_protocol import ModelResponse
+from inference.api_openai_backend.openai_protocol import ModelResponse
 
 
 @serve.deployment
@@ -35,7 +37,11 @@ class PredictorDeployment:
         chat_processor_name = infer_conf.model_description.chat_processor
         prompt = infer_conf.model_description.prompt
         if chat_processor_name:
-            module = __import__("chat_process")
+            try:
+                module = __import__("chat_process")
+            except:
+                sys.path.append(os.path.dirname(__file__))
+                module = __import__("chat_process")
             chat_processor = getattr(module, chat_processor_name, None)
             if chat_processor is None:
                 raise ValueError(infer_conf.name + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")

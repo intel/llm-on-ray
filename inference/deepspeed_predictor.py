@@ -15,8 +15,7 @@ import os
 from predictor import Predictor
 from utils import get_torch_dtype
 
-
-from inference_config import InferenceConfig, DEVICE_CPU, DEVICE_XPU, IPEX_PRECISION_BF16
+from inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_XPU, IPEX_PRECISION_BF16
 
 class DSPipeline:
     def __init__(
