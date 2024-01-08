@@ -34,7 +34,7 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -43,6 +43,7 @@ jobs:
         include:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          - { model: "mistralai/Mistral-7B-v0.1"}
 
     runs-on: self-hosted
 
@@ -128,6 +129,10 @@ jobs:
                   "lora_alpha": 32,
                   "lora_dropout": 0.1
               }
+              if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
+                  result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              else:
+                  result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
               yaml.dump(result, output, sort_keys=False)
           EOF
@@ -137,7 +142,7 @@ jobs:
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
