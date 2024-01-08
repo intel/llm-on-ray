@@ -148,6 +148,7 @@ class DeepSpeedPredictor(Predictor):
 
         self._init_worker_group(scaling_conf)
         self.model = self.worker.generator.model
+        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
 
     def __del__(self):
         shutdown_torch_dist_process_group(self.prediction_workers)

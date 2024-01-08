@@ -9,7 +9,6 @@ class Predictor:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(infer_conf.model_description.tokenizer_name_or_path)
         self.device = torch.device(infer_conf.device)
-        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
         prompt = infer_conf.model_description.prompt
         stop_words = prompt.stop_words
         stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
