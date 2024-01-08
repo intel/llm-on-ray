@@ -2,7 +2,7 @@
 
 import os
 import argparse
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import accelerate
 from accelerate.utils import is_xpu_available
@@ -28,8 +28,8 @@ import common
 from finetune_config import FinetuneConfig
 
 
-def get_accelerate_environment_variable(mode: str, config: Dict[str, Any]) -> dict:
-    mixed_precision = config["Training"]["mixed_precision"]
+def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
+    mixed_precision = config["Training"]["mixed_precision"] if config else "no"
     mode_env_vars = {
         "CPU_DDP": {
             "ACCELERATE_USE_CPU": "true",

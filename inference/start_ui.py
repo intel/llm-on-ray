@@ -1493,7 +1493,7 @@ if __name__ == "__main__":
         "_node_ip_address": "127.0.0.1",
     }
     accelerate_env_vars = get_accelerate_environment_variable(
-        finetune_config["Training"]["accelerate_mode"]
+        finetune_config["Training"]["accelerate_mode"], config=None
     )
     ray_init_config["runtime_env"]["env_vars"].update(accelerate_env_vars)
     context = ray.init(**ray_init_config)
