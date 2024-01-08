@@ -111,7 +111,8 @@ jobs:
           fi
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
-      
+          docker exec "${TARGET}" bash -c "./tests/run_test.sh"
+          
       - name: Run Inference Test with Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |

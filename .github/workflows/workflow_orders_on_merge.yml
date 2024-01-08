@@ -24,5 +24,5 @@ jobs:
   call-finetune:
     uses: ./.github/workflows/workflow_finetune.yml
     
-  call-tests:
-    uses: ./.github/workflows/workflow_tests.yml
+  # call-tests:
+  #   uses: ./.github/workflows/workflow_tests.yml
