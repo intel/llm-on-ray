@@ -154,7 +154,10 @@ def train_func(config: Dict[str, Any]):
             track_config = {
                 "learning_rate": config["Training"]["learning_rate"],
             }
-            accelerator.init_trackers("llm-on-ray finetuning", track_config)
+            job_id = ray.get_runtime_context().get_job_id()
+            accelerator.init_trackers(job_id, track_config)
+            log_path = os.path.join(config["General"]["output_dir"], job_id)
+            common.logger.info(f"To visualize your results with TensorBoard, run: `tensorboard --logdir ${log_path}`")
 
         common.logger.info(f"train start")
         trainer.train()
