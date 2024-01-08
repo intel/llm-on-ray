@@ -39,7 +39,7 @@ jobs:
           - ${{inputs.ci_type == 'pr'}}
 
         exclude:
-          - { isPR: false }
+          - { isPR: true }
         include:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
