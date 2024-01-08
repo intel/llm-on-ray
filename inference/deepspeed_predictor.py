@@ -274,7 +274,7 @@ class DeepSpeedPredictor(Predictor):
     def streaming_generate(self, prompt, streamer, **config):
         input_ids = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
-        for worker in self.prediction_workers
+        for worker in self.prediction_workers:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
         self.worker.streaming_generate(inputs_ids, streamer, **config)
 
