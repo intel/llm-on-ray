@@ -16,6 +16,7 @@ from common import dataprocesser
 from common.trainer import Trainer
 from common.logging import logger
 
+
 class PreTrainer(Trainer):
     def __init__(self, config):
         self.config = config
@@ -34,7 +35,9 @@ class PreTrainer(Trainer):
         self.size = accelerator.num_processes
         self.local_rank = accelerator.local_process_index
         accelerator.wait_for_everyone()
-        logger.info(f"coordinate workers finish, cluster size:{self.size} worker rank:{self.rank} worker local_rank:{self.local_rank}")
+        logger.info(
+            f"coordinate workers finish, cluster size:{self.size} worker rank:{self.rank} worker local_rank:{self.local_rank}"
+        )
 
     def _get_all_checkpoint_episode(self, root_path):
         if not os.path.exists(f"{root_path}"):
@@ -62,18 +65,18 @@ class PreTrainer(Trainer):
 
     def recovery(self, config):
         if config is None or config is {}:
-            logger.warning(f"checkpoint is empty, skip")
+            logger.warning("checkpoint is empty, skip")
             return 0
         root_path = config.get("root_path")
         episode = config.get("episode", None)
 
         if root_path is None:
-            logger.error(f"checkpoint root_path is None, exit")
+            logger.error("checkpoint root_path is None, exit")
             exit(1)
         if episode is None:
             episode = self._get_latest_checkpoint_episode(root_path)
         if episode is None or episode == -1:
-            logger.warning(f"episode is None, skip")
+            logger.warning("episode is None, skip")
             return 0
         local_checkpoint_path = self._get_local_path(root_path, episode)
         try:
@@ -90,22 +93,33 @@ class PreTrainer(Trainer):
                 self.optimizer.load_state_dict(optimizer_state)
 
                 # update lr_scheduler status
-                if Path.exists(checkpoint_dir / "lr_scheduler.pt") and hasattr(self, "lr_scheduler"):
-                    scheduler_state = torch.load(checkpoint_dir / "lr_schduler.pt", map_location="cpu")
+                if Path.exists(checkpoint_dir / "lr_scheduler.pt") and hasattr(
+                    self, "lr_scheduler"
+                ):
+                    scheduler_state = torch.load(
+                        checkpoint_dir / "lr_schduler.pt", map_location="cpu"
+                    )
                     self.lr_scheduler.load_state_dict(scheduler_state)
 
             logger.info(f"recovery to episode {int(episode)}")
             self.starting_episode = int(episode) + 1
-        except Exception as e:
-            logger.warning(f"recovery error", exc_info=True)
+        except Exception:
+            logger.warning("recovery error", exc_info=True)
 
-    def _get_lr_scheduler(self, lr_scheduler_config, optimizer, num_train_epochs, num_steps_per_epoch, accelerator):
+    def _get_lr_scheduler(
+        self,
+        lr_scheduler_config,
+        optimizer,
+        num_train_epochs,
+        num_steps_per_epoch,
+        accelerator,
+    ):
         # gradient_accumulation_steps = accelerator.gradient_accumulation_steps
         # num_update_steps_per_epoch = math.ceil(num_steps_per_epoch / gradient_accumulation_steps)
         enable = lr_scheduler_config.get("enable", False)
         if not enable:
             return None
-        max_train_steps  = lr_scheduler_config.get("max_train_steps")
+        max_train_steps = lr_scheduler_config.get("max_train_steps")
         lr_scheduler_type = lr_scheduler_config.get("lr_scheduler_type", "linear")
         num_warmup_steps = lr_scheduler_config.get("num_warmup_steps", 0)
 
@@ -127,17 +141,23 @@ class PreTrainer(Trainer):
         logger.info(f"model embedding size: {embedding_size}")
         if len(tokenizer) > embedding_size:
             model.resize_token_embeddings(len(tokenizer))
-            logger.warning(f"model embedding size resize to {len(tokenizer)} because of tokenizer size")
+            logger.warning(
+                f"model embedding size resize to {len(tokenizer)} because of tokenizer size"
+            )
 
-        train_dataloader, eval_dataloader = self.dataprocesser.prepare(
-            tokenizer, dataset
-        )
+        train_dataloader, eval_dataloader = self.dataprocesser.prepare(tokenizer, dataset)
 
         lr_scheduler_config = self.config.get("lr_scheduler")
         if lr_scheduler_config:
             num_steps_per_epoch = len(train_dataloader)
             num_train_epochs = self.config.get("num_train_epochs", 1)
-            lr_scheduler = self._get_lr_scheduler(lr_scheduler_config, optimizer, num_train_epochs, num_steps_per_epoch, accelerator)
+            lr_scheduler = self._get_lr_scheduler(
+                lr_scheduler_config,
+                optimizer,
+                num_train_epochs,
+                num_steps_per_epoch,
+                accelerator,
+            )
         else:
             lr_scheduler = None
 
@@ -164,21 +184,22 @@ class PreTrainer(Trainer):
             pass
 
         self.train_dataloader, self.eval_dataloader = accelerator.prepare(
-            train_dataloader, eval_dataloader,
+            train_dataloader,
+            eval_dataloader,
         )
 
     def _check_and_mkdir(self, path):
-        path = Path(path) 
+        path = Path(path)
         if not path.exists():
             path.mkdir(parents=True)
-    
+
     def _write_json(self, target_dict, save_path):
         json_object = json.dumps(target_dict, indent=4)
         with open(save_path, "w") as outfile:
             outfile.write(json_object)
 
     def train(self):
-        num_train_epochs = self.config.get("num_train_epochs", 1)
+        self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         log_step = self.config.get("log_step", 1)
         max_train_step_per_episode = self.config.get("max_train_step_per_episode")
@@ -189,21 +210,25 @@ class PreTrainer(Trainer):
             self._check_and_mkdir(save_state_path)
             training_state = {}
         else:
-            training_state = None 
-        
+            training_state = None
+
         for idx in range(self.starting_episode, len(self.train_dataloader), 1):
             logger.info(f"start train episode {idx}")
             if training_state is not None and int(self.rank) == 0:
-                training_state[f'episode_{idx}'] = {}
+                training_state[f"episode_{idx}"] = {}
             self.model.train()
             current_train_dataloader = self.train_dataloader[idx]
             start = time.time()
             for step, batch in enumerate(current_train_dataloader):
                 if training_state is not None and int(self.rank) == 0:
-                    training_state[f'episode_{idx}'][f'step_{step}'] = {}
-                    training_state[f'episode_{idx}'][f'step_{step}']['data'] = batch['input_ids'][0].tolist()[:50]
-                    training_state[f'episode_{idx}'][f'step_{step}']['learning_rate'] = self.lr_scheduler.state_dict()['_last_lr']
-                        
+                    training_state[f"episode_{idx}"][f"step_{step}"] = {}
+                    training_state[f"episode_{idx}"][f"step_{step}"]["data"] = batch["input_ids"][
+                        0
+                    ].tolist()[:50]
+                    training_state[f"episode_{idx}"][f"step_{step}"][
+                        "learning_rate"
+                    ] = self.lr_scheduler.state_dict()["_last_lr"]
+
                 with self.accelerator.accumulate(self.model):
                     outputs = self.model(**batch)
                     loss = outputs.loss
@@ -215,14 +240,20 @@ class PreTrainer(Trainer):
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
                     if step % log_step == 0:
-                        logger.info(f"train episode:[{idx}/{len(self.train_dataloader)}]\tstep:[{step}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        logger.info(
+                            f"train episode:[{idx}/{len(self.train_dataloader)}]\tstep:[{step}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}"
+                        )
                         start = time.time()
                 if training_state is not None and int(self.rank) == 0:
-                    training_state[f'episode_{idx}'][f'step_{step}']['loss'] = loss.item()
-                    training_state[f'episode_{idx}'][f'step_{step}']['ppl'] = math.exp(loss) 
-                    file_name = "stepwise_training_state_recovery" if self.starting_episode > 0 else "stepwise_training_state"
+                    training_state[f"episode_{idx}"][f"step_{step}"]["loss"] = loss.item()
+                    training_state[f"episode_{idx}"][f"step_{step}"]["ppl"] = math.exp(loss)
+                    file_name = (
+                        "stepwise_training_state_recovery"
+                        if self.starting_episode > 0
+                        else "stepwise_training_state"
+                    )
                     self._write_json(training_state, f"{save_state_path}/{file_name}.json")
-                
+
                 if max_train_step_per_episode is not None:
                     if step >= max_train_step_per_episode:
                         break
@@ -236,7 +267,11 @@ class PreTrainer(Trainer):
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
-                    losses.append(self.accelerator.gather_for_metrics(loss.repeat(batch["input_ids"].shape[0])))
+                    losses.append(
+                        self.accelerator.gather_for_metrics(
+                            loss.repeat(batch["input_ids"].shape[0])
+                        )
+                    )
                     if max_eval_step_per_episode is not None:
                         if step >= max_eval_step_per_episode:
                             break
@@ -248,7 +283,9 @@ class PreTrainer(Trainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
-                logger.info(f"eval episode:[{idx}/{len(self.train_dataloader)}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")
+                logger.info(
+                    f"eval episode:[{idx}/{len(self.train_dataloader)}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]"
+                )
 
             if checkpoint is not None:
                 self.save(checkpoint, idx)
@@ -259,7 +296,9 @@ class PreTrainer(Trainer):
             logger.info(f"start save model to {output}")
             unwrapped_model = self.accelerator.unwrap_model(self.model)
             unwrapped_model.save_pretrained(
-                output, is_main_process=self.accelerator.is_main_process, save_function=self.accelerator.save
+                output,
+                is_main_process=self.accelerator.is_main_process,
+                save_function=self.accelerator.save,
             )
             logger.info(f"finish save model to {output}")
         self.accelerator.wait_for_everyone()
@@ -279,10 +318,13 @@ class PreTrainer(Trainer):
             torch.save(unwrapped_model.state_dict(), os.path.join(tmpdir, "model.pt"))
             torch.save(self.optimizer.state_dict(), os.path.join(tmpdir, "optim.pt"))
             if self.lr_scheduler:
-                torch.save(self.lr_scheduler.state_dict(), os.path.join(tmpdir, "lr_schduler.pt"))
+                torch.save(
+                    self.lr_scheduler.state_dict(),
+                    os.path.join(tmpdir, "lr_schduler.pt"),
+                )
             checkpoint = Checkpoint.from_directory(tmpdir)
             checkpoint.to_directory(local_checkpoint_path)
-        logger.info(f"save checkpoint finish")
+        logger.info("save checkpoint finish")
 
     def _get_donefile_path(self, root_path, episode):
         return f"{root_path}/{episode}/donefile"
@@ -305,14 +347,14 @@ class PreTrainer(Trainer):
 
     def save(self, config, episode):
         if config is None or config is {}:
-            logger.warning(f"checkpoint is empty, skip")
+            logger.warning("checkpoint is empty, skip")
             return
         root_path = config.get("root_path")
         if root_path is None:
-            logger.warning(f"checkpoint root_path is empty, skip")
+            logger.warning("checkpoint root_path is empty, skip")
         num_to_keep = config.get("num_to_keep")
         if num_to_keep <= 0:
-            logger.warning(f"checkpoint num_to_keep cannot be zero, ignored")
+            logger.warning("checkpoint num_to_keep cannot be zero, ignored")
             num_to_keep = None
         local_checkpoint_path = self._get_local_path(root_path, episode)
         if self.mode == "ddp":
@@ -323,5 +365,5 @@ class PreTrainer(Trainer):
         else:
             pass
         self._save_done(root_path, episode)
-        if num_to_keep > 0 and self.mode == "ddp"and int(self.rank) == 0:
+        if num_to_keep > 0 and self.mode == "ddp" and int(self.rank) == 0:
             self._remove_stale_checkpoint(root_path, num_to_keep)

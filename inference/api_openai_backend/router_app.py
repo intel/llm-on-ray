@@ -43,7 +43,12 @@ from starlette.responses import Response, StreamingResponse
 from logger import get_logger
 from .request_handler import OpenAIHTTPException, openai_exception_handler
 from .query_client import RouterQueryClient
-from .openai_protocol import Prompt, ModelResponse, CompletionRequest, ChatCompletionRequest
+from .openai_protocol import (
+    Prompt,
+    ModelResponse,
+    CompletionRequest,
+    ChatCompletionRequest,
+)
 from .openai_protocol import (
     ChatCompletionResponse,
     CompletionResponse,
@@ -63,6 +68,7 @@ logger = get_logger(__name__)
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
 TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600))
+
 
 def init() -> FastAPI:
     router_app = FastAPI()
@@ -102,9 +108,7 @@ async def _completions_wrapper(
                     logger.error(f"{subresult_dict['error']}")
                     all_results.pop()
                     had_error = True
-                    yield "data: " + ModelResponse(
-                        **subresult_dict
-                    ).json() + "\n\n"
+                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n\n"
                     # Return early in case of an error
                     break
                 choices = [
@@ -117,9 +121,7 @@ async def _completions_wrapper(
                 usage = None
                 if subresult_dict["finish_reason"]:
                     usage = (
-                        UsageInfo.from_response(
-                            ModelResponse.merge_stream(*all_results)
-                        )
+                        UsageInfo.from_response(ModelResponse.merge_stream(*all_results))
                         if all_results
                         else None
                     )
@@ -173,18 +175,14 @@ async def _chat_completions_wrapper(
                     subresult_dict["finish_reason"] = None
                     all_results.pop()
                     had_error = True
-                    yield "data: " + ModelResponse(
-                        **subresult_dict
-                    ).json() + "\n\n"
+                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n\n"
                     # Return early in case of an error
                     break
                 else:
                     finish_reason = subresult_dict["finish_reason"]
-                    choices: List[DeltaChoices] = [
+                    choices = [
                         DeltaChoices(
-                            delta=DeltaContent(
-                                content=subresult_dict["generated_text"] or ""
-                            ),
+                            delta=DeltaContent(content=subresult_dict["generated_text"] or ""),
                             index=0,
                             finish_reason=None,
                         )
@@ -200,7 +198,7 @@ async def _chat_completions_wrapper(
                 # Return early in case of an error
                 break
         if not had_error:
-            choices: List[DeltaChoices] = [
+            choices = [
                 DeltaChoices(
                     delta=DeltaEOS(),
                     index=0,
@@ -334,11 +332,7 @@ class Router:
                     request_id,
                     body,
                     response,
-                    self.query_client.stream(
-                                    body.model,
-                                    prompt,
-                                    request_id
-                                )
+                    self.query_client.stream(body.model, prompt, request_id),
                 ),
                 media_type="text/event-stream",
             )

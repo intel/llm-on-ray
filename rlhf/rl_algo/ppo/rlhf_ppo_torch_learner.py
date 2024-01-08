@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Any
+from typing import Mapping
 
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -10,17 +10,6 @@ from ray.rllib.utils.typing import TensorType
 from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.models.torch.torch_distributions import TorchCategorical
 
-from ray.rllib.algorithms.ppo.ppo_learner import (
-    LEARNER_RESULTS_KL_KEY,
-    LEARNER_RESULTS_CURR_KL_COEFF_KEY,
-    LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY,
-    LEARNER_RESULTS_VF_LOSS_UNCLIPPED_KEY,
-    PPOLearner,
-    PPOLearnerHyperparameters,
-)
-from ray.rllib.core.learner.learner import POLICY_LOSS_KEY, VF_LOSS_KEY, ENTROPY_KEY
-
-from ray.rllib.utils.nested_dict import NestedDict
 
 from .util import masked_mean
 
@@ -30,18 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 class RLHFPPOTorchLearner(PPOTorchLearner):
-
     @override(PPOTorchLearner)
     def compute_loss_per_module(
-        self, 
-        module_id: str, 
-        batch: SampleBatch, 
-        fwd_out: Mapping[str, TensorType]
+        self, module_id: str, batch: SampleBatch, fwd_out: Mapping[str, TensorType]
     ) -> TensorType:
         """Extention of PPO loss function to support RLHF.
 
         This customization adds attention mask to loss calculation.
-        It also adds the ptx-loss term introduced in InstructGPT paper for making sure 
+        It also adds the ptx-loss term introduced in InstructGPT paper for making sure
         the model is aligned with the pre-trained model.
         """
 
@@ -81,7 +66,7 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
         curr_entropy = masked_mean(curr_entropy_unmasked, attention_mask, dim=-1)
         mean_entropy = curr_entropy.mean()
 
-        surrogate_loss = - torch.min(
+        surrogate_loss = -torch.min(
             batch[Postprocessing.ADVANTAGES] * logp_ratio,
             batch[Postprocessing.ADVANTAGES]
             * torch.clamp(logp_ratio, 1 - self.hps.clip_param, 1 + self.hps.clip_param),
@@ -105,7 +90,6 @@ class RLHFPPOTorchLearner(PPOTorchLearner):
             + self.hps.vf_loss_coeff * vf_loss_clipped
             - self.entropy_coeff_scheduler.get_current_value(module_id) * curr_entropy
         )
-
 
         # Add mean_kl_loss (already processed through `reduce_mean_valid`),
         # if necessary.

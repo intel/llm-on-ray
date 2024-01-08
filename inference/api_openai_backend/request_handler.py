@@ -35,9 +35,8 @@
 import asyncio
 import traceback
 from typing import AsyncIterator, List
-from fastapi import Request, status, HTTPException
+from fastapi import status, HTTPException
 from starlette.responses import JSONResponse
-from starlette.requests import Request
 from pydantic import ValidationError as PydanticValidationError
 from logger import get_logger
 from .openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
@@ -56,12 +55,11 @@ class OpenAIHTTPException(Exception):
         self.message = message
         self.type = type
 
-def openai_exception_handler(request: Request, exc: OpenAIHTTPException):
-    assert isinstance(
-        exc, OpenAIHTTPException
-    ), f"Unable to handle invalid exception {type(exc)}"
+
+def openai_exception_handler(exc: OpenAIHTTPException):
+    assert isinstance(exc, OpenAIHTTPException), f"Unable to handle invalid exception {type(exc)}"
     if exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
-        message = f"Internal Server Error"
+        message = "Internal Server Error"
         internal_message = message
         exc_type = "InternalServerError"
     else:
@@ -78,6 +76,7 @@ def openai_exception_handler(request: Request, exc: OpenAIHTTPException):
     )
     return JSONResponse(content=err_response.dict(), status_code=exc.status_code)
 
+
 def extract_message_from_exception(e: Exception) -> str:
     # If the exception is a Ray exception, we need to dig through the text to get just
     # the exception message without the stack trace
@@ -85,8 +84,8 @@ def extract_message_from_exception(e: Exception) -> str:
     # format_exception_only in that case)
     message_lines = traceback.format_exception_only(type(e), e)[-1].strip().split("\n")
     message = ""
-    # The stack trace lines will be prefixed with spaces, so we need to start from the bottom
-    # and stop at the last line before a line with a space
+    # The stack trace lines will be prefixed with spaces, so we need to start
+    # from the bottom and stop at the last line before a line with a space
     found_last_line_before_stack_trace = False
     for line in reversed(message_lines):
         if not line.startswith(" "):
@@ -96,6 +95,7 @@ def extract_message_from_exception(e: Exception) -> str:
         message = line + "\n" + message
     message = message.strip()
     return message
+
 
 async def handle_request(
     model: str,
@@ -124,7 +124,7 @@ async def handle_request(
         # We do not raise here because that would cause a disconnection for streaming.
 
 
-def _get_response_for_error(e: Exception, request_id: str):
+def _get_response_for_error(e, request_id: str):
     """Convert an exception to an ModelResponse object"""
     logger.error(f"Request {request_id} failed with:", exc_info=e)
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR

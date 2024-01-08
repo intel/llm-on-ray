@@ -16,8 +16,8 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Adjust Inference Config File")
     parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--output_file", type=str, required=True)
-    parser.add_argument("--deepspeed", action='store_true')
-    parser.add_argument("--ipex", action='store_true')
+    parser.add_argument("--deepspeed", action="store_true")
+    parser.add_argument("--ipex", action="store_true")
     return parser
 
 

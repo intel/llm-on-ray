@@ -26,7 +26,7 @@ plt.xlabel("second")
 plt.ylabel("rss GB")
 plt.subplot(121)
 
-csv_wo_fsdp="./res/rss_per_process_wo_FSDP.csv"
+csv_wo_fsdp = "./res/rss_per_process_wo_FSDP.csv"
 f = open(csv_wo_fsdp, mode="r", encoding="utf-8", newline="")
 csv_reader = csv.DictReader(
     f,
@@ -40,7 +40,7 @@ next(csv_reader)
 line = next(csv_reader)
 rss_2ddp = list()
 for line in csv_reader:
-        rss_2ddp.append(float(line["rss"]))
+    rss_2ddp.append(float(line["rss"]))
 x = range(len(rss_2ddp))
 plt.plot(x, rss_2ddp)
 plt.title("rss/process wo FSDP")

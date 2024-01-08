@@ -1,27 +1,22 @@
-from .trainer import Trainer
-from itertools import chain
 import os
 import torch
-from torch.utils.tensorboard import SummaryWriter   
-import transformers
+from torch.utils.tensorboard import SummaryWriter
 import math
 import time
 
-from .. import dataprocesser
 from .default_trainer import DefaultTrainer
 from ..logging import logger
 
+
 class RMTrainer(DefaultTrainer):
-
     def compute_loss(self, batch, return_outputs=False):
-
         chosen_ids = batch.pop("chosen_input_ids").to(self.model.device)
         chosen_mask = batch.pop("chosen_attention_mask").to(self.model.device)
         rejected_ids = batch.pop("rejected_input_ids").to(self.model.device)
         rejected_mask = batch.pop("rejected_attention_mask").to(self.model.device)
 
         result = self.model(chosen_ids, chosen_mask, rejected_ids, rejected_mask)
-        
+
         chosen_rewards = result[:, 0, :]
         rejected_rewards = result[:, 1, :]
 
@@ -29,10 +24,11 @@ class RMTrainer(DefaultTrainer):
 
         loss = 0
         for i in range(batch_size):
-            
             divergence = (
-                chosen_ids[i] * chosen_mask[i] != rejected_ids[i] * rejected_mask[i]
-            ).squeeze().nonzero(as_tuple=True)[0]
+                (chosen_ids[i] * chosen_mask[i] != rejected_ids[i] * rejected_mask[i])
+                .squeeze()
+                .nonzero(as_tuple=True)[0]
+            )
 
             if len(divergence) <= 0:
                 # Chosen and rejected prompts are identical.
@@ -43,8 +39,8 @@ class RMTrainer(DefaultTrainer):
             end_index = divergence[-1].item()
 
             # Loss is the negative log probability loss between the chosen and rejected prompt.
-            selected_chosen_rewards = chosen_rewards[i][start_index:end_index + 1]
-            selected_rejected_rewards = rejected_rewards[i][start_index:end_index + 1]
+            selected_chosen_rewards = chosen_rewards[i][start_index : end_index + 1]
+            selected_rejected_rewards = rejected_rewards[i][start_index : end_index + 1]
 
             loss += -torch.log(
                 torch.sigmoid(selected_chosen_rewards - selected_rejected_rewards)
@@ -67,14 +63,16 @@ class RMTrainer(DefaultTrainer):
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     loss = self.compute_loss(batch)
-                    writer.add_scalar('training loss', loss, step)
+                    writer.add_scalar("training loss", loss, step)
                     self.accelerator.backward(loss)
                     self.optimizer.step()
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
                     if step % log_step == 0:
-                        logger.info(f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}")
+                        logger.info(
+                            f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}"
+                        )
                         start = time.time()
 
             if self.eval_dataloader:
@@ -94,6 +92,8 @@ class RMTrainer(DefaultTrainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
-                logger.info(f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]")
-                writer.add_scalar('eval loss', eval_loss, idx)
-                writer.add_scalar('perplexity', perplexity, idx)
+                logger.info(
+                    f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss}]\tppl:[{perplexity}]\ttime:[{time.time()-start}]"
+                )
+                writer.add_scalar("eval loss", eval_loss, idx)
+                writer.add_scalar("perplexity", perplexity, idx)

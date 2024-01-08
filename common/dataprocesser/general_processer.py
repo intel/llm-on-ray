@@ -1,5 +1,3 @@
-import math
-import time
 from itertools import chain
 
 import numpy as np
@@ -8,11 +6,8 @@ import datasets
 import transformers
 
 from .dataprocesser import DataProcesser
-from ..logging import logger
 
-INTRO_BLURB = (
-    "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-)
+INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
 INSTRUCTION_KEY = "### Instruction:"
 INPUT_KEY = "Input:"
 RESPONSE_KEY = "### Response:"
@@ -58,6 +53,8 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
     end_key=END_KEY,
 )
 TEXT_COLUMN_NAME = "text"
+
+
 class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeling):
     def torch_call(self, examples):
         batch = super().torch_call(examples)
@@ -69,7 +66,6 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
         labels = batch["labels"].clone()
 
         for i in range(len(examples)):
-
             response_token_ids_start_idx = None
             for idx in np.where(batch["labels"][i] == response_token_ids[0])[0]:
                 response_token_ids_start_idx = idx
@@ -85,12 +81,13 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
         return batch
 
+
 class GeneralProcesser(DataProcesser):
     def prepare(self, tokenizer, dataset):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size", 1)
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 1)
         group = self.config.get("group", False)
-        shuffle = self.config.get("shuffle", False)
+        self.config.get("shuffle", False)
         tokenizer.pad_token = tokenizer.eos_token
 
         if isinstance(dataset, datasets.Dataset):
@@ -100,6 +97,7 @@ class GeneralProcesser(DataProcesser):
             column_names = dataset["train"].column_names
 
         if column_names and TEXT_COLUMN_NAME not in column_names:
+
             def prompt(rec):
                 instruction = rec["instruction"]
                 response = rec["response"]
@@ -109,10 +107,14 @@ class GeneralProcesser(DataProcesser):
                 if not response:
                     raise ValueError(f"Expected a response in: {rec}")
                 if context:
-                    rec["text"] = PROMPT_WITH_INPUT_FORMAT.format(instruction=instruction, response=response, input=context)
+                    rec["text"] = PROMPT_WITH_INPUT_FORMAT.format(
+                        instruction=instruction, response=response, input=context
+                    )
                 else:
-                    rec["text"] = PROMPT_NO_INPUT_FORMAT.format(instruction=instruction, response=response)
-                return rec 
+                    rec["text"] = PROMPT_NO_INPUT_FORMAT.format(
+                        instruction=instruction, response=response
+                    )
+                return rec
 
             dataset = dataset.map(
                 prompt,
@@ -122,6 +124,7 @@ class GeneralProcesser(DataProcesser):
             column_names += [TEXT_COLUMN_NAME]
 
         max_length = self.config.get("max_length", 1024)
+
         def tokenize_function(examples):
             return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
 
@@ -134,6 +137,7 @@ class GeneralProcesser(DataProcesser):
 
         if group:
             block_size = self.config.get("block_size", 1024)
+
             def group_texts(examples):
                 # Concatenate all texts.
                 concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
@@ -156,27 +160,30 @@ class GeneralProcesser(DataProcesser):
                 load_from_cache_file=False,
                 desc=f"Grouping texts in chunks of {block_size}",
             )
-            default_data_collator=transformers.default_data_collator
+            default_data_collator = transformers.default_data_collator
 
         else:
             default_data_collator = DataCollatorForCompletionOnlyLM(
-                tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
+                tokenizer=tokenizer,
+                mlm=False,
+                return_tensors="pt",
+                pad_to_multiple_of=8,
             )
 
         train_dataset = tokenized_datasets["train"]
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, 
-            shuffle=True, 
-            collate_fn=default_data_collator, 
-            batch_size=per_device_train_batch_size
+            train_dataset,
+            shuffle=True,
+            collate_fn=default_data_collator,
+            batch_size=per_device_train_batch_size,
         )
 
         eval_dataloader = None
         if "validation" in tokenized_datasets:
             eval_dataset = tokenized_datasets["validation"]
             eval_dataloader = torch.utils.data.DataLoader(
-                eval_dataset, 
-                collate_fn=default_data_collator, 
-                batch_size=per_device_eval_batch_size
+                eval_dataset,
+                collate_fn=default_data_collator,
+                batch_size=per_device_eval_batch_size,
             )
         return train_dataloader, eval_dataloader

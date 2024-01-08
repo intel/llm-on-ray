@@ -27,36 +27,35 @@ url = f"{api_base}/chat/completions"
 
 model_name = os.getenv("MODEL_TO_SERVE", "gpt2")
 body = {
-  "model": model_name,
-  "messages": [
-    {"role": "assistant", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Tell me a long story with many words."}
-  ],
-  "temperature": 0.7,
-  "stream": True,
+    "model": model_name,
+    "messages": [
+        {"role": "assistant", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me a long story with many words."},
+    ],
+    "temperature": 0.7,
+    "stream": True,
 }
 
-proxies = { "http": None, "https": None}
-with s.post(url, json=body, proxies=proxies) as response:
-    for chunk in response.iter_lines(decode_unicode=True):
-        if chunk is not None:
-            try:
-                # Get data from reponse chunk
-                chunk_data = chunk.split("data: ")[1]
+response = s.post(url, json=body, proxies=None)
+for chunk in response.iter_lines(decode_unicode=True):
+    if chunk is not None:
+        try:
+            # Get data from reponse chunk
+            chunk_data = chunk.split("data: ")[1]
 
-                # Get message choices from data
-                choices = json.loads(chunk_data)["choices"]
+            # Get message choices from data
+            choices = json.loads(chunk_data)["choices"]
 
-                # Pick content from first choice
-                content = choices[0]["delta"]["content"]
+            # Pick content from first choice
+            content = choices[0]["delta"]["content"]
 
-                print(content, end="", flush=True)
-            except json.decoder.JSONDecodeError:
-                # Chunk was not formatted as expected
-                pass
-            except KeyError:
-                # No message was contained in the chunk
-                pass
-            except:
-                pass
-    print("")
+            print(content, end="", flush=True)
+        except json.decoder.JSONDecodeError:
+            # Chunk was not formatted as expected
+            pass
+        except KeyError:
+            # No message was contained in the chunk
+            pass
+        except Exception:
+            pass
+print("")

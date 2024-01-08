@@ -9,6 +9,7 @@ from . import optimizer
 from . import trainer
 from . import initializer
 
+
 def load_check_decorator(func):
     def wrapper(*args, **kwargs):
         try:
@@ -23,7 +24,9 @@ def load_check_decorator(func):
             exit(1)
         else:
             return ret
+
     return wrapper
+
 
 @load_check_decorator
 def load_dataset(config: Dict[str, Any]):
@@ -40,6 +43,7 @@ def load_dataset(config: Dict[str, Any]):
             exit(1)
         return _
 
+
 @load_check_decorator
 def load_tokenizer(config: Dict[str, Any]):
     logger.info(f"{sys._getframe().f_code.co_name} config: {config}")
@@ -54,6 +58,7 @@ def load_tokenizer(config: Dict[str, Any]):
             logger.critical(f"{Factory.__name__} call error: {e}", exc_info=True)
             exit(1)
         return _
+
 
 @load_check_decorator
 def load_model(config: Dict[str, Any]):
@@ -70,6 +75,7 @@ def load_model(config: Dict[str, Any]):
             exit(1)
         return _
 
+
 @load_check_decorator
 def load_optimizer(model, config: Dict[str, Any]):
     logger.info(f"{sys._getframe().f_code.co_name} config: {config}")
@@ -85,6 +91,7 @@ def load_optimizer(model, config: Dict[str, Any]):
             exit(1)
         return _
 
+
 @load_check_decorator
 def get_trainer(config: Dict[str, Any]):
     logger.info(f"{sys._getframe().f_code.co_name} config: {config}")
@@ -98,6 +105,7 @@ def get_trainer(config: Dict[str, Any]):
         logger.critical(f"{Factory.__name__} init error: {e}", exc_info=True)
         exit(1)
     return _
+
 
 @load_check_decorator
 def get_initializer(config: Dict[str, Any]):

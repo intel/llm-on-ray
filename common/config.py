@@ -1,10 +1,12 @@
-import os
 import yaml
 import argparse
 from typing import Dict
 
+
 def parse_args():
-    parser = argparse.ArgumentParser(description="Finetune a transformers model on a causal language modeling task")
+    parser = argparse.ArgumentParser(
+        description="Finetune a transformers model on a causal language modeling task"
+    )
     parser.add_argument(
         "--config_file",
         type=str,
@@ -14,6 +16,7 @@ def parse_args():
     )
     args, unparsed = parser.parse_known_args()
     return args
+
 
 def parse_config(config_file=None):
     if config_file is None:
@@ -30,25 +33,31 @@ def parse_config(config_file=None):
     assert isinstance(config, dict)
     return config
 
+
 def _singleton(cls):
     _instance = {}
+
     def inner():
         if cls not in _instance:
             _instance[cls] = cls()
         return _instance[cls]
+
     return inner
+
 
 def flat(x, separator="."):
     for key, value in x.items():
         if isinstance(value, dict):
             for k, v in flat(value):
-                k = f'{key}{separator}{k}'
+                k = f"{key}{separator}{k}"
                 yield (k, v)
         else:
             yield (key, value)
 
+
 def pack(x, separator="."):
-    return {k:v for k,v in flat(x, separator)}
+    return {k: v for k, v in flat(x, separator)}
+
 
 def rank(key, value):
     if len(key) == 1:
@@ -57,9 +66,11 @@ def rank(key, value):
         prefix = key.pop(0)
         return {prefix: rank(key, value)}
 
+
 def deflat(x, separator="."):
     for key, value in x.items():
         yield rank(key.split(separator), value)
+
 
 def recursive_merge(dst, src):
     for key, value in src.items():
@@ -70,15 +81,17 @@ def recursive_merge(dst, src):
         else:
             dst[key] = value
 
+
 def unpack(x, separator="."):
     result = {}
     for i in deflat(x, separator):
         recursive_merge(result, i)
     return result
 
-def mapping(x, table, only_in_table = True):
+
+def mapping(x, table, only_in_table=True):
     new_x = {}
-    for k,v in x.items():
+    for k, v in x.items():
         if k in table:
             new_keys = table[k]
             if isinstance(new_keys, list):
@@ -106,15 +119,16 @@ def mapping(x, table, only_in_table = True):
     return new_x
 
 
-def merge_with_mapping(dict1, dict2, table, only_in_table = True):
+def merge_with_mapping(dict1, dict2, table, only_in_table=True):
     dict1_pack = pack(dict1)
     dict2_pack = pack(dict2)
     dict2_pack = mapping(dict2_pack, table, only_in_table)
     recursive_merge(dict1_pack, dict2_pack)
     dict1.clear()
-    for k,v in unpack(dict1_pack).items():
+    for k, v in unpack(dict1_pack).items():
         dict1[k] = v
     return dict1
+
 
 @_singleton
 class Config(Dict):

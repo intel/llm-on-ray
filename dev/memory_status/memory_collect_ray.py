@@ -1,11 +1,11 @@
 import time
 
+
 def collect_memory(eval_pid: int, name: str, output: str):
     import csv
 
     import matplotlib.pyplot as plt
     import psutil
-    from psutil import Process
 
     f = open(output + name + ".csv", mode="w", encoding="utf-8", newline="")
 
@@ -42,10 +42,9 @@ def collect_memory(eval_pid: int, name: str, output: str):
     plt.savefig(output + name + ".png")
     f.close()
 
+
 if __name__ == "__main__":
     pid = 66611
     title = "rss_per_process_with_FSDP"
     output_path = "./res/"
     collect_memory(pid, title, output_path)
-
-

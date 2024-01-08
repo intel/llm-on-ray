@@ -6,8 +6,8 @@ import torch.nn as nn
 
 from .model import Model
 
+
 class HuggingFaceRewardModel(Model):
-    
     def __call__(self, config):
         name = config.get("name")
         if name is None:
@@ -19,7 +19,7 @@ class HuggingFaceRewardModel(Model):
 
         try:
             model = get_reward_model(model_cls, name)
-        except:
+        except Exception:
             print("Load reward model error")
             exit()
 
@@ -27,20 +27,18 @@ class HuggingFaceRewardModel(Model):
 
 
 def get_reward_model(model_cls, name):
-    
     class RewardModel(model_cls):
-
         def __init__(self, config, *args, **kwargs):
             super().__init__(config, *args, **kwargs)
 
             # The additional value head.
-            if hasattr(self.config, 'hidden_size'):
+            if hasattr(self.config, "hidden_size"):
                 self.value_head = nn.Linear(self.config.hidden_size, 1)
-            elif hasattr(self.config, 'n_embd'):
+            elif hasattr(self.config, "n_embd"):
                 self.value_head = nn.Linear(self.config.n_embd, 1)
             else:
                 raise ValueError("current model does not support")
-            
+
             self.post_init()
 
         def forward(
@@ -49,15 +47,14 @@ def get_reward_model(model_cls, name):
             chosen_attention_mask,
             rejected_input_ids,
             rejected_attention_mask,
-            **kwargs
+            **kwargs,
         ) -> torch.Tensor:
             chosen_value = self.value(chosen_input_ids, chosen_attention_mask)
             rejected_value = self.value(rejected_input_ids, rejected_attention_mask)
             return torch.stack([chosen_value, rejected_value], dim=1)
 
         def value(self, input_ids, attention_mask) -> torch.Tensor:
-            """Forward function predicts whether chosen response has a higher reward.
-            """
+            """Forward function predicts whether chosen response has a higher reward."""
             # Force inputs to be torch tensors.
             if not isinstance(input_ids, torch.Tensor):
                 input_ids = torch.tensor(input_ids).to(self.device)
@@ -68,7 +65,7 @@ def get_reward_model(model_cls, name):
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 output_hidden_states=True,
-            )['last_hidden_state']
+            )["last_hidden_state"]
 
             values = self.value_head(last_hidden_state)
             # Remove the last dimension, since there is only a single value per token.
@@ -80,4 +77,3 @@ def get_reward_model(model_cls, name):
             raise NotImplementedError("Reward model does not generate token.")
 
     return RewardModel.from_pretrained(name)
-

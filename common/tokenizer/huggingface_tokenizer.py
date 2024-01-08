@@ -2,6 +2,7 @@ import transformers
 
 from .tokenizer import Tokenizer
 
+
 class HuggingFaceTokenizer(Tokenizer):
     def __call__(self, config):
         name = config.get("name")

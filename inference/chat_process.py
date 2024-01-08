@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 
+
 class ChatModel:
     human_id = "<human>"
     bot_id = "<bot>"
     unknown_id = "<unknown>"
-    MEANINGLESS_WORDS = ['<pad>', '</s>', '<|endoftext|>', '<br>']
+    MEANINGLESS_WORDS = ["<pad>", "</s>", "<|endoftext|>", "<br>"]
     stop_words = ["<human>"]
 
     def __init__(self, intro, human_id, bot_id, stop_words) -> None:
@@ -30,7 +31,7 @@ class ChatModel:
 
     def prepare_prompt(self, messages: list):
         """Prepare prompt from history messages."""
-        prompt = ''
+        prompt = ""
         for msg in messages:
             role, content = msg.role, msg.content
             if role == "user":
@@ -54,16 +55,19 @@ class ChatModel:
             output = output.replace(word, "")
         text = output
         # remove partial human_id or bot id
-        if '\n' in text and (human_id.startswith(text[text.rfind('\n')+1:]) or
-                             bot_id.startswith(text[text.rfind('\n')+1])):
-            text = text[:text.rfind('\n')]
+        if "\n" in text and (
+            human_id.startswith(text[text.rfind("\n") + 1 :])
+            or bot_id.startswith(text[text.rfind("\n") + 1])
+        ):
+            text = text[: text.rfind("\n")]
         return text
 
-    def get_prompt(self ,messages):
+    def get_prompt(self, messages):
         """Generate response based on messages."""
         prompt = self.prepare_prompt(messages)
         return prompt
-    
+
+
 class ChatModelGptJ(ChatModel):
     def __init__(self, intro, human_id, bot_id, stop_words):
         super().__init__(intro, human_id, bot_id, stop_words)
@@ -90,6 +94,7 @@ class ChatModelGptJ(ChatModel):
             prompt += f"{self.bot_id}:\n"
         return prompt
 
+
 class ChatModelLLama(ChatModel):
     def __init__(self, intro, human_id, bot_id, stop_words):
         super().__init__(intro, human_id, bot_id, stop_words)
@@ -113,5 +118,8 @@ class ChatModelLLama(ChatModel):
             prompt += f"{self.bot_id}:\n"
         return prompt
 
+
 if __name__ == "__main__":
-    process_tool = ChatModelGptJ("### Instruction", "### Response", stop_words=["##", "### Instruction"])
+    process_tool = ChatModelGptJ(
+        "", "### Instruction", "### Response", stop_words=["##", "### Instruction"]
+    )

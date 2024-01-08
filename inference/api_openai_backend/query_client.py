@@ -34,11 +34,11 @@
 
 from typing import Dict
 from fastapi import HTTPException
-from .openai_protocol import ModelCard, Prompt
-from .openai_protocol import Prompt, ModelResponse
+from .openai_protocol import ModelCard, Prompt, ModelResponse
 from .request_handler import handle_request
 
-class RouterQueryClient():
+
+class RouterQueryClient:
     def __init__(self, serve_deployments):
         self.serve_deployments = serve_deployments
 
@@ -51,9 +51,7 @@ class RouterQueryClient():
         responses = [resp async for resp in response_stream]
         return ModelResponse.merge_stream(*responses)
 
-    async def stream(
-        self, model: str, prompt: Prompt, request_id: str
-    ):
+    async def stream(self, model: str, prompt: Prompt, request_id: str):
         if model in self.serve_deployments:
             deploy_handle = self.serve_deployments[model]
         else:
@@ -76,7 +74,9 @@ class RouterQueryClient():
             model=model,
             prompt=prompt,
             request_id=request_id,
-            async_iterator=deploy_handle.options(stream=True).stream_response.options(stream=True, use_new_handle_api=True).remote(prompt_content, gen_config)
+            async_iterator=deploy_handle.options(stream=True)
+            .stream_response.options(stream=True, use_new_handle_api=True)
+            .remote(prompt_content, gen_config),
         ):
             yield x
 

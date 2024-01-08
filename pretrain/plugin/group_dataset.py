@@ -3,6 +3,7 @@ import datasets
 
 from common.dataset import Dataset
 
+
 class GroupDataset(Dataset):
     def __call__(self, config):
         path = config.get("path")
@@ -18,4 +19,3 @@ class GroupDataset(Dataset):
         files = os.listdir(path)
         list.sort(files)
         return [os.path.join(path, file) for file in files]
-
