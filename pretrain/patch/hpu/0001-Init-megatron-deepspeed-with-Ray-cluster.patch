@@ -1,60 +1,42 @@
-From d3f2303bd03cab539c94b6dc743fa73d5a5fcbc2 Mon Sep 17 00:00:00 2001
+From 28adc503428cac3b547ed6190ab1026233431a57 Mon Sep 17 00:00:00 2001
 From: yuanwu <yuan.wu@intel.com>
 Date: Mon, 4 Sep 2023 09:01:09 +0000
-Subject: [PATCH] Init megatron-deepspeed with Ray cluster
+Subject: [PATCH 1/2] Init megatron-deepspeed with Ray cluster
 
 Signed-off-by: yuanwu <yuan.wu@intel.com>
 ---
- .../Megatron-DeepSpeed/megatron/arguments.py  | 31 ++++---
- .../Megatron-DeepSpeed/megatron/initialize.py | 88 ++++++++++---------
- .../Megatron-DeepSpeed/megatron/training.py   |  9 +-
- 3 files changed, 67 insertions(+), 61 deletions(-)
+ .../Megatron-DeepSpeed/megatron/arguments.py  | 10 +-
+ .../megatron/global_vars.py                   | 10 +-
+ .../Megatron-DeepSpeed/megatron/initialize.py | 92 ++++++++++---------
+ .../Megatron-DeepSpeed/megatron/training.py   | 14 ++-
+ 4 files changed, 71 insertions(+), 55 deletions(-)
 
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
-index 0bb85226..ad3b1676 100644
+index b9861fa0..4438dca6 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
 +++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
-@@ -66,6 +66,18 @@ def parse_args(extra_args_provider=None, defaults={},
+@@ -26,7 +26,7 @@ from megatron.enums import PositionEmbeddingType
+ 
+ 
+ def parse_args(extra_args_provider=None, defaults={},
+-               ignore_unknown_args=False):
++               ignore_unknown_args=False, external_args={}):
+     """Parse all arguments."""
+     parser = argparse.ArgumentParser(description='Megatron-LM Arguments',
+                                      allow_abbrev=False)
+@@ -67,6 +67,11 @@ def parse_args(extra_args_provider=None, defaults={},
      else:
          args = parser.parse_args()
  
-+    # Set input defaults.
-+    for key in defaults:
-+        # For default to be valid, it should not be provided in the
-+        # arguments that are passed to the program. We check this by
-+        # ensuring the arg is set to None.
-+        print('WARNING: overriding default arguments for {key}:{v} \
-+               with {key}:{v2}'.format(key=key, v=defaults[key],
-+                                       v2=getattr(args, key)),
-+                                       flush=True)
-+        setattr(args, key, defaults[key])
++    for key in external_args:
++        if key in args:
++            setattr(args, key, external_args[key])
 +
 +
      # helper argument to set deepspeed pipeline parallel or not
      args.ds_pipeline_enabled = not args.no_pipeline_parallel
  
-@@ -115,20 +127,6 @@ def parse_args(extra_args_provider=None, defaults={},
-         'longer valid, use --tensor-model-parallel-size instead'
-     del args.model_parallel_size
- 
--    # Set input defaults.
--    for key in defaults:
--        # For default to be valid, it should not be provided in the
--        # arguments that are passed to the program. We check this by
--        # ensuring the arg is set to None.
--        if getattr(args, key) is not None:
--            if args.rank == 0:
--                print('WARNING: overriding default arguments for {key}:{v} \
--                       with {key}:{v2}'.format(key=key, v=defaults[key],
--                                               v2=getattr(args, key)),
--                                               flush=True)
--        else:
--            setattr(args, key, defaults[key])
--
-     # Batch size.
-     assert args.micro_batch_size is not None
-     assert args.micro_batch_size > 0
-@@ -237,7 +235,8 @@ def parse_args(extra_args_provider=None, defaults={},
+@@ -238,7 +243,8 @@ def parse_args(extra_args_provider=None, defaults={},
      else:
          assert args.encoder_seq_length is not None
          args.seq_length = args.encoder_seq_length
@@ -64,11 +46,56 @@ index 0bb85226..ad3b1676 100644
      if args.position_embedding_type == PositionEmbeddingType.absolute \
              or args.position_embedding_type == PositionEmbeddingType.alibi \
              or args.position_embedding_type == PositionEmbeddingType.learnable:
+diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
+index aba3f3d0..deb2acba 100644
+--- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
++++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
+@@ -90,11 +90,12 @@ def get_timers():
+ 
+ 
+ def set_global_variables(extra_args_provider=None, args_defaults={},
+-                         ignore_unknown_args=False):
++                         ignore_unknown_args=False, external_args={}):
+     """Set args, tokenizer, tensorboard-writer, adlr-autoresume, and timers."""
+     args = _parse_args(extra_args_provider=extra_args_provider,
+                        defaults=args_defaults,
+-                       ignore_unknown_args=ignore_unknown_args)
++                       ignore_unknown_args=ignore_unknown_args,
++                       external_args=external_args)
+     _build_num_microbatches_calculator(args)
+     if args.vocab_file or args.tokenizer_model_file:
+         _ = _build_tokenizer(args)
+@@ -104,13 +105,14 @@ def set_global_variables(extra_args_provider=None, args_defaults={},
+ 
+ 
+ def _parse_args(extra_args_provider=None, defaults={},
+-                ignore_unknown_args=False):
++                ignore_unknown_args=False, external_args={}):
+     """Parse entire arguments."""
+     global _GLOBAL_ARGS
+     _ensure_var_is_not_initialized(_GLOBAL_ARGS, 'args')
+     _GLOBAL_ARGS = parse_args(extra_args_provider=extra_args_provider,
+                               defaults=defaults,
+-                              ignore_unknown_args=ignore_unknown_args)
++                              ignore_unknown_args=ignore_unknown_args,
++                              external_args=external_args)
+     return _GLOBAL_ARGS
+ 
+ 
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
-index 55828072..5d227ba6 100644
+index 22452f5b..649be991 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
 +++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/initialize.py
-@@ -46,7 +46,6 @@ def initialize_megatron(extra_args_provider=None, args_defaults={},
+@@ -38,7 +38,7 @@ import deepspeed
+ import deepspeed.utils.groups as groups
+ 
+ def initialize_megatron(extra_args_provider=None, args_defaults={},
+-                        ignore_unknown_args=False, allow_no_cuda=False):
++                        ignore_unknown_args=False, allow_no_cuda=False, external_args={}):
+     """Set global variables, initialize distributed, and
+     set autoresume and random seeds.
+     `allow_no_cuda` should not be set unless using megatron for cpu only
+@@ -47,12 +47,11 @@ def initialize_megatron(extra_args_provider=None, args_defaults={},
      Returns a function to finalize distributed env initialization
      (optionally, only when args.lazy_mpu_init == True)
      """
@@ -76,7 +103,13 @@ index 55828072..5d227ba6 100644
      # Parse args, build tokenizer, and set adlr-autoresume,
      # tensorboard-writer, and timers.
      set_global_variables(extra_args_provider=extra_args_provider,
-@@ -210,53 +209,15 @@ def _initialize_distributed():
+                          args_defaults=args_defaults,
+-                         ignore_unknown_args=ignore_unknown_args)
++                         ignore_unknown_args=ignore_unknown_args, external_args=external_args)
+ 
+     args = get_args()
+     if os.getenv("P2P_DUMMY_MODE_PHASE") != "2":
+@@ -214,53 +213,15 @@ def _initialize_distributed():
                    'skipping initialization ...', flush=True)
          args.rank = torch.distributed.get_rank()
          args.world_size = torch.distributed.get_world_size()
@@ -133,7 +166,7 @@ index 55828072..5d227ba6 100644
          if args.rank == 0:
              print('> initializing torch distributed ...', flush=True)
  
-@@ -275,6 +236,49 @@ def _initialize_distributed():
+@@ -279,6 +240,49 @@ def _initialize_distributed():
                  backend=args.distributed_backend,
                  world_size=args.world_size, rank=args.rank,
                  init_method=init_method)
@@ -184,19 +217,31 @@ index 55828072..5d227ba6 100644
      # data-parallel communicators.
      if device_count > 0:
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
-index bc6f8064..b02d7ef9 100644
+index 8f8e4451..63b4cd40 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
 +++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/training.py
-@@ -102,7 +102,7 @@ def pretrain(train_valid_test_dataset_provider,
+@@ -97,7 +97,8 @@ def pretrain(train_valid_test_dataset_provider,
+              model_provider,
+              forward_step_func,
+              extra_args_provider=None,
+-             args_defaults={}):
++             args_defaults={},
++             external_args={}):
+     """Main training program.
+ 
+     This function will run the followings in the order provided:
+@@ -123,8 +124,8 @@ def pretrain(train_valid_test_dataset_provider,
      """
  
      # Initalize and get arguments, timers, and Tensorboard writer.
 -    initialize_megatron(extra_args_provider=extra_args_provider,
+-                        args_defaults=args_defaults)
 +    initialize_megatron(extra_args_provider=extra_args_provider, ignore_unknown_args=True,
-                         args_defaults=args_defaults)
++                        args_defaults=args_defaults, external_args=external_args)
  
      args = get_args()
-@@ -129,8 +129,11 @@ def pretrain(train_valid_test_dataset_provider,
+ 
+@@ -149,8 +150,11 @@ def pretrain(train_valid_test_dataset_provider,
      timers = get_timers()
  
      if args.deepspeed:
