@@ -34,7 +34,7 @@ jobs:
     name: inference test
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, starcoder, llama-2-7b-chat-hf ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -45,6 +45,8 @@ jobs:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
           - { model: "mpt-7b-bigdl"}
+          - { model: "starcoder"}
+          - { model: "llama-2-7b-chat-hf"}
           - dtuner_model: nathan0/mpt-7b-deltatuner-model
             model: mpt-7b
 
@@ -101,8 +103,31 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           docker exec "${TARGET}" bash -c "./inference/deep/start-ray-cluster.sh"
 
+      - name: Load environment variables
+        run: cat ~/llm-ray-actions-runner/.env >> $GITHUB_ENV
+
       - name: Run Inference Test
         run: |
+          PREFIX=${{steps.prefix.outputs.prefix}}
+          CMD=$(cat << EOF
+          import yaml
+          if ("${{ matrix.model }}" == "starcoder"):
+              conf_path = "inference/models/starcoder.yaml"
+              with open(conf_path, encoding="utf-8") as reader:
+                  result = yaml.load(reader, Loader=yaml.FullLoader)
+                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
+              with open(conf_path, 'w') as output:
+                  yaml.dump(result, output, sort_keys=False)
+          if ("${{ matrix.model }}" == "llama-2-7b-chat-hf"):
+              conf_path = "inference/models/llama-2-7b-chat-hf.yaml"
+              with open(conf_path, encoding="utf-8") as reader:
+                  result = yaml.load(reader, Loader=yaml.FullLoader)
+                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
+              with open(conf_path, 'w') as output:
+                  yaml.dump(result, output, sort_keys=False)
+          EOF
+          )
+          docker exec "${PREFIX}" python -c "$CMD"
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --serve_simple"
