@@ -86,8 +86,20 @@ class PredictorDeployment:
                 prompts.extend(text)
         else:
             prompts.append(text)
+
+        prompts = [
+            "Hello, my name is",
+            "The president of the United States is",
+            "The capital of France is",
+            "The future of AI is",
+        ]
+
         if not streaming_response:
-            return self.predictor.generate(prompts, **config)
+            if self.use_vllm:
+                return await self.predictor.generate_async(prompts, **config)
+            else:
+                return self.predictor.generate(prompts, **config)
+
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
             return StreamingResponse(self.consume_streamer(), status_code=200, media_type="text/plain")
