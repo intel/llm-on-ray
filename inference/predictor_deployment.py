@@ -87,13 +87,6 @@ class PredictorDeployment:
         else:
             prompts.append(text)
 
-        prompts = [
-            "Hello, my name is",
-            "The president of the United States is",
-            "The capital of France is",
-            "The future of AI is",
-        ]
-
         if not streaming_response:
             if self.use_vllm:
                 return await self.predictor.generate_async(prompts, **config)
@@ -104,7 +97,10 @@ class PredictorDeployment:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
             return StreamingResponse(self.consume_streamer(), status_code=200, media_type="text/plain")
         elif self.use_vllm:
-            results_generator = self.predictor.streaming_generate_async(prompts, **config)
+            # streaming only support single prompt
+            if isinstance(prompts, list):
+                prompt = prompts[0]
+            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
             return StreamingResponse(self.predictor.stream_results(results_generator), status_code=200, media_type="text/plain")
         else:
             streamer = self.predictor.get_streamer()
