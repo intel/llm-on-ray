@@ -1,11 +1,7 @@
 name: tests
 
 on:
-  workflow_call:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf
-  cancel-in-progress: true
+  workflow_call
 
 jobs:
   build:
