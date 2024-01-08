@@ -17,7 +17,11 @@ import os
 
 import torch
 from accelerate.state import AcceleratorState, PartialState
-from accelerate.utils import is_deepspeed_available, parse_choice_from_env, parse_flag_from_env
+from accelerate.utils import (
+    is_deepspeed_available,
+    parse_choice_from_env,
+    parse_flag_from_env,
+)
 
 from optimum.utils import logging
 
@@ -42,7 +46,9 @@ class GaudiPartialState(PartialState):
             self.debug = parse_flag_from_env("ACCELERATE_DEBUG_MODE")
 
             if int(os.environ.get("LOCAL_RANK", -1)) != -1 and not cpu:
-                from habana_frameworks.torch.distributed.hccl import initialize_distributed_hpu
+                from habana_frameworks.torch.distributed.hccl import (
+                    initialize_distributed_hpu,
+                )
 
                 world_size, rank, local_rank = initialize_distributed_hpu()
                 self.backend = kwargs.pop("backend", "hccl")
@@ -62,11 +68,15 @@ class GaudiPartialState(PartialState):
 
                     deepspeed.init_distributed(dist_backend=self.backend, **kwargs)
                     logger.info("DeepSpeed is enabled.")
-                    self._mixed_precision = "no"  # deepspeed handles mixed_precision using deepspeed_config
+                    self._mixed_precision = (
+                        "no"  # deepspeed handles mixed_precision using deepspeed_config
+                    )
                 else:
                     self.distributed_type = GaudiDistributedType.MULTI_HPU
                     if not torch.distributed.is_initialized():
-                        torch.distributed.init_process_group(backend=self.backend, rank=rank, world_size=world_size)
+                        torch.distributed.init_process_group(
+                            backend=self.backend, rank=rank, world_size=world_size
+                        )
                         logger.info("Enabled distributed run.")
                 self.num_processes = world_size
                 self.process_index = rank

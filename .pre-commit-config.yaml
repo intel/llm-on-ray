@@ -3,10 +3,10 @@ ci:
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.270
+    rev: v0.0.289
     hooks:
       - id: ruff
-        args: [ --fix, --exit-non-zero-on-fix ]
+        args: [ --fix, --exit-non-zero-on-fix, --ignore=E402, --ignore=E501]
 
   # Black needs to be ran after ruff with --fix
   - repo: https://github.com/psf/black
@@ -18,7 +18,6 @@ repos:
     rev: "v0.950"
     hooks:
       - id: mypy
-        # NOTE: Exclusions are handled in pyproject.toml
         exclude: tests
         additional_dependencies:
           - mypy-extensions
@@ -28,3 +27,4 @@ repos:
           - types-PyYAML
           - types-redis
           - types-requests
+          - types-paramiko
