@@ -8,7 +8,7 @@ on:
         default: 'pr'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-lt
   cancel-in-progress: true
 
 jobs:
