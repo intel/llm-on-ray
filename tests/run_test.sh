@@ -1,4 +1,6 @@
 #!/bin/bash
+export https_proxy=10.24.221.149:911
+export http_proxy=10.24.221.149:911
 work_path=$(dirname $0)
 cd $(dirname $0)
 
