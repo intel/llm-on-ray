@@ -103,9 +103,6 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           docker exec "${TARGET}" bash -c "./inference/deep/start-ray-cluster.sh"
 
-      - name: Load environment variables
-        run: cat ~/llm-ray-actions-runner/.env >> $GITHUB_ENV
-
       - name: Run Inference Test
         run: |
           PREFIX=${{steps.prefix.outputs.prefix}}
