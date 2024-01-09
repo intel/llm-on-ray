@@ -18,7 +18,7 @@ import requests
 import time
 import argparse
 
-parser = argparse.ArgumentParser(description="Model Inference Script", add_help=True)
+parser = argparse.ArgumentParser(description="Example script to query with single request", add_help=True)
 parser.add_argument("--model_endpoint", default="http://127.0.0.1:8000", type=str, help="Deployed model endpoint.")
 parser.add_argument("--streaming_response", default=False, action="store_true", help="Whether to enable streaming response.")
 parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate.")
@@ -41,12 +41,9 @@ if args.top_k:
 
 sample_input = {"text": prompt, "config": config, "stream": args.streaming_response}
 
-total_time = 0.0
 num_iter = args.num_iter
-num_warmup = 3
 for i in range(num_iter):
     print("iter: ", i)
-    tic = time.time()
     proxies = { "http": None, "https": None}
     outputs = requests.post(args.model_endpoint, proxies=proxies, json=sample_input, stream=args.streaming_response)
     if args.streaming_response:
@@ -56,8 +53,3 @@ for i in range(num_iter):
         print()
     else:
         print(outputs.text, flush=True)
-    toc = time.time()
-    if i >= num_warmup:
-        total_time += (toc - tic)
-
-print("Inference latency: %.3f ms." % (total_time / (num_iter - num_warmup) * 1000))
