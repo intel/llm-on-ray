@@ -18,14 +18,14 @@ import requests
 import time
 import argparse
 
-parser = argparse.ArgumentParser(description="Model Inference Script", add_help=False)
-parser.add_argument("--model_endpoint", default="http://127.0.0.1:8000", type=str, help="deployed model endpoint")
-parser.add_argument("--streaming_response", default=False, action="store_true", help="whether to enable streaming response")
-parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")
-parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
-parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation")
-parser.add_argument("--top_k", default=None, help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
-parser.add_argument("--num_iter", default=10, type=int, help="The Number of inference iterations")
+parser = argparse.ArgumentParser(description="Model Inference Script", add_help=True)
+parser.add_argument("--model_endpoint", default="http://127.0.0.1:8000", type=str, help="Deployed model endpoint.")
+parser.add_argument("--streaming_response", default=False, action="store_true", help="Whether to enable streaming response.")
+parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate.")
+parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities.")
+parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation.")
+parser.add_argument("--top_k", default=None, help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+parser.add_argument("--num_iter", default=10, type=int, help="The number of inference iterations.")
 
 args = parser.parse_args()
 prompt = "Once upon a time,"
