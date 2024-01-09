@@ -5,14 +5,14 @@ RUN pip install lz4 numpy==1.24.4 tensorboard gpustat==1.0.0 sentencepiece accel
 RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.13.0
 COPY pretrain/patch/hpu/0001-Init-megatron-deepspeed-with-Ray-cluster.patch .
-COPY pretrain/patch/hpu/0001-Add-the-Huggingface-tokenizer.patch .
+COPY pretrain/patch/hpu/0002-Add-the-Huggingface-tokenizer.patch .
 RUN git config --global user.email "root@example.com" 
 RUN git config --global user.name "root" 
 RUN git clone https://github.com/HabanaAI/Model-References.git && \
     cd Model-References && \
     git checkout -b ray bde21928ea8c295cd029fafe2cf737d50e715fe2 && \
     git am /home/user/0001-Init-megatron-deepspeed-with-Ray-cluster.patch && \
-    git am /home/user/0001-Add-the-Huggingface-tokenizer.patch && \
+    git am /home/user/0002-Add-the-Huggingface-tokenizer.patch && \
     cd PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/ && \
     pip install . 
 # enable password-less ssh

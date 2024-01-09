@@ -47,19 +47,19 @@ def train_func(config: Dict[str, Any]):
                  pretrain_module.model_provider,
                  pretrain_module.ModelType.encoder_or_decoder,
                  pretrain_module.forward_step,
-                 args_defaults=megatron_config,
-                 data_post_process=pretrain_module.data_post_process)
+                 data_post_process=pretrain_module.data_post_process,
+                 external_args=megatron_config)
     elif hasattr(pretrain_module, 'llama_argument_handler'):
         pretrain(pretrain_module.train_valid_test_datasets_provider,
                  pretrain_module.model_provider,
                  pretrain_module.forward_step,
                  pretrain_module.llama_argument_handler,
-                 args_defaults=megatron_config)
+                 external_args=megatron_config)
     else:
         pretrain(pretrain_module.train_valid_test_datasets_provider,
                  pretrain_module.model_provider,
                  pretrain_module.forward_step,
-                 args_defaults=megatron_config)
+                 external_args=megatron_config)
 
 def main(external_config = None):
     config = common.Config()
