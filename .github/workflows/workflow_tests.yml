@@ -129,6 +129,7 @@ jobs:
       - name: Run predicter Test
         run: |
             TARGET=${{steps.target.outputs.target}}
+            docker exec "${TARGET}" bash -c "pip install pytest"
             docker exec "${TARGET}" bash -c "./tests/run_predicter_test.sh"
            
       - name: Stop Container
