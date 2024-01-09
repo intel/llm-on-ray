@@ -83,7 +83,7 @@ class ModelDescription(BaseModel):
 class InferenceConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
-    name: str
+    name: str = "default"
     route_prefix: Union[str, None] = None
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0

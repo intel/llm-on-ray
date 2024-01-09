@@ -71,12 +71,13 @@ sample_input = {"text": prompt, "config": config, "stream": args.streaming_respo
 total_time = 0.0
 num_iter = args.num_iter
 num_warmup = 3
+proxies = {"http": None, "https": None}
 for i in range(num_iter):
     print("iter: ", i)
     tic = time.time()
     outputs = requests.post(
         args.model_endpoint,
-        proxies=None,
+        proxies=proxies,  # type: ignore
         json=sample_input,
         stream=args.streaming_response,
     )

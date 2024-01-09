@@ -22,7 +22,7 @@ from common.agentenv.rlhf_env import RLHFEnv
 
 class ValueFunctionInitializerCallback(DefaultCallbacks):
     def on_algorithm_init(self, *, algorithm, **kwargs) -> None:
-        pass
+        learner_group = algorithm.learner_group  # noqa: F841 # assigned to but never used
 
 
 def init_ray(config):
@@ -43,8 +43,7 @@ def init_ray(config):
 
 
 def prepare_ppo(config):
-    def env_creator(config):
-        return RLHFEnv(config)
+    env_creator = lambda config: RLHFEnv(config)
 
     tune.register_env("RLHFEnv", env_creator)
 

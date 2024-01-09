@@ -79,7 +79,6 @@ def main(external_config=None):
     ray_init_config = ray_config.get("init", {})
     common.logger.info(f"ray init config: {ray_init_config}")
 
-    ray_init_config.get("runtime_env")
     ray.init(**ray_init_config)
 
     scaling_config = ScalingConfig(**ray_config.get("scaling_config", {}))

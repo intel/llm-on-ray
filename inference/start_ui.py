@@ -19,6 +19,7 @@ from inference_config import all_models, ModelDescription, Prompt
 from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
+from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
 from predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
@@ -1171,24 +1172,13 @@ class ChatBotUI:
                         with gr.Column(scale=0.1, min_width=25):
                             with gr.Row():
                                 if index == 0:
-
-                                    def func():
-                                        return self.watch_node_status(index=0)
-
+                                    func = lambda: self.watch_node_status(index=0)
                                 elif index == 1:
-
-                                    def func():
-                                        return self.watch_node_status(index=1)
-
+                                    func = lambda: self.watch_node_status(index=1)
                                 elif index == 2:
-
-                                    def func():
-                                        return self.watch_node_status(index=2)
-
+                                    func = lambda: self.watch_node_status(index=2)
                                 elif index == 3:
-
-                                    def func():
-                                        return self.watch_node_status(index=3)
+                                    func = lambda: self.watch_node_status(index=3)
 
                                 node_status.append(
                                     gr.HTML(func, elem_classes="statusstyle", every=2)
@@ -1236,24 +1226,13 @@ class ChatBotUI:
                                     gr.HTML("<h4 style='text-align: right;'> memory </h4>")
                                 with gr.Column():
                                     if index == 0:
-
-                                        def func():
-                                            return self.get_cpu_memory(index=0)
-
+                                        func = lambda: self.get_cpu_memory(index=0)
                                     elif index == 1:
-
-                                        def func():
-                                            return self.get_cpu_memory(index=1)
-
+                                        func = lambda: self.get_cpu_memory(index=1)
                                     elif index == 2:
-
-                                        def func():
-                                            return self.get_cpu_memory(index=2)
-
+                                        func = lambda: self.get_cpu_memory(index=2)
                                     elif index == 3:
-
-                                        def func():
-                                            return self.get_cpu_memory(index=3)
+                                        func = lambda: self.get_cpu_memory(index=3)
 
                                     gr.HTML(func, elem_classes="disablegenerating", every=2)
 

@@ -26,16 +26,15 @@ class TorchConfig(RayTorchConfig):
 def libs_import():
     """try to import IPEX and oneCCL."""
     try:
-        pass
+        import intel_extension_for_pytorch  # noqa: F401
     except ImportError:
         raise ImportError("Please install intel_extension_for_pytorch")
     try:
         ccl_version = importlib_metadata.version("oneccl_bind_pt")
         if ccl_version >= "1.12":
-            # pylint: disable-all
-            pass
+            import oneccl_bindings_for_pytorch  # noqa: F401
         else:
-            pass
+            import torch_ccl  # noqa: F401
     except ImportError as ccl_not_exist:
         raise ImportError("Please install torch-ccl") from ccl_not_exist
 

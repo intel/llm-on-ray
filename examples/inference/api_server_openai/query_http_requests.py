@@ -36,7 +36,8 @@ body = {
     "stream": True,
 }
 
-response = s.post(url, json=body, proxies=None)
+proxies = {"http": None, "https": None}
+response = s.post(url, json=body, proxies=proxies)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
     if chunk is not None:
         try:

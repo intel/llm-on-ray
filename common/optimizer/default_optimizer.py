@@ -1,3 +1,4 @@
+import torch  # noqa: F401
 from .optimizer import Optimizer
 
 

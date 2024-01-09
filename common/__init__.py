@@ -1,6 +1,7 @@
 from .logging import logger
 from .load import *  # noqa: F403 # unable to detect undefined names
 from . import agentenv
+from .torch_config import TorchConfig  # noqa: F401
 from typing import Dict, Any
 import sys
 
