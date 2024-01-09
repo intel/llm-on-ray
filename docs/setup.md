@@ -36,16 +36,15 @@ cd llm-on-ray
 For CPU:
 ```bash
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
-# Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 For GPU:
 ```bash
 pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
-# Dynamic link oneCCL and Intel MPI libraries
+```
+Dynamic link oneCCL and Intel MPI libraries:
+```bash
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
-
 For Gaudi:
 
 Please use the [Dockerfile](../inference/habana/Dockerfile) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
