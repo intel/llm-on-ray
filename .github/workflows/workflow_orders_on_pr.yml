@@ -22,6 +22,7 @@ jobs:
 
   call-inference:
     uses: ./.github/workflows/workflow_inference.yml
-
+    needs: call-tests
   call-finetune:
     uses: ./.github/workflows/workflow_finetune.yml
+    needs: call-tests

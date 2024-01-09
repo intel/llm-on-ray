@@ -98,7 +98,7 @@ jobs:
       - name: Determine Target
         id: "target"
         run: |
-          target="predicter"
+          target="inference"
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             target="${target}_bigdl_cpu"
           fi
