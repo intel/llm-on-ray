@@ -14,8 +14,8 @@ set -e
 
 # Run pytest with the test file
 # pip install -r ./requirements.txt
-pytest  -vs ./inference/test_utils.py
-# pytest  -vs ./inference/test_predictor.py
+# pytest  -vs ./inference/test_utils.py
+pytest  -vs ./inference/test_predictor.py
 # python ./inference/serve_test.py
 # pytest  -vs ./inference/test_serve.py
 # Optional: deactivate your virtual environment if you used one
