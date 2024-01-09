@@ -1,17 +1,22 @@
 import ray
 import torch
+import torch.distributed as dist
 import deepspeed
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from ray.air.util.torch_dist import (
     TorchDistributedWorker,
-    init_torch_dist_process_group,
+    _get_node_and_gpu_ids,
+    _init_torch_distributed,
+    _shutdown_torch_distributed,
     shutdown_torch_dist_process_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
+from ray.train._internal.utils import get_address_and_port
 from typing import List
 import os
+from collections import defaultdict
 from predictor import Predictor
 from utils import get_torch_dtype
 
@@ -22,11 +27,9 @@ class DSPipeline:
     def __init__(
         self,
         infer_conf: InferenceConfig,
-        pad_token_id,
         stopping_criteria
     ):
         self.device = torch.device(infer_conf.device)
-        self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
         model_desc = infer_conf.model_description
@@ -56,7 +59,6 @@ class DSPipeline:
 
     def streaming_generate(self, inputs, streamer, **generate_kwargs):
         self.model.generate(inputs,
-                    pad_token_id=self.pad_token_id,
                     stopping_criteria=self.stopping_criteria,
                     streamer=streamer,
                     **generate_kwargs)
@@ -64,23 +66,20 @@ class DSPipeline:
     def generate(self, inputs, **config):
         gen_tokens = self.model.generate(
             inputs,
-            pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
             **config
         )
         return gen_tokens
 
-@ray.remote
 class PredictionWorker(TorchDistributedWorker):
     """A PredictionWorker is a Ray remote actor that runs a single shard of a DeepSpeed job.
 
     Multiple PredictionWorkers of the same WorkerGroup form a PyTorch DDP process
     group and work together under the orchestration of DeepSpeed.
     """
-    def __init__(self, world_size: int, infer_conf: InferenceConfig, pad_token_id, stopping_criteria):
+    def __init__(self, world_size: int, infer_conf: InferenceConfig, stopping_criteria):
         self.world_size = world_size
         self.infer_conf = infer_conf
-        self.pad_token_id = pad_token_id
         self.stopping_criteria = stopping_criteria
 
     def init_model(self, local_rank: int):
@@ -98,7 +97,6 @@ class PredictionWorker(TorchDistributedWorker):
 
         pipe = DSPipeline(
             self.infer_conf,
-            pad_token_id=self.pad_token_id,
             stopping_criteria=self.stopping_criteria,
         )
 
@@ -129,8 +127,6 @@ class PredictionWorker(TorchDistributedWorker):
 class DeepSpeedPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig) -> None:
         super().__init__(infer_conf)
-        # TODO this should be removed later
-        self.pad_token_id = self.tokenizer.pad_token_id
         # Scaling config for one worker group.
         resource = {"CPU": infer_conf.cpus_per_worker}
         use_gpu = True if (infer_conf.device == "cuda") else False
@@ -138,13 +134,16 @@ class DeepSpeedPredictor(Predictor):
             resource["GPU"] = infer_conf.gpus_per_worker
         scaling_conf = ScalingConfig(
             use_gpu=use_gpu,
-            num_workers=infer_conf.workers_per_group,
+            # spawn N-1 workers because this process is a worker too
+            num_workers=infer_conf.workers_per_group - 1,
             resources_per_worker=resource
         )
-
         print(scaling_conf)
 
         self._init_worker_group(scaling_conf)
+        # self.worker.generator.model is deepspeed engine
+        self.model = self.worker.generator.model.module
+        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
 
     def __del__(self):
         shutdown_torch_dist_process_group(self.prediction_workers)
@@ -170,8 +169,10 @@ class DeepSpeedPredictor(Predictor):
         """
 
         # Start a placement group for the workers.
+        # For now it does not guarantee the placement group does not contain
+        # this process' node if enough resource is available
         self.pg = scaling_config.as_placement_group_factory().to_placement_group()
-        prediction_worker_cls = PredictionWorker.options(
+        prediction_worker_cls = ray.remote(PredictionWorker).options(
             num_cpus=scaling_config.num_cpus_per_worker,
             num_gpus=scaling_config.num_gpus_per_worker,
             scheduling_strategy=PlacementGroupSchedulingStrategy(
@@ -179,38 +180,108 @@ class DeepSpeedPredictor(Predictor):
             ),
         )
 
-        # Create the prediction workers.
+        # this process itself is rank 0 worker
+        # create the worker instance
+        num_workers = self.infer_conf.workers_per_group
+        self.worker = PredictionWorker(num_workers, self.infer_conf, self.stopping_criteria)
+
+        # Create the rest prediction workers.
         self.prediction_workers = [
-            prediction_worker_cls.remote(scaling_config.num_workers, self.infer_conf,
-                self.pad_token_id, self.stopping_criteria)
+            prediction_worker_cls.remote(num_workers, self.infer_conf,
+                self.stopping_criteria)
             for i in range(scaling_config.num_workers)
         ]
 
-        # Initialize torch distributed process group for the workers.
-        local_ranks = init_torch_dist_process_group(self.prediction_workers, backend="ccl" if self.infer_conf.device != "cuda" else "nccl")
+        # Check if dist is available which is needed to establish communication
+        if not dist.is_available():
+            raise RuntimeError("Distributed torch is not available.")
+
+        # Build a map from node_id to workers on that node.
+        node_and_gpu_ids = [_get_node_and_gpu_ids()]
+        node_and_gpu_ids.extend(ray.get(
+            [w.execute.remote(_get_node_and_gpu_ids) for w in self.prediction_workers]
+        ))
+        # All the workers on a specific node.
+        node_to_workers = defaultdict(list)
+        # All the gpu ids visible to all the workers on a specific node.
+        node_to_gpu_ids = defaultdict(set)
+        for i, (node_id, gpu_ids) in enumerate(node_and_gpu_ids):
+            node_to_workers[node_id].append(i)
+            # Force list.
+            if not isinstance(gpu_ids, list):
+                gpu_ids = [gpu_ids]
+            # It is possible for a worker to have access to multiple GPUs.
+            for gpu_id in gpu_ids:
+                node_to_gpu_ids[node_id].add(gpu_id)
+
+        master_addr, master_port = get_address_and_port()
+        setup_futures = []
+        world_size = num_workers
+        local_ranks = [0]
+        for i, worker in enumerate(self.prediction_workers):
+            rank = i+1
+            node_id = node_and_gpu_ids[rank][0]
+            local_rank = node_to_workers[node_id].index(rank)
+            local_world_size = len(node_to_workers[node_id])
+            setup_futures.append(
+                worker.execute.remote(
+                    _init_torch_distributed,
+                    init_method="env",
+                    backend="ccl" if self.infer_conf.device != "cuda" else "nccl",
+                    rank=rank,
+                    world_size=world_size,
+                    local_rank=local_rank,
+                    local_world_size=local_world_size,
+                    master_addr=master_addr,
+                    master_port=master_port,
+                    # list(set) will sort the gpu ids, so VISIBLE_CUDA_DEVICES
+                    # is always sorted.
+                    gpu_ids=list(node_to_gpu_ids[node_id]),
+                )
+            )
+            local_ranks.append(local_rank)
+        node_id = node_and_gpu_ids[0][0]
+        local_rank = node_to_workers[node_id].index(0)
+        local_world_size = len(node_to_workers[node_id])
+        _init_torch_distributed(
+            init_method="env",
+            backend="ccl" if self.infer_conf.device != "cuda" else "nccl",
+            rank=0,
+            world_size=world_size,
+            local_rank=local_rank,
+            local_world_size=local_world_size,
+            master_addr=master_addr,
+            master_port=master_port,
+            # list(set) will sort the gpu ids, so VISIBLE_CUDA_DEVICES
+            # is always sorted.
+            gpu_ids=list(node_to_gpu_ids[node_id]),
+        )
+        ray.get(setup_futures)
 
         # Initialize the model on each worker.
-        ray.get([
+        futures = [
             worker.init_model.remote(local_rank)
-            for worker, local_rank in zip(self.prediction_workers, local_ranks)
-        ])
+            for worker, local_rank in zip(self.prediction_workers, local_ranks[1:])
+        ]
+        self.worker.init_model(0)
+        ray.get(futures)
 
     def streaming_generate(self, prompt, streamer, **config):
         input_ids = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
-        self.prediction_workers[0].streaming_generate.remote(inputs_ref, streamer, **config)
-        for worker in self.prediction_workers[1:]:
-                worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
+        for worker in self.prediction_workers:
+            worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
+        self.worker.streaming_generate(inputs_ids, streamer, **config)
 
     def generate(self, prompt, **config):
         input_ids = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
-        gen_tokens = ray.get(
-            [
-                worker.generate.remote(inputs_ref, **config)
-                for worker in self.prediction_workers
-            ]
-        )[0]
+        futures = [
+            worker.generate.remote(inputs_ref, **config)
+            for worker in self.prediction_workers
+        ]
+        gen_tokens = self.worker.generate(input_ids, **config)
+        ray.get(futures)
         return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
 
     def get_streamer(self):

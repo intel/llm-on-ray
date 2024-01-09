@@ -74,6 +74,7 @@ class TransformerPredictor(Predictor):
                     inplace=True
                 )
         self.model = model
+        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
 
     def _process_config(self, config):
         if self.device.type == "hpu":
