@@ -1,7 +1,6 @@
 port: 8000
 name: starcoder
 route_prefix: /starcoder
-precision: 'bf16'
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
