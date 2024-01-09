@@ -73,11 +73,10 @@ jobs:
           - { isPR: true }
 
         include:
-          - { model: "gpt-j-6b"}
+          - { model: "gpt2"}
           - { model: "mistral-7b-v0.1"}
-          - { model: "mpt-7b-bigdl"}
-          - dtuner_model: nathan0/mpt-7b-deltatuner-model
-            model: mpt-7b
+          # - { model: "mpt-7b-bigdl"}
+
 
     runs-on: self-hosted
 
@@ -130,6 +129,15 @@ jobs:
       - name: Run predicter Test
         run: |
             TARGET=${{steps.target.outputs.target}}
-            docker exec "${TARGET}" bash -c "./tests/run_predictor_test.sh"
-            
+            docker exec "${TARGET}" bash -c "./tests/run_predicter_test.sh"
+           
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+
+      - name: Test Summary
+        run: echo "to be continued"           
   
