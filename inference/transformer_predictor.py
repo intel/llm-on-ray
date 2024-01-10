@@ -11,7 +11,7 @@ class TransformerPredictor(Predictor):
         
         model_desc = infer_conf.model_description
         model_config = model_desc.config
-        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code, **infer_conf.model_description.config.dict())
 
         if self.device.type == "hpu":
             from optimum.habana.transformers.modeling_utils import (
