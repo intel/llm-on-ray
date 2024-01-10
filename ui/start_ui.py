@@ -604,8 +604,8 @@ class ChatBotUI:
 
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         finetuned = self._all_models[model_name]
-        model_desc = finetuned.model_description
-        prompt = model_desc.prompt
+        model_desc = finetuned.model_description       
+        prompt = model_desc.prompt if model_desc.prompt else {}
         print("model path: ", model_desc.model_id_or_path)
 
         if model_desc.chat_processor is not None:
