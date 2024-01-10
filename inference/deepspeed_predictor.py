@@ -30,7 +30,7 @@ class DSPipeline:
 
         model_desc = infer_conf.model_description
         model_config = model_desc.config
-        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code, **infer_conf.model_description.config.dict())
+        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code)
 
         # get correct torch type for loading HF model
         torch_dtype = get_torch_dtype(infer_conf, hf_config)
