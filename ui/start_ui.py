@@ -15,16 +15,18 @@
 #
 
 import requests
-from inference_config import all_models, ModelDescription, Prompt
-from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
-from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
-from predictor_deployment import PredictorDeployment
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from inference.inference_config import all_models, ModelDescription, Prompt
+from inference.inference_config import InferenceConfig as FinetunedConfig
+from inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
+from inference.predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
-import sys
 import argparse
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
@@ -188,7 +190,7 @@ class ChatBotUI:
 
         sample_input = {"text": prompt, "config": config, "stream": True}
         proxies = {"http": None, "https": None}
-        outputs = requests.post(request_url, proxies=proxies, json=[sample_input], stream=True)
+        outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
             # remove context
@@ -603,19 +605,23 @@ class ChatBotUI:
         stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         finetuned = self._all_models[model_name]
         model_desc = finetuned.model_description
-        prompt = model_desc.prompt if model_desc.prompt else {}
+        prompt = model_desc.prompt
         print("model path: ", model_desc.model_id_or_path)
 
-        chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
-        if chat_model is None:
-            return (
-                model_name + " deployment failed. " + model_desc.chat_processor + " does not exist."
-            )
-        self.process_tool = chat_model(**prompt.dict())
+        if model_desc.chat_processor is not None:
+            chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
+            if chat_model is None:
+                return (
+                    model_name
+                    + " deployment failed. "
+                    + model_desc.chat_processor
+                    + " does not exist."
+                )
+            self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
         finetuned_deploy.device = "cpu"
-        finetuned_deploy.precision = "bf16"
+        finetuned_deploy.ipex.precision = "bf16"
         finetuned_deploy.model_description.prompt.stop_words = stop_words
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
@@ -623,7 +629,7 @@ class ChatBotUI:
             pip_env = "transformers==4.35.0"
         else:
             pip_env = "transformers==4.31.0"
-        deployment = PredictorDeployment.options(
+        deployment = PredictorDeployment.options(  # type: ignore
             num_replicas=replica_num,
             ray_actor_options={
                 "num_cpus": cpus_per_worker_deploy,
@@ -637,7 +643,11 @@ class ChatBotUI:
             name=finetuned_deploy.name,
             route_prefix=finetuned_deploy.route_prefix,
         )
-        return self.ip_port + finetuned_deploy.route_prefix
+        return (
+            self.ip_port
+            if finetuned_deploy.route_prefix is None
+            else self.ip_port + finetuned_deploy.route_prefix
+        )
 
     def shutdown_finetune(self):
         self.stopper.stop(True)
@@ -741,7 +751,7 @@ class ChatBotUI:
         with gr.Blocks(css=custom_css, title=title) as gr_chat:
             head_content = """
                 <div style="color: #fff;text-align: center;">
-                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=inference/ui_images/logo.png" width="50" height="50"/></div>
+                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=ui/images/logo.png" width="50" height="50"/></div>
                     <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
                     <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
@@ -1135,7 +1145,7 @@ class ChatBotUI:
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
                         with gr.Row():
-                            node_pic = r"./inference/ui_images/Picture2.png"
+                            node_pic = r"./ui/images/Picture2.png"
                             gr.Image(
                                 type="pil",
                                 value=node_pic,
@@ -1198,7 +1208,7 @@ class ChatBotUI:
 
                         with gr.Column(scale=0.065, min_width=45):
                             with gr.Row():
-                                node_pic = r"./inference/ui_images/Picture1.png"
+                                node_pic = r"./ui/images/Picture1.png"
                                 gr.Image(
                                     type="pil",
                                     value=node_pic,

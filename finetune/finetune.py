@@ -22,10 +22,9 @@ from torch.distributed.fsdp.fully_sharded_data_parallel import (
 
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
-from finetune_config import FinetuneConfig
+from finetune.finetune_config import FinetuneConfig
 
 
 def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
@@ -189,9 +188,10 @@ def get_finetune_config():
 
 
 def main(external_config=None):
-    config = get_finetune_config()
-    if external_config is not None:
-        config.merge(external_config)
+    if not external_config:
+        config = get_finetune_config()
+    else:
+        config = external_config
 
     config["cwd"] = os.getcwd()
     num_training_workers = config["Training"].get("num_training_workers")

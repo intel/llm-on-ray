@@ -16,8 +16,8 @@
 
 from transformers import StoppingCriteria
 import torch
-
-from inference_config import InferenceConfig, DEVICE_CPU
+from inference.inference_config import InferenceConfig, DEVICE_CPU
+from typing import Dict, Any
 
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):
@@ -30,13 +30,13 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         "MALLOC_CONF": "oversize_threshold:1,background_thread:true,\
             metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
     }
-    runtime_env: dict = {_ray_env_key: {}}
+    runtime_env: Dict[str, Any] = {_ray_env_key: {}}
     if infer_conf.ipex.enabled:
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
     # now PredictorDeployment itself is a worker, we should require resources for it
-    ray_actor_options = {"runtime_env": runtime_env}
+    ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
         ray_actor_options["num_cpus"] = infer_conf.cpus_per_worker
     elif infer_conf.device == "cuda":
