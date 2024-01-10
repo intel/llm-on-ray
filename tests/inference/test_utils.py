@@ -4,9 +4,7 @@ import torch
 
 from utils import get_deployment_actor_options, StoppingCriteriaSub, max_input_len, get_torch_dtype, is_cpu_without_ipex
 from inference_config import InferenceConfig, DEVICE_CPU
-# from inference_config import InferenceConfig, DEVICE_CPU
-# from .. import 
-# /home/yutianchen/Project/llm-on-ray/inference/utils.py
+
 # Mock the InferenceConfig for testing
 @pytest.fixture
 def mock_infer_conf():

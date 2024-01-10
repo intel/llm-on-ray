@@ -33,12 +33,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ./tests/requirements.txt
 
-      - name: Start tests-utils
+      - name: Start tests
         run: |
           bash -c "./tests/run_test.sh"
 
-      - name: Test Summary
-        run: echo "to be continued"
 
 
       

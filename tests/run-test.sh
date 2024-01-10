@@ -9,13 +9,7 @@ cd $(dirname $0)
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Optional: activate your virtual environment if you have one
-# source /path/to/your/venv/bin/activate
-
 # Run pytest with the test file
-# pip install -r ./requirements.txt
-pytest  -vs ./inference/test_utils.py
-# Optional: deactivate your virtual environment if you used one
-# deactivate
-# pr draft
+pytest  -vs ./inference
+
 echo "Pytest finished running tests."
