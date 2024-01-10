@@ -29,7 +29,7 @@ parser.add_argument("--top_p", default=None, help="If set to float < 1, only the
 args = parser.parse_args()
 
 s = requests.Session()
-url = f"{args.api_base}/chat/completions"
+url = f"{args.request_api_base}/chat/completions"
 
 body = {
   "model": args.request_model,
