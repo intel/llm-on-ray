@@ -63,7 +63,7 @@ docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-ha
 ```
 
 #### 3. Launch Ray cluster
-If DeepSpeed is enabled, we should dynamic link oneCCL and Intel MPI libraries:
+If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked:
 ```bash
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
