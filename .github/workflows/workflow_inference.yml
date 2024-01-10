@@ -152,7 +152,7 @@ jobs:
           else
             docker exec "${TARGET}" bash -c "python inference/serve.py --model_to_serve ${{ matrix.model }}"
           fi
-          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_to_serve ${{ matrix.model }}"
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --request_model ${{ matrix.model }}"
 
       - name: Stop Ray
         run: |
