@@ -31,8 +31,8 @@ def get_deployed_models(args):
         3. Serve all pre-defined models in inference/models/*.yaml, or part of them if model_to_serve is set.
     """
     if args.model_id_or_path is None and args.config_file is None:
-        model_to_serve = args.model_to_serve
-        if model_to_serve:
+        if args.model_to_serve:
+            model_to_serve = args.model_to_serve
             all_models_name = list(all_models.keys())
             assert set(model_to_serve).issubset(set(all_models_name)), f"model_to_serve must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {model_to_serve}."
             model_list = {model: all_models[model] for model in model_to_serve}
@@ -88,7 +88,6 @@ def main(argv=None):
     parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
 
     args = parser.parse_args(argv)
-    print("type: ", type(args.model_to_serve), " content: ", args.model_to_serve)
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
