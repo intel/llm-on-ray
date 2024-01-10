@@ -107,7 +107,7 @@ jobs:
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --serve_simple"
           else
-            docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/serve.py --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --serve_simple --model_to_serve ${{ matrix.model }}"
           fi
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
@@ -150,9 +150,9 @@ jobs:
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
           else
-            docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/serve.py"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --model_to_serve ${{ matrix.model }}"
           fi
-          docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python examples/inference/api_server_openai/query_http_requests.py"
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_to_serve ${{ matrix.model }}"
 
       - name: Stop Ray
         run: |

@@ -129,12 +129,7 @@ for model_file in os.listdir(_models_folder):
         m: InferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
         _models[m.name] = m
 
-env_model = "MODEL_TO_SERVE"
-if env_model in os.environ:
-    all_models[os.environ[env_model]] = _models[os.environ[env_model]]
-else:
-    # all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
-    all_models = _models.copy()
+all_models = _models.copy()
 
 _gpt2_key = "gpt2"
 _gpt_j_6b = "gpt-j-6b"

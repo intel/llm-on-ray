@@ -14,26 +14,33 @@
 # limitations under the License.
 #
 
-import os
 import json
 import requests
+import argparse
+
+parser = argparse.ArgumentParser(description="Example script to query with http requests", add_help=True)
+parser.add_argument("--request_api_base", default="http://localhost:8000/v1", type=str, help="Deployed model endpoint url")
+parser.add_argument("--request_model", default="gpt2", type=str, help="The name of model to request")
+parser.add_argument("--streaming_response", default=False, action="store_true", help="Whether to enable streaming response")
+parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")
+parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
+parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation")
+
+args = parser.parse_args()
 
 s = requests.Session()
+url = f"{args.api_base}/chat/completions"
 
-api_base = os.getenv("ENDPOINT_URL")
-if api_base is None:
-    api_base = "http://localhost:8000/v1"
-url = f"{api_base}/chat/completions"
-
-model_name = os.getenv("MODEL_TO_SERVE", "gpt2")
 body = {
-  "model": model_name,
+  "model": args.request_model,
   "messages": [
     {"role": "assistant", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Tell me a long story with many words."}
   ],
-  "temperature": 0.7,
-  "stream": True,
+  "stream": args.streaming_response,
+  "max_tokens": args.max_new_tokens,
+  "temperature": args.temperature,
+  "top_p": args.top_p,
 }
 
 proxies = { "http": None, "https": None}

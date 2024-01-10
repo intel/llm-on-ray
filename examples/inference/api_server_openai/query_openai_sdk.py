@@ -15,21 +15,31 @@
 #
 
 import openai
-import os
+import argparse
+
+parser = argparse.ArgumentParser(description="Example script to query with openai sdk", add_help=True)
+parser.add_argument("--request_model", default="gpt2", type=str, help="The name of model to request")
+parser.add_argument("--streaming_response", default=False, action="store_true", help="Whether to enable streaming response")
+parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")
+parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
+parser.add_argument("--top_p", default=None, help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation")
+
+args = parser.parse_args()
 
 # List all models.
 models = openai.Model.list()
 print(models)
 
 # Note: not all arguments are currently supported and will be ignored by the backend.
-model_name = os.getenv("MODEL_TO_SERVE", "gpt2")
 chat_completion = openai.ChatCompletion.create(
-    model=model_name,
+    model=args.request_model,
     messages=[
       {"role": "assistant", "content": "You are a helpful assistant."},
       {"role": "user", "content": "Tell me a long story with many words."}
     ],
-    temperature=0.7,
-    stream=False,
+    stream=args.streaming_response,
+    max_tokens=args.max_new_tokens,
+    temperature=args.temperature,
+    top_p=args.top_p,
 )
 print(chat_completion)

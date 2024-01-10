@@ -24,20 +24,31 @@ from api_server_openai import openai_serve_run
 from predictor_deployment import PredictorDeployment
 
 def get_deployed_models(args):
-    # serve all pre-defined models, or model from MODEL_TO_SERVE env, if no model argument specified
-    if args.model is None and args.config_file is None:
-        model_list = all_models
+    """
+        The priority of how to choose models to deploy based on passed parameters:
+        1. Use inference configuration file if config_file is set,
+        2. Use relevant configuration parameters to generate `InferenceConfig` if model_id_or_path is set,
+        3. Serve all pre-defined models in inference/models/*.yaml, or part of them if model_to_serve is set.
+    """
+    if args.model_id_or_path is None and args.config_file is None:
+        model_to_serve = args.model_to_serve
+        if model_to_serve:
+            all_models_name = list(all_models.keys())
+            assert set(model_to_serve).issubset(set(all_models_name)), f"model_to_serve must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {model_to_serve}."
+            model_list = {model: all_models[model] for model in model_to_serve}
+        else:
+            model_list = all_models
     else:
         # config_file has precedence over others
         if args.config_file:
             print("reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
                 infer_conf = parse_yaml_raw_as(InferenceConfig, f)
-        else: # args.model should be set
-            print("reading from command line, " + args.model)
+        else: # args.model_id_or_path should be set
+            print("reading from command line, " + args.model_id_or_path)
             model_desc = ModelDescription()
-            model_desc.model_id_or_path = args.model
-            model_desc.tokenizer_name_or_path = args.tokenizer if args.tokenizer is not None else args.model
+            model_desc.model_id_or_path = args.model_id_or_path
+            model_desc.tokenizer_name_or_path = args.tokenizer_id_or_path if args.tokenizer_id_or_path is not None else args.model_id_or_path
             infer_conf = InferenceConfig(model_description=model_desc)
             infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
             infer_conf.port = args.port
@@ -60,8 +71,9 @@ def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description="Model Serve Script", add_help=False)
     parser.add_argument("--config_file", type=str, help="inference configuration file in YAML. If specified, all other arguments are ignored")
-    parser.add_argument("--model", default=None, type=str, help="model name or path")
-    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
+    parser.add_argument("--model_id_or_path", default=None, type=str, help="model name or path")
+    parser.add_argument("--tokenizer_id_or_path", default=None, type=str, help="tokenizer name or path")
+    parser.add_argument("--model_to_serve", nargs='*', default=["gpt2"], type=str, help="Only used when config_file and model_id_or_path are both None, it needs to be a subset of the values of key 'name' in inference/models/*.yaml")
     parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
     parser.add_argument("--route_prefix", default=None, type=str, help="the route prefix for HTTP requests.")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
@@ -76,6 +88,7 @@ def main(argv=None):
     parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
 
     args = parser.parse_args(argv)
+    print("type: ", type(args.model_to_serve), " content: ", args.model_to_serve)
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
