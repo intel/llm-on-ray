@@ -41,10 +41,7 @@ For GPU:
 ```bash
 pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
 ```
-Dynamic link oneCCL and Intel MPI libraries:
-```bash
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
-```
+
 For Gaudi:
 
 Please use the [Dockerfile](../inference/habana/Dockerfile) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
@@ -66,6 +63,10 @@ docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-ha
 ```
 
 #### 3. Launch Ray cluster
+If DeepSpeed is enabled, we should dynamic link oneCCL and Intel MPI libraries:
+```bash
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+```
 Start the Ray head node using the following command.
 ```bash
 ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashboard-port=8265
