@@ -2,7 +2,7 @@ import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
 from inference.inference_config import InferenceConfig
-from utils import max_input_len, StoppingCriteriaSub
+from utils import StoppingCriteriaSub
 
 
 class Predictor:
@@ -29,15 +29,7 @@ class Predictor:
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
     def tokenize_inputs(self, text):
-        if self.device.type == "hpu":
-            input_tokens = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding="max_length",
-                max_length=max_input_len(input_token_len),  # noqa: F821 # Undefined name
-            )
-        else:
-            input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
+        input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
         return input_tokens.input_ids.to(device=self.device)
 
     def configure_tokenizer(self, model_name):
