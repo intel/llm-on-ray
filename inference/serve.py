@@ -70,7 +70,7 @@ def main(argv=None):
     parser.add_argument("--deepspeed", action='store_true', help="Enable deepspeed inference.")
     parser.add_argument("--workers_per_group", default="2", type=int, help="Workers per group, used with --deepspeed.")
     parser.add_argument("--ipex", action='store_true', help="Enable ipex optimization.")
-    parser.add_argument("--device", default="CPU", type=str, help="CPU, XPU, HPU or CUDA.")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda.")
     parser.add_argument("--serve_local_only", action="store_true", help="Only support local access to url.")
     parser.add_argument("--serve_simple", action="store_true", help="Whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.")
     parser.add_argument("--keep_serve_terminal", action="store_true", help="Whether to keep serve terminal.")
