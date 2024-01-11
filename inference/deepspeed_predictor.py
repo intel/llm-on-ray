@@ -284,36 +284,6 @@ class DeepSpeedPredictor(Predictor):
         ray.get(futures)
         return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
 
-    def get_streamer(self):
-        from transformers import TextStreamer
-        from typing import Optional
-        from ray.util.queue import Queue
-
-        class RayTextIteratorStreamer(TextStreamer):
-            def __init__(
-                self, tokenizer: "AutoTokenizer", skip_prompt: bool = False, timeout: Optional[float] = None, **decode_kwargs
-            ):
-                super().__init__(tokenizer, skip_prompt, **decode_kwargs)
-                self.text_queue = Queue()
-                self.stop_signal = None
-                self.timeout = timeout
-
-            def on_finalized_text(self, text: str, stream_end: bool = False):
-                self.text_queue.put(text, timeout=self.timeout)
-                if stream_end:
-                    self.text_queue.put(self.stop_signal, timeout=self.timeout)
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                value = self.text_queue.get(timeout=self.timeout)
-                if value == self.stop_signal:
-                    raise StopIteration()
-                else:
-                    return value
-        return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
-
     def predict(
         self,
         data: List[str],

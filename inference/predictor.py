@@ -1,6 +1,6 @@
 import re
 import torch
-from transformers import AutoTokenizer, StoppingCriteriaList
+from transformers import AutoTokenizer, StoppingCriteriaList, TextIteratorStreamer
 from inference_config import InferenceConfig
 from utils import max_input_len, StoppingCriteriaSub
 
@@ -77,4 +77,4 @@ class Predictor:
         pass
 
     def get_streamer(self):
-        pass
+        return TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)

@@ -103,6 +103,3 @@ class TransformerPredictor(Predictor):
             **config
         )
         return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
-
-    def get_streamer(self):
-        return TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)
