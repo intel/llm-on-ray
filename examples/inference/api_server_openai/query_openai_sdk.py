@@ -18,7 +18,7 @@ import openai
 import argparse
 
 parser = argparse.ArgumentParser(description="Example script to query with openai sdk", add_help=True)
-parser.add_argument("--request_model", default="gpt2", type=str, help="The name of model to request")
+parser.add_argument("--model_name", default="gpt2", type=str, help="The name of model to request")
 parser.add_argument("--streaming_response", default=False, action="store_true", help="Whether to enable streaming response")
 parser.add_argument("--max_new_tokens", default=None, help="The maximum numbers of tokens to generate")
 parser.add_argument("--temperature", default=None, help="The value used to modulate the next token probabilities")
@@ -32,7 +32,7 @@ print(models)
 
 # Note: not all arguments are currently supported and will be ignored by the backend.
 chat_completion = openai.ChatCompletion.create(
-    model=args.request_model,
+    model=args.model_name,
     messages=[
       {"role": "assistant", "content": "You are a helpful assistant."},
       {"role": "user", "content": "Tell me a long story with many words."}

@@ -28,14 +28,14 @@ def get_deployed_models(args):
         The priority of how to choose models to deploy based on passed parameters:
         1. Use inference configuration file if config_file is set,
         2. Use relevant configuration parameters to generate `InferenceConfig` if model_id_or_path is set,
-        3. Serve all pre-defined models in inference/models/*.yaml, or part of them if model_to_serve is set.
+        3. Serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
     """
     if args.model_id_or_path is None and args.config_file is None:
-        if args.model_to_serve:
-            model_to_serve = args.model_to_serve
+        if args.models:
+            models = args.models
             all_models_name = list(all_models.keys())
-            assert set(model_to_serve).issubset(set(all_models_name)), f"model_to_serve must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {model_to_serve}."
-            model_list = {model: all_models[model] for model in model_to_serve}
+            assert set(models).issubset(set(all_models_name)), f"models must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {models}."
+            model_list = {model: all_models[model] for model in models}
         else:
             model_list = all_models
     else:
@@ -69,11 +69,11 @@ def get_deployed_models(args):
 def main(argv=None):
     # args
     import argparse
-    parser = argparse.ArgumentParser(description="Model Serve Script", add_help=False)
+    parser = argparse.ArgumentParser(description="Model Serve Script", add_help=True)
     parser.add_argument("--config_file", type=str, help="inference configuration file in YAML. If specified, all other arguments are ignored")
     parser.add_argument("--model_id_or_path", default=None, type=str, help="model name or path")
     parser.add_argument("--tokenizer_id_or_path", default=None, type=str, help="tokenizer name or path")
-    parser.add_argument("--model_to_serve", nargs='*', default=["gpt2"], type=str, help="Only used when config_file and model_id_or_path are both None, it needs to be a subset of the values of key 'name' in inference/models/*.yaml")
+    parser.add_argument("--models", nargs='*', default=["gpt2"], type=str, help=f"Only used when config_file and model_id_or_path are both None, valid values can be any items in {list(all_models.keys())}")
     parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
     parser.add_argument("--route_prefix", default=None, type=str, help="the route prefix for HTTP requests.")
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
@@ -84,14 +84,14 @@ def main(argv=None):
     parser.add_argument("--ipex", action='store_true', help="enable ipex optimization")
     parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
     parser.add_argument("--serve_local_only", action="store_true", help="only support local access to url")
-    parser.add_argument("--serve_simple", action="store_true", help="whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.")
+    parser.add_argument("--simple", action="store_true", help="whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.")
     parser.add_argument("--keep_serve_terminal", action="store_true", help="whether to keep serve terminal.")
 
     args = parser.parse_args(argv)
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
-    if args.serve_simple:
+    if args.simple:
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.
         serve_run(deployments, model_list)

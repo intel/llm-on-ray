@@ -105,9 +105,9 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --simple"
           else
-            docker exec "${TARGET}" bash -c "python inference/serve.py --serve_simple --model_to_serve ${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --simple --models ${{ matrix.model }}"
           fi
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
@@ -116,7 +116,7 @@ jobs:
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml --serve_simple"
+          docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
@@ -127,7 +127,7 @@ jobs:
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
@@ -139,7 +139,7 @@ jobs:
           if [[ ${{ matrix.model }} =~ ^(gpt2|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
@@ -150,9 +150,9 @@ jobs:
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
           else
-            docker exec "${TARGET}" bash -c "python inference/serve.py --model_to_serve ${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --models ${{ matrix.model }}"
           fi
-          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --request_model ${{ matrix.model }}"
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
 
       - name: Stop Ray
         run: |
