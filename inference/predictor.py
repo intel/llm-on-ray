@@ -1,7 +1,7 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-from inference_config import InferenceConfig
+from inference.inference_config import InferenceConfig
 from utils import max_input_len, StoppingCriteriaSub
 
 class Predictor:
