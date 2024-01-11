@@ -1,20 +1,14 @@
-import math
-import time
-from itertools import chain
-
 import torch
 import transformers
 
 from .dataprocesser import DataProcesser
 from ..logging import logger
 
+
 class RMDataProcesser(DataProcesser):
-
     def prepare(self, tokenizer, dataset):
-
         block_size = self.config.get("block_size")
-        
-        
+
         if block_size is None:
             block_size = tokenizer.model_max_length
             if block_size > 1024:
@@ -31,9 +25,8 @@ class RMDataProcesser(DataProcesser):
                     f"({tokenizer.model_max_length}). Using block_size={tokenizer.model_max_length}."
                 )
             block_size = min(block_size, tokenizer.model_max_length)
-        
+
         def tokenize_function(examples):
-            
             tokenizer.pad_token = tokenizer.eos_token
             chosen = tokenizer(
                 examples["prompt"] + examples["chosen"],
@@ -41,10 +34,9 @@ class RMDataProcesser(DataProcesser):
                 truncation=True,
                 padding="max_length",
             )
-            
+
             examples["chosen_input_ids"] = chosen["input_ids"]
             examples["chosen_attention_mask"] = chosen["attention_mask"]
-
 
             rejected = tokenizer(
                 examples["prompt"] + examples["rejected"],
@@ -77,14 +69,14 @@ class RMDataProcesser(DataProcesser):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size", 2)
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 4)
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, 
-            shuffle=True, 
-            collate_fn=transformers.default_data_collator, 
-            batch_size=per_device_train_batch_size
+            train_dataset,
+            shuffle=True,
+            collate_fn=transformers.default_data_collator,
+            batch_size=per_device_train_batch_size,
         )
         eval_dataloader = torch.utils.data.DataLoader(
-            eval_dataset, 
-            collate_fn=transformers.default_data_collator, 
-            batch_size=per_device_eval_batch_size
+            eval_dataset,
+            collate_fn=transformers.default_data_collator,
+            batch_size=per_device_eval_batch_size,
         )
         return train_dataloader, eval_dataloader

@@ -16,6 +16,8 @@ on:
       - 'pyproject.toml'
 
 jobs:
+  call-lint:
+    uses: ./.github/workflows/workflow_lint.yml
 
   call-inference:
     uses: ./.github/workflows/workflow_inference.yml

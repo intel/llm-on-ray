@@ -6,4 +6,4 @@ realpath = os.path.realpath(__file__)
 basedir = os.path.dirname(realpath)
 import_all_module(basedir, "common.initializer")
 
-__all__ =  ["Initializer"]
+__all__ = ["Initializer"]
