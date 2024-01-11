@@ -1400,7 +1400,7 @@ class ChatBotUI:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Start UI", add_help=False)
+    parser = argparse.ArgumentParser(description="Web UI for LLM on Ray", add_help=True)
     parser.add_argument(
         "--finetune_model_path",
         default="./",
@@ -1430,7 +1430,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--conda_env_name",
-        default="test_gradio",
+        default="base",
         type=str,
         help="The environment used to execute ssh commands.",
     )

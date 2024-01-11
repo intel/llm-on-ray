@@ -65,57 +65,57 @@ def main(argv=None):
     # args
     import argparse
 
-    parser = argparse.ArgumentParser(description="Model Serve Script", add_help=False)
+    parser = argparse.ArgumentParser(description="Model Serve Script", add_help=True)
     parser.add_argument(
         "--config_file",
         type=str,
-        help="inference configuration file in YAML. If specified, all other arguments are ignored",
+        help="Inference configuration file in YAML. If specified, all other arguments will be ignored.",
     )
-    parser.add_argument("--model", default=None, type=str, help="model name or path")
-    parser.add_argument("--tokenizer", default=None, type=str, help="tokenizer name or path")
-    parser.add_argument("--port", default=8000, type=int, help="the port of deployment address")
+    parser.add_argument("--model", default=None, type=str, help="Model name or path.")
+    parser.add_argument("--tokenizer", default=None, type=str, help="Tokenizer name or path.")
+    parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
     parser.add_argument(
         "--route_prefix",
         default=None,
         type=str,
-        help="the route prefix for HTTP requests.",
+        help="The route prefix for HTTP requests.",
     )
-    parser.add_argument("--cpus_per_worker", default="24", type=int, help="cpus per worker")
+    parser.add_argument("--cpus_per_worker", default="24", type=int, help="CPUs per worker.")
     parser.add_argument(
         "--gpus_per_worker",
         default=0,
         type=float,
-        help="gpus per worker, used when --device is cuda",
+        help="GPUs per worker, used when --device is cuda.",
     )
     parser.add_argument(
         "--hpus_per_worker",
         default=0,
         type=float,
-        help="hpus per worker, used when --device is hpu",
+        help="HPUs per worker, used when --device is hpu.",
     )
-    parser.add_argument("--deepspeed", action="store_true", help="enable deepspeed inference")
+    parser.add_argument("--deepspeed", action="store_true", help="Enable deepspeed inference.")
     parser.add_argument(
         "--workers_per_group",
         default="2",
         type=int,
-        help="workers per group, used with --deepspeed",
+        help="Workers per group, used with --deepspeed.",
     )
-    parser.add_argument("--ipex", action="store_true", help="enable ipex optimization")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda")
+    parser.add_argument("--ipex", action="store_true", help="Enable ipex optimization.")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda.")
     parser.add_argument(
         "--serve_local_only",
         action="store_true",
-        help="only support local access to url",
+        help="Only support local access to url.",
     )
     parser.add_argument(
         "--serve_simple",
         action="store_true",
-        help="whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.",
+        help="Whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.",
     )
     parser.add_argument(
         "--keep_serve_terminal",
         action="store_true",
-        help="whether to keep serve terminal.",
+        help="Whether to keep serve terminal.",
     )
 
     args = parser.parse_args(argv)
