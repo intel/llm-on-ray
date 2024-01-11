@@ -15,17 +15,17 @@
 #
 
 import requests
-from inference_config import all_models, ModelDescription, Prompt
-from inference_config import InferenceConfig as FinetunedConfig
 import time
 import os
-from chat_process import ChatModelGptJ, ChatModelLLama
-import torch
-from predictor_deployment import PredictorDeployment
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from inference.inference_config import all_models, ModelDescription, Prompt
+from inference.inference_config import InferenceConfig as FinetunedConfig
+from inference.chat_process import ChatModelGptJ, ChatModelLLama
+from inference.predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
-import sys
 import argparse
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
@@ -34,7 +34,7 @@ from multiprocessing import Process, Queue
 from ray.util import queue
 import paramiko
 from html_format import cpu_memory_html, ray_status_html, custom_css
-from typing import Any, Dict
+from typing import Dict
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from pyrecdp.LLM import TextPipeline
@@ -172,7 +172,7 @@ class ChatBotUI():
         
         sample_input = {"text": prompt, "config": config, "stream": True}
         proxies = { "http": None, "https": None}
-        outputs = requests.post(request_url, proxies=proxies, json=[sample_input], stream=True)
+        outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
             # remove context
@@ -479,7 +479,7 @@ class ChatBotUI():
 
         finetuned_deploy = finetuned.copy(deep=True)
         finetuned_deploy.device = 'cpu'
-        finetuned_deploy.precision = 'bf16'
+        finetuned_deploy.ipex.precision = 'bf16'
         finetuned_deploy.model_description.prompt.stop_words = stop_words
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
@@ -581,7 +581,7 @@ class ChatBotUI():
         with gr.Blocks(css=custom_css,title=title) as gr_chat:
             head_content = """
                 <div style="color: #fff;text-align: center;">
-                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=inference/ui_images/logo.png" width="50" height="50"/></div>
+                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=ui/images/logo.png" width="50" height="50"/></div>
                     <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
                     <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
@@ -755,7 +755,7 @@ class ChatBotUI():
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
                         with gr.Row():
-                            node_pic = r"./inference/ui_images/Picture2.png"
+                            node_pic = r"./ui/images/Picture2.png"
                             gr.Image(type="pil", value=node_pic, show_label=False, min_width=45, height=45, width=45, elem_id="notshowimg", container=False)
                         with gr.Row():
                             gr.HTML("<h4 style='text-align: center; margin-bottom: 1rem'> Ray Cluster </h4>")
@@ -794,7 +794,7 @@ class ChatBotUI():
 
                         with gr.Column(scale=0.065, min_width=45):
                             with gr.Row():
-                                node_pic = r"./inference/ui_images/Picture1.png"
+                                node_pic = r"./ui/images/Picture1.png"
                                 gr.Image(type="pil", value=node_pic, show_label=False, min_width=45, height=45, width=45, elem_id="notshowimg", container=False)
                             with gr.Row():
                                 if node_ip == self.head_node_ip:
@@ -864,7 +864,7 @@ class ChatBotUI():
         self.gr_chat = gr_chat
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Start UI", add_help=False)
+    parser = argparse.ArgumentParser(description="Web UI for LLMs", add_help=True)
     parser.add_argument("--finetune_model_path", default="./", type=str, help="Where to save the finetune model.")
     parser.add_argument("--finetune_checkpoint_path", default="", type=str, help="Where to save checkpoints.")
     parser.add_argument("--default_rag_path", default="./vector_store/", type=str, help="The path of vectorstore used by RAG.")

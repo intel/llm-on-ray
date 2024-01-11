@@ -14,6 +14,6 @@ class MegatronInitializer(Initializer):
         args = None
         if "megatron_config" in self.config :
             args = self.config["megatron_config"] 
-            initialize_megatron(ignore_unknown_args=True, args_defaults=args, allow_no_cuda=True)
+            initialize_megatron(ignore_unknown_args=True, external_args=args, allow_no_cuda=True)
         else:
             logger.error("cannot initialize the megatron without the megatron_config")

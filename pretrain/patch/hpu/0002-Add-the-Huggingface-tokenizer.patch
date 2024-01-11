@@ -1,19 +1,20 @@
-From 1df9ba8d085f55d5141cdbe0857987dec12f1f7b Mon Sep 17 00:00:00 2001
+From eae23ead0c003035e639b3bcbd0f9c36a64bda66 Mon Sep 17 00:00:00 2001
 From: yuanwu <yuan.wu@intel.com>
 Date: Fri, 8 Dec 2023 04:53:13 +0000
-Subject: [PATCH] Add the Huggingface tokenizer
+Subject: [PATCH 2/2] Add the Huggingface tokenizer
 
 Signed-off-by: yuanwu <yuan.wu@intel.com>
 ---
- .../Megatron-DeepSpeed/megatron/arguments.py  |  6 +-
- .../megatron/tokenizer/tokenizer.py           | 86 +++++++++++++++++++
- 2 files changed, 90 insertions(+), 2 deletions(-)
+ .../Megatron-DeepSpeed/megatron/arguments.py  |  8 +-
+ .../megatron/global_vars.py                   |  2 +-
+ .../megatron/tokenizer/tokenizer.py           | 90 ++++++++++++++++++-
+ 3 files changed, 93 insertions(+), 7 deletions(-)
 
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
-index b9861fa0..516c2abb 100644
+index 4438dca6..eec7c540 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
 +++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/arguments.py
-@@ -871,8 +871,10 @@ def _add_data_args(parser):
+@@ -877,8 +877,10 @@ def _add_data_args(parser):
                                  'BertWordPieceCase',
                                  'GPT2BPETokenizer',
                                  'SentencePieceTokenizer',
@@ -21,19 +22,41 @@ index b9861fa0..516c2abb 100644
 +                                'HFTokenizer'],
                         help='What type of tokenizer to use.')
 +    group.add_argument('--tokenizer-model', type=str, default=None,
-+                       help='Sentencepiece tokenizer model.')
++                       help='tokenizer model file.')
      group.add_argument('--data-impl', type=str, default='infer',
                         choices=['lazy', 'cached', 'mmap', 'infer'],
                         help='Implementation of indexed datasets.')
-@@ -1174,4 +1176,4 @@ def _add_hpu_optimizations_args(parser):
+@@ -893,8 +895,6 @@ def _add_data_args(parser):
+                        action='store_false', help='If set, dont get '
+                        'sequence length plus one tokens for training',
+                        dest='use_seq_len_plus_one_tokens')
+-    group.add_argument('--tokenizer-model-file', type=str, default=None,
+-                       help='Path to tokenizer model file, where applicable (e.g. SentencePiece)')
+     group.add_argument('--tokenizer-eod-id', type=int, default=None,
+                        help='End of document token id, where applicable (e.g. SentencePiece)')
+ 
+@@ -1180,4 +1180,4 @@ def _add_hpu_optimizations_args(parser):
                         action='store_true',
                         help='Flatten operands of linear layers what yields better performance')
  
 -    return parser
 \ No newline at end of file
 +    return parser
+diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
+index deb2acba..e6a2cb59 100644
+--- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
++++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/global_vars.py
+@@ -97,7 +97,7 @@ def set_global_variables(extra_args_provider=None, args_defaults={},
+                        ignore_unknown_args=ignore_unknown_args,
+                        external_args=external_args)
+     _build_num_microbatches_calculator(args)
+-    if args.vocab_file or args.tokenizer_model_file:
++    if args.vocab_file or args.tokenizer_model:
+         _ = _build_tokenizer(args)
+     _set_tensorboard_writer(args)
+     _set_adlr_autoresume(args)
 diff --git a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/tokenizer/tokenizer.py b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/tokenizer/tokenizer.py
-index e4a49306..7989be48 100644
+index e4a49306..e6bf5bef 100644
 --- a/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/tokenizer/tokenizer.py
 +++ b/PyTorch/nlp/DeepSpeedExamples/Megatron-DeepSpeed/megatron/tokenizer/tokenizer.py
 @@ -18,6 +18,7 @@
@@ -44,10 +67,14 @@ index e4a49306..7989be48 100644
  from .bert_tokenization import FullTokenizer as FullBertTokenizer
  from .gpt2_tokenization import GPT2Tokenizer
  from .sentencepiece_tokenization import SentencePieceTokenizer
-@@ -47,6 +48,10 @@ def build_tokenizer(args):
+@@ -45,8 +46,12 @@ def build_tokenizer(args):
+         assert args.merge_file is not None
+         tokenizer = _GPT2BPETokenizer(args.vocab_file, args.merge_file)
      elif args.tokenizer_type == 'SentencePieceTokenizer':
-         assert args.tokenizer_model_file is not None
-         tokenizer = _SentencePieceTokenizer(args.tokenizer_model_file, args.tokenizer_eod_id)
+-        assert args.tokenizer_model_file is not None
+-        tokenizer = _SentencePieceTokenizer(args.tokenizer_model_file, args.tokenizer_eod_id)
++        assert args.tokenizer_model is not None
++        tokenizer = _SentencePieceTokenizer(args.tokenizer_model, args.tokenizer_eod_id)
 +    elif args.tokenizer_type == 'HFTokenizer':
 +        assert args.tokenizer_model is not None
 +        tokenizer = _HFTokenizer(args.tokenizer_model)
