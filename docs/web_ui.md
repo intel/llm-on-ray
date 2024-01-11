@@ -8,7 +8,7 @@ Please follow [setup.md](setup.md) to setup the environment first.
 ## Start Web UI
 
 ```bash
-python -u inference/start_ui.py --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
+python -u ui/start_ui.py --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
 # Get urls from the log
 # Running on local URL:  http://0.0.0.0:8080
 # Running on public URL: https://180cd5f7c31a1cfd3c.gradio.live
@@ -28,7 +28,7 @@ On the `Deployment` tab, you can choose a model to deploy, configure parameter `
 
 
 ## Chatbot
-On the `Inferenc` tab, you can now test the model by asking questions.
+On the `Inference` tab, you can now test the model by asking questions.
 
 ![webui3](https://github.com/intel/llm-on-ray/assets/9278199/f7b9dc79-92fe-4e75-85fa-2cf7f36bb58d)
 

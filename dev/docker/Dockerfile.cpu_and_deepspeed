@@ -35,5 +35,5 @@ RUN ds_report
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
-COPY ./inference/deep/install-oneapi.sh /tmp
+COPY ./dev/scripts/install-oneapi.sh /tmp
 RUN /tmp/install-oneapi.sh

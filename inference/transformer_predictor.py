@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 from transformers import TextIteratorStreamer
-from inference_config import InferenceConfig, IPEX_PRECISION_BF16
+from inference.inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
 from utils import get_torch_dtype
 

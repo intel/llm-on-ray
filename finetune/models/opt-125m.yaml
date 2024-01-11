@@ -22,6 +22,7 @@ Training:
   learning_rate: 1.0e-05
   lr_scheduler: linear
   weight_decay: 0.0
+  mixed_precision: bf16
   device: CPU
   num_training_workers: 2
   resources_per_worker:
