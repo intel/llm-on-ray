@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 import os
 import sys
+
 # The package importlib_metadata is in a different place, depending on the Python version.
 if sys.version_info < (3, 8):
     import importlib_metadata
@@ -23,25 +24,19 @@ class TorchConfig(RayTorchConfig):
 
 
 def libs_import():
-    """try to import IPEX and oneCCL.
-    """
+    """try to import IPEX and oneCCL."""
     try:
-        import intel_extension_for_pytorch
+        import intel_extension_for_pytorch  # noqa: F401
     except ImportError:
-        raise ImportError(
-            "Please install intel_extension_for_pytorch"
-        )
+        raise ImportError("Please install intel_extension_for_pytorch")
     try:
         ccl_version = importlib_metadata.version("oneccl_bind_pt")
         if ccl_version >= "1.12":
-            # pylint: disable-all
-            import oneccl_bindings_for_pytorch
+            import oneccl_bindings_for_pytorch  # noqa: F401
         else:
-            import torch_ccl
+            import torch_ccl  # noqa: F401
     except ImportError as ccl_not_exist:
-        raise ImportError(
-            "Please install torch-ccl"
-        ) from ccl_not_exist
+        raise ImportError("Please install torch-ccl") from ccl_not_exist
 
 
 def _set_torch_distributed_env_vars(device):
