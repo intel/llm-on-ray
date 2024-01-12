@@ -1,14 +1,22 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
+<<<<<<< HEAD
 from inference_config import InferenceConfig
 from utils import max_input_len, StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
+=======
+from inference.inference_config import InferenceConfig
+from utils import StoppingCriteriaSub
+
+>>>>>>> upstream/main
 
 class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
         self.infer_conf = infer_conf
-        self.tokenizer = AutoTokenizer.from_pretrained(infer_conf.model_description.tokenizer_name_or_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            infer_conf.model_description.tokenizer_name_or_path
+        )
         self.device = torch.device(infer_conf.device)
         # now deepspeed predictor don't have the model
         # so configure_tokenizer cannot be called
@@ -20,21 +28,14 @@ class Predictor:
 
         prompt = infer_conf.model_description.prompt
         stop_words = prompt.stop_words
-        stop_words_ids = [self.tokenizer(stop_word, return_tensors='pt').input_ids.squeeze() for stop_word in stop_words]
+        stop_words_ids = [
+            self.tokenizer(stop_word, return_tensors="pt").input_ids.squeeze()
+            for stop_word in stop_words
+        ]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
     def tokenize_inputs(self, text):
-        if self.device.type == "hpu":
-            input_tokens = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding="max_length",
-                max_length=max_input_len(input_token_len),
-            )
-        else:
-            input_tokens = self.tokenizer(
-                text, return_tensors="pt", padding=True
-            )
+        input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
         return input_tokens.input_ids.to(device=self.device)
 
     def configure_tokenizer(self, model_name):
@@ -49,13 +50,13 @@ class Predictor:
         if (
             hasattr(model.generation_config, "pad_token_id")
             and model.generation_config.pad_token_id is not None
-            and not "chatglm" in model_name
+            and "chatglm" not in model_name
         ):
             tokenizer.pad_token_id = model.generation_config.pad_token_id
         if (
             hasattr(model.generation_config, "eos_token_id")
             and model.generation_config.eos_token_id is not None
-            and not "chatglm" in model_name
+            and "chatglm" not in model_name
         ):
             tokenizer.eos_token_id = model.generation_config.eos_token_id
         if (
@@ -65,9 +66,7 @@ class Predictor:
             tokenizer.bos_token_id = model.generation_config.bos_token_id
 
         if tokenizer.pad_token_id is None:
-            model.generation_config.pad_token_id = (
-                tokenizer.pad_token_id
-            ) = tokenizer.eos_token_id
+            model.generation_config.pad_token_id = tokenizer.pad_token_id = tokenizer.eos_token_id
 
         if model.generation_config.eos_token_id is None:
             model.generation_config.eos_token_id = tokenizer.eos_token_id

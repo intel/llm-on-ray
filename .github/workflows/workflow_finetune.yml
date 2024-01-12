@@ -6,6 +6,24 @@ on:
       ci_type:
         type: string
         default: 'pr'
+      runner_container_image:
+        type: string
+        default: '10.1.2.13:5000/llmray-build'
+      http_proxy:
+        type: string
+        default: 'http://proxy-chain.intel.com:911'
+      https_proxy:
+        type: string
+        default: 'http://proxy-chain.intel.com:911'
+      runner_config_path:
+        type: string
+        default: '/home/ci/llm-ray-actions-runner'
+      code_checkout_path:
+        type: string
+        default: '/home/ci/actions-runner/_work/llm-on-ray/llm-on-ray'
+      model_cache_path:
+        type: string
+        default: '/mnt/DP_disk1/huggingface/cache'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft
@@ -16,7 +34,7 @@ jobs:
     name: finetune test
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -25,6 +43,7 @@ jobs:
         include:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          - { model: "mistralai/Mistral-7B-v0.1"}
 
     runs-on: self-hosted
 
@@ -32,13 +51,13 @@ jobs:
       run:
         shell: bash
     container:
-      image: ${{ vars.ACTIONS_RUNNER_CONTAINER_IMAGE }}
+      image: ${{ inputs.runner_container_image }}
       env:
-        http_proxy: ${{ vars.HTTP_PROXY_CONTAINER }}
-        https_proxy: ${{ vars.HTTPS_PROXY_CONTAINER }}
+        http_proxy: ${{ inputs.http_proxy }}
+        https_proxy: ${{ inputs.https_proxy }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
-        - ${{ vars.ACTIONS_RUNNER_CONFIG_PATH }}:/root/actions-runner-config
+        - ${{ inputs.runner_config_path }}:/root/actions-runner-config
 
     steps:
       - name: Checkout
@@ -49,14 +68,18 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} --build-arg https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune && yes
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune && yes
           docker image prune -f
 
       - name: Start Docker Container
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          docker run -tid -v ${{ vars.MODEL_CACHE_PATH }}:/root/.cache/huggingface/hub -v ${{ vars.CODE_CHECKOUT_PATH }}:/root/llm-on-ray -e http_proxy=${{ vars.HTTP_PROXY_CONTAINER }} -e https_proxy=${{ vars.HTTPS_PROXY_CONTAINER }} --name="finetune" --hostname="finetune-container" finetune:latest
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=finetune")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="finetune" --hostname="finetune-container" finetune:latest
+
       - name: Run Finetune Test
         run: |
           docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
@@ -106,6 +129,10 @@ jobs:
                   "lora_alpha": 32,
                   "lora_dropout": 0.1
               }
+              if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
+                  result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              else:
+                  result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
               yaml.dump(result, output, sort_keys=False)
           EOF
@@ -115,7 +142,7 @@ jobs:
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
@@ -143,6 +170,7 @@ jobs:
             docker exec "finetune" python -c "$CMD"
             docker exec "finetune" bash -c "python finetune/finetune.py --config_file finetune/finetune.yaml"
           fi
+
       - name: Stop Ray
         run: |
           cid=$(docker ps -q --filter "name=finetune")
@@ -155,5 +183,6 @@ jobs:
         run: |
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+
       - name: Test Summary
         run: echo "to be continued"

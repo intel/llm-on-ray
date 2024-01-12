@@ -12,17 +12,17 @@ We provide preconfigured yaml files in [inference/models](../inference/models) f
 To deploy on CPU, please make sure `device` is set to CPU and `cpus_per_worker` is set to a correct number.
 ```
 cpus_per_worker: 24
-device: "cpu"
+device: CPU
 ```
 To deploy on GPU, please make sure `device` is set to GPU and `gpus_per_worker` is set to 1.
 ```
 gpus_per_worker: 1
-device: "gpu"
+device: GPU
 ```
 To deploy on Gaudi, please make sure `device` is set to hpu and `hpus_per_worker` is set to 1.
 ```
 hpus_per_worker: 1
-device: "hpu"
+device: HPU
 ```
 LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [BigDL-LLM](serve_bigdl.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
 

@@ -78,3 +78,6 @@ packages = ["finetune", "inference"]
 [project.urls]
 Repository = "https://github.com/intel/llm-on-ray.git"
 Issues = "https://github.com/intel/llm-on-ray.git/issues"
+
+[tool.black]
+line-length = 100

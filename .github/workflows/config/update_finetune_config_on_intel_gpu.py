@@ -11,7 +11,7 @@ def update_finetune_config(base_model):
         # avaiable base models are:
         #
         # Mistral-7B-v0.1
-        # Llama-2-7b 
+        # Llama-2-7b
         # pythia-1.4b
         # pythia-2.8b
         # pythia-70m

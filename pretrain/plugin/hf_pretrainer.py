@@ -2,15 +2,11 @@ import os
 import math
 import logging
 import sys
-import torch
 from torch.utils.data import DataLoader, Dataset
-from .pretrainer import PreTrainer            
-from pathlib import Path
 import common
 from common import dataprocesser
 from common.logging import logger
 import evaluate
-from ray.train.huggingface.transformers import RayTrainReportCallback, prepare_trainer
 from typing import Optional
 from transformers import (
     HfArgumentParser,
@@ -19,21 +15,24 @@ from transformers import (
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
-from transformers.utils.versions import require_version
 from transformers import Trainer, TrainingArguments
 from common.trainer import Trainer as RayTrainer
+
 use_habana = True
 import importlib
-loader = importlib.util.find_spec('habana_frameworks')
+
+loader = importlib.util.find_spec("habana_frameworks")
 if loader is not None:
     from optimum.habana import GaudiConfig, GaudiTrainer, GaudiTrainingArguments
     from optimum.habana.utils import set_seed
+
     try:
         from optimum.habana.utils import check_optimum_habana_min_version
     except ImportError:
 
         def check_optimum_habana_min_version(*a, **b):
             return ()
+
     finally:
         # Will error if the minimal version of Transformers and Optimum Habana are not installed. Remove at your own risks.
         check_min_version("4.33.0")
@@ -41,15 +40,18 @@ if loader is not None:
 else:
     use_habana = False
 
-class HFCustomerSamplerTrainer(GaudiTrainer if use_habana else Trainer) :
-    def set_sampler(self, sampler) :
+
+class HFCustomerSamplerTrainer(GaudiTrainer if use_habana else Trainer):  # type: ignore
+    def set_sampler(self, sampler):
         self.customer_sampler = sampler
 
     def get_train_dataloader(self) -> DataLoader:
         if self.train_dataset is None:
             raise ValueError("Trainer: training requires a train_dataset.")
 
-        train_dataloader, _, _ = self.customer_sampler.prepare(None, (self.train_dataset, None, None))
+        train_dataloader, _, _ = self.customer_sampler.prepare(
+            None, (self.train_dataset, None, None)
+        )
         return train_dataloader
 
     def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
@@ -59,7 +61,7 @@ class HFCustomerSamplerTrainer(GaudiTrainer if use_habana else Trainer) :
 
         _, eval_dataloader, _ = self.customer_sampler.prepare(None, (None, eval_dataset, None))
         return eval_dataloader
-    
+
     def get_test_dataloader(self, test_dataset: Dataset) -> DataLoader:
         test_dataset = test_dataset if test_dataset is not None else self.test_dataset
         if test_dataset is None:
@@ -67,9 +69,6 @@ class HFCustomerSamplerTrainer(GaudiTrainer if use_habana else Trainer) :
 
         _, _, test_dataloader = self.customer_sampler.prepare(None, (None, None, test_dataset))
         return test_dataloader
-
-
-   
 
 
 class HuggingFacePreTrainer(RayTrainer):
@@ -84,12 +83,8 @@ class HuggingFacePreTrainer(RayTrainer):
         self.starting_episode = 0
         self.mode = "ddp"
 
-
     def prepare(self, model, tokenizer, dataset, optimizer, accelerator):
-
         self.train_dataset, self.eval_dataset, self.test_dataset = dataset
-
- 
 
     def train(self):
         if use_habana:
@@ -97,7 +92,7 @@ class HuggingFacePreTrainer(RayTrainer):
             parser = HfArgumentParser((GaudiTrainingArguments))
         else:
             parser = HfArgumentParser((TrainingArguments))
-            
+
         training_args = parser.parse_dict(self.config.get("training_config", None))[0]
         send_example_telemetry("Ray_HF_Trainer", training_args)
 
@@ -117,7 +112,7 @@ class HuggingFacePreTrainer(RayTrainer):
         transformers.utils.logging.set_verbosity(log_level)
         transformers.utils.logging.enable_default_handler()
         transformers.utils.logging.enable_explicit_format()
-        
+
         if use_habana:
             gaudi_config = GaudiConfig.from_pretrained(
                 training_args.gaudi_config_name,
@@ -127,7 +122,11 @@ class HuggingFacePreTrainer(RayTrainer):
             )
 
             # Log on each process the small summary:
-            mixed_precision = training_args.bf16 or gaudi_config.use_torch_autocast or gaudi_config.use_habana_mixed_precision
+            mixed_precision = (
+                training_args.bf16
+                or gaudi_config.use_torch_autocast
+                or gaudi_config.use_habana_mixed_precision
+            )
             logger.warning(
                 f"Process rank: {training_args.local_rank}, device: {training_args.device}, "
                 + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, "
@@ -137,7 +136,11 @@ class HuggingFacePreTrainer(RayTrainer):
 
         # Detecting last checkpoint.
         last_checkpoint = None
-        if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+        if (
+            os.path.isdir(training_args.output_dir)
+            and training_args.do_train
+            and not training_args.overwrite_output_dir
+        ):
             last_checkpoint = get_last_checkpoint(training_args.output_dir)
             if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
                 raise ValueError(
@@ -155,18 +158,18 @@ class HuggingFacePreTrainer(RayTrainer):
             set_seed(training_args.seed)
 
         model_config = self.config.get("model")
-        model_config['deepspeed_zero_stage'] = training_args.deepspeed_plugin.zero_stage
+        model_config["deepspeed_zero_stage"] = training_args.deepspeed_plugin.zero_stage
         if model_config:
             self.model = common.load_model(model_config)
         else:
-            common.logger.warn(f"No internal model plugin provided")
+            common.logger.warn("No internal model plugin provided")
         self.model.train()
-        
+
         tokenizer_config = self.config.get("tokenizer")
         if tokenizer_config:
             self.tokenizer = common.load_tokenizer(tokenizer_config)
         else:
-            common.logger.warn(f"No internal tokenizer plugin provided")
+            common.logger.warn("No internal tokenizer plugin provided")
 
         # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
         # on a small vocab and want a smaller embedding size, remove this test.
@@ -174,8 +177,8 @@ class HuggingFacePreTrainer(RayTrainer):
         if len(self.tokenizer) > embedding_size:
             self.model.resize_token_embeddings(len(self.tokenizer))
 
-
         if training_args.do_eval:
+
             def preprocess_logits_for_metrics(logits, labels):
                 if isinstance(logits, tuple):
                     # Depending on the model and config, logits may contain extra tensors,
@@ -206,9 +209,11 @@ class HuggingFacePreTrainer(RayTrainer):
                 # Data collator will default to DataCollatorWithPadding, so we change it.
                 data_collator=default_data_collator,
                 compute_metrics=compute_metrics if training_args.do_eval else None,
-                preprocess_logits_for_metrics=preprocess_logits_for_metrics if training_args.do_eval else None,
+                preprocess_logits_for_metrics=preprocess_logits_for_metrics
+                if training_args.do_eval
+                else None,
             )
-            
+
         else:
             trainer = HFCustomerSamplerTrainer(
                 model=self.model,
@@ -219,12 +224,13 @@ class HuggingFacePreTrainer(RayTrainer):
                 # Data collator will default to DataCollatorWithPadding, so we change it.
                 data_collator=default_data_collator,
                 compute_metrics=compute_metrics if training_args.do_eval else None,
-                preprocess_logits_for_metrics=preprocess_logits_for_metrics if training_args.do_eval else None,
+                preprocess_logits_for_metrics=preprocess_logits_for_metrics
+                if training_args.do_eval
+                else None,
             )
             print("use the GPU for training")
 
         trainer.set_sampler(self.dataprocesser)
-
 
         # Training
         if training_args.do_train:
@@ -238,9 +244,11 @@ class HuggingFacePreTrainer(RayTrainer):
 
             metrics = train_result.metrics
 
-            #if data_args.streaming:
-            metrics["train_samples"] = training_args.max_steps * training_args.per_device_train_batch_size
-            #else:
+            # if data_args.streaming:
+            metrics["train_samples"] = (
+                training_args.max_steps * training_args.per_device_train_batch_size
+            )
+            # else:
             #    max_train_samples = (
             #        data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
             #    )
@@ -271,7 +279,7 @@ class HuggingFacePreTrainer(RayTrainer):
             trainer.log_metrics("eval", metrics)
             trainer.save_metrics("eval", metrics)
 
-        #kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
+        # kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
         # if data_args.dataset_name is not None:
         #     kwargs["dataset_tags"] = data_args.dataset_name
         #     if data_args.dataset_config_name is not None:
@@ -281,6 +289,6 @@ class HuggingFacePreTrainer(RayTrainer):
         #         kwargs["dataset"] = data_args.dataset_name
 
         if training_args.push_to_hub:
-            trainer.push_to_hub(**kwargs)
+            trainer.push_to_hub()
         else:
-            trainer.create_model_card(**kwargs)
+            trainer.create_model_card()

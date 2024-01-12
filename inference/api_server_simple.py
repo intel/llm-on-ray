@@ -22,7 +22,14 @@ def serve_run(deployments, model_list):
     for model_id, infer_conf in model_list.items():
         print("deploy model: ", model_id)
         deployment = deployments[model_id]
-        handle = serve.run(deployment, _blocking=True, host=infer_conf.host, port=infer_conf.port, name=infer_conf.name, route_prefix=infer_conf.route_prefix)
+        serve.run(
+            deployment,
+            _blocking=True,
+            host=infer_conf.host,
+            port=infer_conf.port,
+            name=infer_conf.name,
+            route_prefix=infer_conf.route_prefix,
+        )
         deployment_name = infer_conf.name
         if infer_conf.host == "0.0.0.0":
             all_nodes = ray.nodes()

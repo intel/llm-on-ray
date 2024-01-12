@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-# Create conda env
-# conda create -n vllm-cpu python=3.10
-# conda activate vllm-cpu
+# The script will install vllm-cpu into current conda environment
+# Use the following command to create a new conda env if necessary
+# $ conda create -n vllm-cpu python=3.10
+# $ conda activate vllm-cpu
 
 # Install g++ 12.3 for building
 conda install -y -c conda-forge gxx=12.3 gxx_linux-64=12.3

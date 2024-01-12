@@ -18,9 +18,7 @@ import logging
 import os
 from typing import Optional
 
-LOG_FORMAT = (
-    "[%(levelname)s %(asctime)s]{rank} %(filename)s: %(lineno)d  " "%(message)s"
-)
+LOG_FORMAT = "[%(levelname)s %(asctime)s]{rank} %(filename)s: %(lineno)d  " "%(message)s"
 
 
 def get_logger(name: str = None, rank: Optional[int] = None, **kwargs):

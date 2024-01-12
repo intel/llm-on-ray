@@ -4,6 +4,7 @@ from .model import Model
 from peft import get_peft_model, LoraConfig
 import deltatuner
 
+
 class HuggingFaceModelForCausalLM(Model):
     def __call__(self, config):
         name = config.get("name")
