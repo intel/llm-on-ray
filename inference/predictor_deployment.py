@@ -62,6 +62,7 @@ class PredictorDeployment:
             self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from vllm_predictor import VllmPredictor
+
             self.predictor = VllmPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
@@ -108,18 +109,29 @@ class PredictorDeployment:
 
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
-            return StreamingResponse(self.consume_streamer(), status_code=200, media_type="text/plain")
+            return StreamingResponse(
+                self.consume_streamer(), status_code=200, media_type="text/plain"
+            )
         elif self.use_vllm:
             # TODO: streaming only support single prompt
             # It's a wordaround for current situation, need another PR to address this
             if isinstance(prompts, list):
                 prompt = prompts[0]
             results_generator = await self.predictor.streaming_generate_async(prompt, **config)
-            return StreamingResponse(self.predictor.stream_results(results_generator), status_code=200, media_type="text/plain")
+            return StreamingResponse(
+                self.predictor.stream_results(results_generator),
+                status_code=200,
+                media_type="text/plain",
+            )
         else:
             streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config))
-            return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
+            self.loop.run_in_executor(
+                None,
+                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
+            )
+            return StreamingResponse(
+                self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
+            )
 
     async def stream_response(self, prompt, config):
         prompts = []

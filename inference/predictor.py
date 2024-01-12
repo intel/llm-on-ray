@@ -1,15 +1,10 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-<<<<<<< HEAD
 from inference_config import InferenceConfig
-from utils import max_input_len, StoppingCriteriaSub
-from typing import List, AsyncGenerator, Union
-=======
-from inference.inference_config import InferenceConfig
 from utils import StoppingCriteriaSub
+from typing import List, AsyncGenerator, Union
 
->>>>>>> upstream/main
 
 class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
@@ -81,7 +76,9 @@ class Predictor:
     def generate(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
         pass
 
-    async def generate_async(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
+    async def generate_async(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[str, List[str]]:
         pass
 
     # output is streamed into streamer

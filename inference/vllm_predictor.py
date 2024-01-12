@@ -1,12 +1,12 @@
 from typing import AsyncGenerator, List, Union
 from predictor import Predictor
 from inference_config import InferenceConfig
-from transformers import TextIteratorStreamer
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 import asyncio
+
 
 class VllmPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig):
@@ -15,9 +15,11 @@ class VllmPredictor(Predictor):
         model_desc = infer_conf.model_description
         model_config = model_desc.config
 
-        args = AsyncEngineArgs(model = model_desc.model_id_or_path,
-                               trust_remote_code=model_config.trust_remote_code,
-                               device=infer_conf.device)
+        args = AsyncEngineArgs(
+            model=model_desc.model_id_or_path,
+            trust_remote_code=model_config.trust_remote_code,
+            device=infer_conf.device,
+        )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
 
@@ -25,8 +27,11 @@ class VllmPredictor(Predictor):
         async for request_output in results_generator:
             if request_output.finished:
                 return request_output.outputs[0].text
+        return None
 
-    async def generate_async(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
+    async def generate_async(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[str, List[str]]:
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
             request_id = random_uuid()
@@ -38,8 +43,13 @@ class VllmPredictor(Predictor):
             results_generators = [
                 self.engine.generate(prompt, sampling_params, random_uuid()) for prompt in prompts
             ]
-            results = [self._get_generator_output(results_generator) for results_generator in results_generators]
+            results = [
+                self._get_generator_output(results_generator)
+                for results_generator in results_generators
+            ]
             return await asyncio.gather(*results)
+
+        return ""
 
     async def streaming_generate_async(self, prompt, **config):
         sampling_params = SamplingParams(**config)
