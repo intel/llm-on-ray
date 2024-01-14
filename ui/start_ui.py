@@ -20,10 +20,10 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from inference.inference_config import all_models, ModelDescription, Prompt
-from inference.inference_config import InferenceConfig as FinetunedConfig
-from inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
-from inference.predictor_deployment import PredictorDeployment
+from inference_config import all_models, ModelDescription, Prompt
+from inference_config import InferenceConfig as FinetunedConfig
+from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
+from predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
@@ -752,7 +752,7 @@ class ChatBotUI:
             head_content = """
                 <div style="color: #fff;text-align: center;">
                     <div style="position:absolute; left:15px; top:15px; "><img  src="/file=ui/images/logo.png" width="50" height="50"/></div>
-                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
+                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p>
                     <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
             """
