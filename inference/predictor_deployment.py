@@ -24,7 +24,7 @@ from queue import Empty
 import torch
 from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig
-from typing import Union
+from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse
 from inference.api_openai_backend.openai_protocol import ModelResponse
 
@@ -39,20 +39,27 @@ class PredictorDeployment:
         if chat_processor_name:
             try:
                 module = __import__("chat_process")
-            except:
+            except Exception:
                 sys.path.append(os.path.dirname(__file__))
                 module = __import__("chat_process")
             chat_processor = getattr(module, chat_processor_name, None)
             if chat_processor is None:
-                raise ValueError(infer_conf.name + " deployment failed. chat_processor(" + chat_processor_name + ") does not exist.")
+                raise ValueError(
+                    infer_conf.name
+                    + " deployment failed. chat_processor("
+                    + chat_processor_name
+                    + ") does not exist."
+                )
             self.process_tool = chat_processor(**prompt.dict())
-        
+
         self.use_deepspeed = infer_conf.deepspeed
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
+
             self.predictor = DeepSpeedPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
+
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()
 
@@ -69,10 +76,10 @@ class PredictorDeployment:
                 await asyncio.sleep(0.001)
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
-        json_request: str = await http_request.json()
+        json_request: Dict[str, Any] = await http_request.json()
         prompts = []
         text = json_request["text"]
-        config = json_request["config"]  if "config" in json_request else {}
+        config = json_request["config"] if "config" in json_request else {}
         streaming_response = json_request["stream"]
         if isinstance(text, list):
             if self.process_tool is not None:
@@ -85,8 +92,15 @@ class PredictorDeployment:
         if not streaming_response:
             return self.predictor.generate(prompts, **config)
         streamer = self.predictor.get_streamer()
-        self.loop.run_in_executor(None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config))
-        return StreamingResponse(self.consume_streamer_async(streamer), status_code=200, media_type="text/plain")
+        self.loop.run_in_executor(
+            None,
+            functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+        )
+        return StreamingResponse(
+            self.consume_streamer_async(streamer),
+            status_code=200,
+            media_type="text/plain"
+        )
         
     async def stream_response(self, prompt, config):
         prompts = []
@@ -100,7 +114,10 @@ class PredictorDeployment:
             prompts.append(prompt)
 
         streamer = self.predictor.get_streamer()
-        self.loop.run_in_executor(None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config))
+        self.loop.run_in_executor(
+            None,
+            functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+        )
         response_handle = self.consume_streamer_async(streamer)
         async for output in response_handle:
             model_response = ModelResponse(
