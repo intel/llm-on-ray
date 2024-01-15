@@ -3,7 +3,7 @@ from transformers import AutoModelForCausalLM, AutoConfig
 from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
-from utils import get_torch_dtype
+from inference.utils import get_torch_dtype
 
 
 class TransformerPredictor(Predictor):

@@ -44,7 +44,11 @@ from pyrecdp.primitives.operations import (
     DirectoryLoader,
     DocumentSplit,
     DocumentIngestion,
+    YoutubeLoader,
+    RAGTextFix,
+    DocumentLoader,
 )
+from pyrecdp.primitives.document.reader import _default_file_readers
 
 
 class CustomStopper(Stopper):
@@ -320,16 +324,41 @@ class ChatBotUI:
     def regenerate(
         self,
         db_dir,
-        web_urls,
-        data_pdfs,
+        upload_type,
+        input_type,
+        input_texts,
+        depth,
+        upload_files,
         embedding_model,
         splitter_chunk_size,
         cpus_per_worker,
     ):
-        pdf_folder = []
-        if data_pdfs:
-            for _, file in enumerate(data_pdfs):
-                pdf_folder.append(file.name)
+        if upload_type == "Youtube":
+            input_texts = input_texts.split(";")
+            target_urls = [url.strip() for url in input_texts if url != ""]
+            loader = YoutubeLoader(urls=target_urls)
+        elif upload_type == "Web":
+            input_texts = input_texts.split(";")
+            target_urls = [url.strip() for url in input_texts if url != ""]
+            loader = UrlLoader(urls=target_urls, max_depth=int(depth))
+        else:
+            if input_type == "local":
+                input_texts = input_texts.split(";")
+                files_folder = [file.strip() for file in input_texts if file != ""]
+            else:
+                files_folder = []
+                if upload_files:
+                    for _, file in enumerate(upload_files):
+                        file_name = file.name
+                        if file_name.endswith(upload_type):
+                            files_folder.append(file.name)
+                if upload_type == "pdf":
+                    loader = DocumentLoader(loader="PyPDFLoader", requirements=["unstructured"])
+
+                    # loader = DirectoryLoader(input_files=files_folder)
+                else:
+                    loader = DirectoryLoader(input_files=files_folder)
+
         if os.path.isabs(db_dir):
             tmp_folder = os.getcwd()
             save_dir = os.path.join(tmp_folder, db_dir)
@@ -337,10 +366,6 @@ class ChatBotUI:
             save_dir = db_dir
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        web_urls = web_urls.split(";")
-        target_urls = [url.strip() for url in web_urls if url != ""]
-        if len(target_urls) > 0 and len(pdf_folder) > 0:
-            raise gr.Warning("Setting both 'web urls' and 'pdf files' is not supported")
 
         vector_store_type = "FAISS"
         index_name = "knowledge_db"
@@ -358,19 +383,11 @@ class ChatBotUI:
             self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
 
         pipeline = TextPipeline()
-        ops = []
-        if len(target_urls) > 0:
-            ops.append(
-                UrlLoader(
-                    urls=target_urls,
-                    target_tag="div",
-                    target_attrs={"class": "main-content"},
-                )
-            )
-        if len(pdf_folder) > 0:
-            ops.append(DirectoryLoader(input_files=pdf_folder))
+        ops = [loader]
+
         ops.extend(
             [
+                RAGTextFix(re_sentence=True),
                 DocumentSplit(text_splitter=text_splitter, text_splitter_args=text_splitter_args),
                 DocumentIngestion(
                     vector_store=vector_store_type,
@@ -382,7 +399,9 @@ class ChatBotUI:
             ]
         )
         pipeline.add_operations(ops)
-        pipeline.execute()
+        ds = pipeline.execute()
+        for row in ds.iter_rows():
+            print(row)
         return db_dir
 
     def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
@@ -717,6 +736,44 @@ class ChatBotUI:
     def set_custom_model(self, base_model_name):
         visible = True if base_model_name == "specify other models" else False
         return gr.Textbox.update(visible=visible), gr.Textbox.update(visible=visible)
+
+    def set_upload_box(self, upload_type):
+        if upload_type == "Youtube":
+            return (
+                gr.Textbox.update(visible=True, label="Youtube urls"),
+                gr.File.update(visible=False),
+                gr.Slider.update(visible=False),
+                gr.Radio.update(visible=False),
+            )
+        elif upload_type == "Web":
+            return (
+                gr.Textbox.update(
+                    label="Web urls",
+                    placeholder="Support multiple urls seperated by ';'",
+                    visible=True,
+                ),
+                gr.File.update(visible=False),
+                gr.Slider.update(visible=True),
+                gr.Radio.update(visible=False),
+            )
+        else:
+            return (
+                gr.Textbox.update(
+                    label="Files path",
+                    placeholder="Support multiple path seperated by ';'",
+                    visible=True,
+                ),
+                gr.File.update(visible=False),
+                gr.Slider.update(visible=False),
+                gr.Radio.update(visible=True, value="local"),
+            )
+
+    def set_input_radio(self, input_type):
+        print(input_type)
+        if input_type == "upload":
+            return gr.Textbox.update(visible=True), gr.File.update(visible=False)
+        else:
+            return gr.Textbox.update(visible=False), gr.File.update(visible=True)
 
     def set_rag_default_path(self, selector, rag_path):
         if rag_path:
@@ -1060,20 +1117,51 @@ class ChatBotUI:
 
                 with gr.Accordion("RAG parameters", open=False, visible=True):
                     with gr.Row():
-                        with gr.Column(scale=0.5):
-                            data_web_urls = gr.Textbox(
-                                label="web urls",
-                                value="https://www.intc.com/news-events/press-releases/detail/1655/intel-reports-third-quarter-2023-financial-results",
-                                placeholder="The urls of web dataset. Support multiple web urls seperated by ';'",
+                        recdp_support_suffix = list(_default_file_readers.keys())
+                        recdp_support_types = [i.strip(".") for i in recdp_support_suffix]
+                        recdp_support_types.extend(["Youtube", "Web"])
+                        with gr.Column(scale=1):
+                            rag_upload_file_type = gr.Dropdown(
+                                recdp_support_types,
+                                value="pdf",
+                                label="Select File Type to Upload",
+                                elem_classes="disable_status",
+                                allow_custom_value=True,
                             )
-                        with gr.Column(scale=0.5):
-                            # data_pdf_path = gr.Textbox(label="pdf folder", value='', placeholder="The folder of pdf files")
-                            data_pdfs = gr.File(
-                                label="upload pdf files",
-                                file_count="multiple",
-                                file_types=[".pdf"],
-                                elem_classes="file_height",
-                            )
+                        input_type = gr.Radio(
+                            choices=["local", "upload"],
+                            value="local",
+                            label="Input Type",
+                            scale=1,
+                            visible=True,
+                        )
+                        web_depth = gr.Slider(
+                            minimum=1,
+                            maximum=10,
+                            step=1,
+                            interactive=True,
+                            label="Max Depth",
+                            visible=False,
+                            scale=1,
+                            info="The max depth of the recursive loading.",
+                        )
+
+                        rag_input_text = gr.Textbox(
+                            label="Local file path",
+                            placeholder="Support multiple absolute paths, separated by ';'",
+                            visible=True,
+                            scale=3,
+                        )
+
+                        data_files = gr.File(
+                            label="upload file",
+                            file_count="multiple",
+                            file_types=recdp_support_suffix,
+                            elem_classes="file_height",
+                            scale=3,
+                            visible=False,
+                        )
+
                     with gr.Row():
                         with gr.Column(scale=0.4):
                             embedding_model = gr.Textbox(
@@ -1273,18 +1361,28 @@ class ChatBotUI:
                 [chatbot, latency_status],
             )
 
+            rag_upload_file_type.select(
+                self.set_upload_box,
+                [rag_upload_file_type],
+                [rag_input_text, data_files, web_depth, input_type],
+            )
+            input_type.select(self.set_input_radio, [input_type], [rag_input_text, data_files])
             regenerate_btn.click(
                 self.regenerate,
                 [
                     rag_path,
-                    data_web_urls,
-                    data_pdfs,
+                    rag_upload_file_type,
+                    input_type,
+                    rag_input_text,
+                    web_depth,
+                    data_files,
                     embedding_model,
                     splitter_chunk_size,
                     cpus_per_worker_deploy,
                 ],
                 [rag_path],
             )
+
             clear_btn_rag.click(self.clear, None, [chatbot_rag, latency_status_rag], queue=False)
             rag_selector.select(self.set_rag_default_path, [rag_selector, rag_path], rag_path)
             msg_rag.submit(
