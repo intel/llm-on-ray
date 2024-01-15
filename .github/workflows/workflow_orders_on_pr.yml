@@ -32,4 +32,3 @@ jobs:
   call-finetune:
     needs: call-lint
     uses: ./.github/workflows/workflow_finetune.yml
-    
