@@ -34,8 +34,8 @@
 
 import os
 from ray import serve
-from api_openai_backend.query_client import RouterQueryClient
-from api_openai_backend.router_app import Router, router_app
+from inference.api_openai_backend.query_client import RouterQueryClient
+from inference.api_openai_backend.router_app import Router, router_app
 
 
 def router_application(deployments):
@@ -68,16 +68,17 @@ def router_application(deployments):
         }
     ).bind(merged_client)
 
+
 def openai_serve_run(deployments, host, route_prefix, port):
     router_app = router_application(deployments)
 
     serve.run(
-          router_app,
-          name="router",
-          route_prefix=route_prefix,
-          host=host,
-          _blocking=True,
-      ).options(
+        router_app,
+        name="router",
+        route_prefix=route_prefix,
+        host=host,
+        _blocking=True,
+    ).options(
         stream=True,
         use_new_handle_api=True,
     )

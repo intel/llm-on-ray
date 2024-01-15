@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import time
-import traceback
-from typing import Any, Dict
 
 import ray
 from ray import air, tune
@@ -16,38 +13,38 @@ from rl_algo.ppo.rlhf_ppo_module import RLHFPPOTorchRLModule
 from rl_algo.ppo.rlhf_ppo_torch_learner import RLHFPPOTorchLearner
 
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import common
 from common.agentenv.rlhf_env import RLHFEnv
 
 
 class ValueFunctionInitializerCallback(DefaultCallbacks):
-
     def on_algorithm_init(self, *, algorithm, **kwargs) -> None:
-        learner_group = algorithm.learner_group
+        learner_group = algorithm.learner_group  # noqa: F841 # assigned to but never used
 
 
 def init_ray(config):
-
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
     runtime_env = {
         "env_vars": {
-            "OMP_NUM_THREADS": str(resources_per_worker["CPU"]), 
-            "ACCELERATE_USE_CPU": "True", 
+            "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
+            "ACCELERATE_USE_CPU": "True",
             "ACCELERATE_MIXED_PRECISION": "no",
             "CCL_WORKER_COUNT": "1",
             "CCL_LOG_LEVEL": "info",
             "WORLD_SIZE": str(num_training_workers),
         }
     }
-    ray.init(runtime_env = runtime_env, local_mode = True)
+    ray.init(runtime_env=runtime_env, local_mode=True)
+
 
 def prepare_ppo(config):
-
     env_creator = lambda config: RLHFEnv(config)
+
     tune.register_env("RLHFEnv", env_creator)
 
     agentenv_config = {
@@ -56,42 +53,40 @@ def prepare_ppo(config):
             "tokenizer": {
                 "type": "HuggingFaceTokenizer",
                 "name": config["General"]["model_name"],
-                "config": {}
+                "config": {},
             },
             "reward_model": {
                 "type": "HuggingFaceRewardModel",
                 "name": config["General"]["rm_name"],
-                "config": {}
+                "config": {},
             },
             "sft_model": {
                 "type": "HuggingFaceModelForCausalLM",
                 "name": config["General"]["model_name"],
-                "config": {}
+                "config": {},
             },
             "datasets": {
                 "type": "HuggingfaceDataset",
                 "name": config["Dataset"]["train_file"],
-                "load_config" : {
-                }
+                "load_config": {},
             },
             "kl_coeff": config["Training"]["kl_coeff"],
             "max_generation_length": 50,
-            "model_max_length": 1024
-        }
+            "model_max_length": 1024,
+        },
     }
 
     ppo_config = (
         PPOConfig(algo_class=PPORLHF)
         .framework("torch")
         .environment(
-            "RLHFEnv", 
+            "RLHFEnv",
             env_config=agentenv_config,
             disable_env_checking=True,
         )
         .rl_module(
             _enable_rl_module_api=True,
-            rl_module_spec=SingleAgentRLModuleSpec
-            (
+            rl_module_spec=SingleAgentRLModuleSpec(
                 RLHFPPOTorchRLModule,
                 model_config_dict={
                     "actor_base_model": config["General"]["model_name"],
@@ -100,7 +95,7 @@ def prepare_ppo(config):
             ),
         )
         .training(
-            learner_class = RLHFPPOTorchLearner,
+            learner_class=RLHFPPOTorchLearner,
             # optimizer=config["Training"]["optimizer"],
             lr=config["Training"]["learning_rate"],
             num_sgd_iter=1,
@@ -108,9 +103,7 @@ def prepare_ppo(config):
             train_batch_size=config["Training"]["experience_batch_size"],
             _enable_learner_api=True,
         )
-        .rollouts(
-            num_rollout_workers=0
-        )
+        .rollouts(num_rollout_workers=0)
         .evaluation(
             evaluation_interval=1,
             evaluation_duration_unit="episodes",
@@ -120,16 +113,18 @@ def prepare_ppo(config):
             _disable_initialize_loss_from_dummy_batch=True,
         )
         .callbacks(
-            callbacks_class=make_multi_callbacks([
-                ValueFunctionInitializerCallback,
-            ])
+            callbacks_class=make_multi_callbacks(
+                [
+                    ValueFunctionInitializerCallback,
+                ]
+            )
         )
     )
 
     return ppo_config
 
-def main(external_config = None):
 
+def main(external_config=None):
     config = common.Config()
     if external_config is not None:
         config.merge(external_config)
@@ -146,13 +141,13 @@ def main(external_config = None):
                 checkpoint_frequency=50,
                 checkpoint_at_end=True,
             ),
-            stop={"training_iteration": config["Training"]["training_iteration"]}
+            stop={"training_iteration": config["Training"]["training_iteration"]},
         ),
-        tune_config=tune.TuneConfig(reuse_actors=False)
+        tune_config=tune.TuneConfig(reuse_actors=False),
     )
 
-    results = tuner.fit()
+    tuner.fit()
+
 
 if __name__ == "__main__":
     main()
-
