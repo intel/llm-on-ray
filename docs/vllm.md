@@ -31,7 +31,7 @@ In the above example, `vllm` property is set to `true` in the config file for en
 To start a non-streaming query, run the following:
 
 ```bash
-$ python examples/inference/api_server_simple/query_single.py --num_iter 1 --model_endpoint http://127.0.0.1:8000/llama-2-7b-chat-hf
+$ python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/llama-2-7b-chat-hf
 ```
 
 To start a streaming query, run the following:
