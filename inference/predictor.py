@@ -10,7 +10,7 @@ class Predictor:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(
             infer_conf.model_description.tokenizer_name_or_path,
-            **infer_conf.model_description.config.dict()
+            **infer_conf.model_description.config.dict(),
         )
         self.device = torch.device(infer_conf.device)
         # now deepspeed predictor don't have the model
