@@ -11,7 +11,12 @@ class TransformerPredictor(Predictor):
         
         model_desc = infer_conf.model_description
         model_config = model_desc.config
-        hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, torchscript=True, trust_remote_code=model_config.trust_remote_code,  use_auth_token=infer_conf.model_description.config.use_auth_token)
+        hf_config = AutoConfig.from_pretrained(
+            model_desc.model_id_or_path,
+            torchscript=True,
+            trust_remote_code=model_config.trust_remote_code,
+            use_auth_token=infer_conf.model_description.config.use_auth_token
+        )
 
         if self.device.type == "hpu":
             from optimum.habana.transformers.modeling_utils import (
@@ -44,7 +49,11 @@ class TransformerPredictor(Predictor):
             )
         if model_desc.peft_model_id_or_path:
             from peft import PeftModel
-            model = PeftModel.from_pretrained(model, model_desc.peft_model_id_or_path, use_auth_token=infer_conf.model_description.config.use_auth_token)
+
+            model = PeftModel.from_pretrained(
+                model, model_desc.peft_model_id_or_path,
+                use_auth_token=infer_conf.model_description.config.use_auth_token
+            )
             if model_desc.peft_type == "deltatuner":
                 from deltatuner import DeltaTunerModel
                 model = DeltaTunerModel.from_pretrained(model, model_desc.peft_model_id_or_path)
