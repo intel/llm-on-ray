@@ -34,10 +34,10 @@
 # limitations under the License.
 #
 
-from typing import Any, Dict, Literal, List, TypeVar, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, Literal, List, TypeVar, Optional, Tuple, Type, Union
 
-from pydantic import BaseModel, Field, root_validator, validator
-from enum import IntEnum, Enum
+from pydantic import BaseModel, Field, root_validator
+from enum import Enum
 import uuid
 import time
 import yaml
@@ -77,9 +77,7 @@ class UsageInfo(BaseModel):
     completion_tokens: Optional[int] = 0
 
     @classmethod
-    def from_response(
-        cls, response: Union["ModelResponse", Dict[str, Any]]
-    ) -> "UsageInfo":
+    def from_response(cls, response: Union["ModelResponse", Dict[str, Any]]) -> "UsageInfo":
         if isinstance(response, BaseModel):
             response_dict = response.dict()
         else:
@@ -183,7 +181,8 @@ class BaseModelExtended(BaseModel):
         **kwargs,
     ):
         """
-        Generate a YAML representation of the model, `include` and `exclude` arguments as per `dict()`.
+        Generate a YAML representation of the model, `include` and `exclude`
+        arguments as per `dict()`.
         """
         return yaml.dump(
             self.dict(
@@ -211,9 +210,7 @@ class ComputedPropertyMixin:
         return [prop for prop in dir(cls) if isinstance(getattr(cls, prop), property)]
 
     def dict(self, *args, **kwargs):
-        self.__dict__.update(
-            {prop: getattr(self, prop) for prop in self.get_properties()}
-        )
+        self.__dict__.update({prop: getattr(self, prop) for prop in self.get_properties()})
         return super().dict(*args, **kwargs)  # type: ignore
 
     def json(
@@ -221,9 +218,7 @@ class ComputedPropertyMixin:
         *args,
         **kwargs,
     ) -> str:
-        self.__dict__.update(
-            {prop: getattr(self, prop) for prop in self.get_properties()}
-        )
+        self.__dict__.update({prop: getattr(self, prop) for prop in self.get_properties()})
 
         return super().json(*args, **kwargs)  # type: ignore
 
@@ -247,9 +242,7 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
             and values.get("error") is None
             and values.get("finish_reason") is None
         ):
-            raise ValueError(
-                "Either 'generated_text' or 'error' or 'finish_reason' must be set"
-            )
+            raise ValueError("Either 'generated_text' or 'error' or 'finish_reason' must be set")
         return values
 
     @classmethod
@@ -263,9 +256,7 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
         if len(responses) == 1:
             return responses[0]
 
-        generated_text = "".join(
-            [response.generated_text or "" for response in responses]
-        )
+        generated_text = "".join([response.generated_text or "" for response in responses])
         num_input_tokens = [
             response.num_input_tokens
             for response in responses
@@ -277,17 +268,13 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
             for response in responses
             if response.num_input_tokens_batch is not None
         ]
-        max_num_input_tokens_batch = (
-            max(num_input_tokens_batch) if num_input_tokens_batch else None
-        )
+        max_num_input_tokens_batch = max(num_input_tokens_batch) if num_input_tokens_batch else None
         num_generated_tokens = [
             response.num_generated_tokens
             for response in responses
             if response.num_generated_tokens is not None
         ]
-        total_generated_tokens = (
-            sum(num_generated_tokens) if num_generated_tokens else None
-        )
+        total_generated_tokens = sum(num_generated_tokens) if num_generated_tokens else None
         num_generated_tokens_batch = [
             response.num_generated_tokens_batch
             for response in responses
@@ -308,9 +295,7 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
             if response.generation_time is not None
         ]
         total_generation_time = sum(generation_time) if generation_time else None
-        error = next(
-            (response.error for response in reversed(responses) if response.error), None
-        )
+        error = next((response.error for response in reversed(responses) if response.error), None)
 
         return cls(
             generated_text=generated_text,
@@ -341,9 +326,7 @@ class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
     @property
     def num_total_tokens_batch(self) -> Optional[float]:
         try:
-            return (self.num_input_tokens_batch or 0) + (
-                self.num_generated_tokens_batch or 0
-            )
+            return (self.num_input_tokens_batch or 0) + (self.num_generated_tokens_batch or 0)
         except Exception:
             return None
 
@@ -395,9 +378,7 @@ class FinishReason(str, Enum):
         return self.value
 
     @classmethod
-    def from_vllm_finish_reason(
-        cls, finish_reason: Optional[str]
-    ) -> Optional["FinishReason"]:
+    def from_vllm_finish_reason(cls, finish_reason: Optional[str]) -> Optional["FinishReason"]:
         if finish_reason is None:
             return None
         if finish_reason == "stop":

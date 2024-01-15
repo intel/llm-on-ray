@@ -4,8 +4,9 @@ import importlib
 
 from .logging import logger
 
-def import_all_module(basedir, prefix = None):
-    all_py_files = glob.glob(basedir+"/*.py")
+
+def import_all_module(basedir, prefix=None):
+    all_py_files = glob.glob(basedir + "/*.py")
     modules = [os.path.basename(f) for f in all_py_files]
 
     for module in modules:
@@ -17,5 +18,5 @@ def import_all_module(basedir, prefix = None):
                 module_name = f"{prefix}.{module}"
             try:
                 importlib.import_module(module_name)
-            except Exception as e:
+            except Exception:
                 logger.warning(f"import {module_name} erro", exc_info=True)

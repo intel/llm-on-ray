@@ -3,12 +3,14 @@ import accelerate
 
 from .logging import logger
 
+
 def check_config(config):
     logger.debug("check config start")
     if isinstance(config, dict):
         return True
     else:
         return False
+
 
 def init(config):
     logger.debug("global init start")
