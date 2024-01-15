@@ -34,7 +34,7 @@ python inference/serve.py --config_file inference/models/gpt2.yaml
 ```
 2. Use relevant configuration parameters if model_id_or_path is set.
 ```
-python inference/serve.py --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix...]
+python inference/serve.py --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix ...]
 ```
 3. If --config_file and --model_id_or_path are both None, it will serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
 ```
