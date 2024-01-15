@@ -28,4 +28,3 @@ jobs:
 
   call-finetune:
     uses: ./.github/workflows/workflow_finetune.yml
-    

@@ -33,4 +33,3 @@ jobs:
       - name: Start tests
         run: |
           bash -c "./tests/run-tests.sh"
-          
