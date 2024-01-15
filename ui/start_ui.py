@@ -46,7 +46,6 @@ from pyrecdp.primitives.operations import (
     DocumentIngestion,
     YoutubeLoader,
     RAGTextFix,
-    DocumentLoader,
 )
 from pyrecdp.primitives.document.reader import _default_file_readers
 
@@ -345,6 +344,7 @@ class ChatBotUI:
             if input_type == "local":
                 input_texts = input_texts.split(";")
                 files_folder = [file.strip() for file in input_texts if file != ""]
+                loader = DirectoryLoader(input_dir=files_folder)
             else:
                 files_folder = []
                 if upload_files:
@@ -352,12 +352,9 @@ class ChatBotUI:
                         file_name = file.name
                         if file_name.endswith(upload_type):
                             files_folder.append(file.name)
-                if upload_type == "pdf":
-                    loader = DocumentLoader(loader="PyPDFLoader", requirements=["unstructured"])
-
-                    # loader = DirectoryLoader(input_files=files_folder)
-                else:
                     loader = DirectoryLoader(input_files=files_folder)
+                else:
+                    raise gr.Warning("Can't get any uploaded files.")
 
         if os.path.isabs(db_dir):
             tmp_folder = os.getcwd()
@@ -1118,12 +1115,12 @@ class ChatBotUI:
                 with gr.Accordion("RAG parameters", open=False, visible=True):
                     with gr.Row():
                         recdp_support_suffix = list(_default_file_readers.keys())
-                        recdp_support_types = [i.strip(".") for i in recdp_support_suffix]
+                        recdp_support_types = ["Files"]
                         recdp_support_types.extend(["Youtube", "Web"])
                         with gr.Column(scale=1):
                             rag_upload_file_type = gr.Dropdown(
                                 recdp_support_types,
-                                value="pdf",
+                                value=recdp_support_types[0],
                                 label="Select File Type to Upload",
                                 elem_classes="disable_status",
                                 allow_custom_value=True,
@@ -1151,6 +1148,7 @@ class ChatBotUI:
                             placeholder="Support multiple absolute paths, separated by ';'",
                             visible=True,
                             scale=3,
+                            info="Support types: " + " ".join(recdp_support_suffix),
                         )
 
                         data_files = gr.File(
@@ -1160,6 +1158,7 @@ class ChatBotUI:
                             elem_classes="file_height",
                             scale=3,
                             visible=False,
+                            info="Support types: " + ", ".join(recdp_support_suffix),
                         )
 
                     with gr.Row():
