@@ -2,7 +2,6 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
 
 import deepspeed
 import torch.distributed as dist
@@ -14,17 +13,16 @@ from ray.train.torch.config import TorchConfig as RayTorchConfig
 from ray.train._internal.worker_group import WorkerGroup
 from ray.train._internal.utils import get_address_and_port
 from ray.train.constants import DEFAULT_NCCL_SOCKET_IFNAME
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TorchConfig(RayTorchConfig):
-
     @property
     def backend_cls(self):
         return DeepSpeedBackend
+
 
 def _set_nccl_network_interface():
     """Set the appropriate NCCL network interface to use."""
@@ -38,6 +36,7 @@ def _set_nccl_network_interface():
             "`ray.init(runtime_env={{'env_vars': {'NCCL_SOCKET_IFNAME': 'ens5'}}}`"
         )
         os.environ["NCCL_SOCKET_IFNAME"] = DEFAULT_NCCL_SOCKET_IFNAME
+
 
 def _setup_deepspeed_process_group(
     backend: str,
@@ -83,7 +82,6 @@ def _setup_deepspeed_process_group(
         )
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
 
-
     deepspeed.init_distributed(
         dist_backend=backend,
         auto_mpi_discovery=False,
@@ -93,8 +91,8 @@ def _setup_deepspeed_process_group(
         timeout=timedelta(seconds=timeout_s),
     )
 
-class DeepSpeedBackend(_TorchBackend):
 
+class DeepSpeedBackend(_TorchBackend):
     def on_start(self, worker_group: WorkerGroup, backend_config: TorchConfig):
         if dist.is_available():
             # Set the appropriate training backend.
@@ -109,9 +107,7 @@ class DeepSpeedBackend(_TorchBackend):
             if backend == "nccl":
                 worker_group.execute(_set_nccl_network_interface)
 
-            master_addr, master_port = worker_group.execute_single(
-                0, get_address_and_port
-            )
+            master_addr, master_port = worker_group.execute_single(0, get_address_and_port)
             if backend_config.init_method == "env":
 
                 def set_env_vars(addr, port):
@@ -145,5 +141,3 @@ class DeepSpeedBackend(_TorchBackend):
             ray.get(setup_futures)
         else:
             raise RuntimeError("Distributed torch is not available.")
-
-
