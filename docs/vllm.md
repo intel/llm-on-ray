@@ -7,7 +7,7 @@ __NOTICE: The support for vLLM is experimental and subject to change.__
 vLLM for CPU currently only supports Intel® 5th Gen Xeon® Scalable Performance processor (formerly codenamed Sapphire Rapids). Please run the following script to install:
 
 ```bash
-dev/scripts/install-vllm-cpu.sh
+$ dev/scripts/install-vllm-cpu.sh
 ```
 
 ## Setup
