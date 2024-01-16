@@ -27,6 +27,11 @@ from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse
 from inference.api_openai_backend.openai_protocol import ModelResponse
+from utils import get_input_format
+from fastapi import HTTPException
+
+# from starlette.exceptions import HTTPException
+# from starlette.responses import JSONResponse
 
 
 @serve.deployment
@@ -87,11 +92,22 @@ class PredictorDeployment:
         config = json_request["config"] if "config" in json_request else {}
         streaming_response = json_request["stream"]
         if isinstance(text, list):
-            if self.process_tool is not None:
-                prompt = self.process_tool.get_prompt(text)
-                prompts.append(prompt)
-            else:
+            is_chat, is_prompts = get_input_format(text)
+            if is_chat:
+                if self.process_tool is not None:
+                    prompt = self.process_tool.get_prompt(text)
+                    prompts.append(prompt)
+                else:
+                    prompts.extend(text)
+            elif is_prompts:
+                if streaming_response:
+                    return HTTPException(
+                        status_code=400,
+                        detail="multiple prompts are not supported when streaming response is enabled.",
+                    )
                 prompts.extend(text)
+            else:
+                return HTTPException(status_code=400, detail="invalid prompt format.")
         else:
             prompts.append(text)
         if not streaming_response:

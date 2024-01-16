@@ -26,7 +26,6 @@ dependencies = [
     "tabulate",
     "ray[tune]",
     "ray[serve]",
-    "gradio==4.11.0",
     "gymnasium",
     "dm-tree",
     "tensorboard",
@@ -66,6 +65,10 @@ deepspeed = [
 
 bigdl-cpu = [
     "bigdl-llm[all]"
+]
+
+ui = [
+    "gradio==4.11.0",
 ]
 
 [tool.setuptools]

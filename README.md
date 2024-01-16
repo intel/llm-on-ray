@@ -93,7 +93,7 @@ python inference/serve.py --config_file inference/models/gpt2.yaml --serve_simpl
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
-python inference/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
 ```
 
 ## Documents
