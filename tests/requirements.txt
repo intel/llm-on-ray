@@ -1,0 +1,7 @@
+pytest==7.4.4
+torch==2.1.0
+transformers==4.35.2
+starlette==0.34.0
+pydantic==1.10.13
+pydantic-yaml==1.2.0
+pydantic_core==2.14.5

@@ -36,14 +36,10 @@ cd llm-on-ray
 For CPU:
 ```bash
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
-# Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 For GPU:
 ```bash
 pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
-# Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 For Gaudi:
@@ -67,6 +63,10 @@ docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-ha
 ```
 
 #### 3. Launch Ray cluster
+If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked in every node before Ray starts:
+```bash
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+```
 Start the Ray head node using the following command.
 ```bash
 ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashboard-port=8265
