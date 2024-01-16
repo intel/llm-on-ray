@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:22.04
+
+ENV LANG C.UTF-8
+
+WORKDIR /root/llm-on-ray
+
+RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
+    && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda
+ENV PATH $CONDA_DIR/bin:$PATH
+
+# setup env
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
+    unset -f conda && \
+    export PATH=$CONDA_DIR/bin/:${PATH} && \
+    conda config --add channels intel && \
+    conda install python==3.9
+
+COPY ./pyproject.toml .
+COPY ./dev/scripts/install-vllm-cpu.sh .
+
+RUN mkdir ./finetune && mkdir ./inference
+
+RUN --mount=type=cache,target=/root/.cache/pip ./install-vllm-cpu.sh
+
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu \
+    -f https://download.pytorch.org/whl/torch_stable.html

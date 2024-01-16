@@ -9,4 +9,4 @@
 conda install -y -c conda-forge gxx=12.3 gxx_linux-64=12.3
 
 # Install from source
-MAX_JOBS=8 pip install -v git+https://github.com/bigPYJ1151/vllm@PR_Branch
+MAX_JOBS=8 pip install -v git+https://github.com/bigPYJ1151/vllm@PR_Branch -f https://download.pytorch.org/whl/torch_stable.html
