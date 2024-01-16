@@ -37,7 +37,7 @@ class Ipex(BaseModel):
 
 
 class Vllm(BaseModel):
-    enabled: bool = True
+    enabled: bool = False
     precision: str = "bf16"
 
     @validator("precision")
