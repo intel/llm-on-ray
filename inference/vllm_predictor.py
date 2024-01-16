@@ -14,7 +14,7 @@ class VllmPredictor(Predictor):
 
         model_desc = infer_conf.model_description
         model_config = model_desc.config
-        dtype = ("bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32",)
+        dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"
 
         args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
