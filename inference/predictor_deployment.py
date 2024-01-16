@@ -57,16 +57,11 @@ class PredictorDeployment:
             from deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
         else:
             from transformer_predictor import TransformerPredictor
 
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()
-
-    def consume_streamer(self):
-        for text in self.streamer:
-            yield text
 
     async def consume_streamer_async(self, streamer: TextIteratorStreamer):
         while True:
@@ -96,22 +91,13 @@ class PredictorDeployment:
             prompts.append(text)
         if not streaming_response:
             return self.predictor.generate(prompts, **config)
-        if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
-            return StreamingResponse(
-                self.consume_streamer(), status_code=200, media_type="text/plain"
-            )
-        else:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
-            )
-            return StreamingResponse(
-                self.consume_streamer_async(streamer),
-                status_code=200,
-                media_type="text/plain",
-            )
+        streamer = self.predictor.get_streamer()
+        self.loop.run_in_executor(
+            None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+        )
+        return StreamingResponse(
+            self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
+        )
 
     async def stream_response(self, prompt, config):
         prompts = []
@@ -124,16 +110,11 @@ class PredictorDeployment:
         else:
             prompts.append(prompt)
 
-        if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
-            response_handle = self.consume_streamer()
-        else:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
-            )
-            response_handle = self.consume_streamer_async(streamer)
+        streamer = self.predictor.get_streamer()
+        self.loop.run_in_executor(
+            None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+        )
+        response_handle = self.consume_streamer_async(streamer)
         async for output in response_handle:
             model_response = ModelResponse(
                 generated_text=output,

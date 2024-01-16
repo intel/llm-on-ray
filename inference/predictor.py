@@ -1,6 +1,6 @@
 import re
 import torch
-from transformers import AutoTokenizer, StoppingCriteriaList
+from transformers import AutoTokenizer, StoppingCriteriaList, TextIteratorStreamer
 from inference.inference_config import InferenceConfig
 from utils import StoppingCriteriaSub
 
@@ -12,14 +12,6 @@ class Predictor:
             infer_conf.model_description.tokenizer_name_or_path
         )
         self.device = torch.device(infer_conf.device)
-        # now deepspeed predictor don't have the model
-        # so configure_tokenizer cannot be called
-        # this should be solved in the next pr
-        # where it is also a worker
-        # This can be removed then
-        if self.tokenizer.pad_token_id is None:
-            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-
         prompt = infer_conf.model_description.prompt
         stop_words = prompt.stop_words
         stop_words_ids = [
@@ -79,4 +71,6 @@ class Predictor:
         pass
 
     def get_streamer(self):
-        pass
+        return TextIteratorStreamer(
+            self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
+        )

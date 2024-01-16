@@ -1,6 +1,5 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig
-from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig, IPEX_PRECISION_BF16
 from predictor import Predictor
 from utils import get_torch_dtype
@@ -91,6 +90,7 @@ class TransformerPredictor(Predictor):
                     inplace=True,
                 )
         self.model = model
+        self.configure_tokenizer(infer_conf.model_description.model_id_or_path)
 
     def _process_config(self, config):
         if self.device.type == "hpu":
@@ -119,8 +119,3 @@ class TransformerPredictor(Predictor):
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
         return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
-
-    def get_streamer(self):
-        return TextIteratorStreamer(
-            self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
-        )
