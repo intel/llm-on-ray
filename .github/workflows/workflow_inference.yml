@@ -84,6 +84,8 @@ jobs:
             DF_SUFFIX=".bigdl-cpu"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             DF_SUFFIX=".vllm"
+          else
+            DF_SUFFIX=".cpu_and_deepspeed"
           fi
           TARGET=${{steps.target.outputs.target}}
           docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
@@ -111,6 +113,8 @@ jobs:
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --simple"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
+          else
+            docker exec "${TARGET}" bash -c "python inference/serve.py --simple --models ${{ matrix.model }}"
           fi
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
