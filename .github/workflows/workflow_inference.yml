@@ -125,7 +125,7 @@ jobs:
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
-          if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|startcoder|mpt-7b.*)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
@@ -138,7 +138,7 @@ jobs:
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
-          if [[ ${{ matrix.model }} =~ ^(gpt2|mpt-7b.*)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --serve_simple"
