@@ -3,12 +3,11 @@ import torch
 import torch.distributed as dist
 import deepspeed
 
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+from transformers import AutoModelForCausalLM, AutoConfig
 from ray.air.util.torch_dist import (
     TorchDistributedWorker,
     _get_node_and_gpu_ids,
     _init_torch_distributed,
-    _shutdown_torch_distributed,
     shutdown_torch_dist_process_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
@@ -28,11 +27,7 @@ from inference.inference_config import (
 
 
 class DSPipeline:
-    def __init__(
-        self,
-        infer_conf: InferenceConfig,
-        stopping_criteria
-    ):
+    def __init__(self, infer_conf: InferenceConfig, stopping_criteria):
         self.device = torch.device(infer_conf.device)
         self.stopping_criteria = stopping_criteria
 
@@ -73,10 +68,7 @@ class DSPipeline:
 
     def streaming_generate(self, inputs, streamer, **generate_kwargs):
         self.model.generate(
-            inputs,
-            stopping_criteria=self.stopping_criteria,
-            streamer=streamer,
-            **generate_kwargs
+            inputs, stopping_criteria=self.stopping_criteria, streamer=streamer, **generate_kwargs
         )
 
     def generate(self, inputs, **config):
@@ -86,6 +78,7 @@ class DSPipeline:
             **config,
         )
         return gen_tokens
+
 
 class PredictionWorker(TorchDistributedWorker):
     """A PredictionWorker is a Ray remote actor that runs a single shard
@@ -166,7 +159,7 @@ class DeepSpeedPredictor(Predictor):
             use_gpu=use_gpu,
             # spawn N-1 workers because this process is a worker too
             num_workers=infer_conf.workers_per_group - 1,
-            resources_per_worker=resource
+            resources_per_worker=resource,
         )
         print(scaling_conf)
 
@@ -231,9 +224,9 @@ class DeepSpeedPredictor(Predictor):
 
         # Build a map from node_id to workers on that node.
         node_and_gpu_ids = [_get_node_and_gpu_ids()]
-        node_and_gpu_ids.extend(ray.get(
-            [w.execute.remote(_get_node_and_gpu_ids) for w in self.prediction_workers]
-        ))
+        node_and_gpu_ids.extend(
+            ray.get([w.execute.remote(_get_node_and_gpu_ids) for w in self.prediction_workers])
+        )
         # All the workers on a specific node.
         node_to_workers = defaultdict(list)
         # All the gpu ids visible to all the workers on a specific node.
@@ -252,7 +245,7 @@ class DeepSpeedPredictor(Predictor):
         world_size = num_workers
         local_ranks = [0]
         for i, worker in enumerate(self.prediction_workers):
-            rank = i+1
+            rank = i + 1
             node_id = node_and_gpu_ids[rank][0]
             local_rank = node_to_workers[node_id].index(rank)
             local_world_size = len(node_to_workers[node_id])
@@ -304,24 +297,19 @@ class DeepSpeedPredictor(Predictor):
         inputs_ref = ray.put(input_ids)
         for worker in self.prediction_workers:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
-        self.worker.streaming_generate(inputs_ids, streamer, **config)
+        self.worker.streaming_generate(input_ids, streamer, **config)
 
     def generate(self, prompt, **config):
         input_ids = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
         futures = [
-            worker.generate.remote(inputs_ref, **config)
-            for worker in self.prediction_workers
+            worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers
         ]
         gen_tokens = self.worker.generate(input_ids, **config)
         ray.get(futures)
         return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0]
 
-    def predict(
-        self,
-        data: List[str],
-        **kwargs
-    ) -> str:
+    def predict(self, data: List[str], **kwargs) -> str:
         data_ref = ray.put(data)
         prediction = ray.get(
             [worker.generate.remote(data_ref, **kwargs) for worker in self.prediction_workers]
