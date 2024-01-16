@@ -53,7 +53,7 @@ class PredictorDeployment:
             self.process_tool = chat_processor(**prompt.dict())
 
         self.use_deepspeed = infer_conf.deepspeed
-        self.use_vllm = infer_conf.vllm
+        self.use_vllm = infer_conf.vllm.enabled
 
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor

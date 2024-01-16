@@ -1,11 +1,11 @@
+import asyncio
 from typing import AsyncGenerator, List, Union
 from predictor import Predictor
-from inference_config import InferenceConfig
+from inference_config import InferenceConfig, PRECISION_BF16
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
-import asyncio
 
 
 class VllmPredictor(Predictor):
@@ -14,11 +14,13 @@ class VllmPredictor(Predictor):
 
         model_desc = infer_conf.model_description
         model_config = model_desc.config
+        dtype = ("bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32",)
 
         args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
+            dtype=dtype,
         )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
