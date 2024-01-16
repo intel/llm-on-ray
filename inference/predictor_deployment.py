@@ -93,15 +93,12 @@ class PredictorDeployment:
             return self.predictor.generate(prompts, **config)
         streamer = self.predictor.get_streamer()
         self.loop.run_in_executor(
-            None,
-            functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+            None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
         )
         return StreamingResponse(
-            self.consume_streamer_async(streamer),
-            status_code=200,
-            media_type="text/plain"
+            self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
         )
-        
+
     async def stream_response(self, prompt, config):
         prompts = []
         if isinstance(prompt, list):
@@ -115,8 +112,7 @@ class PredictorDeployment:
 
         streamer = self.predictor.get_streamer()
         self.loop.run_in_executor(
-            None,
-            functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
+            None, functools.partial(self.predictor.streaming_generate, prompts, streamer, **config)
         )
         response_handle = self.consume_streamer_async(streamer)
         async for output in response_handle:

@@ -71,4 +71,6 @@ class Predictor:
         pass
 
     def get_streamer(self):
-        return TextIteratorStreamer(self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True)
+        return TextIteratorStreamer(
+            self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
+        )
