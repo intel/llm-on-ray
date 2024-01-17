@@ -343,8 +343,14 @@ class ChatBotUI:
         else:
             if input_type == "local":
                 input_texts = input_texts.split(";")
-                files_folder = [file.strip() for file in input_texts if file != ""]
-                loader = DirectoryLoader(input_dir=files_folder)
+                target_folders = [folder.strip() for folder in input_texts if folder != ""]
+                info_str = "Load files: "
+                for folder in target_folders:
+                    files = os.listdir(folder)
+                    info_str = info_str + " ".join(files) + " "
+
+                gr.Info(info_str)
+                loader = DirectoryLoader(input_dir=target_folders)
             else:
                 files_folder = []
                 if upload_files:
@@ -737,7 +743,7 @@ class ChatBotUI:
     def set_upload_box(self, upload_type):
         if upload_type == "Youtube":
             return (
-                gr.Textbox.update(visible=True, label="Youtube urls"),
+                gr.Textbox.update(visible=True, label="Youtube urls", info=""),
                 gr.File.update(visible=False),
                 gr.Slider.update(visible=False),
                 gr.Radio.update(visible=False),
@@ -748,6 +754,7 @@ class ChatBotUI:
                     label="Web urls",
                     placeholder="Support multiple urls seperated by ';'",
                     visible=True,
+                    info="",
                 ),
                 gr.File.update(visible=False),
                 gr.Slider.update(visible=True),
@@ -1152,7 +1159,7 @@ class ChatBotUI:
                         )
 
                         data_files = gr.File(
-                            label="upload file",
+                            label="Upload Files",
                             file_count="multiple",
                             file_types=recdp_support_suffix,
                             elem_classes="file_height",
@@ -1164,21 +1171,24 @@ class ChatBotUI:
                     with gr.Row():
                         with gr.Column(scale=0.4):
                             embedding_model = gr.Textbox(
-                                label="embedding model",
+                                label="Embedding Model",
                                 value="sentence-transformers/all-mpnet-base-v2",
                                 placeholder="Model name to use",
+                                info="Model name to use",
                             )
                         with gr.Column(scale=0.3):
                             splitter_chunk_size = gr.Textbox(
-                                label="splitter_chunk_size",
+                                label="Text Chunk Size",
                                 value="500",
                                 placeholder="Maximum size of chunks to return",
+                                info="Maximum size of chunks to return",
                             )
                         with gr.Column(scale=0.3):
                             returned_k = gr.Textbox(
-                                label="returned_k",
+                                label="Fetch result number",
                                 value=1,
                                 placeholder="Number of retrieved chunks to return",
+                                info="Number of retrieved chunks to return",
                             )
 
                 with gr.Row():
