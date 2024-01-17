@@ -29,7 +29,10 @@ COPY ./dev/scripts/install-vllm-cpu.sh .
 
 RUN mkdir ./finetune && mkdir ./inference
 
-RUN --mount=type=cache,target=/root/.cache/pip ./install-vllm-cpu.sh
-
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install vllm-cpu
+# Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
