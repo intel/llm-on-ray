@@ -43,8 +43,6 @@ Software requirement: Python 3.9
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
-# Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 #### 2. Start Ray
@@ -89,7 +87,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python inference/serve.py --config_file inference/models/gpt2.yaml --serve_simple
+python inference/serve.py --config_file inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
