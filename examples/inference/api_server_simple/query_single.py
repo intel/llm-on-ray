@@ -75,10 +75,15 @@ outputs = requests.post(
     json=sample_input,
     stream=args.streaming_response,
 )
-if args.streaming_response:
-    outputs.raise_for_status()
-    for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
-        print(output, end="", flush=True)
-    print()
-else:
-    print(outputs.text, flush=True)
+
+try:
+    if args.streaming_response:
+        outputs.raise_for_status()
+        print(outputs)
+        for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
+            print(output, end="", flush=True)
+        print()
+    else:
+        print(outputs.text, flush=True)
+except Exception as e:
+    print(e)

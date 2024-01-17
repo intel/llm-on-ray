@@ -25,13 +25,9 @@ import torch
 from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, JSONResponse
 from inference.api_openai_backend.openai_protocol import ModelResponse
 from utils import get_input_format
-from fastapi import HTTPException
-
-# from starlette.exceptions import HTTPException
-# from starlette.responses import JSONResponse
 
 
 @serve.deployment
@@ -85,7 +81,7 @@ class PredictorDeployment:
                 # back to the event loop so other coroutines can run.
                 await asyncio.sleep(0.001)
 
-    async def __call__(self, http_request: Request) -> Union[StreamingResponse, str]:
+    async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
         json_request: Dict[str, Any] = await http_request.json()
         prompts = []
         text = json_request["text"]
@@ -101,13 +97,13 @@ class PredictorDeployment:
                     prompts.extend(text)
             elif is_prompts:
                 if streaming_response:
-                    return HTTPException(
+                    return JSONResponse(
                         status_code=400,
-                        detail="multiple prompts are not supported when streaming response is enabled.",
+                        content="multiple prompts are not supported when streaming response is enabled.",
                     )
                 prompts.extend(text)
             else:
-                return HTTPException(status_code=400, detail="invalid prompt format.")
+                return JSONResponse(status_code=400, content="invalid prompt format.")
         else:
             prompts.append(text)
         if not streaming_response:
