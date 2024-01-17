@@ -36,3 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] -f https://
 # Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
 RUN --mount=type=cache,target=/root/.cache/pip \
     source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
+
+# TODO: workaround, remove this when fixed in vllm-cpu upstream
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install xformers
