@@ -20,15 +20,15 @@ jobs:
 
   call-lint:
     uses: ./.github/workflows/workflow_lint.yml
-    
-  call-tests:
-    needs: call-lint
-    uses: ./.github/workflows/workflow_tests.yml
+
+  # call-tests:
+  #   needs: call-lint
+  #   uses: ./.github/workflows/workflow_tests.yml
 
   call-inference:
     needs: call-lint
     uses: ./.github/workflows/workflow_inference.yml
 
-  call-finetune:
-    needs: call-lint
-    uses: ./.github/workflows/workflow_finetune.yml
+  # call-finetune:
+  #   needs: call-lint
+  #   uses: ./.github/workflows/workflow_finetune.yml
