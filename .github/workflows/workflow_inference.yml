@@ -158,7 +158,7 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
-          else
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --models ${{ matrix.model }}"
           fi
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
