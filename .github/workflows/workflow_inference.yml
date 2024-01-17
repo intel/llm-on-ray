@@ -160,8 +160,8 @@ jobs:
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
           elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --models ${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
           fi
-          docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
 
       - name: Stop Ray
         run: |
