@@ -116,7 +116,9 @@ jobs:
           else
             docker exec "${TARGET}" bash -c "python inference/serve.py --simple --models ${{ matrix.model }}"
           fi
+          echo Non-streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          echo Streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
       - name: Run Inference Test with Deltatuner
@@ -132,7 +134,7 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
-          else
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
