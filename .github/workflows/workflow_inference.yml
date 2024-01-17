@@ -45,8 +45,6 @@ jobs:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
           - { model: "mpt-7b-bigdl"}
-          - { model: "starcoder"}
-          - { model: "llama-2-7b-chat-hf"}
           - dtuner_model: nathan0/mpt-7b-deltatuner-model
             model: mpt-7b
 
