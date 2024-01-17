@@ -21,7 +21,7 @@ from pydantic_yaml import parse_yaml_raw_as
 from api_server_simple import serve_run
 from api_server_openai import openai_serve_run
 from predictor_deployment import PredictorDeployment
-from inference_config import ModelDescription, InferenceConfig, all_models
+from inference.inference_config import ModelDescription, InferenceConfig, all_models
 
 
 def get_deployed_models(args):

@@ -14,7 +14,7 @@ from typing import List
 import os
 from predictor import Predictor
 from utils import get_torch_dtype
-from inference_config import (
+from inference.inference_config import (
     InferenceConfig,
     DEVICE_CPU,
     DEVICE_XPU,

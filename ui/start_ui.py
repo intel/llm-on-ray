@@ -20,10 +20,10 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from inference_config import all_models, ModelDescription, Prompt
-from inference_config import InferenceConfig as FinetunedConfig
-from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
-from predictor_deployment import PredictorDeployment
+from inference.inference_config import all_models, ModelDescription, Prompt
+from inference.inference_config import InferenceConfig as FinetunedConfig
+from inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
+from inference.predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr

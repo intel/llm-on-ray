@@ -23,10 +23,10 @@ from starlette.requests import Request
 from queue import Empty
 import torch
 from transformers import TextIteratorStreamer
-from inference_config import InferenceConfig
+from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse
-from api_openai_backend.openai_protocol import ModelResponse
+from inference.api_openai_backend.openai_protocol import ModelResponse
 
 
 @serve.deployment
