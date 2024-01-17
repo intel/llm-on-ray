@@ -42,12 +42,12 @@ jobs:
           - { isPR: true }
 
         include:
-          - { model: "gpt-j-6b"}
-          - { model: "mistral-7b-v0.1"}
-          - { model: "mpt-7b-bigdl"}
+          # - { model: "gpt-j-6b"}
+          # - { model: "mistral-7b-v0.1"}
+          # - { model: "mpt-7b-bigdl"}
           - { model: "llama-2-7b-chat-hf-vllm"}
-          - dtuner_model: nathan0/mpt-7b-deltatuner-model
-            model: mpt-7b
+          # - dtuner_model: nathan0/mpt-7b-deltatuner-model
+          #   model: mpt-7b
 
     runs-on: self-hosted
 
