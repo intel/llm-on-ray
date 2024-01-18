@@ -9,6 +9,7 @@ import transformers
 from accelerate.utils import DummyOptim, DummyScheduler
 
 from ray.train import report, Checkpoint
+from transformers import get_scheduler
 
 from .. import dataprocesser
 from .trainer import Trainer
@@ -144,7 +145,15 @@ class DefaultTrainer(Trainer):
         accelerate_mode = self.config.get("accelerate_mode")
         if accelerate_mode:
             dummy_optimizer = DummyOptim(params=model.parameters())
-            dummy_lr_scheduler = DummyScheduler(dummy_optimizer)
+
+            def _lr_scheduler_callable(optimizer):
+                return get_scheduler(
+                    name="linear",
+                    optimizer=optimizer,
+                    num_warmup_steps=0,
+                    num_training_steps=1000,
+                )
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable)
             self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
                 dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
         else:
