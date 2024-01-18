@@ -743,7 +743,13 @@ class ChatBotUI:
     def set_upload_box(self, upload_type):
         if upload_type == "Youtube":
             return (
-                gr.Textbox.update(visible=True, label="Youtube urls", info=""),
+                gr.Textbox.update(
+                    visible=True,
+                    label="Youtube urls",
+                    info="",
+                    placeholder="Support multiple urls separated by ';'",
+                    value="",
+                ),
                 gr.File.update(visible=False),
                 gr.Slider.update(visible=False),
                 gr.Radio.update(visible=False),
@@ -752,8 +758,9 @@ class ChatBotUI:
             return (
                 gr.Textbox.update(
                     label="Web urls",
-                    placeholder="Support multiple urls seperated by ';'",
+                    placeholder="Support multiple urls separated by ';'",
                     visible=True,
+                    value="",
                     info="",
                 ),
                 gr.File.update(visible=False),
@@ -764,7 +771,8 @@ class ChatBotUI:
             return (
                 gr.Textbox.update(
                     label="Files path",
-                    placeholder="Support multiple path seperated by ';'",
+                    placeholder="Support multiple path separated by ';'",
+                    value="",
                     visible=True,
                 ),
                 gr.File.update(visible=False),
@@ -773,9 +781,8 @@ class ChatBotUI:
             )
 
     def set_input_radio(self, input_type):
-        print(input_type)
         if input_type == "upload":
-            return gr.Textbox.update(visible=True), gr.File.update(visible=False)
+            return gr.Textbox.update(visible=True, value=""), gr.File.update(visible=False)
         else:
             return gr.Textbox.update(visible=False), gr.File.update(visible=True)
 
