@@ -15,6 +15,7 @@ from .. import dataprocesser
 from .trainer import Trainer
 
 from ..logging import logger
+from deepspeed.ops.adam import FusedAdam
 
 
 class DefaultTrainer(Trainer):
@@ -107,6 +108,14 @@ class DefaultTrainer(Trainer):
         )
         return lr_scheduler
 
+    def _lr_scheduler_callable(optimizer):
+        return get_scheduler(
+            name="linear",
+            optimizer=optimizer,
+            num_warmup_steps=0,
+            num_training_steps=1000,
+        )
+
     def prepare(self, model, tokenizer, dataset, optimizer, accelerator):
         self._coordinate(accelerator)
 
@@ -146,14 +155,7 @@ class DefaultTrainer(Trainer):
         if accelerate_mode:
             dummy_optimizer = DummyOptim(params=model.parameters())
 
-            def _lr_scheduler_callable(optimizer):
-                return get_scheduler(
-                    name="linear",
-                    optimizer=optimizer,
-                    num_warmup_steps=0,
-                    num_training_steps=1000,
-                )
-            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable)
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=self._lr_scheduler_callable(optimizer))
             self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
                 dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
         else:
