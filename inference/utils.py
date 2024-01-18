@@ -97,7 +97,7 @@ def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
     return (not infer_conf.ipex.enabled) and infer_conf.device == DEVICE_CPU
 
 
-def get_input_format(input: List[Union[str, dict]]):
+def get_input_format(input: Union[List[str], List[dict]]):
     chat_format = True
     prompts_format = True
     for item in input:
