@@ -154,7 +154,7 @@ class DefaultTrainer(Trainer):
                     num_warmup_steps=0,
                     num_training_steps=1000,
                 )
-            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=self._lr_scheduler_callable)
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable)
             self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
                 dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
         else:
