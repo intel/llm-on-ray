@@ -134,11 +134,11 @@ class DefaultTrainer(Trainer):
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
-        self.model = accelerator.prepare(model)
+        # self.model = accelerator.prepare(model)
 
         accelerate_mode = self.config.get("accelerate_mode")
         if accelerate_mode:
-            dummy_optimizer = DummyOptim(params=model.parameters())
+            dummy_optimizer = DummyOptim(params=model.parameters(), lr=5e-5, weight_decay=0.0)
 
             def _lr_scheduler_callable(optimizer):
                 return get_scheduler(
@@ -148,11 +148,11 @@ class DefaultTrainer(Trainer):
                     num_training_steps=1000,
                 )
             dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable)
-            self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
-                dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
+            self.model, self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
         else:
-            self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
-                optimizer, train_dataloader, eval_dataloader, lr_scheduler)
+            self.model, self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
         checkpoint = self.config.get("checkpoint")
         if checkpoint is not None:
