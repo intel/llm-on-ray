@@ -3,8 +3,8 @@ from pydantic import BaseModel, validator, ConfigDict
 from pydantic_yaml import parse_yaml_raw_as
 from typing import List, Dict, Union
 
-IPEX_PRECISION_BF16 = "bf16"
-IPEX_PRECISION_FP32 = "fp32"
+PRECISION_BF16 = "bf16"
+PRECISION_FP32 = "fp32"
 
 DEVICE_CPU = "cpu"
 DEVICE_HPU = "hpu"
@@ -32,7 +32,18 @@ class Ipex(BaseModel):
     @validator("precision")
     def _check_precision(cls, v: str):
         if v:
-            assert v in [IPEX_PRECISION_BF16, IPEX_PRECISION_FP32]
+            assert v in [PRECISION_BF16, PRECISION_FP32]
+        return v
+
+
+class Vllm(BaseModel):
+    enabled: bool = False
+    precision: str = "bf16"
+
+    @validator("precision")
+    def _check_precision(cls, v: str):
+        if v:
+            assert v in [PRECISION_BF16, PRECISION_FP32]
         return v
 
 
@@ -89,6 +100,7 @@ class InferenceConfig(BaseModel):
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
     deepspeed: bool = False
+    vllm: Vllm = Vllm()
     workers_per_group: int = 2
     device: str = DEVICE_CPU
     ipex: Ipex = Ipex()
