@@ -27,29 +27,19 @@ from finetune_config import FinetuneConfig
 import yaml
 
 DEEPSPEED_CONFIG = {
-    "fp16": {
-        "enabled": True
-    },
     "zero_optimization": {
-        "stage": 3,
-        "offload_optimizer": {
-            "device": "gpu",
-            "pin_memory": False
-        },
-        "overlap_comm": True,
-        "contiguous_gradients": True,
-        "reduce_bucket_size": "auto",
-        "stage3_prefetch_bucket_size": "auto",
-        "stage3_param_persistence_threshold": "auto",
-        "gather_16bit_weights_on_model_save": True,
-        "round_robin_gradients": True
+        "stage": 0
     },
-    "gradient_accumulation_steps": "auto",
-    "gradient_clipping": "auto",
-    "steps_per_print": 10,
-    "train_batch_size": "auto",
-    "train_micro_batch_size_per_gpu": "auto",
-    "wall_clock_breakdown": False
+    "optimizer": {
+        "type": "AdamW",
+        "params": {
+            "torch_adam": True,
+            "adam_w_mode": True
+        }
+    },
+    "train_batch_size": 1,
+    "train_micro_batch_size_per_gpu": 1
+
 }
 def get_accelerate_environment_variable(mode: str) -> dict:
     mode_env_vars = {
@@ -112,50 +102,68 @@ def train_func(config: Dict[str, Any]):
                 offload_to_cpu=False, rank0_only=False
             ),
         )
+        accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
+                                             fsdp_plugin=fsdp_plugin)
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
-        fsdp_plugin = DeepSpeedPlugin(hf_ds_config=DEEPSPEED_CONFIG)
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=DEEPSPEED_CONFIG)
+        accelerator = accelerate.Accelerator(mixed_precision="fp16",
+                                             deepspeed_plugin=deepspeed_plugin)
     else:
         fsdp_plugin = None
-    accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
-                                         fsdp_plugin=fsdp_plugin)
+        accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps,
+                                             fsdp_plugin=fsdp_plugin)
+
     common.logger.info(f"accelerator generate finish, accelerator device type = {accelerator.device}")
 
     seed = config["Training"].get("seed")
     if seed is not None:
         accelerate.utils.set_seed(seed)
 
-    datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
-        config={
-            "name": config["Dataset"]["train_file"],
-            "validation_file": config["Dataset"]["validation_file"],
-            "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
-        }
-    )
+    datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(config = {
+        "name": config["Dataset"]["train_file"], 
+        "validation_file": config["Dataset"]["validation_file"],
+        "validation_split_percentage": config["Dataset"]["validation_split_percentage"]
+    })
 
-    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
-        config={
-            "name": config["General"]["base_model"],
-            "config": config["General"]["config"],
-        }
-    )
+    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(config = {
+        "name": config["General"]["base_model"], 
+        "config": config["General"]["config"]
+    })
 
-    model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
-        config={
-            "name": config["General"]["base_model"],
-            "config": config["General"]["config"],
-            "lora_config": config["General"]["lora_config"]
-            if config["General"].get("lora_config")
-            else None,
-        }
-    )
+    model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(config = {
+        "name": config["General"]["base_model"],
+        "config": config["General"]["config"],
+        "lora_config": config["General"]["lora_config"] if config["General"].get("lora_config") else None
+    })
 
-    optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(
-        model,
-        config={
-            "name": config["Training"]["optimizer"],
-            "config": {"lr": config["Training"]["learning_rate"]},
+    optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(model, config = {
+        "name": config["Training"]["optimizer"],
+        "config": {
+            "lr": config["Training"]["learning_rate"]
         },
-    )
+    })
+    print("optimizer type :" + optimizer.__class__.__name__)
+
+    trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
+        "accelerate_mode": config["Training"]["accelerate_mode"],
+        "num_train_epochs": config["Training"]["epochs"],
+        "max_train_step": config["Training"].get("max_train_steps", None),
+        "log_step": 1,
+        "output": config["General"]["output_dir"],
+        "dataprocesser": {
+            "type": "GeneralProcesser",
+            "per_device_train_batch_size": config["Training"]["batch_size"],
+            "per_device_eval_batch_size": config["Training"]["batch_size"],
+            "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
+            "shuffle": True
+        },
+        "lr_scheduler": {
+            "enable": True,
+            "max_train_steps": None,
+            "lr_scheduler_type": config["Training"]["lr_scheduler"],
+            "num_warmup_steps": 0,
+        },
+    })
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
