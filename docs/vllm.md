@@ -4,7 +4,9 @@ __NOTICE: The support for vLLM is experimental and subject to change.__
 
 ## Install vLLM for Intel CPU
 
-vLLM for CPU currently only supports Intel® 4th Gen Xeon® Scalable Performance processor (formerly codenamed Sapphire Rapids). Please run the following script to install vLLM for CPU into your current environment.
+vLLM for CPU currently supports Intel® 4th Gen Xeon® Scalable Performance processor (formerly codenamed Sapphire Rapids) for best performance and is runnable with FP32 precision for other Xeon processors.
+
+Please run the following script to install vLLM for CPU into your current environment. Currently a GNU C++ compiler with >=12.3 version is required to build and install.
 
 ```bash
 $ dev/scripts/install-vllm-cpu.sh
