@@ -306,7 +306,9 @@ class ChatBotUI:
             print("question: ", question)
             vectorstore = FAISS.load_local(load_dir, self.embeddings, index_name="knowledge_db")
             sim_res = vectorstore.similarity_search(question, k=int(returned_k))
-            enhance_knowledge = sim_res[0].page_content
+            enhance_knowledge = ""
+            for doc in sim_res:
+                enhance_knowledge = enhance_knowledge + doc.page_content + ". "
 
         bot_generator = self.bot(
             history,
@@ -355,9 +357,7 @@ class ChatBotUI:
                 files_folder = []
                 if upload_files:
                     for _, file in enumerate(upload_files):
-                        file_name = file.name
-                        if file_name.endswith(upload_type):
-                            files_folder.append(file.name)
+                        files_folder.append(file.name)
                     loader = DirectoryLoader(input_files=files_folder)
                 else:
                     raise gr.Warning("Can't get any uploaded files.")
@@ -402,9 +402,7 @@ class ChatBotUI:
             ]
         )
         pipeline.add_operations(ops)
-        ds = pipeline.execute()
-        for row in ds.iter_rows():
-            print(row)
+        pipeline.execute()
         return db_dir
 
     def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
@@ -748,7 +746,7 @@ class ChatBotUI:
                     label="Youtube urls",
                     info="",
                     placeholder="Support multiple urls separated by ';'",
-                    value="",
+                    value="https://www.youtube.com/watch?v=843OFFzqp3k",
                 ),
                 gr.File.update(visible=False),
                 gr.Slider.update(visible=False),
@@ -760,7 +758,7 @@ class ChatBotUI:
                     label="Web urls",
                     placeholder="Support multiple urls separated by ';'",
                     visible=True,
-                    value="",
+                    value="https://www.intc.com/news-events/press-releases/detail/1655/intel-reports-third-quarter-2023-financial-results",
                     info="",
                 ),
                 gr.File.update(visible=False),
