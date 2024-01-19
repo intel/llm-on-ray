@@ -1157,10 +1157,11 @@ class ChatBotUI:
 
                         rag_input_text = gr.Textbox(
                             label="Local file path",
-                            placeholder="Support multiple absolute paths, separated by ';'",
+                            placeholder="Support types: "
+                            + " ".join(recdp_support_suffix)
+                            + ". Support multiple absolute paths, separated by ';'",
                             visible=True,
-                            scale=3,
-                            info="Support types: " + " ".join(recdp_support_suffix),
+                            scale=2,
                         )
 
                         data_files = gr.File(
@@ -1174,39 +1175,41 @@ class ChatBotUI:
                         )
 
                     with gr.Row():
-                        with gr.Column(scale=0.4):
+                        with gr.Column(scale=4, min_width=100):
                             embedding_model = gr.Textbox(
                                 label="Embedding Model",
                                 value="sentence-transformers/all-mpnet-base-v2",
                                 placeholder="Model name to use",
                                 info="Model name to use",
                             )
-                        with gr.Column(scale=0.3):
+                        with gr.Column(scale=3, min_width=100):
                             splitter_chunk_size = gr.Textbox(
                                 label="Text Chunk Size",
                                 value="500",
                                 placeholder="Maximum size of chunks to return",
                                 info="Maximum size of chunks to return",
+                                min_width=100,
                             )
-                        with gr.Column(scale=0.3):
+                        with gr.Column(scale=3, min_width=100):
                             returned_k = gr.Textbox(
                                 label="Fetch result number",
                                 value=1,
                                 placeholder="Number of retrieved chunks to return",
                                 info="Number of retrieved chunks to return",
+                                min_width=100,
                             )
 
                 with gr.Row():
-                    with gr.Column(scale=0.2):
+                    with gr.Column(scale=0.2, min_width=100):
                         rag_selector = gr.Checkbox(label="RAG", min_width=0)
-                    with gr.Column(scale=0.6):
+                    with gr.Column(scale=0.6, min_width=100):
                         rag_path = gr.Textbox(
                             show_label=False,
                             container=False,
                             placeholder="The path of vectorstore",
                             elem_classes="disable_status",
                         )
-                    with gr.Column(scale=0.2):
+                    with gr.Column(scale=0.2, min_width=100):
                         regenerate_btn = gr.Button("Regenerate", min_width=0)
 
                 with gr.Tab("Dialogue"):
