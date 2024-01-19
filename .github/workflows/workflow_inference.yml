@@ -34,7 +34,7 @@ jobs:
     name: inference test
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf ]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -45,6 +45,7 @@ jobs:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
           - { model: "mpt-7b-bigdl"}
+          - { model: "llama-2-7b-chat-hf-vllm"}
           - dtuner_model: nathan0/mpt-7b-deltatuner-model
             model: mpt-7b
 
@@ -64,13 +65,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      
+
       - name: Determine Target
         id: "target"
         run: |
           target="inference"
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             target="${target}_bigdl_cpu"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            target="${target}_vllm"
           fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
@@ -79,6 +82,8 @@ jobs:
         run: |
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             DF_SUFFIX=".bigdl-cpu"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            DF_SUFFIX=".vllm"
           else
             DF_SUFFIX=".cpu_and_deepspeed"
           fi
@@ -105,18 +110,22 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml --simple"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
           else
-            docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/serve.py --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --simple --models ${{ matrix.model }}"
           fi
+          echo Non-streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          echo Streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
-      
+
       - name: Run Inference Test with Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml --serve_simple"
+          docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
@@ -125,9 +134,9 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
-          else
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file \"${{ matrix.model }}\".yaml.deepspeed --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
@@ -139,20 +148,20 @@ jobs:
           if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
-            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --serve_simple"
+            docker exec "${TARGET}" bash -c "python inference/serve.py --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
           fi
-      
+
       - name: Run Inference Test with REST API
         run: |
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
             docker exec "${TARGET}" bash -c "python inference/serve.py --config_file inference/models/bigdl/mpt-7b-bigdl.yaml"
-          else
-            docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python inference/serve.py"
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            docker exec "${TARGET}" bash -c "python inference/serve.py --models ${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
           fi
-          docker exec "${TARGET}" bash -c "MODEL_TO_SERVE=\"${{ matrix.model }}\" python examples/inference/api_server_openai/query_http_requests.py"
 
       - name: Stop Ray
         run: |
@@ -161,7 +170,7 @@ jobs:
           if [[ ! -z "$cid" ]]; then
             docker exec "${TARGET}" bash -c "ray stop"
           fi
-      
+
       - name: Stop Container
         if: success() || failure()
         run: |
@@ -173,4 +182,4 @@ jobs:
         run: echo "to be continued"
 
 
-      
+

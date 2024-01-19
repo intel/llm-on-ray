@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig
 from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig, IPEX_PRECISION_BF16
+from inference.inference_config import InferenceConfig, PRECISION_BF16
 from predictor import Predictor
 from utils import get_torch_dtype
 
@@ -9,7 +9,6 @@ from utils import get_torch_dtype
 class TransformerPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig):
         super().__init__(infer_conf)
-
         model_desc = infer_conf.model_description
         model_config = model_desc.config
         hf_config = AutoConfig.from_pretrained(
@@ -91,7 +90,7 @@ class TransformerPredictor(Predictor):
                 model = ipex.optimize_transformers(
                     model.eval(),
                     dtype=torch.bfloat16
-                    if infer_conf.ipex.precision == IPEX_PRECISION_BF16
+                    if infer_conf.ipex.precision == PRECISION_BF16
                     else torch.float32,
                     inplace=True,
                 )
