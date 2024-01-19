@@ -67,7 +67,6 @@ docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-ha
 ```
 
 #### 3. Launch Ray cluster
-
 Start the Ray head node using the following command.
 ```bash
 ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashboard-port=8265
