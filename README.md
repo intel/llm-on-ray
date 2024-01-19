@@ -43,6 +43,8 @@ Software requirement: Python 3.9
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+# Dynamic link oneCCL and Intel MPI libraries
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 #### 2. Start Ray
