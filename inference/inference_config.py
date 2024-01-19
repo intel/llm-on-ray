@@ -3,8 +3,8 @@ from pydantic import BaseModel, validator, ConfigDict
 from pydantic_yaml import parse_yaml_raw_as
 from typing import List, Dict, Union
 
-IPEX_PRECISION_BF16 = "bf16"
-IPEX_PRECISION_FP32 = "fp32"
+PRECISION_BF16 = "bf16"
+PRECISION_FP32 = "fp32"
 
 DEVICE_CPU = "cpu"
 DEVICE_HPU = "hpu"
@@ -32,7 +32,18 @@ class Ipex(BaseModel):
     @validator("precision")
     def _check_precision(cls, v: str):
         if v:
-            assert v in [IPEX_PRECISION_BF16, IPEX_PRECISION_FP32]
+            assert v in [PRECISION_BF16, PRECISION_FP32]
+        return v
+
+
+class Vllm(BaseModel):
+    enabled: bool = False
+    precision: str = "bf16"
+
+    @validator("precision")
+    def _check_precision(cls, v: str):
+        if v:
+            assert v in [PRECISION_BF16, PRECISION_FP32]
         return v
 
 
@@ -89,6 +100,7 @@ class InferenceConfig(BaseModel):
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
     deepspeed: bool = False
+    vllm: Vllm = Vllm()
     workers_per_group: int = 2
     device: str = DEVICE_CPU
     ipex: Ipex = Ipex()
@@ -136,12 +148,7 @@ for model_file in os.listdir(_models_folder):
         m: InferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
         _models[m.name] = m
 
-env_model = "MODEL_TO_SERVE"
-if env_model in os.environ:
-    all_models[os.environ[env_model]] = _models[os.environ[env_model]]
-else:
-    # all_models["gpt-j-6B-finetuned-52K"] = gpt_j_finetuned_52K
-    all_models = _models.copy()
+all_models = _models.copy()
 
 _gpt2_key = "gpt2"
 _gpt_j_6b = "gpt-j-6b"

@@ -53,11 +53,17 @@ class PredictorDeployment:
             self.process_tool = chat_processor(**prompt.dict())
 
         self.use_deepspeed = infer_conf.deepspeed
+        self.use_vllm = infer_conf.vllm.enabled
+
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
             self.streamer = self.predictor.get_streamer()
+        elif self.use_vllm:
+            from vllm_predictor import VllmPredictor
+
+            self.predictor = VllmPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
 
@@ -94,12 +100,28 @@ class PredictorDeployment:
                 prompts.extend(text)
         else:
             prompts.append(text)
+
         if not streaming_response:
-            return self.predictor.generate(prompts, **config)
+            if self.use_vllm:
+                return await self.predictor.generate_async(prompts, **config)
+            else:
+                return self.predictor.generate(prompts, **config)
+
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
             return StreamingResponse(
                 self.consume_streamer(), status_code=200, media_type="text/plain"
+            )
+        elif self.use_vllm:
+            # TODO: streaming only support single prompt
+            # It's a wordaround for current situation, need another PR to address this
+            if isinstance(prompts, list):
+                prompt = prompts[0]
+            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+            return StreamingResponse(
+                self.predictor.stream_results(results_generator),
+                status_code=200,
+                media_type="text/plain",
             )
         else:
             streamer = self.predictor.get_streamer()
@@ -108,9 +130,7 @@ class PredictorDeployment:
                 functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
             )
             return StreamingResponse(
-                self.consume_streamer_async(streamer),
-                status_code=200,
-                media_type="text/plain",
+                self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
     async def stream_response(self, prompt, config):
