@@ -2,7 +2,8 @@ import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
 from inference.inference_config import InferenceConfig
-from inference.utils import StoppingCriteriaSub
+from utils import StoppingCriteriaSub
+from typing import List, AsyncGenerator, Union
 
 
 class Predictor:
@@ -72,11 +73,20 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
-    def generate(self, prompt, **config):
+    def generate(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
         pass
 
-    def streaming_generate(self, prompt, streamer, **config):
+    async def generate_async(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[str, List[str]]:
+        pass
+
+    # output is streamed into streamer
+    def streaming_generate(self, prompt: str, streamer, **config) -> None:
         pass
 
     def get_streamer(self):
+        pass
+
+    async def stream_results(self, results_generator) -> AsyncGenerator[str, None]:
         pass

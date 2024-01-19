@@ -18,7 +18,7 @@ from inference.inference_config import (
     InferenceConfig,
     DEVICE_CPU,
     DEVICE_XPU,
-    IPEX_PRECISION_BF16,
+    PRECISION_BF16,
 )
 
 
@@ -139,7 +139,7 @@ class PredictionWorker(TorchDistributedWorker):
             pipe.model = ipex.optimize_transformers(
                 pipe.model.eval(),
                 dtype=torch.bfloat16
-                if self.infer_conf.ipex.precision == IPEX_PRECISION_BF16
+                if self.infer_conf.ipex.precision == PRECISION_BF16
                 else torch.float32,
                 inplace=True,
             )

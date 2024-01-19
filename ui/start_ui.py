@@ -818,7 +818,7 @@ class ChatBotUI:
             head_content = """
                 <div style="color: #fff;text-align: center;">
                     <div style="position:absolute; left:15px; top:15px; "><img  src="/file=ui/images/logo.png" width="50" height="50"/></div>
-                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p> 
+                    <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p>
                     <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
             """
