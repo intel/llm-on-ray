@@ -18,22 +18,16 @@ REQUEST_LATENCY: List[Tuple[int, int, float]] = []
 
 
 def sample_requests(
-    dataset_path: str,
-    num_requests: int,
-    tokenizer: PreTrainedTokenizer
+    dataset_path: str, num_requests: int, tokenizer: PreTrainedTokenizer
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
     with open(dataset_path) as f:
         dataset = json.load(f)
     # Filter out the conversations with less than 2 turns.
-    dataset = [
-        data for data in dataset
-        if len(data["conversations"]) >= 2
-    ]
+    dataset = [data for data in dataset if len(data["conversations"]) >= 2]
     # Only keep the first two turns of each conversation.
     dataset = [
-        (data["conversations"][0]["value"], data["conversations"][1]["value"])
-        for data in dataset
+        (data["conversations"][0]["value"], data["conversations"][1]["value"]) for data in dataset
     ]
 
     # Tokenize the prompts and completions.
@@ -69,7 +63,6 @@ async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
 ) -> AsyncGenerator[Tuple[str, int, int], None]:
-    input_requests = iter(input_requests)
     for request in input_requests:
         yield request
 
@@ -136,9 +129,9 @@ async def benchmark(
     tasks: List[asyncio.Task] = []
     async for request in get_request(input_requests, request_rate):
         prompt, prompt_len, output_len = request
-        task = asyncio.create_task(send_request(api_url, prompt,
-                                                prompt_len, output_len,
-                                                use_beam_search))
+        task = asyncio.create_task(
+            send_request(api_url, prompt, prompt_len, output_len, use_beam_search)
+        )
         tasks.append(task)
     await asyncio.gather(*tasks)
 
@@ -153,56 +146,71 @@ def main(args: argparse.Namespace):
 
     tokenizer_name_or_path = all_models[args.model_name].model_description.tokenizer_name_or_path
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, trust_remote_code=args.trust_remote_code)
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name_or_path, trust_remote_code=args.trust_remote_code
+    )
 
     input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
 
     benchmark_start_time = time.perf_counter()
-    asyncio.run(benchmark(api_url, input_requests,
-                          args.use_beam_search, args.request_rate))
+    asyncio.run(benchmark(api_url, input_requests, args.use_beam_search, args.request_rate))
     benchmark_end_time = time.perf_counter()
     benchmark_time = benchmark_end_time - benchmark_start_time
     print(f"Total time: {benchmark_time:.2f} s")
 
     # Compute the throughput statistics.
-    total_num_tokens = sum(prompt_len + output_len
-                           for prompt_len, output_len, _ in REQUEST_LATENCY)
-    print(f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s, "
-          f"{total_num_tokens / benchmark_time:.2f} tokens/s")
+    total_num_tokens = sum(prompt_len + output_len for prompt_len, output_len, _ in REQUEST_LATENCY)
+    print(
+        f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s, "
+        f"{total_num_tokens / benchmark_time:.2f} tokens/s"
+    )
 
     # Compute the latency statistics.
     avg_latency = np.mean([latency for _, _, latency in REQUEST_LATENCY])
     print(f"Average latency: {avg_latency:.2f} s")
-    avg_per_token_latency = np.mean([
-        latency / (prompt_len + output_len)
-        for prompt_len, output_len, latency in REQUEST_LATENCY
-    ])
+    avg_per_token_latency = np.mean(
+        [latency / (prompt_len + output_len) for prompt_len, output_len, latency in REQUEST_LATENCY]
+    )
     print(f"Average latency per token: {avg_per_token_latency:.2f} s")
-    avg_per_output_token_latency = np.mean([
-        latency / output_len
-        for _, output_len, latency in REQUEST_LATENCY
-    ])
-    print("Average latency per output token: "
-          f"{avg_per_output_token_latency:.2f} s")
+    avg_per_output_token_latency = np.mean(
+        [latency / output_len for _, output_len, latency in REQUEST_LATENCY]
+    )
+    print("Average latency per output token: " f"{avg_per_output_token_latency:.2f} s")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Benchmark the online serving latency and throughput.")
-    parser.add_argument("--model_endpoint_base", default="http://127.0.0.1:8000", type=str, help="model endpoint base url")
-    parser.add_argument("--model_name", type=str, required=True, help="model name used to extract tokenizer from configuration file")
-    parser.add_argument("--dataset", type=str, required=True,
-                        help="Path to the dataset.")
-    parser.add_argument("--num-prompts", type=int, default=1000,
-                        help="Number of prompts to process.")
-    parser.add_argument("--request-rate", type=float, default=float("inf"),
-                        help="Number of requests per second. If this is inf, "
-                             "then all the requests are sent at time 0. "
-                             "Otherwise, we use Poisson process to synthesize "
-                             "the request arrival times.")
+        description="Benchmark the online serving latency and throughput."
+    )
+    parser.add_argument(
+        "--model_endpoint_base",
+        default="http://127.0.0.1:8000",
+        type=str,
+        help="model endpoint base url",
+    )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        required=True,
+        help="model name used to extract tokenizer from configuration file",
+    )
+    parser.add_argument("--dataset", type=str, required=True, help="Path to the dataset.")
+    parser.add_argument(
+        "--num-prompts", type=int, default=1000, help="Number of prompts to process."
+    )
+    parser.add_argument(
+        "--request-rate",
+        type=float,
+        default=float("inf"),
+        help="Number of requests per second. If this is inf, "
+        "then all the requests are sent at time 0. "
+        "Otherwise, we use Poisson process to synthesize "
+        "the request arrival times.",
+    )
     parser.add_argument("--use-beam-search", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument('--trust-remote-code', action='store_true',
-                        help='trust remote code from huggingface')
+    parser.add_argument(
+        "--trust-remote-code", action="store_true", help="trust remote code from huggingface"
+    )
     args = parser.parse_args()
     main(args)
