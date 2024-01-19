@@ -1,16 +1,3 @@
-"""Benchmark serving latency and throughput.
-
-On the server side, run one of the following commands:
-    ./start-serving.sh
-
-On the client side, run:
-    python benchmarks/benchmark_serving.py \
-        --model_endpoint_base <model_endpoint_base_url> \
-        --tokenizer <model_id>
-        --dataset <target_dataset> \
-        --request-rate <request_rate>
-"""
-
 # Adapted from https://github.com/vllm-project/vllm/blob/main/benchmarks/benchmark_serving.py
 
 import argparse
