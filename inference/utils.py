@@ -106,6 +106,5 @@ def get_input_format(input: Union[List[str], List[dict]]):
         elif isinstance(item, dict):
             prompts_format = False
         else:
-            chat_format = False
-            prompts_format = False
+            return False, False
     return chat_format, prompts_format
