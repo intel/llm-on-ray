@@ -22,7 +22,7 @@ from torch.distributed.fsdp.fully_sharded_data_parallel import (
 
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
 from finetune_config import FinetuneConfig
 

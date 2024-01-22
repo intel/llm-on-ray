@@ -19,11 +19,13 @@ import time
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+ui_folder = os.path.dirname(__file__)
+sys.path.append(os.path.join(ui_folder, ".."))
+sys.path.append(os.path.join(ui_folder, "../inference"))
+from predictor_deployment import PredictorDeployment
+from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
 from inference_config import all_models, ModelDescription, Prompt
 from inference_config import InferenceConfig as FinetunedConfig
-from chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
-from predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
 import gradio as gr
@@ -31,8 +33,9 @@ import argparse
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
 from ray.tune.logger import LoggerCallback
-from multiprocessing import Process, Queue
 from ray.util import queue
+from ray.job_config import JobConfig
+from multiprocessing import Process, Queue
 import paramiko
 from html_format import cpu_memory_html, ray_status_html, custom_css
 from typing import Dict, List, Any
@@ -109,6 +112,7 @@ class ChatBotUI:
         default_data_path: str,
         default_rag_path: str,
         config: dict,
+        ray_init_config: dict,
         head_node_ip: str,
         node_port: str,
         node_user_name: str,
@@ -122,6 +126,7 @@ class ChatBotUI:
         self.repo_code_path = repo_code_path
         self.default_data_path = default_data_path
         self.config = config
+        self.ray_init_config = ray_init_config
         self.head_node_ip = head_node_ip
         self.node_port = node_port
         self.user_name = node_user_name
@@ -455,7 +460,7 @@ class ChatBotUI:
             origin_model_path = model_desc.model_id_or_path
             tokenizer_path = model_desc.tokenizer_name_or_path
             gpt_base_model = model_desc.gpt_base_model
-        last_gpt_base_model = False
+
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
         finetuned_checkpoint_path = (
             os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name)
@@ -464,46 +469,24 @@ class ChatBotUI:
         )
 
         finetune_config = self.config.copy()
-        training_config = finetune_config.get("Training")
-        exist_worker = int(training_config["num_training_workers"])
-        exist_cpus_per_worker_ftn = int(training_config["resources_per_worker"]["CPU"])
+        new_ray_init_config = self.ray_init_config.copy()
 
         ray_resources = ray.available_resources()
         if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(
             ray.available_resources()["CPU"]
         ):
             raise gr.Error("Resources are not meeting the demand")
-        if (
-            worker_num != exist_worker
-            or cpus_per_worker_ftn != exist_cpus_per_worker_ftn
-            or not (gpt_base_model and last_gpt_base_model)
-        ):
-            ray.shutdown()
-            new_ray_init_config = {
-                "runtime_env": {
-                    "env_vars": {
-                        "OMP_NUM_THREADS": str(cpus_per_worker_ftn),
-                        "ACCELERATE_USE_CPU": "True",
-                        "ACCELERATE_MIXED_PRECISION": "no",
-                        "CCL_WORKER_COUNT": "1",
-                        "CCL_LOG_LEVEL": "info",
-                        "WORLD_SIZE": str(worker_num),
-                    }
-                },
-                "address": "auto",
-                "_node_ip_address": "127.0.0.1",
-            }
-            if gpt_base_model:
-                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
-            else:
-                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
-            last_gpt_base_model = gpt_base_model
-            finetune_config["Training"]["num_training_workers"] = int(worker_num)
-            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
 
-            ray.init(**new_ray_init_config)
-            exist_worker = worker_num
-            exist_cpus_per_worker_ftn = cpus_per_worker_ftn
+        ray.shutdown()
+        if gpt_base_model:
+            new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
+        else:
+            new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
+        new_ray_init_config["runtime_env"]["env_vars"]["WORLD_SIZE"] = str(worker_num)
+        finetune_config["Training"]["num_training_workers"] = int(worker_num)
+        finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
+
+        ray.init(**new_ray_init_config)
 
         finetune_config["Dataset"]["train_file"] = dataset
         finetune_config["General"]["base_model"] = origin_model_path
@@ -617,6 +600,16 @@ class ChatBotUI:
 
     def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker_deploy: int):
         self.shutdown_deploy()
+        ray.shutdown()
+        new_ray_init_config = self.ray_init_config.copy()
+        new_ray_init_config["job_config"] = JobConfig(
+            code_search_path=[
+                os.path.join(ui_folder, "../finetune"),
+                os.path.join(ui_folder, "../inference"),
+            ]
+        )
+        ray.init(**new_ray_init_config)
+
         if cpus_per_worker_deploy * replica_num > int(ray.available_resources()["CPU"]):
             raise gr.Error("Resources are not meeting the demand")
 
@@ -837,7 +830,7 @@ class ChatBotUI:
                     base_models_list.append("specify other models")
                     base_model_dropdown = gr.Dropdown(
                         base_models_list,
-                        value=base_models_list[2],
+                        value=base_models_list[4],
                         label="Select Base Model",
                         allow_custom_value=True,
                     )
@@ -936,7 +929,7 @@ class ChatBotUI:
                         all_models_list = list(self._all_models.keys())
                         all_model_dropdown = gr.Dropdown(
                             all_models_list,
-                            value=all_models_list[3],
+                            value=all_models_list[5],
                             label="Select Model to Deploy",
                             elem_classes="disable_status",
                             allow_custom_value=True,
@@ -1563,8 +1556,6 @@ if __name__ == "__main__":
     default_data_path = os.path.abspath(
         infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl"
     )
-
-    sys.path.append(repo_path)
     from finetune.finetune import get_accelerate_environment_variable
 
     finetune_config: Dict[str, Any] = {
@@ -1617,6 +1608,7 @@ if __name__ == "__main__":
         default_data_path,
         default_rag_path,
         finetune_config,
+        ray_init_config,
         head_node_ip,
         args.node_port,
         args.node_user_name,
