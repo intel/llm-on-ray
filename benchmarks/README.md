@@ -13,7 +13,13 @@ wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/r
 On the server side, run the following command:
 
 ```bash
-./start-serving.sh
+python inference/serve.py --config_file <model_config_file.yaml> --simple --keep_serve_terminal
+```
+
+For example:
+
+```bash
+python inference/serve.py --config_file inference/models/gpt-j-6b.yaml --simple --keep_serve_terminal
 ```
 
 On the client side, run the following command:
@@ -26,12 +32,18 @@ python benchmarks/benchmark_serving.py \
     --request-rate <request_rate>
 ```
 
-For Example:
+For example:
 
 ```bash
 python benchmarks/benchmark_serving.py \
     --model_endpoint_base http://127.0.0.1:8000 \
     --model_name gpt-j-6b
-    --dataset ./ShareGPT_V3_unfiltered_cleaned_split.json \
+    --dataset ShareGPT_V3_unfiltered_cleaned_split.json \
     --request-rate 5
+```
+
+## Help on parameters
+
+```bash
+python benchmarks/benchmark_serving.py --help
 ```
