@@ -74,6 +74,6 @@ python inference/serve.py --config_file <path to the conf file> --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
-python inference/query_single.py --model_endpoint <the model endpoint URL>
+python examples/inference/api_server_simple/query_single.py --model_endpoint <the model endpoint URL>
 ```
 
