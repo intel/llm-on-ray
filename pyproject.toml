@@ -67,6 +67,11 @@ bigdl-cpu = [
     "bigdl-llm[all]"
 ]
 
+ui = [
+    "gradio==4.11.0",
+    "paramiko==3.4.0",
+]
+
 [tool.setuptools]
 packages = ["finetune", "inference"]
 
