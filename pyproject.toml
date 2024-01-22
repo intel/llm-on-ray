@@ -36,7 +36,6 @@ dependencies = [
     "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
-    "paramiko==3.4.0",
 ]
 
 [project.optional-dependencies]
@@ -70,6 +69,7 @@ bigdl-cpu = [
 
 ui = [
     "gradio==4.11.0",
+    "paramiko==3.4.0",
 ]
 
 [tool.setuptools]
