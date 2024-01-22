@@ -2,8 +2,14 @@
 
 LLM-on-Ray introduces a Web UI, allowing users to easily finetune and deploy LLMs through a user-friendly interface. Additionally, the UI includes a chatbot application, enabling users to immediately test and refine the models.
 
-## Setup
-Please follow [setup.md](setup.md) to setup the environment first.
+## Setup Base Environment
+Please follow [setup.md](setup.md) to setup the base environment first.
+
+## Setup UI Environment
+After activating the environment installed in previous step, please run the following script to install environment for ui.
+```bash
+$ dev/scripts/install-ui.sh
+```
 
 ## Start Web UI
 
