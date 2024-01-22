@@ -91,7 +91,6 @@ async def send_request(
         "config": config,
         "stream": False,
     }
-    print(pload)
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -101,7 +100,7 @@ async def send_request(
                 async for chunk, _ in response.content.iter_chunks():
                     chunks.append(chunk)
             output = b"".join(chunks).decode("utf-8")
-            print(f"\n=== Prompt =====\n{pload['text']}\n================\n")
+            print(f"\n=== Request =====\n{pload}\n================\n")
             print(f"=== Response ===\n{output}\n================\n")
             break
 
