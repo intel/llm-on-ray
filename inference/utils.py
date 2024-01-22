@@ -16,7 +16,7 @@
 
 from transformers import StoppingCriteria
 import torch
-from inference.inference_config import InferenceConfig, DEVICE_CPU
+from inference_config import InferenceConfig, DEVICE_CPU
 from typing import Dict, Any
 
 

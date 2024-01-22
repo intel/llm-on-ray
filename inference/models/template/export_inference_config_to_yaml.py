@@ -1,6 +1,6 @@
 import yaml
 import os
-from inference.inference_config import InferenceConfig
+from inference_config import InferenceConfig
 
 ic = InferenceConfig()
 

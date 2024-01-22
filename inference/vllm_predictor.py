@@ -1,7 +1,7 @@
 import asyncio
 from typing import AsyncGenerator, List, Union
 from predictor import Predictor
-from inference.inference_config import InferenceConfig, PRECISION_BF16
+from inference_config import InferenceConfig, PRECISION_BF16
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
