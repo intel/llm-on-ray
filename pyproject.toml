@@ -69,6 +69,10 @@ bigdl-cpu = [
     "bigdl-llm[all]"
 ]
 
+hpu = [
+    "optimum[habana]"
+]
+
 [tool.setuptools]
 packages = ["finetune", "inference"]
 
