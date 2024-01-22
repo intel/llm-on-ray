@@ -81,7 +81,9 @@ async def send_request(
     headers = {"User-Agent": "Benchmark Client"}
 
     # Use sample output_len if max_new_tokens not specified
-    if config["max_new_tokens"] is None:
+    if "max_new_tokens" in config:
+        output_len = config["max_new_tokens"]
+    else:
         config["max_new_tokens"] = output_len
 
     pload = {
@@ -89,11 +91,12 @@ async def send_request(
         "config": config,
         "stream": False,
     }
+    print(pload)
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         while True:
-            async with session.post(api_url, headers=headers, json=[pload]) as response:
+            async with session.post(api_url, headers=headers, json=pload) as response:
                 chunks = []
                 async for chunk, _ in response.content.iter_chunks():
                     chunks.append(chunk)
@@ -154,7 +157,7 @@ def main(args: argparse.Namespace):
     # Compute prompts statistics
     prompt_lens = [prompt_len for prompt_len, _, _ in REQUEST_LATENCY]
     min_prompt_len = np.min(prompt_lens)
-    med_prompt_len = np.median(prompt_lens)
+    med_prompt_len = int(np.median(prompt_lens))
     max_prompt_len = np.max(prompt_lens)
     print(f"Prompt Length (Min/Med/Max): {min_prompt_len} / {med_prompt_len} / {max_prompt_len}")
 
