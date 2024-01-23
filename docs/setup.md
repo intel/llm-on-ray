@@ -21,7 +21,8 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 * Gaudi: Gaudi2
 
 ### Software Requirements
-- Python 3.9
+- Git
+- Conda
 
 ## Setup
 
@@ -32,6 +33,8 @@ For Intel GPU, ensure the [Intel® oneAPI Base Toolkit](https://www.intel.com/co
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
+conda create -n llm-on-ray python=3.9
+conda activate llm-on-ray
 ```
 For CPU:
 ```bash
