@@ -84,7 +84,7 @@ python examples/inference/api_server_openai/query_http_requests.py
 
 # using OpenAI SDK
 export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=$your_openai_api_key
+export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
