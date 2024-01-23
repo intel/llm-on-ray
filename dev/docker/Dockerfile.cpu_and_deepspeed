@@ -25,10 +25,11 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     conda install python==3.9
 
 COPY ./pyproject.toml .
+COPY ./MANIFEST.in .
 
 RUN mkdir ./finetune && mkdir ./inference
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
 
 RUN ds_report
