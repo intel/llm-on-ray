@@ -25,6 +25,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     conda install python==3.9
 
 COPY ./pyproject.toml .
+COPY ./MANIFEST.in .
 
 RUN mkdir ./finetune && mkdir ./inference
 
