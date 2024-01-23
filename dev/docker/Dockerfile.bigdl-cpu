@@ -28,7 +28,7 @@ COPY ./pyproject.toml .
 
 RUN mkdir ./finetune && mkdir ./inference
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] -f https://developer.intel.com/ipex-whl-stable-cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install .[bigdl-cpu] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
