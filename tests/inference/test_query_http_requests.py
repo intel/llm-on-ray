@@ -37,11 +37,22 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
     print(result1)
 
 
+model_names = ["gpt2", "llama-2-7b-chat-hf", "neural-chat-7b-v3-1"]
+streaming_responses = [False, True]
+max_new_tokens_values = [None, 128, 256, 1024, 2048]
+temperature_values = [None, 0.8, 0.6, 0.4, 0.2]
+top_p_values = [None, 0.1, 0.3, 0.5, 0.7, 0.9]
+
+
 @pytest.mark.parametrize(
     "model_name,streaming_response,max_new_tokens,temperature,top_p",
     [
-        ("gpt2", False, None, None, None),
-        ("neural-chat-7b-v3-1", False, 100, None, None),
+        (model_name, streaming_response, max_new_tokens, temperature, top_p)
+        for model_name in model_names
+        for streaming_response in streaming_responses
+        for max_new_tokens in max_new_tokens_values
+        for temperature in temperature_values
+        for top_p in top_p_values
     ],
 )
 def test_script(model_name, streaming_response, max_new_tokens, temperature, top_p):
