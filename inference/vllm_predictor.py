@@ -25,6 +25,16 @@ class VllmPredictor(Predictor):
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
 
+    def check_config(self, **config):
+        # need to update the keys of config if vllm engine is used
+        if "max_new_tokens" in config.keys():
+            config["max_tokens"] = config.pop("max_new_tokens")
+        if "do_sample" in config.keys():
+            config.pop("do_sample")
+        unused = [k for k, v in config.items() if v is None]
+        [config.pop(k) for k in unused]
+        return config
+
     async def _get_generator_output(self, results_generator):
         async for request_output in results_generator:
             if request_output.finished:
@@ -34,6 +44,7 @@ class VllmPredictor(Predictor):
     async def generate_async(
         self, prompts: Union[str, List[str]], **config
     ) -> Union[str, List[str]]:
+        config = self.check_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
             request_id = random_uuid()
@@ -54,6 +65,7 @@ class VllmPredictor(Predictor):
         return ""
 
     async def streaming_generate_async(self, prompt, **config):
+        config = self.check_config(**config)
         sampling_params = SamplingParams(**config)
         request_id = random_uuid()
         results_generator = self.engine.generate(prompt, sampling_params, request_id)

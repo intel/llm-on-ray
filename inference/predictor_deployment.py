@@ -159,6 +159,13 @@ class PredictorDeployment:
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompts, self.streamer, **config)
             response_handle = self.consume_streamer()
+        elif self.use_vllm:
+            # TODO: streaming only support single prompt
+            # It's a wordaround for current situation, need another PR to address this
+            if isinstance(prompts, list):
+                prompt = prompts[0]
+            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+            response_handle = self.predictor.stream_results(results_generator)
         else:
             streamer = self.predictor.get_streamer()
             self.loop.run_in_executor(
