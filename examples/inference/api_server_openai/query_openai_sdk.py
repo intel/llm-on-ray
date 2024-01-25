@@ -15,7 +15,7 @@
 #
 
 import argparse
-import openai
+from openai import OpenAI
 
 parser = argparse.ArgumentParser(
     description="Example script to query with openai sdk", add_help=True
@@ -41,49 +41,21 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-version = openai.__version__
-version_content = version.split(".")
+client = OpenAI()
+# # List all models.
+models = client.models.list()
+print(models.data, "\n")
 
-if version_content[0] == "0":
-    # List all models.
-    models = openai.Model.list()
-    print(models)
-
-    # Note: not all arguments are currently supported and will be ignored by the backend.
-    chat_completion = openai.ChatCompletion.create(
-        model=args.model_name,
-        messages=[
-            {"role": "assistant", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Tell me a long story with many words."},
-        ],
-        stream=args.streaming_response,
-        max_tokens=args.max_new_tokens,
-        temperature=args.temperature,
-        top_p=args.top_p,
-    )
-    print(chat_completion)
-elif version_content[0] == "1" and version_content[1] <= "9":
-    from openai import OpenAI
-
-    client = OpenAI()
-    # # List all models.
-    models = client.models.list()
-    print(models.data, "\n")
-
-    # Note: not all arguments are currently supported and will be ignored by the backend.
-    chat_completion = client.chat.completions.create(
-        model=args.model_name,
-        messages=[
-            {"role": "assistant", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Tell me a long story with many words."},
-        ],
-        stream=args.streaming_response,
-        max_tokens=args.max_new_tokens,
-        temperature=args.temperature,
-        top_p=args.top_p,
-    )
-    print(chat_completion)
-else:
-    raise ImportError(
-        f"please check openai version, needs to be lower than 1.9.0, but found {version}"
-    )
+# Note: not all arguments are currently supported and will be ignored by the backend.
+chat_completion = client.chat.completions.create(
+    model=args.model_name,
+    messages=[
+        {"role": "assistant", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me a long story with many words."},
+    ],
+    stream=args.streaming_response,
+    max_tokens=args.max_new_tokens,
+    temperature=args.temperature,
+    top_p=args.top_p,
+)
+print(chat_completion)
