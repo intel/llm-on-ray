@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Step 1: Setup
+# Step 1: Python environment
 # Check Python version is or later than 3.9
 if ! python -c 'import sys; assert sys.version_info >= (3,9)' > /dev/null; then
-    echo "Python should be 3.9 or later!"
+    exit "Python should be 3.9 or later!"
 fi
 
 # Clone repo

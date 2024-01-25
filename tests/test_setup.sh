@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Usage: ./test_setup [CPU, GPU, Gaudi] [Deepspeed]
+
+# Step 1: Clone and create conda environment
+git clone https://github.com/intel/llm-on-ray.git
+cd llm-on-ray
+conda create -n llm-on-ray python=3.9
+conda activate llm-on-ray
+
+# Step 2: Check CPU, GPU or Gaudi and install dependencies
+hardware=0
+deepspeed=false
+case $(echo $1 | tr 'a-z' 'A-Z') in
+    "CPU")
+        hardware=1
+        pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+        ;;
+    "GPU")
+        pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
+        hardware=2
+        ;;
+    "GAUDI")
+        hardware=3
+        ;;
+    *)
+        exit "Error: CPU, GPU, Gaudi should be setted as the first variable of this script."
+        ;;
+esac
+
+# Check if it neesd deepspeed
+if [ $(echo $2 | tr 'A-Z' 'a-z') == "deepspeed" ]
+then
+    deepspeed=true
+    source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+fi
+
+# If Gaudi, build docker
+if [ "$hardware" = 3 ]
+then
+    export dockerfile=inference/habana/Dockerfile
+    docker build \
+    -f ${dockerfile} ../../ \
+    -t llm-ray-habana:latest \
+    --network=host \
+    --build-arg http_proxy=${http_proxy} \
+    --build-arg https_proxy=${https_proxy} \
+    --build-arg no_proxy=${no_proxy} \
+fi
+
+
+# Step 3: Launch ray cluster
+# Start head node
+ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashboard-port=8265
+# Start worker node
+ray start --address='127.0.0.1:6379'
