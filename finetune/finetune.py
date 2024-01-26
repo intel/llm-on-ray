@@ -62,6 +62,18 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
     return mode_env_vars[mode]
 
 
+def convert_dtype(dtype: str) -> torch.dtype:
+    supported_dtypes = {
+        "fp16": torch.float16,
+        "bf16": torch.bfloat16,
+        "fp32": torch.float32
+    }
+    if dtype in supported_dtypes:
+        return supported_dtypes[dtype]
+    else:
+        raise ValueError(f"only supported torch.dtype list [{supported_dtypes.keys()}]")
+
+
 def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
     if cwd:
@@ -108,7 +120,9 @@ def train_func(config: Dict[str, Any]):
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
             "name": config["General"]["base_model"],
+            "dtype": convert_dtype(config["Training"]["mixed_precision"]),
             "config": config["General"]["config"],
+            "gradient_checkpointing": config["General"]["gradient_checkpointing"],
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
             else None,

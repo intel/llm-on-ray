@@ -54,6 +54,7 @@ class Training(BaseModel):
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
     mixed_precision: str = "no"
+    gradient_accumulation_steps: int
 
     @validator("device")
     def check_device(cls, v: str):
