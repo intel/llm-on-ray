@@ -17,6 +17,7 @@
 from transformers import StoppingCriteria
 import torch
 from inference.inference_config import InferenceConfig, DEVICE_CPU
+from inference.api_openai_backend.openai_protocol import ChatMessage
 from typing import Dict, Any, List, Union
 
 
@@ -103,7 +104,7 @@ def get_input_format(input: Union[List[str], List[dict]]):
     for item in input:
         if isinstance(item, str):
             chat_format = False
-        elif isinstance(item, dict):
+        elif isinstance(item, dict) or isinstance(item, ChatMessage):
             prompts_format = False
         else:
             return False, False

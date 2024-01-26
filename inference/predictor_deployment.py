@@ -27,7 +27,7 @@ from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse, JSONResponse
 from inference.api_openai_backend.openai_protocol import ModelResponse
-from utils import get_input_format
+from inference.utils import get_input_format
 
 
 @serve.deployment
@@ -145,40 +145,65 @@ class PredictorDeployment:
                 self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
-    async def stream_response(self, prompt, config):
+    async def openai_call(self, prompt, config, streaming_response=True):
         prompts = []
         if isinstance(prompt, list):
-            if self.process_tool is not None:
-                prompt = self.process_tool.get_prompt(prompt)
-                prompts.append(prompt)
+            is_chat, is_prompts = get_input_format(prompt)
+            if is_chat:
+                if self.process_tool is not None:
+                    prompt = self.process_tool.get_prompt(prompt)
+                    prompts.append(prompt)
+                else:
+                    prompts.extend(prompt)
+            elif is_prompts:
+                raise Exception(
+                    "mulitple prompts is not supported now when using openai compatible api."
+                )
             else:
-                prompts.extend(prompt)
+                raise Exception("invalid prompt format.")
         else:
             prompts.append(prompt)
 
-        if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
-            response_handle = self.consume_streamer()
-        elif self.use_vllm:
-            # TODO: streaming only support single prompt
-            # It's a wordaround for current situation, need another PR to address this
-            if isinstance(prompts, list):
-                prompt = prompts[0]
-            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
-            response_handle = self.predictor.stream_results(results_generator)
-        else:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
-            )
-            response_handle = self.consume_streamer_async(streamer)
-        async for output in response_handle:
+        if not streaming_response:
+            if self.use_vllm:
+                output = await self.predictor.generate_async(prompts, **config)
+            else:
+                output = self.predictor.generate(prompts, **config)
+            # todo: get correct tokens, now is length
             model_response = ModelResponse(
-                generated_text=output,
+                generated_text=output[0],
                 num_input_tokens=len(prompts[0]),
                 num_input_tokens_batch=len(prompts[0]),
-                num_generated_tokens=1,
+                num_generated_tokens=len(output[0]),
                 preprocessing_time=0,
             )
             yield model_response
+        else:
+            if self.use_deepspeed:
+                self.predictor.streaming_generate(prompts, self.streamer, **config)
+                response_handle = self.consume_streamer()
+            elif self.use_vllm:
+                # TODO: streaming only support single prompt
+                # It's a wordaround for current situation, need another PR to address this
+                if isinstance(prompts, list):
+                    prompt = prompts[0]
+                results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+                response_handle = self.predictor.stream_results(results_generator)
+            else:
+                streamer = self.predictor.get_streamer()
+                self.loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        self.predictor.streaming_generate, prompts, streamer, **config
+                    ),
+                )
+                response_handle = self.consume_streamer_async(streamer)
+            async for output in response_handle:
+                model_response = ModelResponse(
+                    generated_text=output,
+                    num_input_tokens=len(prompts[0]),
+                    num_input_tokens_batch=len(prompts[0]),
+                    num_generated_tokens=1,
+                    preprocessing_time=0,
+                )
+                yield model_response

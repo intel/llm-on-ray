@@ -275,41 +275,40 @@ class Router:
                     request_id,
                     body,
                     response,
-                    self.query_client.stream(
-                        body.model,
-                        prompt,
-                        request_id,
-                    ),
+                    self.query_client.query(body.model, prompt, request_id, body.stream),
                 ),
                 media_type="text/event-stream",
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_client.query(body.model, prompt, request_id)
-                if results.error:
-                    raise OpenAIHTTPException(
-                        message=results.error.message,
-                        status_code=results.error.code,
-                        type=results.error.type,
-                    )
-                results = results.dict()
-
-                choices = [
-                    CompletionResponseChoice(
-                        index=0,
-                        text=results["generated_text"] or "",
-                        finish_reason=results["finish_reason"],
-                    )
-                ]
-                usage = UsageInfo.from_response(results)
-
-                return CompletionResponse(
-                    id=request_id,
-                    object="text_completion",
-                    model=body.model,
-                    choices=choices,
-                    usage=usage,
+                results_reponse = self.query_client.query(
+                    body.model, prompt, request_id, body.stream
                 )
+                async for results in results_reponse:
+                    if results.error:
+                        raise OpenAIHTTPException(
+                            message=results.error.message,
+                            status_code=results.error.code,
+                            type=results.error.type,
+                        )
+                    results = results.dict()
+
+                    choices = [
+                        CompletionResponseChoice(
+                            index=0,
+                            text=results["generated_text"] or "",
+                            finish_reason=results["finish_reason"],
+                        )
+                    ]
+                    usage = UsageInfo.from_response(results)
+
+                    return CompletionResponse(
+                        id=request_id,
+                        object="text_completion",
+                        model=body.model,
+                        choices=choices,
+                        usage=usage,
+                    )
 
     @router_app.post("/v1/chat/completions")
     async def chat(
@@ -332,39 +331,42 @@ class Router:
                     request_id,
                     body,
                     response,
-                    self.query_client.stream(body.model, prompt, request_id),
+                    self.query_client.query(body.model, prompt, request_id, body.stream),
                 ),
                 media_type="text/event-stream",
             )
         else:
             async with async_timeout.timeout(TIMEOUT):
-                results = await self.query_client.query(body.model, prompt, request_id)
-                if results.error:
-                    raise OpenAIHTTPException(
-                        message=results.error.message,
-                        status_code=results.error.code,
-                        type=results.error.type,
-                    )
-                results = results.dict()
-
-                choices: List[ChatCompletionResponseChoice] = [
-                    ChatCompletionResponseChoice(
-                        index=0,
-                        message=ChatMessage(
-                            role="assistant", content=results["generated_text"] or ""
-                        ),
-                        finish_reason=results["finish_reason"],
-                    )
-                ]
-                usage = UsageInfo.from_response(results)
-
-                return ChatCompletionResponse(
-                    id=request_id,
-                    object="chat.completion",
-                    model=body.model,
-                    choices=choices,
-                    usage=usage,
+                results_reponse = self.query_client.query(
+                    body.model, prompt, request_id, body.stream
                 )
+                async for results in results_reponse:
+                    if results.error:
+                        raise OpenAIHTTPException(
+                            message=results.error.message,
+                            status_code=results.error.code,
+                            type=results.error.type,
+                        )
+                    results = results.dict()
+
+                    choices: List[ChatCompletionResponseChoice] = [
+                        ChatCompletionResponseChoice(
+                            index=0,
+                            message=ChatMessage(
+                                role="assistant", content=results["generated_text"] or ""
+                            ),
+                            finish_reason=results["finish_reason"],
+                        )
+                    ]
+                    usage = UsageInfo.from_response(results)
+
+                    return ChatCompletionResponse(
+                        id=request_id,
+                        object="chat.completion",
+                        model=body.model,
+                        choices=choices,
+                        usage=usage,
+                    )
 
     @router_app.get("/v1/health_check")
     async def health_check(self) -> bool:
