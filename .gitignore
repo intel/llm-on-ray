@@ -1,3 +1,5 @@
 __pycache__
 **.ipynb
 debug/
+build/lib/
+llm_on_ray.egg-info/

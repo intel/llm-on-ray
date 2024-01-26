@@ -57,10 +57,15 @@ class PredictorDeployment:
         self.use_vllm = infer_conf.vllm.enabled
 
         if self.use_deepspeed:
-            from deepspeed_predictor import DeepSpeedPredictor
+            if infer_conf.device == "hpu":
+                from hpu_deepspeed_predictor import HPUDeepSpeedPredictor
 
-            self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
+                self.predictor = HPUDeepSpeedPredictor(infer_conf)
+            else:
+                from deepspeed_predictor import DeepSpeedPredictor
+
+                self.predictor = DeepSpeedPredictor(infer_conf)
+                self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from vllm_predictor import VllmPredictor
 
