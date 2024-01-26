@@ -42,7 +42,9 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
     elif infer_conf.device == "cuda":
         ray_actor_options["num_gpus"] = infer_conf.gpus_per_worker
     elif infer_conf.device == "hpu":
-        ray_actor_options["resources"] = {"HPU": infer_conf.hpus_per_worker}
+        # when using deepspeed on hpu, deployment actor does not need HPU
+        if not infer_conf.deepspeed:
+            ray_actor_options["resources"] = {"HPU": infer_conf.hpus_per_worker}
     else:
         # TODO add xpu
         pass

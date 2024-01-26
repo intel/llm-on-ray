@@ -1,7 +1,6 @@
 # Reference: https://github.com/huggingface/optimum-habana/blob/main/examples/text-generation/utils.py
 import os
 import tempfile
-import deepspeed
 import ray
 from ray.air.util.torch_dist import (
     TorchDistributedWorker,
@@ -12,7 +11,6 @@ from ray.util.placement_group import (
     placement_group,
 )
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from optimum.habana.checkpoint_utils import (
     get_ds_injection_policy,
     model_on_meta,
@@ -40,12 +38,13 @@ class HPUDeepSpeedPredictor(Predictor):
 
     def init_worker_group(self):
         deepspeed_worker_cls = HPUDeepSpeedWorker.options(
-            num_cpus=self.infer_conf.num_cpus_per_worker,
-            resources={"HPU": self.infer_conf.num_hpus_per_worker},
+            num_cpus=self.infer_conf.cpus_per_worker,
+            resources={"HPU": self.infer_conf.hpus_per_worker},
             scheduling_strategy=PlacementGroupSchedulingStrategy(placement_group=self._workers_pg),
         )
         self.deepspeed_workers = [
-            deepspeed_worker_cls.remote(self.infer_conf) for _ in self.infer_conf.workers_per_group
+            deepspeed_worker_cls.remote(self.infer_conf)
+            for _ in range(self.infer_conf.workers_per_group)
         ]
         init_torch_dist_process_group(self.deepspeed_workers, backend="hccl")
         futures = [worker.load_model_and_tokenizer.remote() for worker in self.deepspeed_workers]
@@ -75,22 +74,32 @@ class HPUDeepSpeedPredictor(Predictor):
 class HPUDeepSpeedWorker(TorchDistributedWorker):
     def __init__(self, infer_conf: InferenceConfig):
         self.infer_conf = infer_conf
+        os.environ.setdefault("PT_HPU_LAZY_ACC_PAR_MODE", "0")
+        os.environ.setdefault("PT_HPU_ENABLE_LAZY_COLLECTIVES", "true")
 
     def load_model_and_tokenizer(self):
         # after init_worker_group, these envvar should be set
         self.world_size = os.environ["WORLD_SIZE"]
         self.local_rank = os.environ["LOCAL_RANK"]
+        self.device = torch.device("hpu")
+        # optimize transformers for gaudi
+        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
+
+        adapt_transformers_to_gaudi()
         model_desc = self.infer_conf.model_description
         model_config = model_desc.config
         self.load_model(model_desc, model_config)
         self.load_tokenizer(model_desc)
 
     def load_model(self, model_desc, model_config):
+        import deepspeed
+        from transformers import AutoModelForCausalLM, AutoConfig
+
         # bf16 is used for deepspeed
         model_dtype = torch.bfloat16
 
         config = AutoConfig.from_pretrained(
-            model_desc.model_name_or_path,
+            model_desc.model_id_or_path,
             torch_dtype=model_dtype,
             trust_remote_code=model_config.trust_remote_code,
         )
@@ -122,11 +131,24 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.model = engine.module
 
         if self.model.config.model_type == "llama":
-            from optimum.habana.examples.text_generation.utils import patch_scoped_linear_all_reduce
+
+            def patch_scoped_linear_all_reduce(model):
+                from deepspeed.module_inject.layers import LinearAllreduce
+                from optimum.habana.transformers.models.modeling_all_models import (
+                    ScopedLinearAllReduce,
+                )
+
+                for name, module in model.named_children():
+                    if type(module) is LinearAllreduce:
+                        SL = ScopedLinearAllReduce(mod=module)
+                        setattr(model, name, SL)
+                    patch_scoped_linear_all_reduce(module)
 
             patch_scoped_linear_all_reduce(self.model)
 
     def load_tokenizer(self, model_desc):
+        from transformers import AutoTokenizer
+
         model = self.model
         tokenizer = AutoTokenizer.from_pretrained(model_desc.model_id_or_path)
         if not model.config.is_encoder_decoder:
