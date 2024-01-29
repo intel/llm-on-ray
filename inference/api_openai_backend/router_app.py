@@ -119,12 +119,6 @@ async def _completions_wrapper(
                     )
                 ]
                 usage = None
-                if subresult_dict["finish_reason"]:
-                    usage = (
-                        UsageInfo.from_response(ModelResponse.merge_stream(*all_results))
-                        if all_results
-                        else None
-                    )
                 yield "data: " + CompletionResponse(
                     id=completion_id,
                     object="text_completion",
@@ -135,6 +129,19 @@ async def _completions_wrapper(
             if had_error:
                 # Return early in case of an error
                 break
+        if not had_error:
+            usage = (
+                UsageInfo.from_response(ModelResponse.merge_stream(*all_results))
+                if all_results
+                else None
+            )
+            yield "data: " + CompletionResponse(
+                id=completion_id,
+                object="text_completion",
+                model=body.model,
+                choices=choices,
+                usage=usage,
+            ).json() + "\n"
         yield "data: [DONE]\n"
 
 

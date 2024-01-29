@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator, List, Union
+from typing import AsyncGenerator, List, Union, Tuple
 from predictor import Predictor
 from inference.inference_config import InferenceConfig, PRECISION_BF16
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -35,15 +35,18 @@ class VllmPredictor(Predictor):
         [config.pop(k) for k in unused]
         return config
 
-    async def _get_generator_output(self, results_generator):
+    async def _get_generator_output(self, results_generator, return_shape=False):
         async for request_output in results_generator:
             if request_output.finished:
+                self.input_length = len(request_output.prompt_token_ids)
+                if return_shape:
+                    return request_output.outputs[0].text, len(request_output.outputs[0].token_ids)
                 return request_output.outputs[0].text
         return None
 
     async def generate_async(
-        self, prompts: Union[str, List[str]], **config
-    ) -> Union[str, List[str]]:
+        self, prompts: Union[str, List[str]], return_shape: bool = False, **config
+    ) -> Union[str, List[str], Tuple[str, int]]:
         config = self.check_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
@@ -51,13 +54,18 @@ class VllmPredictor(Predictor):
             results_generator = self.engine.generate(prompts, sampling_params, request_id)
             async for request_output in results_generator:
                 if request_output.finished:
+                    self.input_length = len(request_output.prompt_token_ids)
+                    if return_shape:
+                        return request_output.outputs[0].text, len(
+                            request_output.output[0].token_ids
+                        )
                     return request_output.outputs[0].text
         else:
             results_generators = [
                 self.engine.generate(prompt, sampling_params, random_uuid()) for prompt in prompts
             ]
             results = [
-                self._get_generator_output(results_generator)
+                self._get_generator_output(results_generator, return_shape)
                 for results_generator in results_generators
             ]
             return await asyncio.gather(*results)
@@ -75,6 +83,7 @@ class VllmPredictor(Predictor):
         num_returned = 0
         async for request_output in results_generator:
             text_outputs = [output.text for output in request_output.outputs]
+            self.input_length = len(request_output.prompt_token_ids)
             assert len(text_outputs) == 1
             text_output = text_outputs[0][num_returned:]
             yield text_output
