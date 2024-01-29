@@ -153,7 +153,7 @@ class DefaultTrainer(Trainer):
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
-        log_step = self.config.get("log_step", 1)
+        logging_steps = self.config.get("logging_steps", 1)
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
         gradient_accumulation_steps = self.accelerator.gradient_accumulation_steps
@@ -173,7 +173,7 @@ class DefaultTrainer(Trainer):
                         if self.lr_scheduler is not None:
                             self.lr_scheduler.step()
                         self.optimizer.zero_grad()
-                    if step % log_step == 0:
+                    if step % logging_steps == 0:
                         logger.info(
                             f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{math.exp(loss):.6f}\ttime:{time.time()-start:.6f}"
                         )
