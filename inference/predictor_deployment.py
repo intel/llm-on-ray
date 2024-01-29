@@ -26,6 +26,7 @@ from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse, JSONResponse
+from fastapi import HTTPException
 from inference.api_openai_backend.openai_protocol import ModelResponse
 from inference.utils import get_input_format
 
@@ -156,25 +157,31 @@ class PredictorDeployment:
                 else:
                     prompts.extend(prompt)
             elif is_prompts:
-                raise Exception(
-                    "mulitple prompts is not supported now when using openai compatible api."
+                yield HTTPException(
+                    400, "mulitple prompts is not supported now when using openai compatible api."
                 )
             else:
-                raise Exception("invalid prompt format.")
+                yield HTTPException(400, "invalid prompt format.")
         else:
             prompts.append(prompt)
 
         if not streaming_response:
+            generate_length = None
             if self.use_vllm:
                 output = await self.predictor.generate_async(prompts, **config)
             else:
-                output = self.predictor.generate(prompts, **config)
+                output, generate_length = self.predictor.generate(
+                    prompts, return_shape=True, **config
+                )
             # todo: get correct tokens, now is length
+            input_length = self.predictor.input_length
             model_response = ModelResponse(
                 generated_text=output[0],
-                num_input_tokens=len(prompts[0]),
-                num_input_tokens_batch=len(prompts[0]),
-                num_generated_tokens=len(output[0]),
+                num_input_tokens=input_length,
+                num_input_tokens_batch=input_length,
+                num_generated_tokens=generate_length - input_length
+                if input_length and generate_length
+                else None,
                 preprocessing_time=0,
             )
             yield model_response
@@ -198,11 +205,12 @@ class PredictorDeployment:
                     ),
                 )
                 response_handle = self.consume_streamer_async(streamer)
+            input_length = self.predictor.input_length
             async for output in response_handle:
                 model_response = ModelResponse(
                     generated_text=output,
-                    num_input_tokens=len(prompts[0]),
-                    num_input_tokens_batch=len(prompts[0]),
+                    num_input_tokens=input_length,
+                    num_input_tokens_batch=input_length,
                     num_generated_tokens=1,
                     preprocessing_time=0,
                 )

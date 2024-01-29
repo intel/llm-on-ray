@@ -238,13 +238,16 @@ class DeepSpeedPredictor(Predictor):
         for worker in self.prediction_workers[1:]:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, prompt, **config):
+    def generate(self, prompt, return_shape=False, **config):
         input_ids = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
         gen_tokens = ray.get(
             [worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers]
         )[0]
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        if return_shape:
+            return decode_result, gen_tokens.size()[1]
+        return decode_result
 
     def get_streamer(self):
         from transformers import TextStreamer

@@ -28,10 +28,13 @@ class Predictor:
             for stop_word in stop_words
         ]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.input_length = None
 
     def tokenize_inputs(self, text):
         input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
-        return input_tokens.input_ids.to(device=self.device)
+        input_ids = input_tokens.input_ids.to(device=self.device)
+        self.input_length = input_ids.size()[1]
+        return input_ids
 
     def configure_tokenizer(self, model_name):
         model = self.model

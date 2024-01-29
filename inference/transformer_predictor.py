@@ -111,13 +111,16 @@ class TransformerPredictor(Predictor):
             **config,
         )
 
-    def generate(self, prompt, **config):
+    def generate(self, prompt, return_shape=False, **config):
         self._process_config(config)
         input_ids = self.tokenize_inputs(prompt)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        if return_shape:
+            return decode_result, gen_tokens.size()[1]
+        return decode_result
 
     def get_streamer(self):
         return TextIteratorStreamer(

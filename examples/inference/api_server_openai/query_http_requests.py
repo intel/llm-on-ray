@@ -66,18 +66,22 @@ body = {
 proxies = {"http": None, "https": None}
 response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
-    if chunk is not None:
-        if args.streaming_response:
-            # Get data from reponse chunk
-            chunk_data = chunk.split("data: ")[1]
-            if chunk_data != "[DONE]":
-                # Get message choices from data
-                choices = json.loads(chunk_data)["choices"]
-                # Pick content from first choice
-                content = choices[0]["delta"].get("content", "")
+    try:
+        if chunk is not None:
+            if args.streaming_response:
+                # Get data from reponse chunk
+                chunk_data = chunk.split("data: ")[1]
+                if chunk_data != "[DONE]":
+                    # Get message choices from data
+                    choices = json.loads(chunk_data)["choices"]
+                    # Pick content from first choice
+                    content = choices[0]["delta"].get("content", "")
+                    print(content, end="", flush=True)
+            else:
+                choices = json.loads(chunk)["choices"]
+                content = choices[0]["message"].get("content", "")
                 print(content, end="", flush=True)
-        else:
-            choices = json.loads(chunk)["choices"]
-            content = choices[0]["message"].get("content", "")
-            print(content, end="", flush=True)
+    except Exception as e:
+        print("chunk content: ", chunk)
+        raise e
 print("")
