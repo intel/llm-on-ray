@@ -73,7 +73,7 @@ jobs:
           - { model: "neural-chat-7b-v3-1"}
 
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     defaults:
       run:
