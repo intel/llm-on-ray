@@ -85,8 +85,6 @@ class DefaultTrainer(Trainer):
         num_steps_per_epoch,
         accelerator,
     ):
-        # gradient_accumulation_steps = accelerator.gradient_accumulation_steps
-        # num_update_steps_per_epoch = math.ceil(num_steps_per_epoch / gradient_accumulation_steps)
         enable = lr_scheduler_config.get("enable", False)
         if not enable:
             return None
@@ -174,11 +172,14 @@ class DefaultTrainer(Trainer):
                             self.lr_scheduler.step()
                         self.optimizer.zero_grad()
                     if step % logging_steps == 0:
+                        ppl = math.exp(loss)
                         logger.info(
-                            f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{math.exp(loss):.6f}\ttime:{time.time()-start:.6f}"
+                            f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
                         report(
                             {
+                                "loss": loss,
+                                "ppl": ppl,
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
