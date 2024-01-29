@@ -50,93 +50,90 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[cpu] -f http://ec2-52-27-27-201.us-west-2.compute.amazonaws.com/ipex-release.php?device=cpu&repo=us&release=stable -f https://download.pytorch.org/whl/torch_stable.html
           pip install -r ./tests/requirements.txt
-          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
-          ray start --head
 
       - name: Start tests
         run: |
           bash -c "./tests/run-tests.sh"
 
-  # build_docker:
+  build_docker:
 
-  #   name: query-test
-  #   strategy:
-  #     matrix:
-  #       model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
-  #       isPR:
-  #         - ${{inputs.ci_type == 'pr'}}
+    name: query-test
+    strategy:
+      matrix:
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
 
-  #       exclude:
-  #         - { isPR: true }
+        exclude:
+          - { isPR: true }
 
-  #       include:
-  #         - { model: "gpt2"}
-  #         # - { model: "neural-chat-7b-v3-1"}
+        include:
+          - { model: "gpt2"}
+          - { model: "neural-chat-7b-v3-1"}
 
 
-  #   runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-  #   defaults:
-  #     run:
-  #       shell: bash
-  #   container:
-  #     image: ${{ inputs.runner_container_image }}
-  #     env:
-  #       http_proxy: ${{ inputs.http_proxy }}
-  #       https_proxy: ${{ inputs.https_proxy }}
-  #     volumes:
-  #       - /var/run/docker.sock:/var/run/docker.sock
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ${{ inputs.runner_container_image }}
+      env:
+        http_proxy: ${{ inputs.http_proxy }}
+        https_proxy: ${{ inputs.https_proxy }}
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       
-  #     - name: Determine Target
-  #       id: "target"
-  #       run: |
-  #         target="inference"
-  #         if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-  #           target="${target}_bigdl_cpu"
-  #         fi
-  #         echo "target is ${target}"
-  #         echo "target=$target" >> $GITHUB_OUTPUT
+      - name: Determine Target
+        id: "target"
+        run: |
+          target="inference"
+          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
+            target="${target}_bigdl_cpu"
+          fi
+          echo "target is ${target}"
+          echo "target=$target" >> $GITHUB_OUTPUT
 
-  #     - name: Build Docker Image
-  #       run: |
-  #         if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-  #           DF_SUFFIX=".bigdl-cpu"
-  #         else
-  #           DF_SUFFIX=".cpu_and_deepspeed"
-  #         fi
-  #         TARGET=${{steps.target.outputs.target}}
-  #         docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
-  #         docker image prune -f
+      - name: Build Docker Image
+        run: |
+          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
+            DF_SUFFIX=".bigdl-cpu"
+          else
+            DF_SUFFIX=".cpu_and_deepspeed"
+          fi
+          TARGET=${{steps.target.outputs.target}}
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+          docker image prune -f
 
-  #     - name: Start Docker Container
-  #       run: |
-  #         TARGET=${{steps.target.outputs.target}}
-  #         cid=$(docker ps -q --filter "name=${TARGET}")
-  #         if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-  #         # check and remove exited container
-  #         cid=$(docker ps -a -q --filter "name=${TARGET}")
-  #         if [[ ! -z "$cid" ]]; then docker rm $cid; fi
-  #         docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+      - name: Start Docker Container
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
          
-  #     - name: Run predicter Test
-  #       run: |
-  #           TARGET=${{steps.target.outputs.target}}
-  #           docker exec "${TARGET}" bash -c "pip install pytest"
-  #           docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
-  #           docker exec "${TARGET}" bash -c "./tests/run_tests.sh"
+      - name: Run predicter Test
+        run: |
+            TARGET=${{steps.target.outputs.target}}
+            docker exec "${TARGET}" bash -c "pip install pytest"
+            docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
+            docker exec "${TARGET}" bash -c "./tests/run_tests.sh"
            
-  #     - name: Stop Container
-  #       if: success() || failure()
-  #       run: |
-  #         TARGET=${{steps.target.outputs.target}}
-  #         cid=$(docker ps -q --filter "name=${TARGET}")
-  #         if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
 
-  #     - name: Test Summary
-  #       run: echo "to be continued"  
+      - name: Test Summary
+        run: echo "to be continued"  

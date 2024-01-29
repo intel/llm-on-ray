@@ -1,18 +1,14 @@
 import subprocess
 import pytest
-import os
 
 
 # @pytest.fixture
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
-    current_working_directory = os.getcwd()
-    print(current_working_directory)
-
     config_path = "../inference/models/" + model_name + ".yaml"
-    print(config_path)
+
     cmd = ["python", "../inference/serve.py", "--config_file", config_path]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result)
+
+    subprocess.run(cmd, capture_output=True, text=True)
 
     cmd1 = [
         "python",
@@ -34,7 +30,12 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         cmd1.extend(["--top_p", str(top_p)])
 
     result1 = subprocess.run(cmd1, capture_output=True, text=True)
-    print(result1)
+
+    assert "Error" not in result1.stderr
+
+    assert isinstance(result1.stdout, str)
+
+    assert len(result1.stdout) > 0
 
 
 model_names = ["gpt2", "llama-2-7b-chat-hf", "neural-chat-7b-v3-1"]

@@ -5,10 +5,11 @@ import pytest
 # @pytest.fixture
 def script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
     config_path = "../inference/models/" + model_name + ".yaml"
-    print(config_path)
+
     cmd = ["python", "../inference/serve.py", "--config_file", config_path]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result)
+
+    subprocess.run(cmd, capture_output=True, text=True)
+
     cmd1 = [
         "python",
         "../examples/inference/api_server_openai/query_openai_sdk.py",  # 请替换为您的脚本文件名
@@ -29,7 +30,12 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         cmd1.extend(["--top_p", str(top_p)])
 
     result1 = subprocess.run(cmd1, capture_output=True, text=True)
-    print(result1)
+
+    assert "Error" not in result1.stderr
+
+    assert isinstance(result1.stdout, str)
+
+    assert len(result1.stdout) > 0
 
 
 request_api_bases = ["http://localhost:8000/v1"]
