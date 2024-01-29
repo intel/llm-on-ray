@@ -121,12 +121,12 @@ jobs:
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
          
-      - name: Run predicter Test
+      - name: Run query Test
         run: |
             TARGET=${{steps.target.outputs.target}}
             docker exec "${TARGET}" bash -c "pip install pytest"
             docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
-            docker exec "${TARGET}" bash -c "./tests/run_tests.sh"
+            docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
       - name: Stop Container
         if: success() || failure()
