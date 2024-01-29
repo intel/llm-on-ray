@@ -10,7 +10,9 @@ class HuggingFaceModelForCausalLM(Model):
         name = config.get("name")
         model_dtype = config.get("dtype")
         model_config = config.get("config", {})
-        model = transformers.AutoModelForCausalLM.from_pretrained(name, torch_dtype=model_dtype, **model_config)
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            name, torch_dtype=model_dtype, **model_config
+        )
 
         lora_config = config.get("lora_config", None)
         if lora_config:

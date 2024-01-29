@@ -4,6 +4,7 @@ import os
 import argparse
 from typing import Any, Dict, Union
 
+import torch
 import accelerate
 from accelerate.utils import is_xpu_available
 
@@ -63,11 +64,7 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
 
 
 def convert_dtype(dtype: str) -> torch.dtype:
-    supported_dtypes = {
-        "fp16": torch.float16,
-        "bf16": torch.bfloat16,
-        "fp32": torch.float32
-    }
+    supported_dtypes = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}
     if dtype in supported_dtypes:
         return supported_dtypes[dtype]
     else:
