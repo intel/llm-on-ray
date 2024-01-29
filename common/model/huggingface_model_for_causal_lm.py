@@ -22,8 +22,8 @@ class HuggingFaceModelForCausalLM(Model):
             if deltatuner_config:
                 model = deltatuner.optimize(model, **deltatuner_config)
 
-        gradient_checkpointing = config.get("gradient_checkpointing")
-        if gradient_checkpointing:
+        enable_gradient_checkpointing = config.get("enable_gradient_checkpointing")
+        if enable_gradient_checkpointing:
             model.enable_input_require_grads()
             model.gradient_checkpointing_enable()
             model.config.use_cache = False

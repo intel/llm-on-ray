@@ -11,7 +11,7 @@ General:
     r: 8
     lora_alpha: 32
     lora_dropout: 0.1
-  gradient_checkpointing: false
+  enable_gradient_checkpointing: false
 Dataset:
   train_file: examples/data/sample_finetune_data_small.jsonl
   validation_file: null
