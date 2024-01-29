@@ -36,6 +36,7 @@ dependencies = [
     "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
+    "tensorboardX"
 ]
 
 [project.optional-dependencies]
