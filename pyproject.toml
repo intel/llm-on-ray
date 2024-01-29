@@ -49,11 +49,11 @@ cpu = [
 
 gpu = [
     "transformers>=4.35.0",
-    "torch==2.0.1a0",
-    "torchvision==0.15.2a0",
-    "intel-extension-for-pytorch==2.0.110+xpu",
-    "oneccl_bind_pt==2.0.100+gpu",
-    "dpctl==0.14.5"
+    "torch==2.1.0a0",
+    "torchvision==0.16.0a0",
+    "intel_extension_for_pytorch==2.1.10+xpu",
+    "oneccl_bind_pt==2.1.100+xpu",
+    "dpctl==0.15.0"
 ]
 
 deepspeed = [
