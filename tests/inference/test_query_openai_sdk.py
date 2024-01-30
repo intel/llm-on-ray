@@ -3,12 +3,18 @@ import pytest
 
 
 def script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
+    # Other OpenAI SDK tests
+    if api_base != "http://localhost:8000/v1":
+        bash_command = f'export OPENAI_API_BASE="{api_base}"'
+        subprocess.run(bash_command, shell=True)
+
     config_path = "../inference/models/" + model_name + ".yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
+    # Ensure there are no errors in the serve script execution
     assert "Error" not in result_serve.stderr
 
     cmd_openai = [
@@ -32,6 +38,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
 
+    # Ensure there are no errors in the OpenAI API query script execution
     assert "Error" not in result_openai.stderr
 
     assert isinstance(result_openai.stdout, str)
@@ -39,6 +46,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
     assert len(result_openai.stdout) > 0
 
 
+# Test case matrix
 request_api_bases = ["http://localhost:8000/v1"]
 model_names = ["gpt2"]
 streaming_responses = [False, True]
@@ -47,6 +55,7 @@ temperature_values = [None, 0.8]
 top_p_values = [None, 0.7]
 
 
+# Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
     "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p",
     [

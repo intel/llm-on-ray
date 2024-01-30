@@ -9,6 +9,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
+    # Ensure there are no errors in the serve script execution
     assert "Error" not in result_serve.stderr
 
     cmd_http = [
@@ -32,6 +33,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
     result_http = subprocess.run(cmd_http, capture_output=True, text=True)
 
+    # Ensure there are no errors in the http query script execution
     assert "Error" not in result_http.stderr
 
     assert isinstance(result_http.stdout, str)
