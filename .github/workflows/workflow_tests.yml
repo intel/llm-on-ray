@@ -93,9 +93,6 @@ jobs:
       env:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
-        no_proxy: ${{ inputs.no_proxy }}
-        OPENAI_API_BASE: http://localhost:8000/v1
-        OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     
@@ -132,7 +129,7 @@ jobs:
           # check and remove exited container
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
-          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
       
       - name: Start Ray Cluster
         run: |
@@ -144,9 +141,6 @@ jobs:
             TARGET=${{steps.target.outputs.target}}
             docker exec "${TARGET}" bash -c "pip install pytest"
             docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
-            docker exec "${TARGET}" bash -c "export no_proxy=localhost,127.0.0.1"
-            docker exec "${TARGET}" bash -c "export OPENAI_API_BASE=http://localhost:8000/v1"
-            docker exec "${TARGET}" bash -c "export OPENAI_API_KEY=$not_a_real_key"
             docker exec "${TARGET}" bash -c "env"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
