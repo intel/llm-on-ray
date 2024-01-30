@@ -125,7 +125,6 @@ jobs:
         run: |
             TARGET=${{steps.target.outputs.target}}
             docker exec "${TARGET}" bash -c "pip install pytest"
-            docker exec "${TARGET}" bash -c "pip install subprocess"
             docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            

@@ -8,7 +8,8 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
     cmd = ["python", "../inference/serve.py", "--config_file", config_path]
 
-    subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(result)
 
     cmd1 = [
         "python",
@@ -30,6 +31,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         cmd1.extend(["--top_p", str(top_p)])
 
     result1 = subprocess.run(cmd1, capture_output=True, text=True)
+    print(result1)
 
     assert "Error" not in result1.stderr
 
