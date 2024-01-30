@@ -61,7 +61,7 @@ jobs:
     name: query-test
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
+        model: [ Llama-2-7b-chat-hf,gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -70,6 +70,7 @@ jobs:
 
         include:
           - { model: "gpt2"}
+          - { model: "Llama-2-7b-chat-hf"}
           - { model: "neural-chat-7b-v3-1"}
 
 

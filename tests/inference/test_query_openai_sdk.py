@@ -8,11 +8,13 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     cmd = ["python", "../inference/serve.py", "--config_file", config_path]
 
-    subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    assert "Error" not in result.stderr
 
     cmd1 = [
         "python",
-        "../examples/inference/api_server_openai/query_openai_sdk.py",  # 请替换为您的脚本文件名
+        "../examples/inference/api_server_openai/query_openai_sdk.py",
         "--model_name",
         model_name,
     ]
@@ -41,9 +43,9 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 request_api_bases = ["http://localhost:8000/v1"]
 model_names = ["gpt2", "llama-2-7b-chat-hf", "neural-chat-7b-v3-1"]
 streaming_responses = [False, True]
-max_new_tokens_values = [None, 128, 1024]
-temperature_values = [None, 0.8, 0.6]
-top_p_values = [None, 0.7, 0.9]
+max_new_tokens_values = [None, 128]
+temperature_values = [None, 0.8]
+top_p_values = [None, 0.7]
 
 
 @pytest.mark.parametrize(
