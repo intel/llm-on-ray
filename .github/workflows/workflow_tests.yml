@@ -15,6 +15,15 @@ on:
       https_proxy:
         type: string
         default: '10.24.221.149:911'
+      no_proxy:
+        type: string
+        default: 'localhost,127.0.0.1'
+      OPENAI_API_BASE:
+        type: string
+        default: 'http://localhost:8000/v1'
+      OPENAI_API_KEY:
+        type: string
+        default: '$your_openai_api_key'  
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -25,11 +34,6 @@ on:
         type: string
         default: '/mnt/DP_disk1/huggingface/cache'
 
-env:
-  OPENAI_API_BASE=http://localhost:8000/v1
-  OPENAI_API_KEY=$your_openai_api_key
-  no_proxy='localhost,127.0.0.1'
-  
 jobs:
   build:
 
@@ -89,6 +93,9 @@ jobs:
       env:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
+        no_proxy: ${{ inputs.no_proxy }}
+        OPENAI_API_BASE: ${{ inputs.OPENAI_API_BASE }}
+        OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     
