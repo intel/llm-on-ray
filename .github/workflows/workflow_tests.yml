@@ -70,8 +70,8 @@ jobs:
 
         include:
           - { model: "gpt2"}
-          - { model: "meta-llama/Llama-2-7b-chat-hf"}
-          - { model: "neural-chat-7b-v3-1"}
+          # - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          # - { model: "neural-chat-7b-v3-1"}
 
 
     runs-on: self-hosted
