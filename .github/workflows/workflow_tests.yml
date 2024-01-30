@@ -70,7 +70,7 @@ jobs:
 
         include:
           - { model: "gpt2"}
-          - { model: "Llama-2-7b-chat-hf"}
+          - { model: "meta-llama/Llama-2-7b-chat-hf"}
           - { model: "neural-chat-7b-v3-1"}
 
 
