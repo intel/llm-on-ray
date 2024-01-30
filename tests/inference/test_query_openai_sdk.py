@@ -41,7 +41,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
 
 request_api_bases = ["http://localhost:8000/v1"]
-model_names = ["meta-llama/Llama-2-7b-chat-hf", "gpt2", "neural-chat-7b-v3-1"]
+model_names = ["llama-2-7b-chat-hf", "gpt2", "neural-chat-7b-v3-1"]
 streaming_responses = [False, True]
 max_new_tokens_values = [None, 128]
 temperature_values = [None, 0.8]
