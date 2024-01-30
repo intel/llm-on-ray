@@ -15,6 +15,9 @@ on:
       https_proxy:
         type: string
         default: '10.24.221.149:911'
+      no_proxy:
+        type: string
+        default: 'localhost,127.0.0.1'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -29,7 +32,7 @@ jobs:
   build:
 
     name: utils-test
-    
+
     runs-on: ubuntu-latest
         
     defaults:

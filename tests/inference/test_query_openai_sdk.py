@@ -2,15 +2,14 @@ import subprocess
 import pytest
 
 
-# @pytest.fixture
 def script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
     config_path = "../inference/models/" + model_name + ".yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
-    result = subprocess.run(cmd_serve, capture_output=True, text=True)
+    result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
-    assert "Error" not in result.stderr
+    assert "Error" not in result_serve.stderr
 
     cmd_openai = [
         "python",
