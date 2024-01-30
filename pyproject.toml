@@ -64,6 +64,7 @@ deepspeed = [
 ]
 
 bigdl-cpu = [
+    "transformers==4.34.1",
     "bigdl-llm[all]"
 ]
 

@@ -1,0 +1,24 @@
+port: 8000
+name: codellama-13b-instruct-bigdl
+route_prefix: /codellama-13b-instruct-bigdl
+cpus_per_worker: 54
+gpus_per_worker: 0
+deepspeed: false
+workers_per_group: 1
+device: CPU
+ipex:
+  enabled: false
+  precision: bf16
+model_description:
+  model_id_or_path: codellama/CodeLlama-13b-Instruct-hf
+  bigdl: true
+  tokenizer_name_or_path: codellama/CodeLlama-13b-Instruct-hf
+  chat_processor: ChatModelLLama
+  prompt:
+    intro: ''
+    human_id: '<s>[INST] {msg} [/INST]'
+    bot_id: ''
+    stop_words: []
+  config:
+    trust_remote_code: true
+    load_in_4bit: true
