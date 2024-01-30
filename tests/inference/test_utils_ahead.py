@@ -13,17 +13,20 @@ from inference_config import InferenceConfig, DEVICE_CPU
 # Mock the InferenceConfig for testing
 # @pytest.fixture
 class MockInferenceConfig(InferenceConfig):
-    # def __init__(self, host: str, port: int, name: str, route_prefix: Union[str, None],
-    #              cpus_per_worker: int, gpus_per_worker: int, hpus_per_worker: int,
-    #              deepspeed: bool, workers_per_group: int, device: str, **kwargs):
-    #     super().__init__(host=host, port=port, name=name, route_prefix=route_prefix,
-    #                      cpus_per_worker=cpus_per_worker, gpus_per_worker=gpus_per_worker,
-    #                      hpus_per_worker=hpus_per_worker, deepspeed=deepspeed,
-    #                      workers_per_group=workers_per_group, device=device, **kwargs)
-    def __init__(self, ipex_enabled: bool, **kwargs):
+    def __init__(
+        self,
+        ipex_enabled: bool,
+        ipex_precision: str,
+        vllm_enabled: bool,
+        vllm_precision: str,
+        **kwargs,
+    ):
         # Call the constructor of the base class (InferenceConfig)
         super().__init__(**kwargs)
         self.ipex.enabled = ipex_enabled
+        self.ipex.precision = ipex_precision
+        self.vllm.enabled = vllm_enabled
+        self.vllm.precision = vllm_precision
 
 
 @pytest.fixture
@@ -108,6 +111,12 @@ def test_max_input_len():
 
 
 def test_get_torch_dtype(mock_infer_conf):
+    # mock_config.vllm.enabled = True
+    # Case 2: When hf_config is None and it's CPU only inference with vllm
+    mock_config = MockInferenceConfig(vllm_enabled=True)
+    dtype = get_torch_dtype(mock_config, hf_config=None)
+    assert dtype == torch.get_default_dtype()
+
     # Case 1: When hf_config is None and it's CPU only inference without ipex
     dtype = get_torch_dtype(mock_infer_conf, hf_config=None)
     assert dtype == torch.get_default_dtype()
