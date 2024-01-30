@@ -8,7 +8,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
-    print(result_serve)
+
     assert "Error" not in result_serve.stderr
 
     cmd_openai = [
@@ -31,7 +31,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         cmd_openai.extend(["--top_p", str(top_p)])
 
     result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
-    print(result_openai)
+
     assert "Error" not in result_openai.stderr
 
     assert isinstance(result_openai.stdout, str)
