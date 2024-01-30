@@ -136,6 +136,8 @@ jobs:
             docker exec "${TARGET}" bash -c "pip install pytest"
             docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
             docker exec "${TARGET}" bash -c "export no_proxy=localhost,127.0.0.1"
+            docker exec "${TARGET}" bash -c "export OPENAI_API_BASE=http://localhost:8000/v1"
+            docker exec "${TARGET}" bash -c "export OPENAI_API_KEY=$not_a_real_key"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
       - name: Stop Container
