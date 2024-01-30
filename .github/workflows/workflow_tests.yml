@@ -15,9 +15,6 @@ on:
       https_proxy:
         type: string
         default: '10.24.221.149:911'
-      no_proxy:
-        type: string
-        default: 'localhost,127.0.0.1'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -28,6 +25,11 @@ on:
         type: string
         default: '/mnt/DP_disk1/huggingface/cache'
 
+env:
+  OPENAI_API_BASE=http://localhost:8000/v1
+  OPENAI_API_KEY=$your_openai_api_key
+  no_proxy='localhost,127.0.0.1'
+  
 jobs:
   build:
 
