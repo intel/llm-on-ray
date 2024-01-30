@@ -17,7 +17,7 @@
 from transformers import StoppingCriteria
 import torch
 from inference.inference_config import InferenceConfig, DEVICE_CPU
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):
@@ -95,3 +95,16 @@ def get_torch_dtype(infer_conf: InferenceConfig, hf_config) -> torch.dtype:
 
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
     return (not infer_conf.ipex.enabled) and infer_conf.device == DEVICE_CPU
+
+
+def get_input_format(input: Union[List[str], List[dict]]):
+    chat_format = True
+    prompts_format = True
+    for item in input:
+        if isinstance(item, str):
+            chat_format = False
+        elif isinstance(item, dict):
+            prompts_format = False
+        else:
+            return False, False
+    return chat_format, prompts_format

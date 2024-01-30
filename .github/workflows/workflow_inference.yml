@@ -84,6 +84,8 @@ jobs:
             DF_SUFFIX=".bigdl-cpu"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             DF_SUFFIX=".vllm"
+          elif [[ ${{ matrix.model }} == "gpt-j-6b" ]]; then
+            DF_SUFFIX=".cpu_and_deepspeed.pip_non_editable"
           else
             DF_SUFFIX=".cpu_and_deepspeed"
           fi

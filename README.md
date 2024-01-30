@@ -38,10 +38,12 @@ This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, coveri
 ### Setup
 
 #### 1. Clone the repository and install dependencies.
-Software requirement: Python 3.9
+Software requirement: Git and Conda
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
+conda create -n llm-on-ray python=3.9
+conda activate llm-on-ray
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
@@ -93,7 +95,7 @@ python inference/serve.py --config_file inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
-python inference/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
 ```
 
 ## Documents
