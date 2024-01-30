@@ -94,7 +94,7 @@ jobs:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
         no_proxy: ${{ inputs.no_proxy }}
-        OPENAI_API_BASE: ${{ inputs.OPENAI_API_BASE }}
+        OPENAI_API_BASE: http://localhost:8000/v1
         OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
