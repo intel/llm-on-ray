@@ -27,6 +27,8 @@ on:
 
 jobs:
   build:
+
+    name: utils-test
     
     runs-on: ubuntu-latest
         
@@ -72,7 +74,7 @@ jobs:
           - { model: "gpt2"}
 
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     defaults:
       run:
@@ -138,6 +140,3 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           cid=$(docker ps -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-
-      - name: Test Summary
-        run: echo "to be continued"  

@@ -6,13 +6,13 @@ import pytest
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
     config_path = "../inference/models/" + model_name + ".yaml"
 
-    cmd = ["python", "../inference/serve.py", "--config_file", config_path]
+    cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result)
+    result = subprocess.run(cmd_serve, capture_output=True, text=True)
+
     assert "Error" not in result.stderr
 
-    cmd1 = [
+    cmd_http = [
         "python",
         "../examples/inference/api_server_openai/query_http_requests.py",
         "--model_name",
@@ -20,27 +20,26 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
     ]
 
     if streaming_response:
-        cmd1.append("--streaming_response")
+        cmd_http.append("--streaming_response")
 
     if max_new_tokens is not None:
-        cmd1.extend(["--max_new_tokens", str(max_new_tokens)])
+        cmd_http.extend(["--max_new_tokens", str(max_new_tokens)])
 
     if temperature is not None:
-        cmd1.extend(["--temperature", str(temperature)])
+        cmd_http.extend(["--temperature", str(temperature)])
 
     if top_p is not None:
-        cmd1.extend(["--top_p", str(top_p)])
+        cmd_http.extend(["--top_p", str(top_p)])
 
-    result1 = subprocess.run(cmd1, capture_output=True, text=True)
-    print(result1)
-    assert "Error" not in result1.stderr
+    result_http = subprocess.run(cmd_http, capture_output=True, text=True)
 
-    assert isinstance(result1.stdout, str)
+    assert "Error" not in result_http.stderr
 
-    assert len(result1.stdout) > 0
+    assert isinstance(result_http.stdout, str)
+
+    assert len(result_http.stdout) > 0
 
 
-model_names = ["llama-2-7b-chat-hf", "gpt2", "neural-chat-7b-v3-1"]
 model_names = ["gpt2"]
 streaming_responses = [False, True]
 max_new_tokens_values = [None, 128]
