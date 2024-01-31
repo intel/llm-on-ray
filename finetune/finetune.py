@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import time
 import argparse
-import traceback
 from typing import Any, Dict, Union
 
 import accelerate
@@ -40,7 +38,9 @@ DEEPSPEED_CONFIG = {
     "train_micro_batch_size_per_gpu": 1
 }
 
-def get_accelerate_environment_variable(mode: str) -> dict:
+
+def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
+    mixed_precision = config["Training"]["mixed_precision"] if config else "no"
     mode_env_vars = {
         "CPU_DDP": {
             "ACCELERATE_USE_CPU": "true",
@@ -66,6 +66,7 @@ def get_accelerate_environment_variable(mode: str) -> dict:
             "FSDP_FORWARD_PREFETCH": "false",
             "FSDP_USE_ORIG_PARAMS": "false",
             "FSDP_SYNC_MODULE_STATES": "true",
+            "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
         "GPU_DEEPSPEED": {
             "ACCELERATE_USE_CPU": "False",
@@ -239,7 +240,7 @@ def main(external_config=None):
             }
         }
 
-        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
+        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
         if config["General"]["gpt_base_model"] is True:
