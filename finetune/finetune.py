@@ -39,8 +39,8 @@ DEEPSPEED_CONFIG = {
     },
     "train_batch_size": 1,
     "train_micro_batch_size_per_gpu": 1
-
 }
+
 def get_accelerate_environment_variable(mode: str) -> dict:
     mode_env_vars = {
         "CPU_DDP": {
@@ -88,12 +88,6 @@ def train_func(config: Dict[str, Any]):
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
 
     accelerate_mode = config["Training"]["accelerate_mode"]
-    print("Training accleator mode : ", accelerate_mode)
-    print(config)
-
-    # # Convert the dictionary to YAML format
-    # yaml_content = yaml.dump(config["DeepspeedConfig"], default_flow_style=False)
-    # print("yaml_content : ", yaml_content)
 
     if accelerate_mode in ["GPU_FSDP"]:
         fsdp_plugin = FullyShardedDataParallelPlugin(
