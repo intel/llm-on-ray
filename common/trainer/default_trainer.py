@@ -172,6 +172,7 @@ class DefaultTrainer(Trainer):
                             self.lr_scheduler.step()
                         self.optimizer.zero_grad()
                     if step % logging_steps == 0:
+                        loss = loss.item()
                         ppl = math.exp(loss)
                         logger.info(
                             f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
@@ -189,7 +190,8 @@ class DefaultTrainer(Trainer):
                             }
                         )
                         self.accelerator.log(
-                            {"loss": loss, "perplexity": ppl}, step=idx * total_steps + step
+                            {"train loss": loss, "train perplexity": ppl},
+                            step=idx * total_steps + step,
                         )
                         start = time.time()
                 if max_train_step is not None:
@@ -221,6 +223,9 @@ class DefaultTrainer(Trainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
+                self.accelerator.log(
+                    {"evaluate loss": eval_loss, "evaluate perplexity": perplexity}
+                )
                 logger.info(
                     f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
                 )

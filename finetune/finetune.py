@@ -89,19 +89,24 @@ def train_func(config: Dict[str, Any]):
     else:
         fsdp_plugin = None
 
-    log_with = "all"
+    log_with = "tensorboard"  # only support tensorboard as tracker
+    output_dir = config["General"]["output_dir"]
+    tracking_dir = config["General"]["tracking_dir"]
     accelerator = accelerate.Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
         log_with=log_with,
+        project_dir=tracking_dir,
     )
+    epochs = config["Training"]["epochs"]
     tracker_config = {
-        "epochs": config["Training"]["epochs"],
+        "epochs": epochs,
         "learning_rate": config["Training"]["learning_rate"],
         "batch_size": config["Training"]["batch_size"],
     }
-    project_name = f"fine-tuning model {config['General']['base_model']} with {config['Dataset']['train_file']}"
-    accelerator.init_trackers(project_name, config=tracker_config)
+    base_model = config["General"]["base_model"]
+    dataset_file = config["Dataset"]["train_file"]
+    accelerator.init_trackers("fine-tuning", config=tracker_config)
 
     common.logger.info(
         f"accelerator generate finish, accelerator device type = {accelerator.device}"
@@ -113,7 +118,7 @@ def train_func(config: Dict[str, Any]):
 
     datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
         config={
-            "name": config["Dataset"]["train_file"],
+            "name": dataset_file,
             "validation_file": config["Dataset"]["validation_file"],
             "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
         }
@@ -121,14 +126,14 @@ def train_func(config: Dict[str, Any]):
 
     tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
         config={
-            "name": config["General"]["base_model"],
+            "name": base_model,
             "config": config["General"]["config"],
         }
     )
 
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
-            "name": config["General"]["base_model"],
+            "name": base_model,
             "dtype": convert_dtype(config["Training"]["mixed_precision"]),
             "config": config["General"]["config"],
             "enable_gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
@@ -148,10 +153,10 @@ def train_func(config: Dict[str, Any]):
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
-            "num_train_epochs": config["Training"]["epochs"],
+            "num_train_epochs": epochs,
             "max_train_step": config["Training"].get("max_train_steps", None),
             "logging_steps": config["Training"]["logging_steps"],
-            "output": config["General"]["output_dir"],
+            "output": output_dir,
             "dataprocesser": {
                 "type": "GeneralProcesser",
                 "per_device_train_batch_size": config["Training"]["batch_size"],
