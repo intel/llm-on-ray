@@ -155,7 +155,7 @@ def train_func(config: Dict[str, Any]):
         config={
             "num_train_epochs": epochs,
             "max_train_step": config["Training"].get("max_train_steps", None),
-            "logging_steps": config["Training"]["logging_steps"],
+            "logging_steps": config["Training"].get("logging_steps", 1),
             "output": output_dir,
             "dataprocesser": {
                 "type": "GeneralProcesser",
