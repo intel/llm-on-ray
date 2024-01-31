@@ -74,7 +74,7 @@ class TransformerPredictor(Predictor):
             # to channels last
             model = model.to(memory_format=torch.channels_last)
             # to ipex
-            if inferenceConfig.ipex.enabled:
+            if infer_conf.ipex.enabled:
                 import intel_extension_for_pytorch as ipex
 
                 torch._C._jit_set_texpr_fuser_enabled(False)
