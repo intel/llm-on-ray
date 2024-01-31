@@ -240,7 +240,7 @@ def main(external_config=None):
             }
         }
 
-        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode)
+        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
         if config["General"]["gpt_base_model"] is True:
