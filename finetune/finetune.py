@@ -147,6 +147,7 @@ def train_func(config: Dict[str, Any]):
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
+            "accelerate_mode": config["Training"]["accelerate_mode"],
             "num_train_epochs": config["Training"]["epochs"],
             "max_train_step": config["Training"].get("max_train_steps", None),
             "log_step": 1,

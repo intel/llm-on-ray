@@ -142,7 +142,7 @@ class DefaultTrainer(Trainer):
         # self.model = accelerator.prepare(model)
 
         accelerate_mode = self.config.get("accelerate_mode")
-        if accelerate_mode:
+        if accelerate_mode in ["GPU_DEEPSPEED"] :
             dummy_optimizer = DummyOptim(params=model.parameters(), lr=5e-5, weight_decay=0.0)
 
             def _lr_scheduler_callable(optimizer):
