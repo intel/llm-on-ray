@@ -52,7 +52,8 @@ gpu = [
     "torchvision==0.15.2a0",
     "intel-extension-for-pytorch==2.0.110+xpu",
     "oneccl_bind_pt==2.0.100+gpu",
-    "dpctl==0.14.5"
+    "dpctl==0.14.5",
+    "deepspeed==0.13.1"
 ]
 
 deepspeed = [
