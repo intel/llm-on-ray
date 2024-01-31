@@ -79,8 +79,15 @@ class DefaultTrainer(Trainer):
             f"coordinate workers finish, cluster size:{self.size} worker rank:{self.rank} worker local_rank:{self.local_rank}"
         )
 
-    def _get_lr_scheduler(self, lr_scheduler_config, optimizer, num_train_epochs, num_steps_per_epoch, accelerator):
-        self.gradient_accumulation_steps = accelerator.gradient_accumulation_steps
+    def _get_lr_scheduler(
+        self,
+        lr_scheduler_config,
+        optimizer,
+        num_train_epochs,
+        num_steps_per_epoch,
+        accelerator,
+    ):
+        # gradient_accumulation_steps = accelerator.gradient_accumulation_steps
         # num_update_steps_per_epoch = math.ceil(num_steps_per_epoch / gradient_accumulation_steps)
         enable = lr_scheduler_config.get("enable", False)
         if not enable:
@@ -129,7 +136,6 @@ class DefaultTrainer(Trainer):
 
         model.train()
 
-
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
@@ -173,11 +179,10 @@ class DefaultTrainer(Trainer):
                     outputs = self.model(**batch)
                     loss = outputs.loss
                     self.accelerator.backward(loss)
-                    if step % self.gradient_accumulation_steps == 0 or step == len(self.train_dataloader) - 1:
-                        self.optimizer.step()
-                        if self.lr_scheduler is not None:
-                            self.lr_scheduler.step()
-                        self.optimizer.zero_grad()
+                    self.optimizer.step()
+                    if self.lr_scheduler is not None:
+                        self.lr_scheduler.step()
+                    self.optimizer.zero_grad()
                     if step % log_step == 0:
                         logger.info(
                             f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{math.exp(loss):.6f}\ttime:{time.time()-start:.6f}"
