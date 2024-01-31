@@ -6,7 +6,7 @@ RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.d
 RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.13.0
 COPY pretrain/patch/hpu/0001-Init-megatron-deepspeed-with-Ray-cluster.patch .
 COPY pretrain/patch/hpu/0002-Add-the-Huggingface-tokenizer.patch .
-RUN git config --global user.email "root@example.com"
+RUN git config --global user.email "root@example.com" 
 RUN git config --global user.name "root" 
 RUN git clone https://github.com/HabanaAI/Model-References.git && \
     cd Model-References && \
