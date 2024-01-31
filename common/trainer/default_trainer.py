@@ -161,7 +161,6 @@ class DefaultTrainer(Trainer):
             total_steps = len(self.train_dataloader)
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
-                    batch = batch.to(self.accelerator.device)
                     outputs = self.model(**batch)
                     loss = outputs.loss
                     self.accelerator.backward(loss)
