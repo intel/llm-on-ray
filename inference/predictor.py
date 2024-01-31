@@ -9,9 +9,14 @@ from typing import List, AsyncGenerator, Union
 class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
         self.infer_conf = infer_conf
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            infer_conf.model_description.tokenizer_name_or_path
-        )
+        tokenizer_name = infer_conf.model_description.tokenizer_name_or_path
+        if "codellama" in tokenizer_name.lower():
+            from transformers import CodeLlamaTokenizer
+            self.tokenizer = CodeLlamaTokenizer.from_pretrained(tokenizer_name, trust_remote_code=True)
+        else:
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                infer_conf.model_description.tokenizer_name_or_path
+            )
         self.device = torch.device(infer_conf.device)
         # now deepspeed predictor don't have the model
         # so configure_tokenizer cannot be called
