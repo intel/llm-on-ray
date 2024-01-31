@@ -40,7 +40,12 @@ jobs:
     name: utils-test
 
     runs-on: ubuntu-latest
-        
+    env:
+      http_proxy: '10.24.221.149:911'
+      https_proxy: '10.24.221.149:911'
+      no_proxy: 'localhost,127.0.0.1'
+      OPENAI_API_BASE: 'http://localhost:8000/v1'
+      OPENAI_API_KEY: '$your_openai_api_key' 
     defaults:
       run:
         shell: bash
@@ -61,8 +66,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+          # Dynamic link oneCCL and Intel MPI libraries
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
           pip install -r ./tests/requirements.txt
-
+          bash -c "env"
+          
       - name: Start tests
         run: |
           bash -c "./tests/run-tests.sh"
