@@ -88,9 +88,21 @@ def train_func(config: Dict[str, Any]):
         )
     else:
         fsdp_plugin = None
+
+    log_with = "all"
     accelerator = accelerate.Accelerator(
-        gradient_accumulation_steps=gradient_accumulation_steps, fsdp_plugin=fsdp_plugin
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        fsdp_plugin=fsdp_plugin,
+        log_with=log_with,
     )
+    tracker_config = {
+        "epochs": config["Training"]["epochs"],
+        "learning_rate": config["Training"]["learning_rate"],
+        "batch_size": config["Training"]["batch_size"],
+    }
+    project_name = f"fine-tuning model {config['General']['base_model']} with {config['Dataset']['train_file']}"
+    accelerator.init_trackers(project_name, config=tracker_config)
+
     common.logger.info(
         f"accelerator generate finish, accelerator device type = {accelerator.device}"
     )

@@ -155,8 +155,6 @@ class DefaultTrainer(Trainer):
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
         gradient_accumulation_steps = self.accelerator.gradient_accumulation_steps
-        output = self.config.get("output", "./output")
-        writer = torch.utils.tensorboard.SummaryWriter(output)
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             logger.info(f"start train epoch {idx}")
             self.model.train()
@@ -190,8 +188,8 @@ class DefaultTrainer(Trainer):
                                 else total_steps,
                             }
                         )
-                        writer.add_scalars(
-                            "training", {"loss": loss, "perplexity": ppl}, idx * total_steps + step
+                        self.accelerator.log(
+                            {"loss": loss, "perplexity": ppl}, step=idx * total_steps + step
                         )
                         start = time.time()
                 if max_train_step is not None:
@@ -231,6 +229,7 @@ class DefaultTrainer(Trainer):
                 self.save(checkpoint, idx)
             self.accelerator.wait_for_everyone()
 
+        output = self.config.get("output", "./output")
         if output is not None:
             logger.info(f"start save model to {output}")
             unwrapped_model = self.accelerator.unwrap_model(self.model)
@@ -241,7 +240,7 @@ class DefaultTrainer(Trainer):
             )
             logger.info(f"finish save model to {output}")
 
-        writer.close()
+        self.accelerator.end_training()
 
         self.accelerator.wait_for_everyone()
 
