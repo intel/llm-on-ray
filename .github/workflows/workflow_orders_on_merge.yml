@@ -22,7 +22,7 @@ jobs:
 
   call-tests:
     uses: ./.github/workflows/workflow_tests.yml
-
+    
   call-inference:
     uses: ./.github/workflows/workflow_inference.yml
 
