@@ -154,7 +154,6 @@ class DefaultTrainer(Trainer):
         logging_steps = self.config.get("logging_steps", 1)
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
-        gradient_accumulation_steps = self.accelerator.gradient_accumulation_steps
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             logger.info(f"start train epoch {idx}")
             self.model.train()
@@ -166,11 +165,11 @@ class DefaultTrainer(Trainer):
                     outputs = self.model(**batch)
                     loss = outputs.loss
                     self.accelerator.backward(loss)
-                    if step % gradient_accumulation_steps == 0:
-                        self.optimizer.step()
-                        if self.lr_scheduler is not None:
-                            self.lr_scheduler.step()
-                        self.optimizer.zero_grad()
+                    self.optimizer.step()
+                    if self.lr_scheduler is not None:
+                        self.lr_scheduler.step()
+                    self.optimizer.zero_grad()
+
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
