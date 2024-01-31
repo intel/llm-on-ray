@@ -24,7 +24,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
 from finetune_config import FinetuneConfig
-import yaml
 
 DEEPSPEED_CONFIG = {
     "zero_optimization": {
@@ -88,7 +87,6 @@ def train_func(config: Dict[str, Any]):
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
 
     accelerate_mode = config["Training"]["accelerate_mode"]
-
     if accelerate_mode in ["GPU_FSDP"]:
         fsdp_plugin = FullyShardedDataParallelPlugin(
             state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
@@ -113,51 +111,38 @@ def train_func(config: Dict[str, Any]):
     if seed is not None:
         accelerate.utils.set_seed(seed)
 
-    datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(config = {
-        "name": config["Dataset"]["train_file"], 
-        "validation_file": config["Dataset"]["validation_file"],
-        "validation_split_percentage": config["Dataset"]["validation_split_percentage"]
-    })
+    datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
+        config={
+            "name": config["Dataset"]["train_file"],
+            "validation_file": config["Dataset"]["validation_file"],
+            "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
+        }
+    )
 
-    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(config = {
-        "name": config["General"]["base_model"], 
-        "config": config["General"]["config"]
-    })
+    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
+        config={
+            "name": config["General"]["base_model"],
+            "config": config["General"]["config"],
+        }
+    )
 
-    model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(config = {
-        "name": config["General"]["base_model"],
-        "config": config["General"]["config"],
-        "lora_config": config["General"]["lora_config"] if config["General"].get("lora_config") else None
-    })
+    model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
+        config={
+            "name": config["General"]["base_model"],
+            "config": config["General"]["config"],
+            "lora_config": config["General"]["lora_config"]
+            if config["General"].get("lora_config")
+            else None,
+        }
+    )
 
-    optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(model, config = {
-        "name": config["Training"]["optimizer"],
-        "config": {
-            "lr": config["Training"]["learning_rate"]
+    optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(
+        model,
+        config={
+            "name": config["Training"]["optimizer"],
+            "config": {"lr": config["Training"]["learning_rate"]},
         },
-    })
-    print("optimizer type :" + optimizer.__class__.__name__)
-
-    trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(config = {
-        "accelerate_mode": config["Training"]["accelerate_mode"],
-        "num_train_epochs": config["Training"]["epochs"],
-        "max_train_step": config["Training"].get("max_train_steps", None),
-        "log_step": 1,
-        "output": config["General"]["output_dir"],
-        "dataprocesser": {
-            "type": "GeneralProcesser",
-            "per_device_train_batch_size": config["Training"]["batch_size"],
-            "per_device_eval_batch_size": config["Training"]["batch_size"],
-            "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
-            "shuffle": True
-        },
-        "lr_scheduler": {
-            "enable": True,
-            "max_train_steps": None,
-            "lr_scheduler_type": config["Training"]["lr_scheduler"],
-            "num_warmup_steps": 0,
-        },
-    })
+    )
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
@@ -223,27 +208,11 @@ def get_finetune_config():
     return finetune_config.dict()
 
 
-def get_finetune_config():
-    parser = argparse.ArgumentParser(description="Finetune a transformers model on a causal language modeling task")
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        required=True,
-        default=None,
-        help="The name of the dataset to use (via the datasets library).",
-    )
-    args = parser.parse_args()
-    config_file = args.config_file
-
-    with open(config_file) as f:
-        finetune_config = parse_yaml_raw_as(FinetuneConfig, f)
-    return finetune_config.dict()
-
-
-def main(external_config = None):
-    config = get_finetune_config()
-    if external_config is not None:
-        config.merge(external_config)
+def main(external_config=None):
+    if not external_config:
+        config = get_finetune_config()
+    else:
+        config = external_config
 
     config["cwd"] = os.getcwd()
     num_training_workers = config["Training"].get("num_training_workers")

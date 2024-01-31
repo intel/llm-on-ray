@@ -13,8 +13,15 @@ on:
       - 'inference/**'
       - 'rlhf/**'
       - 'tools/**'
+      - 'pyproject.toml'
+      - 'tests/**'
 
 jobs:
+  call-lint:
+    uses: ./.github/workflows/workflow_lint.yml
+
+  call-tests:
+    uses: ./.github/workflows/workflow_tests.yml
 
   call-inference:
     uses: ./.github/workflows/workflow_inference.yml

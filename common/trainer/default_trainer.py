@@ -15,7 +15,6 @@ from .. import dataprocesser
 from .trainer import Trainer
 
 from ..logging import logger
-from deepspeed.ops.adam import FusedAdam
 
 
 class DefaultTrainer(Trainer):
