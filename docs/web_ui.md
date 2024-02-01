@@ -6,7 +6,7 @@ LLM-on-Ray introduces a Web UI, allowing users to easily finetune and deploy LLM
 Please follow [setup.md](setup.md) to setup the base environment first.
 
 ## Setup UI Environment
-After activating the environment installed in previous step, please run the following script to install environment for ui.
+After activating the environment installed from the previous step, please run the following script to install environment for Web UI.
 ```bash
 $ dev/scripts/install-ui.sh
 ```
@@ -15,10 +15,8 @@ $ dev/scripts/install-ui.sh
 
 ```bash
 python -u ui/start_ui.py --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
-# Get urls from the log
-# Running on local URL:  http://0.0.0.0:8080
-# Running on public URL: https://180cd5f7c31a1cfd3c.gradio.live
 ```
+You will get URL from the command line output (E.g. http://0.0.0.0:8080 for local network and https://180cd5f7c31a1cfd3c.gradio.live for public network) and use the web browser to open it.
 
 ## Finetune LLMs
 On the `Finetune` tab, you can configure the base model, finetuning parameters, the dataset path and the new model name. Click `Start To Finetune` to start finetuning.
