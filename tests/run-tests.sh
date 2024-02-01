@@ -2,6 +2,6 @@
 cd $(dirname $0)
 
 # Run pytest with the test file
-pytest -vs ./inference
+pytest -vs --capture=tee-sys  ./inference
 
 echo "Pytest finished running tests."

@@ -37,12 +37,10 @@ on:
 jobs:
   build:
 
-    name: utils-test
+    name: bare-test
 
     runs-on: ubuntu-latest
     env:
-      # http_proxy: '10.24.221.149:911'
-      # https_proxy: '10.24.221.149:911'
       no_proxy: 'localhost,127.0.0.1'
       OPENAI_API_BASE: 'http://localhost:8000/v1'
       OPENAI_API_KEY: '$your_openai_api_key' 
@@ -80,19 +78,7 @@ jobs:
 
   build_docker:
 
-    name: query-test
-    strategy:
-      matrix:
-        model: [ Llama-2-7b-chat-hf,gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1 ]
-        isPR:
-          - ${{inputs.ci_type == 'pr'}}
-
-        exclude:
-          - { isPR: true }
-
-        include:
-          - { model: "gpt2"}
-
+    name: docker-test
 
     runs-on: self-hosted
 
@@ -101,9 +87,6 @@ jobs:
         shell: bash
     container:
       image: ${{ inputs.runner_container_image }}
-      env:
-        http_proxy: ${{ inputs.http_proxy }}
-        https_proxy: ${{ inputs.https_proxy }}
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     
@@ -115,21 +98,14 @@ jobs:
         id: "target"
         run: |
           target="inference"
-          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            target="${target}_bigdl_cpu"
-          fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
-          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            DF_SUFFIX=".bigdl-cpu"
-          else
-            DF_SUFFIX=".cpu_and_deepspeed"
-          fi
+          DF_SUFFIX=".cpu_and_deepspeed"
           TARGET=${{steps.target.outputs.target}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+          docker build ./ --build-arg CACHEBUST=1 -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           docker image prune -f
 
       - name: Start Docker Container
@@ -140,7 +116,7 @@ jobs:
           # check and remove exited container
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
-          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+          docker run -tid -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
       
       - name: Start Ray Cluster
         run: |
@@ -150,8 +126,7 @@ jobs:
       - name: Run query Test
         run: |
             TARGET=${{steps.target.outputs.target}}
-            docker exec "${TARGET}" bash -c "pip install pytest"
-            docker exec "${TARGET}" bash -c "pip install openai==0.28.0"
+            docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
             docker exec "${TARGET}" bash -c "env"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
