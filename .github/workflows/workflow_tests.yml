@@ -116,7 +116,7 @@ jobs:
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker ps -a
-          docker run -tid -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
       
       - name: Start Ray Cluster
         run: |
