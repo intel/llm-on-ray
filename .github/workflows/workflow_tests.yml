@@ -85,11 +85,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    container:
-      image: ${{ inputs.runner_container_image }}
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
