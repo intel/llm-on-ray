@@ -5,6 +5,7 @@ import asyncio
 import json
 import random
 import time
+from tqdm import tqdm
 from typing import AsyncGenerator, Dict, List, Tuple, Union
 
 import aiohttp
@@ -74,7 +75,12 @@ async def get_request(
 
 
 async def send_request(
-    api_url: str, prompt: str, prompt_len: int, output_len: int, config: dict
+    api_url: str,
+    prompt: str,
+    prompt_len: int,
+    output_len: int,
+    config: dict,
+    progress_bar: tqdm = None,
 ) -> None:
     request_start_time = time.perf_counter()
 
@@ -84,7 +90,7 @@ async def send_request(
     if "max_new_tokens" in config:
         output_len = config["max_new_tokens"]
     else:
-        config["max_new_tokens"] = output_len
+        config["max_tokens"] = output_len
 
     pload = {
         "text": prompt,
@@ -102,6 +108,8 @@ async def send_request(
             output = b"".join(chunks).decode("utf-8")
             print(f"\n=== Request =====\n{pload}\n================\n")
             print(f"=== Response ===\n{output}\n================\n")
+            if progress_bar:
+                progress_bar.update()
             break
 
     request_end_time = time.perf_counter()
@@ -110,12 +118,19 @@ async def send_request(
 
 
 async def benchmark(
-    api_url: str, input_requests: List[Tuple[str, int, int]], request_rate: float, config: dict
+    api_url: str,
+    input_requests: List[Tuple[str, int, int]],
+    request_rate: float,
+    config: dict,
+    progress: bool,
 ) -> None:
     tasks: List[asyncio.Task] = []
+    progress_bar = tqdm(total=len(input_requests)) if progress else None
     async for request in get_request(input_requests, request_rate):
         prompt, prompt_len, output_len = request
-        task = asyncio.create_task(send_request(api_url, prompt, prompt_len, output_len, config))
+        task = asyncio.create_task(
+            send_request(api_url, prompt, prompt_len, output_len, config, progress_bar)
+        )
         tasks.append(task)
     await asyncio.gather(*tasks)
 
@@ -148,7 +163,7 @@ def main(args: argparse.Namespace):
         config["top_k"] = float(args.top_k)
 
     benchmark_start_time = time.perf_counter()
-    asyncio.run(benchmark(api_url, input_requests, args.request_rate, config))
+    asyncio.run(benchmark(api_url, input_requests, args.request_rate, config, args.progress))
     benchmark_end_time = time.perf_counter()
     benchmark_time = benchmark_end_time - benchmark_start_time
     print(f"Total time: {benchmark_time:.2f} s")
@@ -232,6 +247,9 @@ if __name__ == "__main__":
         default=None,
         help="The number of highest probability vocabulary tokens to keep \
             for top-k-filtering.",
+    )
+    parser.add_argument(
+        "--progress", action="store_true", help="Whether to display a progress bar."
     )
 
     args = parser.parse_args()
