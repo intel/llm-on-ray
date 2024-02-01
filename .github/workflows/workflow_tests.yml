@@ -119,7 +119,7 @@ jobs:
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "ls ./dev"
+          docker exec "${TARGET}" bash -c "ls"
           docker exec "${TARGET}" bash -c "ls ./dev/scripts"
           docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
 
