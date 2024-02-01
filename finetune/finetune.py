@@ -245,16 +245,21 @@ def main(external_config=None):
                 "FI_PROVIDER": "tcp",
             }
         }
-        num_cpus = (
-            resources_per_worker["CPU"] * num_training_workers + 1
-        )  # additional 1 for head worker
         accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
+        import intel_extension_for_pytorch as ipex
+
+        if "xpu" in ipex.__version__:
+            num_cpus = (
+                resources_per_worker["CPU"] * num_training_workers + 1
+            )  # additional 1 for head worker
+            ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
+        else:
+            ray.init(runtime_env=runtime_env)
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
 
