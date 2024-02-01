@@ -32,8 +32,9 @@ class Predictor:
 
     def tokenize_inputs(self, text):
         input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
-        input_ids = input_tokens.input_ids.to(device=self.device)
+        input_ids = input_tokens.input_ids
         self.input_length = input_ids.size()[1]
+        input_ids = input_ids.to(device=self.device)
         return input_ids
 
     def configure_tokenizer(self, model_name):
@@ -76,7 +77,9 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
-    def generate(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
+    def generate(
+        self, prompts: Union[str, List[str]], return_shape: bool = False, **config
+    ) -> Union[str, List[str]]:
         pass
 
     async def generate_async(
