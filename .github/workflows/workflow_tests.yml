@@ -80,7 +80,7 @@ jobs:
 
     name: docker-test
 
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     defaults:
       run:
