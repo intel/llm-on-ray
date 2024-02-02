@@ -109,7 +109,8 @@ def train_func(config: Dict[str, Any]):
         
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
         fsdp_plugin = None
-        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=DEEPSPEED_CONFIG)
+        hf_ds_config = config["Training"]["deepspeed_config_file"]
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
 
     else:
         fsdp_plugin = None
