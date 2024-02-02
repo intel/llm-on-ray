@@ -58,7 +58,7 @@ class Training(BaseModel):
     mixed_precision: str = "no"
     gradient_accumulation_steps: int
     logging_steps: int = 10
-    deepspeed_config: str
+    deepspeed_config_file: str
 
     @validator("device")
     def check_device(cls, v: str):
