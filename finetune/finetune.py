@@ -15,7 +15,7 @@ from ray.air import RunConfig, FailureConfig
 
 from pydantic_yaml import parse_yaml_raw_as
 
-from accelerate import FullyShardedDataParallelPlugin
+from accelerate import FullyShardedDataParallelPlugin, DeepSpeedPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullOptimStateDictConfig,
     FullStateDictConfig,
@@ -57,6 +57,13 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "FSDP_SYNC_MODULE_STATES": "true",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
+        "GPU_DEEPSPEED": {
+            "ACCELERATE_USE_CPU": "false",
+            "ACCELERATE_USE_XPU": "true",
+            "ACCELERATE_USE_IPEX": "true",
+            "ACCELERATE_USE_DEEPSPEED": "true",
+            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        }
     }
     if mode not in mode_env_vars:
         raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
@@ -86,8 +93,16 @@ def train_func(config: Dict[str, Any]):
                 offload_to_cpu=False, rank0_only=False
             ),
         )
+        deepspeed_plugin = None
+
+    elif accelerate_mode in ["GPU_DEEPSPEED"]:
+        fsdp_plugin = None
+        hf_ds_config = config["Training"]["deepspeed_config_file"]
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
+
     else:
         fsdp_plugin = None
+        deepspeed_plugin = None
 
     log_with = "tensorboard"  # only support tensorboard as tracker
     output_dir = config["General"]["output_dir"]
@@ -95,6 +110,7 @@ def train_func(config: Dict[str, Any]):
     accelerator = accelerate.Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
+        deepspeed_plugin=deepspeed_plugin,
         log_with=log_with,
         project_dir=tracking_dir,
     )
@@ -153,6 +169,7 @@ def train_func(config: Dict[str, Any]):
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
+            "accelerate_mode": config["Training"]["accelerate_mode"],
             "num_train_epochs": epochs,
             "max_train_step": config["Training"].get("max_train_steps", None),
             "logging_steps": config["Training"].get("logging_steps", 1),
@@ -169,6 +186,8 @@ def train_func(config: Dict[str, Any]):
                 "max_train_steps": None,
                 "lr_scheduler_type": config["Training"]["lr_scheduler"],
                 "num_warmup_steps": 0,
+                "learning_rate": config["Training"]["learning_rate"],
+                "weight_decay": config["Training"]["weight_decay"]
             },
             "checkpoint": {
                 "root_path": config["General"]["checkpoint_dir"],
