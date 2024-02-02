@@ -8,7 +8,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         bash_command = f'export OPENAI_API_BASE="{api_base}"'
         subprocess.run(bash_command, shell=True)
 
-    config_path = "../inference/models/" + model_name + ".yaml"
+    config_path = "../.github/workflows/config/" + model_name + ".yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 

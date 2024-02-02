@@ -3,7 +3,7 @@ import pytest
 
 
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
-    config_path = "../inference/models/" + model_name + ".yaml"
+    config_path = "../.github/workflows/config/" + model_name + ".yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 

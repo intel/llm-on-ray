@@ -6,15 +6,6 @@ on:
       ci_type:
         type: string
         default: 'pr'
-      runner_container_image:
-        type: string
-        default: '10.1.2.13:5000/llmray-build'
-      http_proxy:
-        type: string
-        default: '10.24.221.149:911'
-      https_proxy:
-        type: string
-        default: '10.24.221.149:911'
       no_proxy:
         type: string
         default: 'localhost,127.0.0.1'
@@ -24,15 +15,9 @@ on:
       OPENAI_API_KEY:
         type: string
         default: '$your_openai_api_key'  
-      runner_config_path:
-        type: string
-        default: '/home/ci/llm-ray-actions-runner'
       code_checkout_path:
         type: string
         default: '/home/runner/work/llm-on-ray/llm-on-ray'
-      model_cache_path:
-        type: string
-        default: '/mnt/DP_disk1/huggingface/cache'
 
 jobs:
   build:
@@ -70,13 +55,13 @@ jobs:
           # Dynamic link oneCCL and Intel MPI libraries
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
           pip install -r ./tests/requirements.txt
-          bash -c "env"
+
       - name: Start Ray Cluster
         run: |
           bash -c "ray start --head"
+
       - name: Start tests
         run: |
-          bash -c "python inference/serve.py --config_file inference/models/gpt2.yaml --cpus_per_worker 2"
           bash -c "./tests/run-tests.sh"
 
   build_docker:
@@ -102,7 +87,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          DF_SUFFIX=".cpu_and_deepspeed"
+          DF_SUFFIX=".cpu_and_deepspeed_test"
           TARGET=${{steps.target.outputs.target}}
           docker build ./ --build-arg CACHEBUST=1 -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           docker image prune -f
@@ -121,16 +106,12 @@ jobs:
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "ls /root"
-          docker exec "${TARGET}" bash -c "ls /root/llm-on-ray"
-          docker exec "${TARGET}" bash -c "ls /root/llm-on-ray/inference"
           docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
 
       - name: Run query Test
         run: |
             TARGET=${{steps.target.outputs.target}}
             docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
-            docker exec "${TARGET}" bash -c "env"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
       - name: Stop Container
