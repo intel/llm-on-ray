@@ -52,7 +52,7 @@ class RMTrainer(DefaultTrainer):
 
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
-        logging_steps = self.config.get("logging_steps", 1)
+        log_step = self.config.get("log_step", 1)
         if not os.path.exists(self.config.get("log_path", ".")):
             os.makedirs(self.config.get("log_path", "."), exist_ok=True)
         writer = SummaryWriter(self.config.get("log_path", "."))
@@ -69,7 +69,7 @@ class RMTrainer(DefaultTrainer):
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
-                    if step % logging_steps == 0:
+                    if step % log_step == 0:
                         logger.info(
                             f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{len(self.train_dataloader)}]\tloss:{loss}\tppl:{math.exp(loss)}\ttime:{time.time()-start}"
                         )

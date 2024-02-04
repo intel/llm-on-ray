@@ -26,11 +26,9 @@ class General(BaseModel):
     gpt_base_model: bool
     output_dir: str
     checkpoint_dir: str
-    tracking_dir: str
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
-    enable_gradient_checkpointing: bool = False
 
 
 class Dataset(BaseModel):
@@ -56,8 +54,6 @@ class Training(BaseModel):
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
     mixed_precision: str = "no"
-    gradient_accumulation_steps: int
-    logging_steps: int = 10
 
     @validator("device")
     def check_device(cls, v: str):
@@ -71,11 +67,6 @@ class Training(BaseModel):
         modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
-        return v
-
-    @validator("logging_steps")
-    def check_logging_steps(cls, v: int):
-        assert v > 0
         return v
 
     # @model_validator(mode='after')
