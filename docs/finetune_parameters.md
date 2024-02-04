@@ -10,11 +10,9 @@ The following are the parameters supported in the finetuning workflow.
 |gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model|
 |checkpoint_dir|/tmp/llm-ray/checkpoint|The directory to store checkpoint|
-|tracking_dir|/tmp/llm-ray/tracking|The path to a directory for storing logs of locally-compatible loggers|
 |config|trust_remote_code: False<br> use_auth_token: None|Will be passed to the transformers `from_pretrained()` method|
 |lora_config|task_type: CAUSAL_LM<br>r: 8<br>lora_alpha: 32<br>lora_dropout: 0.1|Will be passed to the LoraConfig `__init__()` method, then it'll be used as config to build Peft model object.|
 |deltatuner_config|"algo": "lora"<br>"denas": True<br>"best_model_structure": "/path/to/best_structure_of_deltatuner_model"|Will be passed to the DeltaTunerArguments `__init__()` method, then it'll be used as config to build [Deltatuner model](https://github.com/intel/e2eAIOK/tree/main/e2eAIOK/deltatuner) object.|
-|enable_gradient_checkpointing|False|enable gradient checkpointing to save GPU memory, but will cost more compute runtime|
 
 
 ## Dataset Parameters
@@ -42,4 +40,3 @@ The following are the parameters supported in the finetuning workflow.
 |max_train_steps|None|Total number of training steps to perform. If provided, overrides epochs.|
 |gradient_accumulation_steps|1|Number of updates steps to accumulate before performing a backward/update pass.|
 |seed|None|A seed for reproducible training.|
-|logging_steps|10|logging per steps|
