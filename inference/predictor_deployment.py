@@ -167,19 +167,15 @@ class PredictorDeployment:
 
         if not streaming_response:
             if self.use_vllm:
-                output = (
-                    await self.predictor.generate_async(prompts, return_shape=True, **config)
-                )[0]
-                generate_length = output[1]
+                generate_result = (await self.predictor.generate_async(prompts, **config))[0]
+                generate_length = generate_result.generate_length
             else:
-                output, generate_length = self.predictor.generate(
-                    prompts, return_shape=True, **config
-                )
-            input_length = self.predictor.input_length
+                generate_result = self.predictor.generate(prompts, **config)
+            input_length = generate_result.input_length
             if not self.use_vllm:
-                generate_length -= input_length
+                generate_length = generate_result.generate_length - input_length
             model_response = ModelResponse(
-                generated_text=output[0],
+                generated_text=generate_result.text[0],
                 num_input_tokens=input_length,
                 num_input_tokens_batch=input_length,
                 num_generated_tokens=generate_length,

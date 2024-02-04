@@ -1,7 +1,7 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-from inference.inference_config import InferenceConfig
+from inference.inference_config import InferenceConfig, GenerateResult
 from inference.utils import StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
 
@@ -35,7 +35,7 @@ class Predictor:
         input_ids = input_tokens.input_ids
         self.input_length = input_ids.size()[1]
         input_ids = input_ids.to(device=self.device)
-        return input_ids
+        return input_ids, self.input_length
 
     def configure_tokenizer(self, model_name):
         model = self.model
@@ -77,9 +77,7 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
-    def generate(
-        self, prompts: Union[str, List[str]], return_shape: bool = False, **config
-    ) -> Union[str, List[str]]:
+    def generate(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
         pass
 
     async def generate_async(

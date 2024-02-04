@@ -16,6 +16,7 @@ from predictor import Predictor
 from utils import get_torch_dtype
 from inference.inference_config import (
     InferenceConfig,
+    GenerateResult,
     DEVICE_CPU,
     DEVICE_XPU,
     PRECISION_BF16,
@@ -232,22 +233,22 @@ class DeepSpeedPredictor(Predictor):
         )
 
     def streaming_generate(self, prompt, streamer, **config):
-        input_ids = self.tokenize_inputs(prompt)
+        input_ids, _ = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
         self.prediction_workers[0].streaming_generate.remote(inputs_ref, streamer, **config)
         for worker in self.prediction_workers[1:]:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, prompt, return_shape=False, **config):
-        input_ids = self.tokenize_inputs(prompt)
+    def generate(self, prompt, **config):
+        input_ids, input_length = self.tokenize_inputs(prompt)
         inputs_ref = ray.put(input_ids)
         gen_tokens = ray.get(
             [worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers]
         )[0]
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        if return_shape:
-            return decode_result, gen_tokens.size()[1]
-        return decode_result
+        return GenerateResult(
+            text=decode_result, input_length=input_length, generate_length=gen_tokens.size()[1]
+        )
 
     def get_streamer(self):
         from transformers import TextStreamer

@@ -58,6 +58,13 @@ class BigDLModelConfig(BaseModel):
         return v
 
 
+# for non-streaming response
+class GenerateResult(BaseModel):
+    text: Union[str, List[str]] = ""
+    input_length: Union[int, None] = None
+    generate_length: Union[int, None] = None
+
+
 class ModelDescription(BaseModel):
     model_id_or_path: Union[str, None] = None
     bigdl: bool = False

@@ -1,7 +1,7 @@
 import asyncio
-from typing import AsyncGenerator, List, Union, Tuple
+from typing import AsyncGenerator, List, Union
 from predictor import Predictor
-from inference.inference_config import InferenceConfig, PRECISION_BF16
+from inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
@@ -35,18 +35,17 @@ class VllmPredictor(Predictor):
         [config.pop(k) for k in unused]
         return config
 
-    async def _get_generator_output(self, results_generator, return_shape=False):
+    async def _get_generator_output(self, results_generator):
         async for request_output in results_generator:
             if request_output.finished:
-                self.input_length = len(request_output.prompt_token_ids)
-                if return_shape:
-                    return request_output.outputs[0].text, len(request_output.outputs[0].token_ids)
-                return request_output.outputs[0].text
+                return GenerateResult(
+                    text=request_output.outputs[0].text,
+                    input_length=len(request_output.prompt_token_ids),
+                    generate_length=len(request_output.outputs[0].token_ids),
+                )
         return None
 
-    async def generate_async(
-        self, prompts: Union[str, List[str]], return_shape: bool = False, **config
-    ) -> Union[str, List[str], Tuple[str, int]]:
+    async def generate_async(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
         config = self.check_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
@@ -54,23 +53,22 @@ class VllmPredictor(Predictor):
             results_generator = self.engine.generate(prompts, sampling_params, request_id)
             async for request_output in results_generator:
                 if request_output.finished:
-                    self.input_length = len(request_output.prompt_token_ids)
-                    if return_shape:
-                        return request_output.outputs[0].text, len(
-                            request_output.output[0].token_ids
-                        )
-                    return request_output.outputs[0].text
+                    return GenerateResult(
+                        text=request_output.outputs[0].text,
+                        input_length=len(request_output.prompt_token_ids),
+                        generate_length=len(request_output.outputs[0].token_ids),
+                    )
         else:
             results_generators = [
                 self.engine.generate(prompt, sampling_params, random_uuid()) for prompt in prompts
             ]
             results = [
-                self._get_generator_output(results_generator, return_shape)
+                self._get_generator_output(results_generator)
                 for results_generator in results_generators
             ]
             return await asyncio.gather(*results)
 
-        return ""
+        return GenerateResult()
 
     async def streaming_generate_async(self, prompt, **config):
         config = self.check_config(**config)
