@@ -62,7 +62,7 @@ class Training(BaseModel):
 
     @validator("device")
     def check_device(cls, v: str):
-        devices = ["CPU", "GPU", "XPU"]
+        devices = ["CPU", "GPU"]
         if v not in devices:
             raise ValueError(f"device must be one of {devices}")
         return v
