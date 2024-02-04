@@ -4,6 +4,7 @@ import os
 import argparse
 from typing import Any, Dict, Union
 
+import torch
 import accelerate
 from accelerate.utils import is_xpu_available
 
@@ -62,6 +63,14 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
     return mode_env_vars[mode]
 
 
+def convert_dtype(dtype: str) -> torch.dtype:
+    supported_dtypes = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}
+    if dtype in supported_dtypes:
+        return supported_dtypes[dtype]
+    else:
+        raise ValueError(f"only supported torch.dtype list [{supported_dtypes.keys()}]")
+
+
 def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
     if cwd:
@@ -79,9 +88,26 @@ def train_func(config: Dict[str, Any]):
         )
     else:
         fsdp_plugin = None
+
+    log_with = "tensorboard"  # only support tensorboard as tracker
+    output_dir = config["General"]["output_dir"]
+    tracking_dir = config["General"]["tracking_dir"]
     accelerator = accelerate.Accelerator(
-        gradient_accumulation_steps=gradient_accumulation_steps, fsdp_plugin=fsdp_plugin
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        fsdp_plugin=fsdp_plugin,
+        log_with=log_with,
+        project_dir=tracking_dir,
     )
+    epochs = config["Training"]["epochs"]
+    tracker_config = {
+        "epochs": epochs,
+        "learning_rate": config["Training"]["learning_rate"],
+        "batch_size": config["Training"]["batch_size"],
+    }
+    base_model = config["General"]["base_model"]
+    dataset_file = config["Dataset"]["train_file"]
+    accelerator.init_trackers("fine-tuning", config=tracker_config)
+
     common.logger.info(
         f"accelerator generate finish, accelerator device type = {accelerator.device}"
     )
@@ -92,7 +118,7 @@ def train_func(config: Dict[str, Any]):
 
     datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
         config={
-            "name": config["Dataset"]["train_file"],
+            "name": dataset_file,
             "validation_file": config["Dataset"]["validation_file"],
             "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
         }
@@ -100,15 +126,17 @@ def train_func(config: Dict[str, Any]):
 
     tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
         config={
-            "name": config["General"]["base_model"],
+            "name": base_model,
             "config": config["General"]["config"],
         }
     )
 
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
-            "name": config["General"]["base_model"],
+            "name": base_model,
+            "dtype": convert_dtype(config["Training"]["mixed_precision"]),
             "config": config["General"]["config"],
+            "enable_gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
             else None,
@@ -125,10 +153,10 @@ def train_func(config: Dict[str, Any]):
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
-            "num_train_epochs": config["Training"]["epochs"],
+            "num_train_epochs": epochs,
             "max_train_step": config["Training"].get("max_train_steps", None),
-            "log_step": 1,
-            "output": config["General"]["output_dir"],
+            "logging_steps": config["Training"].get("logging_steps", 1),
+            "output": output_dir,
             "dataprocesser": {
                 "type": "GeneralProcesser",
                 "per_device_train_batch_size": config["Training"]["batch_size"],
@@ -217,14 +245,21 @@ def main(external_config=None):
                 "FI_PROVIDER": "tcp",
             }
         }
-
         accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        ray.init(runtime_env=runtime_env)
+        import intel_extension_for_pytorch as ipex
+
+        if "xpu" in ipex.__version__:
+            num_cpus = (
+                resources_per_worker["CPU"] * num_training_workers + 1
+            )  # additional 1 for head worker
+            ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
+        else:
+            ray.init(runtime_env=runtime_env)
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
 
