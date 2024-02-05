@@ -77,7 +77,7 @@ class Training(BaseModel):
     def check_mixed_precision(cls, v: str):
         supported_precisions = ["no", "fp16", "bf16", "fp32"]
         if v not in supported_precisions:
-            raise ValueError(f"mixed_precision must be on of {supported_precisions}")
+            raise ValueError(f"mixed_precision must be one of {supported_precisions}")
         return v
 
     @validator("logging_steps")

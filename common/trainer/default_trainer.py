@@ -158,7 +158,7 @@ class DefaultTrainer(Trainer):
             self.model.train()
             start = time.time()
             total_steps = len(self.train_dataloader)
-            logger.info(f"start train epoch {idx}, total_steps {total_steps}")
+            logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     outputs = self.model(**batch)
