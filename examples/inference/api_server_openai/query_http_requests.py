@@ -84,4 +84,4 @@ for chunk in response.iter_lines(decode_unicode=True):
     except Exception as e:
         print("chunk content: ", chunk)
         raise e
-print("")
+print()
