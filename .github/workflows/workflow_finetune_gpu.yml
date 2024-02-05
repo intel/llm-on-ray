@@ -8,17 +8,17 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://proxy-chain.intel.com:911'
+        default: 'http://10.24.221.149:911'
       https_proxy:
         type: string
-        default: 'http://proxy-chain.intel.com:911'
+        default: 'http://10.24.221.149:911'
 
 jobs:
   finetune:
     name: finetune on gpu test
     strategy:
       matrix:
-        model: [ pythia-6.9b, gpt-j-6b ]
+        model: [ meta-llama/Llama-2-7b-chat-hf, mistralai/Mistral-7B-v0.1 ]
     runs-on: self-hosted
 
     defaults:

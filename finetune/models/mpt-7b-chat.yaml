@@ -3,6 +3,7 @@ General:
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
+  tracking_dir: /tmp/llm-ray/tracking
   config:
     trust_remote_code: true
     use_auth_token: null
@@ -11,6 +12,7 @@ General:
     r: 8
     lora_alpha: 32
     lora_dropout: 0.1
+  enable_gradient_checkpointing: false
 Dataset:
   train_file: examples/data/sample_finetune_data_small.jsonl
   validation_file: null
@@ -28,3 +30,5 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
+  gradient_accumulation_steps: 1
+  logging_steps: 10
