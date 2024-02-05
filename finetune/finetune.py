@@ -64,7 +64,7 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "ACCELERATE_USE_IPEX": "true",
             "ACCELERATE_USE_DEEPSPEED": "true",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
-        }
+        },
     }
     if mode not in mode_env_vars:
         raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
@@ -189,7 +189,7 @@ def train_func(config: Dict[str, Any]):
                 "lr_scheduler_type": config["Training"]["lr_scheduler"],
                 "num_warmup_steps": 0,
                 "learning_rate": config["Training"]["learning_rate"],
-                "weight_decay": config["Training"]["weight_decay"]
+                "weight_decay": config["Training"]["weight_decay"],
             },
             "checkpoint": {
                 "root_path": config["General"]["checkpoint_dir"],

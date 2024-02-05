@@ -140,13 +140,29 @@ class DefaultTrainer(Trainer):
         if accelerate_mode in ["GPU_DEEPSPEED"]:
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
-            dummy_optimizer = DummyOptim(params=model.parameters(), lr=lr, weight_decay=weight_decay)
+            dummy_optimizer = DummyOptim(
+                params=model.parameters(), lr=lr, weight_decay=weight_decay
+            )
             dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=lr_scheduler)
-            self.model, self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
-                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler)
+            (
+                self.model,
+                self.optimizer,
+                self.train_dataloader,
+                self.eval_dataloader,
+                self.lr_scheduler,
+            ) = accelerator.prepare(
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
+            )
         else:
-            self.model, self.optimizer, self.train_dataloader, self.eval_dataloader, self.lr_scheduler = accelerator.prepare(
-                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler)
+            (
+                self.model,
+                self.optimizer,
+                self.train_dataloader,
+                self.eval_dataloader,
+                self.lr_scheduler,
+            ) = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
+            )
 
         checkpoint = self.config.get("checkpoint")
         if checkpoint is not None:
