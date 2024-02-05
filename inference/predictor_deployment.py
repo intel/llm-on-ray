@@ -28,7 +28,7 @@ from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
 from inference.api_openai_backend.openai_protocol import ModelResponse
-from utils import get_input_format
+from utils import get_prompt_format, PromptFormat
 
 
 @serve.deployment
@@ -95,22 +95,22 @@ class PredictorDeployment:
         config = json_request["config"] if "config" in json_request else {}
         streaming_response = json_request["stream"]
         if isinstance(text, list):
-            is_chat, is_prompts = get_input_format(text)
-            if is_chat:
+            prompt_format = get_prompt_format(text)
+            if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
                     prompt = self.process_tool.get_prompt(text)
                     prompts.append(prompt)
                 else:
                     prompts.extend(text)
-            elif is_prompts:
+            elif prompt_format == PromptFormat.PROMPTS_FORMAT:
                 if streaming_response:
                     return JSONResponse(
                         status_code=400,
-                        content="multiple prompts are not supported when streaming response is enabled.",
+                        content="Multiple prompts are not supported when streaming response is enabled.",
                     )
                 prompts.extend(text)
             else:
-                return JSONResponse(status_code=400, content="invalid prompt format.")
+                return JSONResponse(status_code=400, content="Invalid prompt format.")
         else:
             prompts.append(text)
 
@@ -149,14 +149,14 @@ class PredictorDeployment:
     async def openai_call(self, prompt, config, streaming_response=True):
         prompts = []
         if isinstance(prompt, list):
-            is_chat, is_prompts = get_input_format(prompt)
-            if is_chat:
+            prompt_format = get_prompt_format(prompt)
+            if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
                     prompt = self.process_tool.get_prompt(prompt)
                     prompts.append(prompt)
                 else:
                     prompts.extend(prompt)
-            elif is_prompts:
+            elif prompt_format == PromptFormat.PROMPTS_FORMAT:
                 yield HTTPException(
                     400, "Mulitple prompts are not supported when using openai compatible api."
                 )
@@ -169,15 +169,13 @@ class PredictorDeployment:
             if self.use_vllm:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
                 generate_length = generate_result.generate_length
-                input_length = generate_result.input_length
             else:
                 generate_result = self.predictor.generate(prompts, **config)
-                input_length = generate_result.input_length
-                generate_length = generate_result.generate_length - input_length
+                generate_length = generate_result.generate_length - generate_result.input_length
             model_response = ModelResponse(
                 generated_text=generate_result.text[0],
-                num_input_tokens=input_length,
-                num_input_tokens_batch=input_length,
+                num_input_tokens=generate_result.input_length,
+                num_input_tokens_batch=generate_result.input_length,
                 num_generated_tokens=generate_length,
                 preprocessing_time=0,
             )

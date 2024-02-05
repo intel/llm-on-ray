@@ -19,6 +19,7 @@ import torch
 from inference.inference_config import InferenceConfig, DEVICE_CPU
 from inference.api_openai_backend.openai_protocol import ChatMessage
 from typing import Dict, Any, List, Union
+from enum import Enum
 
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):
@@ -63,6 +64,12 @@ class StoppingCriteriaSub(StoppingCriteria):
         return False
 
 
+class PromptFormat(Enum):
+    CHAT_FORMAT = 1
+    PROMPTS_FORMAT = 2
+    INVALID_FORMAT = 3
+
+
 # used in inference with Gaudi
 def max_input_len(input_text_length):
     if input_text_length <= 128:
@@ -98,7 +105,7 @@ def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
     return (not infer_conf.ipex.enabled) and infer_conf.device == DEVICE_CPU
 
 
-def get_input_format(input: Union[List[str], List[dict], List[ChatMessage]]):
+def get_prompt_format(input: Union[List[str], List[dict], List[ChatMessage]]):
     chat_format = True
     prompts_format = True
     for item in input:
@@ -107,5 +114,11 @@ def get_input_format(input: Union[List[str], List[dict], List[ChatMessage]]):
         elif isinstance(item, dict) or isinstance(item, ChatMessage):
             prompts_format = False
         else:
-            return False, False
-    return chat_format, prompts_format
+            chat_format = False
+            prompts_format = False
+            break
+    if chat_format:
+        return PromptFormat.CHAT_FORMAT
+    if prompts_format:
+        return PromptFormat.PROMPTS_FORMAT
+    return PromptFormat.INVALID_FORMAT
