@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-import openai
 import argparse
+from openai import OpenAI
 
 parser = argparse.ArgumentParser(
     description="Example script to query with openai sdk", add_help=True
@@ -41,12 +41,13 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# List all models.
-models = openai.Model.list()
-print(models)
+client = OpenAI()
+# # List all models.
+models = client.models.list()
+print(models.data, "\n")
 
 # Note: not all arguments are currently supported and will be ignored by the backend.
-chat_completion = openai.ChatCompletion.create(
+chat_completion = client.chat.completions.create(
     model=args.model_name,
     messages=[
         {"role": "assistant", "content": "You are a helpful assistant."},
