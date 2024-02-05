@@ -3,6 +3,7 @@ General:
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
+  logger_name: tensorboard  # only support tensorboard as tracker
   tracking_dir: /tmp/llm-ray/tracking
   config:
     trust_remote_code: false

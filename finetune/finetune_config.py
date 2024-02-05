@@ -26,6 +26,7 @@ class General(BaseModel):
     gpt_base_model: bool
     output_dir: str
     checkpoint_dir: str
+    logger_name: str
     tracking_dir: str
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None

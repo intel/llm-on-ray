@@ -89,9 +89,9 @@ def train_func(config: Dict[str, Any]):
     else:
         fsdp_plugin = None
 
-    log_with = "tensorboard"  # only support tensorboard as tracker
     output_dir = config["General"]["output_dir"]
-    tracking_dir = config["General"]["tracking_dir"]
+    log_with = config["General"].get("logger_name", None)
+    tracking_dir = config["General"].get("tracking_dir", None)
     accelerator = accelerate.Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
@@ -134,9 +134,11 @@ def train_func(config: Dict[str, Any]):
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
             "name": base_model,
-            "dtype": convert_dtype(config["Training"]["mixed_precision"]),
+            "dtype": convert_dtype(config["Training"].get("mixed_precision", "bf16")),
             "config": config["General"]["config"],
-            "enable_gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
+            "enable_gradient_checkpointing": config["General"].get(
+                "enable_gradient_checkpointing", 0
+            ),
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
             else None,

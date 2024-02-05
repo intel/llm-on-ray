@@ -2,7 +2,7 @@ import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
 from inference.inference_config import InferenceConfig
-from utils import StoppingCriteriaSub
+from inference.utils import StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
 
 

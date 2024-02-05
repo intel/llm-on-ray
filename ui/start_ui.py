@@ -834,10 +834,14 @@ class ChatBotUI:
                 gr.HTML("<h3 style='text-align: left; margin-bottom: 1rem'>" + step1 + "</h3>")
                 with gr.Group():
                     base_models_list = list(self._base_models.keys())
+                    # set the default value of finetuning to gpt2
+                    model_index = (
+                        base_models_list.index("gpt2") if "gpt2" in base_models_list else 0
+                    )
                     base_models_list.append("specify other models")
                     base_model_dropdown = gr.Dropdown(
                         base_models_list,
-                        value=base_models_list[2],
+                        value=base_models_list[model_index],
                         label="Select Base Model",
                         allow_custom_value=True,
                     )
@@ -934,9 +938,15 @@ class ChatBotUI:
                 with gr.Row():
                     with gr.Column(scale=0.8):
                         all_models_list = list(self._all_models.keys())
+                        # set the default value of deployment to llama-2-7b-chat-hf
+                        model_index = (
+                            all_models_list.index("llama-2-7b-chat-hf")
+                            if "llama-2-7b-chat-hf" in all_models_list
+                            else 0
+                        )
                         all_model_dropdown = gr.Dropdown(
                             all_models_list,
-                            value=all_models_list[3],
+                            value=all_models_list[model_index],
                             label="Select Model to Deploy",
                             elem_classes="disable_status",
                             allow_custom_value=True,
