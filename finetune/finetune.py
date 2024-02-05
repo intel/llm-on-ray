@@ -6,6 +6,7 @@ from typing import Any, Dict, Union
 
 import torch
 import accelerate
+import yaml
 from accelerate.utils import is_xpu_available
 
 import ray
@@ -97,7 +98,8 @@ def train_func(config: Dict[str, Any]):
 
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
         fsdp_plugin = None
-        hf_ds_config = config["Training"]["deepspeed_config_file"]
+        with open(config["Training"]["deepspeed_config_file"]) as f:
+            hf_ds_config = yaml.full_load(f)
         deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
 
     else:
