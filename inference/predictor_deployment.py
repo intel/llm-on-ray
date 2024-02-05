@@ -158,10 +158,10 @@ class PredictorDeployment:
                     prompts.extend(prompt)
             elif is_prompts:
                 yield HTTPException(
-                    400, "mulitple prompts is not supported now when using openai compatible api."
+                    400, "Mulitple prompts are not supported when using openai compatible api."
                 )
             else:
-                yield HTTPException(400, "invalid prompt format.")
+                yield HTTPException(400, "Invalid prompt format.")
         else:
             prompts.append(prompt)
 
@@ -169,10 +169,10 @@ class PredictorDeployment:
             if self.use_vllm:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
                 generate_length = generate_result.generate_length
+                input_length = generate_result.input_length
             else:
                 generate_result = self.predictor.generate(prompts, **config)
-            input_length = generate_result.input_length
-            if not self.use_vllm:
+                input_length = generate_result.input_length
                 generate_length = generate_result.generate_length - input_length
             model_response = ModelResponse(
                 generated_text=generate_result.text[0],
