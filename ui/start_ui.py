@@ -622,7 +622,6 @@ class ChatBotUI:
 
         print("Deploying model:" + model_name)
 
-        stop_words = ["### Instruction", "# Instruction", "### Question", "##", " ="]
         finetuned = self._all_models[model_name]
         model_desc = finetuned.model_description
         prompt = model_desc.prompt
@@ -642,7 +641,6 @@ class ChatBotUI:
         finetuned_deploy = finetuned.copy(deep=True)
         finetuned_deploy.device = "cpu"
         finetuned_deploy.ipex.precision = "bf16"
-        finetuned_deploy.model_description.prompt.stop_words = stop_words
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
