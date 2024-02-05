@@ -2,7 +2,7 @@
 
 import os
 import argparse
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional
 
 import torch
 import accelerate
@@ -63,12 +63,14 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
     return mode_env_vars[mode]
 
 
-def convert_dtype(dtype: str) -> torch.dtype:
-    supported_dtypes = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}
-    if dtype in supported_dtypes:
-        return supported_dtypes[dtype]
-    else:
-        raise ValueError(f"only supported torch.dtype list [{supported_dtypes.keys()}]")
+def convert_dtype(dtype: str) -> Optional[torch.dtype]:
+    supported_dtypes = {
+        "fp16": torch.float16,
+        "bf16": torch.bfloat16,
+        "fp32": torch.float32,
+        "no": None,
+    }
+    return supported_dtypes[dtype]
 
 
 def train_func(config: Dict[str, Any]):

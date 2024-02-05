@@ -30,5 +30,5 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
-  gradient_accumulation_steps: 2
+  gradient_accumulation_steps: 1
   logging_steps: 10
