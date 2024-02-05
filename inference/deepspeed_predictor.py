@@ -246,8 +246,12 @@ class DeepSpeedPredictor(Predictor):
             [worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers]
         )[0]
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        if isinstance(prompt, list) and len(prompt) > 1:
+            return decode_result
         return GenerateResult(
-            text=decode_result, input_length=input_length, generate_length=gen_tokens.size()[1]
+            text=decode_result,
+            input_length=input_length,
+            generate_length=gen_tokens.size()[1] - input_length,
         )
 
     def get_streamer(self):

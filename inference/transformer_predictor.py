@@ -118,8 +118,12 @@ class TransformerPredictor(Predictor):
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        if isinstance(prompt, list) and len(prompt) > 1:
+            return decode_result
         return GenerateResult(
-            text=decode_result, input_length=input_length, generate_length=gen_tokens.size()[1]
+            text=decode_result,
+            input_length=input_length,
+            generate_length=gen_tokens.size()[1] - input_length,
         )
 
     def get_streamer(self):

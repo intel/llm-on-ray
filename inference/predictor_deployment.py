@@ -168,22 +168,22 @@ class PredictorDeployment:
         if not streaming_response:
             if self.use_vllm:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
-                generate_length = generate_result.generate_length
+                generate_text = generate_result.text
             else:
                 generate_result = self.predictor.generate(prompts, **config)
-                generate_length = generate_result.generate_length - generate_result.input_length
+                generate_text = generate_result.text[0]
             model_response = ModelResponse(
-                generated_text=generate_result.text[0],
+                generated_text=generate_text,
                 num_input_tokens=generate_result.input_length,
                 num_input_tokens_batch=generate_result.input_length,
-                num_generated_tokens=generate_length,
+                num_generated_tokens=generate_result.generate_length,
                 preprocessing_time=0,
             )
             yield model_response
         else:
             if self.use_deepspeed:
                 self.predictor.streaming_generate(prompts, self.streamer, **config)
-                response_handle = self.consume_streamer()
+                response_handle = self.consume_streamer_async(self.streamer)
             elif self.use_vllm:
                 # TODO: streaming only support single prompt
                 # It's a wordaround for current situation, need another PR to address this
