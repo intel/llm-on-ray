@@ -85,8 +85,6 @@ class DefaultTrainer(Trainer):
         num_steps_per_epoch,
         accelerator,
     ):
-        # gradient_accumulation_steps = accelerator.gradient_accumulation_steps
-        # num_update_steps_per_epoch = math.ceil(num_steps_per_epoch / gradient_accumulation_steps)
         enable = lr_scheduler_config.get("enable", False)
         if not enable:
             return None
@@ -153,7 +151,7 @@ class DefaultTrainer(Trainer):
     def train(self):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
-        log_step = self.config.get("log_step", 1)
+        logging_steps = self.config.get("logging_steps", 1)
         max_train_step = self.config.get("max_train_step")
         max_eval_step = self.config.get("max_eval_step")
         for idx in range(self.starting_epoch, num_train_epochs, 1):
@@ -170,12 +168,17 @@ class DefaultTrainer(Trainer):
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
                     self.optimizer.zero_grad()
-                    if step % log_step == 0:
+
+                    if step % logging_steps == 0:
+                        loss = loss.item()
+                        ppl = math.exp(loss)
                         logger.info(
-                            f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{math.exp(loss):.6f}\ttime:{time.time()-start:.6f}"
+                            f"train epoch:[{idx}/{num_train_epochs}]\tstep:[{step}/{total_steps}]\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
                         report(
                             {
+                                "loss": loss,
+                                "ppl": ppl,
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
@@ -183,6 +186,10 @@ class DefaultTrainer(Trainer):
                                 if max_train_step
                                 else total_steps,
                             }
+                        )
+                        self.accelerator.log(
+                            {"train loss": loss, "train perplexity": ppl},
+                            step=idx * total_steps + step,
                         )
                         start = time.time()
                 if max_train_step is not None:
@@ -214,6 +221,9 @@ class DefaultTrainer(Trainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
+                self.accelerator.log(
+                    {"evaluate loss": eval_loss, "evaluate perplexity": perplexity}
+                )
                 logger.info(
                     f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
                 )
@@ -232,6 +242,9 @@ class DefaultTrainer(Trainer):
                 save_function=self.accelerator.save,
             )
             logger.info(f"finish save model to {output}")
+
+        self.accelerator.end_training()
+
         self.accelerator.wait_for_everyone()
 
     def _get_local_path(self, root_path, model_name):
