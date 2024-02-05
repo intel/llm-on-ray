@@ -29,6 +29,8 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 #### 1. Prerequisites
 For Intel GPU, ensure the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html) is installed.
 
+For Gaudi, ensure the [SynapseAI SW stack and container runtime](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html?highlight=installer#run-using-containers) is installed.
+
 #### 2. Clone the repository and install dependencies.
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
