@@ -1,9 +1,9 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig
 from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig, PRECISION_BF16
+from inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from inference.utils import get_torch_dtype
 from predictor import Predictor
-from utils import get_torch_dtype
 
 
 class TransformerPredictor(Predictor):
@@ -103,7 +103,7 @@ class TransformerPredictor(Predictor):
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
-        input_ids = self.tokenize_inputs(prompt)
+        input_ids, _ = self.tokenize_inputs(prompt)
         self.model.generate(
             input_ids,
             stopping_criteria=self.stopping_criteria,
@@ -113,11 +113,18 @@ class TransformerPredictor(Predictor):
 
     def generate(self, prompt, **config):
         self._process_config(config)
-        input_ids = self.tokenize_inputs(prompt)
+        input_ids, input_length = self.tokenize_inputs(prompt)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        if isinstance(prompt, list) and len(prompt) > 1:
+            return decode_result
+        return GenerateResult(
+            text=decode_result,
+            input_length=input_length,
+            generate_length=gen_tokens.size()[1] - input_length,
+        )
 
     def get_streamer(self):
         return TextIteratorStreamer(
