@@ -126,9 +126,11 @@ def train_func(config: Dict[str, Any]):
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
             "name": base_model,
-            "dtype": convert_dtype(config["Training"]["mixed_precision"]),
+            "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
             "config": config["General"]["config"],
-            "enable_gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
+            "enable_gradient_checkpointing": config["General"].get(
+                "enable_gradient_checkpointing", "no"
+            ),
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
             else None,
