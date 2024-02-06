@@ -26,8 +26,9 @@ from transformers import TextIteratorStreamer
 from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse, JSONResponse
+from fastapi import HTTPException
 from inference.api_openai_backend.openai_protocol import ModelResponse
-from utils import get_input_format
+from utils import get_prompt_format, PromptFormat
 
 
 @serve.deployment
@@ -94,22 +95,22 @@ class PredictorDeployment:
         config = json_request["config"] if "config" in json_request else {}
         streaming_response = json_request["stream"]
         if isinstance(text, list):
-            is_chat, is_prompts = get_input_format(text)
-            if is_chat:
+            prompt_format = get_prompt_format(text)
+            if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
                     prompt = self.process_tool.get_prompt(text)
                     prompts.append(prompt)
                 else:
                     prompts.extend(text)
-            elif is_prompts:
+            elif prompt_format == PromptFormat.PROMPTS_FORMAT:
                 if streaming_response:
                     return JSONResponse(
                         status_code=400,
-                        content="multiple prompts are not supported when streaming response is enabled.",
+                        content="Multiple prompts are not supported when streaming response is enabled.",
                     )
                 prompts.extend(text)
             else:
-                return JSONResponse(status_code=400, content="invalid prompt format.")
+                return JSONResponse(status_code=400, content="Invalid prompt format.")
         else:
             prompts.append(text)
 
@@ -145,33 +146,69 @@ class PredictorDeployment:
                 self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
-    async def stream_response(self, prompt, config):
+    async def openai_call(self, prompt, config, streaming_response=True):
         prompts = []
         if isinstance(prompt, list):
-            if self.process_tool is not None:
-                prompt = self.process_tool.get_prompt(prompt)
-                prompts.append(prompt)
+            prompt_format = get_prompt_format(prompt)
+            if prompt_format == PromptFormat.CHAT_FORMAT:
+                if self.process_tool is not None:
+                    prompt = self.process_tool.get_prompt(prompt)
+                    prompts.append(prompt)
+                else:
+                    prompts.extend(prompt)
+            elif prompt_format == PromptFormat.PROMPTS_FORMAT:
+                yield HTTPException(
+                    400, "Mulitple prompts are not supported when using openai compatible api."
+                )
             else:
-                prompts.extend(prompt)
+                yield HTTPException(400, "Invalid prompt format.")
         else:
             prompts.append(prompt)
 
-        if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
-            response_handle = self.consume_streamer()
-        else:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
-            )
-            response_handle = self.consume_streamer_async(streamer)
-        async for output in response_handle:
+        if not streaming_response:
+            if self.use_vllm:
+                generate_result = (await self.predictor.generate_async(prompts, **config))[0]
+                generate_text = generate_result.text
+            else:
+                generate_result = self.predictor.generate(prompts, **config)
+                generate_text = generate_result.text[0]
             model_response = ModelResponse(
-                generated_text=output,
-                num_input_tokens=len(prompts[0]),
-                num_input_tokens_batch=len(prompts[0]),
-                num_generated_tokens=1,
+                generated_text=generate_text,
+                num_input_tokens=generate_result.input_length,
+                num_input_tokens_batch=generate_result.input_length,
+                num_generated_tokens=generate_result.generate_length,
                 preprocessing_time=0,
             )
             yield model_response
+        else:
+            if self.use_deepspeed:
+                self.predictor.streaming_generate(prompts, self.streamer, **config)
+                response_handle = self.consume_streamer_async(self.streamer)
+            elif self.use_vllm:
+                # TODO: streaming only support single prompt
+                # It's a wordaround for current situation, need another PR to address this
+                if isinstance(prompts, list):
+                    prompt = prompts[0]
+                results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+                response_handle = self.predictor.stream_results(results_generator)
+            else:
+                streamer = self.predictor.get_streamer()
+                self.loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        self.predictor.streaming_generate, prompts, streamer, **config
+                    ),
+                )
+                response_handle = self.consume_streamer_async(streamer)
+            input_length = self.predictor.input_length
+            async for output in response_handle:
+                if not input_length:
+                    input_length = self.predictor.input_length
+                model_response = ModelResponse(
+                    generated_text=output,
+                    num_input_tokens=input_length,
+                    num_input_tokens_batch=input_length,
+                    num_generated_tokens=1,
+                    preprocessing_time=0,
+                )
+                yield model_response
