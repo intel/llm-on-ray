@@ -28,7 +28,7 @@ from typing import Union, Dict, Any
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
 from inference.api_openai_backend.openai_protocol import ModelResponse
-from utils import get_prompt_format, PromptFormat
+from inference.utils import get_prompt_format, PromptFormat
 
 
 @serve.deployment
