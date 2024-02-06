@@ -8,8 +8,12 @@ import deltatuner
 class HuggingFaceModelForCausalLM(Model):
     def __call__(self, config):
         name = config.get("name")
+        model_dtype = config.get("dtype")
         model_config = config.get("config", {})
-        model = transformers.AutoModelForCausalLM.from_pretrained(name, **model_config)
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            name, torch_dtype=model_dtype, **model_config
+        )
+
         lora_config = config.get("lora_config", None)
         if lora_config:
             peft_config = LoraConfig(**lora_config)
@@ -17,4 +21,11 @@ class HuggingFaceModelForCausalLM(Model):
             deltatuner_config = config.get("deltatuner_config", None)
             if deltatuner_config:
                 model = deltatuner.optimize(model, **deltatuner_config)
+
+        enable_gradient_checkpointing = config.get("enable_gradient_checkpointing")
+        if enable_gradient_checkpointing:
+            model.enable_input_require_grads()
+            model.gradient_checkpointing_enable()
+            model.config.use_cache = False
+
         return model
