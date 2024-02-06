@@ -178,8 +178,8 @@ class DefaultTrainer(Trainer):
                         )
                         report(
                             {
-                                "loss": loss,
-                                "ppl": ppl,
+                                "train_loss": loss,
+                                "train_ppl": ppl,
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
@@ -187,10 +187,6 @@ class DefaultTrainer(Trainer):
                                 if max_train_step
                                 else total_steps,
                             }
-                        )
-                        self.accelerator.log(
-                            {"train loss": loss, "train perplexity": ppl},
-                            step=idx * total_steps + step,
                         )
                         start = time.time()
                 if max_train_step is not None:
@@ -222,9 +218,6 @@ class DefaultTrainer(Trainer):
                 except OverflowError:
                     eval_loss = float("inf")
                     perplexity = float("inf")
-                self.accelerator.log(
-                    {"evaluate loss": eval_loss, "evaluate perplexity": perplexity}
-                )
                 logger.info(
                     f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
                 )
@@ -243,8 +236,6 @@ class DefaultTrainer(Trainer):
                 save_function=self.accelerator.save,
             )
             logger.info(f"finish save model to {output}")
-
-        self.accelerator.end_training()
 
         self.accelerator.wait_for_everyone()
 

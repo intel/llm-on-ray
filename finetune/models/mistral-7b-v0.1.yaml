@@ -3,7 +3,6 @@ General:
   gpt_base_model: false
   output_dir: ./output
   checkpoint_dir: ./checkpoint
-  tracking_dir: ./tracking
   config:
     trust_remote_code: false
     use_auth_token: null

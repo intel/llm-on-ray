@@ -91,24 +91,14 @@ def train_func(config: Dict[str, Any]):
     else:
         fsdp_plugin = None
 
-    log_with = "tensorboard"  # only support tensorboard as tracker
     output_dir = config["General"]["output_dir"]
-    tracking_dir = config["General"]["tracking_dir"]
     accelerator = accelerate.Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
-        log_with=log_with,
-        project_dir=tracking_dir,
     )
     epochs = config["Training"]["epochs"]
-    tracker_config = {
-        "epochs": epochs,
-        "learning_rate": config["Training"]["learning_rate"],
-        "batch_size": config["Training"]["batch_size"],
-    }
     base_model = config["General"]["base_model"]
     dataset_file = config["Dataset"]["train_file"]
-    accelerator.init_trackers("fine-tuning", config=tracker_config)
 
     common.logger.info(
         f"accelerator generate finish, accelerator device type = {accelerator.device}"
