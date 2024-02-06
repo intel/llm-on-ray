@@ -109,7 +109,7 @@ def get_prompt_format(input: Union[List[str], List[dict], List[ChatMessage]]):
     chat_format = True
     prompts_format = True
     for item in input:
-        if isinstance(item, str):
+        if isinstance(item, str) or isinstance(item, list):
             chat_format = False
         elif isinstance(item, dict) or isinstance(item, ChatMessage):
             prompts_format = False
@@ -122,3 +122,14 @@ def get_prompt_format(input: Union[List[str], List[dict], List[ChatMessage]]):
     if prompts_format:
         return PromptFormat.PROMPTS_FORMAT
     return PromptFormat.INVALID_FORMAT
+
+def module_import(module_name, clazz, **clazzs_kwargs):
+    import importlib
+    module = importlib.import_module(module_name)
+    return getattr(module, clazz)
+
+def module_import_and_init(module_name, clazz, **clazzs_kwargs):
+    import importlib
+    module = importlib.import_module(module_name)
+    class_ = getattr(module, clazz)
+    return class_(**clazzs_kwargs)

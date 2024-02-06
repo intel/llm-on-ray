@@ -22,7 +22,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from inference.inference_config import all_models, ModelDescription, Prompt
 from inference.inference_config import InferenceConfig as FinetunedConfig
-from inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
+from inference.chat_process import ChatModelGptJ, ChatModelLLama, ChatModelwithImage  # noqa: F401
 from inference.predictor_deployment import PredictorDeployment
 from ray import serve
 import ray
@@ -50,7 +50,7 @@ from pyrecdp.primitives.operations import (
 from pyrecdp.primitives.document.reader import _default_file_readers
 from pyrecdp.core.cache_utils import RECDP_MODELS_CACHE
 
-if not os.environ['RECDP_CACHE_HOME']:
+if ('RECDP_CACHE_HOME' not in os.environ) or (not os.environ['RECDP_CACHE_HOME']):
     os.environ['RECDP_CACHE_HOME'] = os.getcwd()
 
 class CustomStopper(Stopper):
@@ -67,18 +67,10 @@ class CustomStopper(Stopper):
     def stop(self, flag):
         self.should_stop = flag
 
-def convert_openai_output(chunk):
-    try:
-        ret = chunk["choices"][0]["delta"]["content"]
-    except KeyError as e:
-        ret = ""
-    return ret
-
 def is_simple_api(request_url, model_name):
     if model_name is None:
         return True
     return model_name in request_url
-
 
 @ray.remote
 class Progress_Actor:
@@ -162,9 +154,26 @@ class ChatBotUI:
         self._init_ui()
 
     @staticmethod
-    def history_to_messages(history):
+    def history_to_messages(history, image = None):
         messages = []
         for human_text, bot_text in history:
+            if image is not None:
+                import base64
+                from io import BytesIO
+
+                buffered = BytesIO()
+                image.save(buffered, format="JPEG")
+                base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+                human_text = [
+                    {'type': "text", "text": human_text},
+                    {
+                        'type': "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        },
+                    },
+                ]
             messages.append(
                 {
                     "role": "user",
@@ -183,7 +192,8 @@ class ChatBotUI:
     @staticmethod
     def add_knowledge(prompt, enhance_knowledge):
         description = "Known knowledge: {knowledge}. Then please answer the question based on follow conversation: {conversation}."
-        prompt[-1]['content'] = description.format(knowledge=enhance_knowledge, conversation=prompt[-1]['content'])
+        if not isinstance(prompt[-1]['content'], list):
+            prompt[-1]['content'] = description.format(knowledge=enhance_knowledge, conversation=prompt[-1]['content'])
         return prompt    
 
     def clear(self):
@@ -220,7 +230,7 @@ class ChatBotUI:
         print(sample_input)
         outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
-        for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
+        for output in outputs.iter_lines(chunk_size=None, decode_unicode=True):
             # remove context
             if simple_api:
                 if prompt in output:
@@ -228,10 +238,13 @@ class ChatBotUI:
             else:
                 import json
                 import re
-                try:
-                    output = re.sub("^data: ", "", output)
-                    output = json.loads(output)
-                except ValueError:
+                chunk_data = re.sub("^data: ", "", output)
+                if chunk_data != "[DONE]":
+                    # Get message choices from data
+                    choices = json.loads(chunk_data)["choices"]
+                    # Pick content from first choice
+                    output = choices[0]["delta"].get("content", "")
+                else:
                     output = ""
             yield output
 
@@ -245,12 +258,13 @@ class ChatBotUI:
         Top_p,
         Top_k,
         model_name=None,
+        image=None,
         enhance_knowledge=None,
     ):
+        print("request submitted!")
         request_url = model_endpoint if model_endpoint != "" else deploy_model_endpoint
         simple_api = is_simple_api(request_url, model_name)
-        prompt = self.history_to_messages(history)
-        
+        prompt = self.history_to_messages(history, image)
         if enhance_knowledge:
             prompt = self.add_knowledge(prompt, enhance_knowledge)
         
@@ -262,7 +276,9 @@ class ChatBotUI:
             "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
+            "model": model_name
         }
+        print("request wip to submit")
         outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
 
         if history[-1][1] is None:
@@ -270,11 +286,11 @@ class ChatBotUI:
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                if isinstance(output, str):
+                if simple_api:
                     history[-1][1] += output
                     history[-1][1] = self.process_tool.convert_output(history[-1][1])
                 else:
-                    history[-1][1] += convert_openai_output(output)
+                    history[-1][1] += output
                 time_spend = round(time_end - time_start, 3)
                 token_num += 1
                 new_token_latency = f"""
@@ -306,18 +322,18 @@ class ChatBotUI:
             "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
+            "model": model_name
         }
         outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
-
         history[-1][1] = ""
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                if isinstance(output, str):
+                if simple_api:
                     history[-1][1] += output
                     history[-1][1] = self.process_tool.convert_output(history[-1][1])
                 else:
-                    history[-1][1] += convert_openai_output(output)
+                    history[-1][1] += output
 
                 time_spend = time_end - time_start
                 bot_queue.put([queue_id, history, time_spend])
@@ -335,7 +351,8 @@ class ChatBotUI:
         rag_selector,
         rag_path,
         returned_k,
-        model_name=None
+        model_name=None,
+        image=None,
     ):
         enhance_knowledge = None
         if os.path.isabs(rag_path):
@@ -372,6 +389,7 @@ class ChatBotUI:
             Top_p,
             Top_k,
             model_name=model_name,
+            image=image,
             enhance_knowledge=enhance_knowledge,
         )
         for output in bot_generator:
@@ -709,6 +727,8 @@ class ChatBotUI:
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
             pip_env = "transformers==4.35.0"
+        elif "fuyu-8b" in model_name:
+            pip_env = "transformers==4.37.2"
         else:
             pip_env = "transformers==4.31.0"
         deployment = PredictorDeployment.options(  # type: ignore
@@ -738,12 +758,14 @@ class ChatBotUI:
         serve.shutdown()
 
     def get_ray_cluster(self):
-        command = "conda activate " + self.conda_env_name + "; ray status"
+        command = "source ~/anaconda3/bin/activate; conda activate " + self.conda_env_name + "; ray status"
         stdin, stdout, stderr = self.ssh_connect[-1].exec_command(command)
         out = stdout.read().decode("utf-8")
-        #print(f"stderr is {stderr.read().decode('utf-8')}")
         #print(f"out is {out}")
-        out_words = [word for word in out.split("\n") if "CPU" in word][0]
+        try:
+            out_words = [word for word in out.split("\n") if "CPU" in word][0]
+        except Exception:
+            raise ValueError(f"Can't connect Ray cluster info: stderr is {stderr.read().decode('utf-8')}")
         cpu_info = out_words.split(" ")[1].split("/")
         total_core = int(float(cpu_info[1]))
         used_core = int(float(cpu_info[0]))
@@ -1093,7 +1115,6 @@ class ChatBotUI:
                         label="Top k",
                         info="The number of highest probability vocabulary tokens to keep for top-k-filtering.",
                     )
-
                 with gr.Tab("Dialogue"):
                     chatbot = gr.Chatbot(
                         elem_id="chatbot",
@@ -1103,6 +1124,8 @@ class ChatBotUI:
 
                     with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Accordion("image", open=False, visible=True):
+                                image = gr.Image(type="pil")
                             with gr.Row():
                                 endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
                                 model_endpoint = gr.Text(
@@ -1310,6 +1333,8 @@ class ChatBotUI:
 
                     with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Accordion("image", open=False, visible=True):
+                                rag_image = gr.Image(type="pil")
                             with gr.Row():
                                 endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
                                 rag_model_endpoint = gr.Text(
@@ -1463,6 +1488,7 @@ class ChatBotUI:
                     Top_p,
                     Top_k,
                     model_name,
+                    image,
                 ],
                 [chatbot, latency_status],
             )
@@ -1479,6 +1505,7 @@ class ChatBotUI:
                     Top_p,
                     Top_k,
                     model_name,
+                    image,
                 ],
                 [chatbot, latency_status],
             )
@@ -1523,6 +1550,7 @@ class ChatBotUI:
                     rag_path,
                     returned_k,
                     rag_model_name,
+                    rag_image,
                 ],
                 [chatbot_rag, latency_status_rag],
             )
@@ -1541,7 +1569,8 @@ class ChatBotUI:
                     rag_selector,
                     rag_path,
                     returned_k,
-                    rag_model_name
+                    rag_model_name,
+                    rag_image,
                 ],
                 [chatbot_rag, latency_status_rag],
             )

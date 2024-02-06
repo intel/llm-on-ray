@@ -85,6 +85,10 @@ class ModelDescription(BaseModel):
     # DO NOT TOUCH
     model_config = ConfigDict(protected_namespaces=())  # type: ignore
 
+    # specify model_loader and input_processor
+    input_processor: str = 'AutoProcessor'
+    model_loader: str = 'AutoModel'
+
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
         if v:

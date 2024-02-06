@@ -108,7 +108,7 @@ class CompletionResponse(BaseModel):
 
 class ChatMessage(BaseModel):
     role: Literal["system", "assistant", "user"]
-    content: str
+    content: Union[str, list]
 
     def __str__(self):
         return self.content

@@ -56,6 +56,7 @@ class PredictorDeployment:
 
         self.use_deepspeed = infer_conf.deepspeed
         self.use_vllm = infer_conf.vllm.enabled
+        self.is_mllm = True if chat_processor_name in ['ChatModelwithImage'] else False
 
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
@@ -66,6 +67,9 @@ class PredictorDeployment:
             from vllm_predictor import VllmPredictor
 
             self.predictor = VllmPredictor(infer_conf)
+        elif self.is_mllm:
+            from mllm_predictor import MllmPredictor
+            self.predictor = MllmPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
 
@@ -148,12 +152,18 @@ class PredictorDeployment:
 
     async def openai_call(self, prompt, config, streaming_response=True):
         prompts = []
+        images = []
         if isinstance(prompt, list):
             prompt_format = get_prompt_format(prompt)
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
-                    prompt = self.process_tool.get_prompt(prompt)
-                    prompts.append(prompt)
+                    if self.is_mllm:
+                        prompt, image = self.process_tool.get_prompt(prompt)
+                        prompts.append(prompt)
+                        images.extend(image)
+                    else:
+                        prompt = self.process_tool.get_prompt(prompt)
+                        prompts.append(prompt)
                 else:
                     prompts.extend(prompt)
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
@@ -166,19 +176,31 @@ class PredictorDeployment:
             prompts.append(prompt)
 
         if not streaming_response:
+            model_response = None
             if self.use_vllm:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
                 generate_text = generate_result.text
+            elif self.is_mllm:
+                generate_result = self.predictor.generate(images, prompts, **config)
+                generate_text = generate_result[0]
+                model_response = ModelResponse(
+                    generated_text=generate_text,
+                    num_input_tokens=self.predictor.input_length,
+                    num_input_tokens_batch=self.predictor.input_length,
+                    num_generated_tokens=len(generate_text),
+                    preprocessing_time=0,
+                )
             else:
                 generate_result = self.predictor.generate(prompts, **config)
                 generate_text = generate_result.text[0]
-            model_response = ModelResponse(
-                generated_text=generate_text,
-                num_input_tokens=generate_result.input_length,
-                num_input_tokens_batch=generate_result.input_length,
-                num_generated_tokens=generate_result.generate_length,
-                preprocessing_time=0,
-            )
+            if model_response is None:
+                model_response = ModelResponse(
+                    generated_text=generate_text,
+                    num_input_tokens=generate_result.input_length,
+                    num_input_tokens_batch=generate_result.input_length,
+                    num_generated_tokens=generate_result.generate_length,
+                    preprocessing_time=0,
+                )
             yield model_response
         else:
             if self.use_deepspeed:
@@ -191,6 +213,14 @@ class PredictorDeployment:
                     prompt = prompts[0]
                 results_generator = await self.predictor.streaming_generate_async(prompt, **config)
                 response_handle = self.predictor.stream_results(results_generator)
+            elif self.is_mllm:
+                streamer = self.predictor.get_streamer()
+                self.loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        self.predictor.streaming_generate, images, prompts, streamer, **config),
+                )
+                response_handle = self.consume_streamer_async(streamer)
             else:
                 streamer = self.predictor.get_streamer()
                 self.loop.run_in_executor(
