@@ -35,6 +35,7 @@ class DSPipeline:
             model_desc.model_id_or_path,
             torchscript=True,
             trust_remote_code=model_config.trust_remote_code,
+            use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
         # get correct torch type for loading HF model
@@ -50,7 +51,11 @@ class DSPipeline:
         if model_desc.peft_model_id_or_path:
             from peft import PeftModel
 
-            self.model = PeftModel.from_pretrained(self.model, model_desc.peft_model_id_or_path)
+            self.model = PeftModel.from_pretrained(
+                self.model,
+                model_desc.peft_model_id_or_path,
+                use_auth_token=infer_conf.model_description.config.use_auth_token,
+            )
             if model_desc.peft_type == "deltatuner":
                 from deltatuner import DeltaTunerModel
 
