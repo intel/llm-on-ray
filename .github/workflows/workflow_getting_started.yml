@@ -1,4 +1,4 @@
-name: tests
+name: getting_started
 
 on:
   workflow_call
