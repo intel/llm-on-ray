@@ -12,9 +12,9 @@ from ray.train import Checkpoint
 from ray.train.torch import TorchCheckpoint
 from pathlib import Path
 
-from common import dataprocesser
-from common.trainer import Trainer
-from common.logging import logger
+from llmonray.common import dataprocesser
+from llmonray.common.trainer import Trainer
+from llmonray.common.logging import logger
 
 
 class PreTrainer(Trainer):

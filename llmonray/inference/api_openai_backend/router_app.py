@@ -40,16 +40,17 @@ from fastapi import FastAPI, status
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response, StreamingResponse
-from logger import get_logger
-from .request_handler import OpenAIHTTPException, openai_exception_handler
-from .query_client import RouterQueryClient
-from .openai_protocol import (
+from llmonray.inference.logger import get_logger
+from llmonray.inference.api_openai_backend.request_handler import (
+    OpenAIHTTPException,
+    openai_exception_handler,
+)
+from llmonray.inference.api_openai_backend.query_client import RouterQueryClient
+from llmonray.inference.api_openai_backend.openai_protocol import (
     Prompt,
     ModelResponse,
     CompletionRequest,
     ChatCompletionRequest,
-)
-from .openai_protocol import (
     ChatCompletionResponse,
     CompletionResponse,
     DeltaChoices,

@@ -1,4 +1,4 @@
-from .tokenizer import Tokenizer
+from llmonray.common.tokenizer.tokenizer import Tokenizer
 
 
 class _EmptyTokenizer:

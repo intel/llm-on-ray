@@ -1,6 +1,6 @@
 import yaml
 import os
-from inference.inference_config import InferenceConfig
+from llmonray.inference.inference_config import InferenceConfig
 
 ic = InferenceConfig()
 

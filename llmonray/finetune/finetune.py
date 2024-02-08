@@ -21,11 +21,8 @@ from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullStateDictConfig,
 )
 
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import common
-from finetune.finetune_config import FinetuneConfig
+import llmonray.common as common
+from llmonray.finetune.finetune_config import FinetuneConfig
 
 
 def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:

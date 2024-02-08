@@ -1,9 +1,9 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-from inference.inference_config import InferenceConfig, GenerateResult
-from inference.utils import StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
+from llmonray.inference.inference_config import InferenceConfig, GenerateResult
+from llmonray.inference.utils import StoppingCriteriaSub
 
 
 class Predictor:

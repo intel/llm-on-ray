@@ -1,5 +1,5 @@
 import torch  # noqa: F401
-from .optimizer import Optimizer
+from llmonray.common.optimizer.optimizer import Optimizer
 
 
 class GroupOptimizer(Optimizer):

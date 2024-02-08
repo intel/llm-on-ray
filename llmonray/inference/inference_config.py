@@ -156,8 +156,3 @@ for model_file in os.listdir(_models_folder):
         _models[m.name] = m
 
 all_models = _models.copy()
-
-_gpt2_key = "gpt2"
-_gpt_j_6b = "gpt-j-6b"
-base_models[_gpt2_key] = _models[_gpt2_key]
-base_models[_gpt_j_6b] = _models[_gpt_j_6b]

@@ -19,16 +19,16 @@ import sys
 import asyncio
 import functools
 from ray import serve
-from starlette.requests import Request
 from queue import Empty
 import torch
 from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig
 from typing import Union, Dict, Any
+from starlette.requests import Request
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
-from inference.api_openai_backend.openai_protocol import ModelResponse
-from inference.utils import get_prompt_format, PromptFormat
+from llmonray.inference.inference_config import InferenceConfig
+from llmonray.inference.api_openai_backend.openai_protocol import ModelResponse
+from llmonray.inference.utils import get_prompt_format, PromptFormat
 
 
 @serve.deployment

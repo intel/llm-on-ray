@@ -38,8 +38,13 @@ from typing import AsyncIterator, List
 from fastapi import status, HTTPException, Request
 from starlette.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
-from logger import get_logger
-from .openai_protocol import Prompt, ModelResponse, ErrorResponse, FinishReason
+from llmonray.inference.logger import get_logger
+from llmonray.inference.api_openai_backend.openai_protocol import (
+    Prompt,
+    ModelResponse,
+    ErrorResponse,
+    FinishReason,
+)
 
 logger = get_logger(__name__)
 

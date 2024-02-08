@@ -1,7 +1,7 @@
 import torch
 import math
 import transformers
-from common.model.model import Model
+from llmonray.common.model.model import Model
 
 
 # for huggingface model weight random initialization

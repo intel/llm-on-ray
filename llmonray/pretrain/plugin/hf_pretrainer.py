@@ -3,9 +3,9 @@ import math
 import logging
 import sys
 from torch.utils.data import DataLoader, Dataset
-import common
-from common import dataprocesser
-from common.logging import logger
+import llmonray.common as common
+from llmonray.common import dataprocesser
+from llmonray.common.logging import logger
 import evaluate
 from typing import Optional
 from transformers import (
@@ -16,7 +16,7 @@ import transformers
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers import Trainer, TrainingArguments
-from common.trainer import Trainer as RayTrainer
+from llmonray.common.trainer import Trainer as RayTrainer
 
 use_habana = True
 import importlib

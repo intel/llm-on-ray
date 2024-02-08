@@ -1,7 +1,7 @@
 import torch
 import accelerate
 
-from .logging import logger
+from llmonray.common.logging import logger
 
 
 def check_config(config):

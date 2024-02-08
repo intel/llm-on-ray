@@ -1,6 +1,6 @@
 import transformers
 
-from .model import Model
+from llmonray.common.model.model import Model
 from peft import get_peft_model, LoraConfig
 import deltatuner
 

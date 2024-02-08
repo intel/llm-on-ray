@@ -4,8 +4,8 @@ from torch.utils.tensorboard import SummaryWriter
 import math
 import time
 
-from .default_trainer import DefaultTrainer
-from ..logging import logger
+from llmonray.common.trainer.default_trainer import DefaultTrainer
+from llmonray.common.logging import logger
 
 
 class RMTrainer(DefaultTrainer):

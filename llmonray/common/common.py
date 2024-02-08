@@ -2,7 +2,7 @@ import os
 import glob
 import importlib
 
-from .logging import logger
+from llmonray.common.logging import logger
 
 
 def import_all_module(basedir, prefix=None):

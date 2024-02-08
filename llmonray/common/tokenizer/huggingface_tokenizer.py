@@ -1,6 +1,6 @@
 import transformers
 
-from .tokenizer import Tokenizer
+from llmonray.common.tokenizer.tokenizer import Tokenizer
 
 
 class HuggingFaceTokenizer(Tokenizer):

@@ -18,24 +18,22 @@ import requests
 import time
 import os
 import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from inference.inference_config import all_models, ModelDescription, Prompt
-from inference.inference_config import InferenceConfig as FinetunedConfig
-from inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
-from inference.predictor_deployment import PredictorDeployment
-from ray import serve
-import ray
 import gradio as gr
 import argparse
+import paramiko
+from multiprocessing import Process, Queue
+from typing import Dict, List, Any
+import ray
+from ray import serve
 from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
 from ray.tune.logger import LoggerCallback
-from multiprocessing import Process, Queue
 from ray.util import queue
-import paramiko
-from html_format import cpu_memory_html, ray_status_html, custom_css
-from typing import Dict, List, Any
+from llmonray.inference.inference_config import all_models, ModelDescription, Prompt
+from llmonray.inference.inference_config import InferenceConfig as FinetunedConfig
+from llmonray.inference.chat_process import ChatModelGptJ, ChatModelLLama  # noqa: F401
+from llmonray.inference.predictor_deployment import PredictorDeployment
+from llmonray.ui.html_format import cpu_memory_html, ray_status_html, custom_css
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from pyrecdp.LLM import TextPipeline
@@ -1572,8 +1570,7 @@ if __name__ == "__main__":
         infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl"
     )
 
-    sys.path.append(repo_path)
-    from finetune.finetune import get_accelerate_environment_variable
+    from llmonray.finetune.finetune import get_accelerate_environment_variable
 
     finetune_config: Dict[str, Any] = {
         "General": {"config": {}},

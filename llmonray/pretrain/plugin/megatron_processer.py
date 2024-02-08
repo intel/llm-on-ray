@@ -2,7 +2,7 @@ from megatron import get_args, print_rank_0
 from megatron.core import mpu
 from megatron.data.data_samplers import build_pretraining_data_loader
 
-from common.dataprocesser import DataProcesser
+from llmonray.common.dataprocesser import DataProcesser
 
 
 class MegatronProcesser(DataProcesser):

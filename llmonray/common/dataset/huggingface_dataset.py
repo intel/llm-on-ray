@@ -1,7 +1,7 @@
 import os
 import datasets
 
-from .dataset import Dataset
+from llmonray.common.dataset.dataset import Dataset
 
 
 def local_load(name, **load_config):

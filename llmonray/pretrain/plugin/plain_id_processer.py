@@ -1,7 +1,7 @@
 import torch
 import transformers
 
-from common.dataprocesser import DataProcesser
+from llmonray.common.dataprocesser import DataProcesser
 
 
 class PlainIDProcesser(DataProcesser):

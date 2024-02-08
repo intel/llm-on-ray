@@ -9,10 +9,9 @@ import transformers
 
 from ray.train import report, Checkpoint
 
-from .. import dataprocesser
-from .trainer import Trainer
-
-from ..logging import logger
+from llmonray.common import dataprocesser
+from llmonray.common.trainer.trainer import Trainer
+from llmonray.common.logging import logger
 
 
 class DefaultTrainer(Trainer):

@@ -1,9 +1,8 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoConfig
-from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from inference.utils import get_torch_dtype
-from predictor import Predictor
+from transformers import AutoModelForCausalLM, AutoConfig, TextIteratorStreamer
+from llmonray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llmonray.inference.utils import get_torch_dtype
+from llmonray.inference.predictor import Predictor
 
 
 class TransformerPredictor(Predictor):

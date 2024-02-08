@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 
 import ray
 from ray import air, tune
@@ -8,16 +7,11 @@ from ray.rllib.algorithms.callbacks import DefaultCallbacks, make_multi_callback
 from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
 from ray.rllib.algorithms.ppo import PPOConfig
 
-from rl_algo.ppo.ppo_rlhf import PPORLHF
-from rl_algo.ppo.rlhf_ppo_module import RLHFPPOTorchRLModule
-from rl_algo.ppo.rlhf_ppo_torch_learner import RLHFPPOTorchLearner
-
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-import common
-from common.agentenv.rlhf_env import RLHFEnv
+from llmonray.rlhf.rl_algo.ppo.ppo_rlhf import PPORLHF
+from llmonray.rlhf.rl_algo.ppo.rlhf_ppo_module import RLHFPPOTorchRLModule
+from llmonray.rlhf.rl_algo.ppo.rlhf_ppo_torch_learner import RLHFPPOTorchLearner
+import llmonray.common as common
+from llmonray.common.agentenv.rlhf_env import RLHFEnv
 
 
 class ValueFunctionInitializerCallback(DefaultCallbacks):

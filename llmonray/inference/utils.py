@@ -16,10 +16,10 @@
 
 from transformers import StoppingCriteria
 import torch
-from inference.inference_config import InferenceConfig, DEVICE_CPU
-from inference.api_openai_backend.openai_protocol import ChatMessage
 from typing import Dict, Any, List, Union
 from enum import Enum
+from llmonray.inference.inference_config import InferenceConfig, DEVICE_CPU
+from llmonray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
 def get_deployment_actor_options(infer_conf: InferenceConfig):

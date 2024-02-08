@@ -4,7 +4,7 @@ from transformers.models.auto import MODEL_MAPPING
 import torch
 import torch.nn as nn
 
-from .model import Model
+from llmonray.common.model.model import Model
 
 
 class HuggingFaceRewardModel(Model):

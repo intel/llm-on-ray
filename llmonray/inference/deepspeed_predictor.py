@@ -12,9 +12,9 @@ from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
 from typing import List
 import os
-from predictor import Predictor
-from utils import get_torch_dtype
-from inference.inference_config import (
+from llmonray.inference.predictor import Predictor
+from llmonray.inference.utils import get_torch_dtype
+from llmonray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
     DEVICE_CPU,

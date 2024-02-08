@@ -5,7 +5,7 @@ import torch
 import datasets
 import transformers
 
-from .dataprocesser import DataProcesser
+from llmonray.common.dataprocesser.dataprocesser import DataProcesser
 
 INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
 INSTRUCTION_KEY = "### Instruction:"

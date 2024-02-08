@@ -10,10 +10,7 @@ from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from ray.air import RunConfig, FailureConfig
 
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-import common
+import llmonray.common as common
 
 from importlib import util
 
@@ -32,7 +29,7 @@ def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
     if cwd:
         os.chdir(cwd)
-    from common.common import import_all_module
+    from llmonray.common.common import import_all_module
 
     import_all_module(f"{os.path.dirname(os.path.realpath(__file__))}/plugin", "plugin")
     common.init(config)  # type: ignore

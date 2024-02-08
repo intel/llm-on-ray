@@ -11,7 +11,7 @@ from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.models.torch.torch_distributions import TorchCategorical
 
 
-from .util import masked_mean
+from llmonray.rlhf.rl_algo.ppo.util import masked_mean
 
 torch, nn = try_import_torch()
 

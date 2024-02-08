@@ -1,11 +1,11 @@
 import asyncio
 from typing import AsyncGenerator, List, Union
-from predictor import Predictor
-from inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
+from llmonray.inference.predictor import Predictor
+from llmonray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
 
 
 class VllmPredictor(Predictor):

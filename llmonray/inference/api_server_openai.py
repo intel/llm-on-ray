@@ -34,8 +34,8 @@
 
 import os
 from ray import serve
-from inference.api_openai_backend.query_client import RouterQueryClient
-from inference.api_openai_backend.router_app import Router, router_app
+from llmonray.inference.api_openai_backend.query_client import RouterQueryClient
+from llmonray.inference.api_openai_backend.router_app import Router, router_app
 
 
 def router_application(deployments):

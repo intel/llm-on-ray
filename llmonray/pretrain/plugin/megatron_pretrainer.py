@@ -11,9 +11,9 @@ from megatron import get_args
 from ray.train import Checkpoint
 from ray.train.torch import TorchCheckpoint
 
-from common import dataprocesser
-from .pretrainer import PreTrainer
-from common.logging import logger
+from llmonray.common import dataprocesser
+from llmonray.pretrain.plugin.pretrainer import PreTrainer
+from llmonray.common.logging import logger
 
 
 class MegatronPreTrainer(PreTrainer):

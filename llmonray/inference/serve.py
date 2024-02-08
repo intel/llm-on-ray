@@ -16,12 +16,12 @@
 
 import ray
 import sys
-from utils import get_deployment_actor_options
 from pydantic_yaml import parse_yaml_raw_as
-from api_server_simple import serve_run
-from api_server_openai import openai_serve_run
-from predictor_deployment import PredictorDeployment
-from inference.inference_config import ModelDescription, InferenceConfig, all_models
+from llmonray.inference.utils import get_deployment_actor_options
+from llmonray.inference.api_server_simple import serve_run
+from llmonray.inference.api_server_openai import openai_serve_run
+from llmonray.inference.predictor_deployment import PredictorDeployment
+from llmonray.inference.inference_config import ModelDescription, InferenceConfig, all_models
 
 
 def get_deployed_models(args):

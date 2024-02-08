@@ -10,11 +10,7 @@ from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from ray.air import RunConfig, FailureConfig
 
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-import common
+import llmonray.common as common
 
 
 def train_func(config: Dict[str, Any]):

@@ -1,6 +1,6 @@
 from megatron.initialize import initialize_megatron
-from common.initializer import Initializer
-from common.logging import logger
+from llmonray.common.initializer import Initializer
+from llmonray.common.logging import logger
 
 
 class MegatronInitializer(Initializer):

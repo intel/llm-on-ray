@@ -34,8 +34,8 @@
 
 from typing import Dict
 from fastapi import HTTPException
-from .openai_protocol import ModelCard, Prompt
-from .request_handler import handle_request
+from llmonray.inference.api_openai_backend.openai_protocol import ModelCard, Prompt
+from llmonray.inference.api_openai_backend.request_handler import handle_request
 
 
 class RouterQueryClient:

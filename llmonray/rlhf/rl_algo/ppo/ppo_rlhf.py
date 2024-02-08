@@ -12,13 +12,9 @@ from ray.rllib.utils.metrics import (
 )
 from ray.rllib.evaluation.metrics import RolloutMetrics
 
-import os
-import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
-
-from common.agentenv.rlhf_env import generate_response
-from .rlhf_buffer import Buffer, BufferItem
+from llmonray.common.agentenv.rlhf_env import generate_response
+from llmonray.rlhf.rl_algo.ppo.rlhf_buffer import Buffer, BufferItem
 
 
 class RLHFSampler:

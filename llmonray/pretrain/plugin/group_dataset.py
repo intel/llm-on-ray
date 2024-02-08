@@ -1,7 +1,7 @@
 import os
 import datasets
 
-from common.dataset import Dataset
+from llmonray.common.dataset import Dataset
 
 
 class GroupDataset(Dataset):

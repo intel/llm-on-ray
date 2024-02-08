@@ -2,7 +2,7 @@ from megatron import get_args, print_rank_0
 from megatron.training import build_train_valid_test_datasets, update_train_iters
 from megatron.data import gpt_dataset
 
-from common.dataset import Dataset
+from llmonray.common.dataset import Dataset
 
 
 class MegatronDataset(Dataset):

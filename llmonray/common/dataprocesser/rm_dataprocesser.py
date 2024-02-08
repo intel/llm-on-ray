@@ -1,8 +1,8 @@
 import torch
 import transformers
 
-from .dataprocesser import DataProcesser
-from ..logging import logger
+from llmonray.common.dataprocesser.dataprocesser import DataProcesser
+from llmonray.common.logging import logger
 
 
 class RMDataProcesser(DataProcesser):
