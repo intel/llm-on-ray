@@ -70,7 +70,7 @@ bigdl-cpu = [
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container
-package-dir = {"inference" = "inference", "finetune" = "finetune"}
+package-dir = {"llmonray" = "llmonray"}
 include-package-data = true
 
 [project.urls]
