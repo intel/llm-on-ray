@@ -35,17 +35,21 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=256, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
-    "--temperature", default=None, help="The value used to modulate the next token probabilities"
+    "--temperature", default=0.2, help="The value used to modulate the next token probabilities"
 )
 parser.add_argument(
     "--top_p",
-    default=None,
+    default=0.7,
     help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation",
 )
-
+parser.add_argument(
+    "--input_text",
+    default="Tell me a long story with many words.",
+    help="question to ask model",
+)
 args = parser.parse_args()
 
 s = requests.Session()
@@ -54,8 +58,7 @@ url = f"{args.request_api_base}/chat/completions"
 body = {
     "model": args.model_name,
     "messages": [
-        {"role": "assistant", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a long story with many words."},
+        {"role": "user", "content": args.input_text},
     ],
     "stream": args.streaming_response,
     "max_tokens": args.max_new_tokens,

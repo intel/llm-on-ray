@@ -48,7 +48,10 @@ from pyrecdp.primitives.operations import (
     RAGTextFix,
 )
 from pyrecdp.primitives.document.reader import _default_file_readers
+from pyrecdp.core.cache_utils import RECDP_MODELS_CACHE
 
+if not os.environ['RECDP_CACHE_HOME']:
+    os.environ['RECDP_CACHE_HOME'] = os.getcwd()
 
 class CustomStopper(Stopper):
     def __init__(self):
@@ -63,6 +66,19 @@ class CustomStopper(Stopper):
 
     def stop(self, flag):
         self.should_stop = flag
+
+def convert_openai_output(chunk):
+    print(chunk)
+    try:
+        ret = chunk["choices"][0]["delta"]["content"]
+    except:
+        ret = ""
+    return ret
+
+def is_simple_api(request_url, model_name):
+    if model_name is None:
+        return True
+    return model_name in request_url
 
 
 @ray.remote
@@ -144,8 +160,6 @@ class ChatBotUI:
         self.finetune_status = False
         self.default_rag_path = default_rag_path
         self.embedding_model_name = "sentence-transformers/all-mpnet-base-v2"
-        self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
-
         self._init_ui()
 
     @staticmethod
@@ -164,13 +178,14 @@ class ChatBotUI:
                         "role": "assistant",
                         "content": bot_text,
                     }
-                )
+                )                
         return messages
 
     @staticmethod
     def add_knowledge(prompt, enhance_knowledge):
         description = "Known knowledge: {knowledge}. Then please answer the question based on follow conversation: {conversation}."
-        return description.format(knowledge=enhance_knowledge, conversation=prompt)
+        prompt[-1]['content'] = description.format(knowledge=enhance_knowledge, conversation=prompt[-1]['content'])
+        return prompt    
 
     def clear(self):
         return (
@@ -188,34 +203,59 @@ class ChatBotUI:
     def user(self, user_message, history):
         return "", history + [[user_message, None]]
 
-    def model_generate(self, prompt, request_url, config):
-        print("prompt: ", prompt)
-
-        sample_input = {"text": prompt, "config": config, "stream": True}
+    def model_generate(self, prompt, request_url, model_name, config, simple_api=True):        
+        if simple_api:
+            prompt = self.process_tool.get_prompt(prompt)
+            sample_input = {"text": prompt, "config": config, "stream": True}
+        else:
+            sample_input = {
+                "model": model_name,
+                "messages": prompt,
+                "stream": True,
+                "max_tokens": config["max_new_tokens"],
+                "temperature": config["temperature"],
+                "top_p": config["top_p"],
+                "top_k": config["top_k"]
+            }
         proxies = {"http": None, "https": None}
+        print(sample_input)
         outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
             # remove context
-            if prompt in output:
-                output = output[len(prompt) :]
+            if simple_api:
+                if prompt in output:
+                    output = output[len(prompt) :]
+            else:
+                import json
+                import re
+                try:
+                    output = re.sub("^data: ", "", output)
+                    output = json.loads(output)
+                    print(f"After load as json: {output}")
+                except:
+                    output = ""
             yield output
 
     def bot(
         self,
         history,
+        deploy_model_endpoint,
         model_endpoint,
         Max_new_tokens,
         Temperature,
         Top_p,
         Top_k,
+        model_name=None,
         enhance_knowledge=None,
     ):
+        request_url = model_endpoint if model_endpoint != "" else deploy_model_endpoint
+        simple_api = is_simple_api(request_url, model_name)
         prompt = self.history_to_messages(history)
-        prompt = self.process_tool.get_prompt(prompt)
+        
         if enhance_knowledge:
             prompt = self.add_knowledge(prompt, enhance_knowledge)
-        request_url = model_endpoint
+        
         time_start = time.time()
         token_num = 0
         config = {
@@ -225,16 +265,18 @@ class ChatBotUI:
             "top_p": Top_p,
             "top_k": Top_k,
         }
-        outputs = self.model_generate(prompt=prompt, request_url=request_url, config=config)
+        outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
 
+        if history[-1][1] is None:
+            history[-1][1] = ""
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                if history[-1][1] is None:
-                    history[-1][1] = output
-                else:
+                if isinstance(output, str):
                     history[-1][1] += output
-                history[-1][1] = self.process_tool.convert_output(history[-1][1])
+                    history[-1][1] = self.process_tool.convert_output(history[-1][1])
+                else:
+                    history[-1][1] += convert_openai_output(output)
                 time_spend = round(time_end - time_start, 3)
                 token_num += 1
                 new_token_latency = f"""
@@ -254,10 +296,11 @@ class ChatBotUI:
         Temperature,
         Top_p,
         Top_k,
+        model_name=None
     ):
-        prompt = self.history_to_messages(history)
-        prompt = self.process_tool.get_prompt(prompt)
         request_url = model_endpoint
+        simple_api = is_simple_api(request_url, model_name)
+        prompt = self.history_to_messages(history)
         time_start = time.time()
         config = {
             "max_new_tokens": Max_new_tokens,
@@ -266,16 +309,18 @@ class ChatBotUI:
             "top_p": Top_p,
             "top_k": Top_k,
         }
-        outputs = self.model_generate(prompt=prompt, request_url=request_url, config=config)
+        outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
 
+        history[-1][1] = ""
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                if history[-1][1] is None:
-                    history[-1][1] = output
-                else:
+                if isinstance(output, str):
                     history[-1][1] += output
-                history[-1][1] = self.process_tool.convert_output(history[-1][1])
+                    history[-1][1] = self.process_tool.convert_output(history[-1][1])
+                else:
+                    history[-1][1] += convert_openai_output(output)
+
                 time_spend = time_end - time_start
                 bot_queue.put([queue_id, history, time_spend])
         bot_queue.put([queue_id, "", ""])
@@ -283,6 +328,7 @@ class ChatBotUI:
     def bot_rag(
         self,
         history,
+        deploy_model_endpoint,
         model_endpoint,
         Max_new_tokens,
         Temperature,
@@ -291,6 +337,7 @@ class ChatBotUI:
         rag_selector,
         rag_path,
         returned_k,
+        model_name=None
     ):
         enhance_knowledge = None
         if os.path.isabs(rag_path):
@@ -304,6 +351,14 @@ class ChatBotUI:
             question = history[-1][0]
             print("history: ", history)
             print("question: ", question)
+            
+            if not hasattr(self, "embeddings"):
+                local_embedding_model_path = os.path.join(RECDP_MODELS_CACHE, self.embedding_model_name)
+                if os.path.exists(local_embedding_model_path):
+                    self.embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model_path)
+                else:
+                    self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
+
             vectorstore = FAISS.load_local(load_dir, self.embeddings, index_name="knowledge_db")
             sim_res = vectorstore.similarity_search(question, k=int(returned_k))
             enhance_knowledge = ""
@@ -312,12 +367,14 @@ class ChatBotUI:
 
         bot_generator = self.bot(
             history,
+            deploy_model_endpoint,
             model_endpoint,
             Max_new_tokens,
             Temperature,
             Top_p,
             Top_k,
-            enhance_knowledge,
+            model_name=model_name,
+            enhance_knowledge=enhance_knowledge,
         )
         for output in bot_generator:
             yield output
@@ -380,10 +437,16 @@ class ChatBotUI:
             "separators": ["\n\n", "\n", " ", ""],
         }
         embeddings_type = "HuggingFaceEmbeddings"
-        embeddings_args = {"model_name": embedding_model}
-        if embedding_model != self.embedding_model_name:
-            self.embedding_model_name = embedding_model
+        
+        self.embedding_model_name = embedding_model
+        local_embedding_model_path = os.path.join(RECDP_MODELS_CACHE, self.embedding_model_name)
+        if os.path.exists(local_embedding_model_path):
+            self.embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model_path)
+            embeddings_args = {"model_name": local_embedding_model_path}
+        else:
             self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
+            embeddings_args = {"model_name": self.embedding_model_name}
+        
 
         pipeline = TextPipeline()
         ops = [loader]
@@ -472,7 +535,10 @@ class ChatBotUI:
         if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(
             ray.available_resources()["CPU"]
         ):
-            raise gr.Error("Resources are not meeting the demand")
+            num_req = cpus_per_worker_ftn * worker_num + 1
+            num_act = int(ray.available_resources()['CPU'])
+            error_msg = f"Resources are not meeting the demand, required num_cpu is {num_req}, actual num_cpu is {num_act}"
+            raise gr.Error(error_msg)
         if (
             worker_num != exist_worker
             or cpus_per_worker_ftn != exist_cpus_per_worker_ftn
@@ -677,6 +743,8 @@ class ChatBotUI:
         command = "conda activate " + self.conda_env_name + "; ray status"
         stdin, stdout, stderr = self.ssh_connect[-1].exec_command(command)
         out = stdout.read().decode("utf-8")
+        #print(f"stderr is {stderr.read().decode('utf-8')}")
+        #print(f"out is {out}")
         out_words = [word for word in out.split("\n") if "CPU" in word][0]
         cpu_info = out_words.split(" ")[1].split("/")
         total_core = int(float(cpu_info[1]))
@@ -795,16 +863,19 @@ class ChatBotUI:
         for index in range(len(self.ray_nodes)):
             if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
                 mark_alive = index
-            node_ip = self.ray_nodes[index]["NodeName"]
-            self.ssh_connect[index] = paramiko.SSHClient()
-            self.ssh_connect[index].load_system_host_keys()
-            self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
-            self.ssh_connect[index].connect(
-                hostname=node_ip, port=self.node_port, username=self.user_name
-            )
+                node_ip = self.ray_nodes[index]["NodeName"]
+                self.ssh_connect[index] = paramiko.SSHClient()
+                self.ssh_connect[index].load_system_host_keys()
+                self.ssh_connect[index].set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                self.ssh_connect[index].connect(
+                    hostname=node_ip, port=self.node_port, username=self.user_name
+                )
+        if mark_alive is None:
+            print("No alive ray worker found! Exit")
+            return
         self.ssh_connect[-1] = paramiko.SSHClient()
         self.ssh_connect[-1].load_system_host_keys()
-        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
+        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh_connect[-1].connect(
             hostname=self.ray_nodes[mark_alive]["NodeName"],
             port=self.node_port,
@@ -889,7 +960,7 @@ class ChatBotUI:
                     worker_num = gr.Slider(
                         1,
                         8,
-                        2,
+                        1,
                         step=1,
                         interactive=True,
                         label="Worker Number",
@@ -955,7 +1026,7 @@ class ChatBotUI:
 
                 with gr.Accordion("Parameters", open=False, visible=True):
                     replica_num = gr.Slider(
-                        1, 8, 4, step=1, interactive=True, label="Model Replica Number"
+                        1, 8, 1, step=1, interactive=True, label="Model Replica Number"
                     )
                     cpus_per_worker_deploy = gr.Slider(
                         1,
@@ -991,7 +1062,7 @@ class ChatBotUI:
                     max_new_tokens = gr.Slider(
                         1,
                         2000,
-                        128,
+                        256,
                         step=1,
                         interactive=True,
                         label="Max New Tokens",
@@ -1000,7 +1071,7 @@ class ChatBotUI:
                     Temperature = gr.Slider(
                         0,
                         1,
-                        0.7,
+                        0.2,
                         step=0.01,
                         interactive=True,
                         label="Temperature",
@@ -1009,7 +1080,7 @@ class ChatBotUI:
                     Top_p = gr.Slider(
                         0,
                         1,
-                        1.0,
+                        0.7,
                         step=0.01,
                         interactive=True,
                         label="Top p",
@@ -1034,6 +1105,18 @@ class ChatBotUI:
 
                     with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Row():
+                                endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
+                                model_endpoint = gr.Text(
+                                    label="Model Endpoint",
+                                    value=endpoint_value,
+                                    scale = 1
+                                )
+                                model_name = gr.Text(
+                                    label="Model Name",
+                                    value="llama-2-7b-chat-hf",
+                                    scale = 1
+                                )
                             msg = gr.Textbox(
                                 show_label=False,
                                 container=False,
@@ -1098,7 +1181,7 @@ class ChatBotUI:
                     max_new_tokens_rag = gr.Slider(
                         1,
                         2000,
-                        128,
+                        256,
                         step=1,
                         interactive=True,
                         label="Max New Tokens",
@@ -1229,6 +1312,18 @@ class ChatBotUI:
 
                     with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Row():
+                                endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
+                                rag_model_endpoint = gr.Text(
+                                    label="Model Endpoint",
+                                    value=endpoint_value,
+                                    scale = 1
+                                )
+                                rag_model_name = gr.Text(
+                                    label="Model Name",
+                                    value="llama-2-7b-chat-hf",
+                                    scale = 1
+                                )
                             msg_rag = gr.Textbox(
                                 show_label=False,
                                 container=False,
@@ -1364,10 +1459,12 @@ class ChatBotUI:
                 [
                     chatbot,
                     deployed_model_endpoint,
+                    model_endpoint,
                     max_new_tokens,
                     Temperature,
                     Top_p,
                     Top_k,
+                    model_name,
                 ],
                 [chatbot, latency_status],
             )
@@ -1378,10 +1475,12 @@ class ChatBotUI:
                 [
                     chatbot,
                     deployed_model_endpoint,
+                    model_endpoint,
                     max_new_tokens,
                     Temperature,
                     Top_p,
                     Top_k,
+                    model_name,
                 ],
                 [chatbot, latency_status],
             )
@@ -1417,6 +1516,7 @@ class ChatBotUI:
                 [
                     chatbot_rag,
                     deployed_model_endpoint,
+                    rag_model_endpoint,
                     max_new_tokens_rag,
                     Temperature_rag,
                     Top_p_rag,
@@ -1424,6 +1524,7 @@ class ChatBotUI:
                     rag_selector,
                     rag_path,
                     returned_k,
+                    rag_model_name,
                 ],
                 [chatbot_rag, latency_status_rag],
             )
@@ -1434,6 +1535,7 @@ class ChatBotUI:
                 [
                     chatbot_rag,
                     deployed_model_endpoint,
+                    rag_model_endpoint,
                     max_new_tokens_rag,
                     Temperature_rag,
                     Top_p_rag,
@@ -1441,6 +1543,7 @@ class ChatBotUI:
                     rag_selector,
                     rag_path,
                     returned_k,
+                    rag_model_name
                 ],
                 [chatbot_rag, latency_status_rag],
             )
@@ -1602,13 +1705,14 @@ if __name__ == "__main__":
             }
         },
         "address": "auto",
-        "_node_ip_address": "127.0.0.1",
     }
     accelerate_env_vars = get_accelerate_environment_variable(
         finetune_config["Training"]["accelerate_mode"], config=None
     )
     ray_init_config["runtime_env"]["env_vars"].update(accelerate_env_vars)
+    print("Start to init Ray connection")
     context = ray.init(**ray_init_config)
+    print("Ray connected")
     head_node_ip = context.get("address").split(":")[0]
 
     finetune_model_path = args.finetune_model_path
