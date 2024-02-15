@@ -68,10 +68,9 @@ class CustomStopper(Stopper):
         self.should_stop = flag
 
 def convert_openai_output(chunk):
-    print(chunk)
     try:
         ret = chunk["choices"][0]["delta"]["content"]
-    except:
+    except KeyError as e:
         ret = ""
     return ret
 
@@ -232,8 +231,7 @@ class ChatBotUI:
                 try:
                     output = re.sub("^data: ", "", output)
                     output = json.loads(output)
-                    print(f"After load as json: {output}")
-                except:
+                except ValueError:
                     output = ""
             yield output
 
