@@ -10,16 +10,16 @@ wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/r
 
 ## Benchmark
 
-On the server side, run the following command:
+Currently only models from `inference/models/*.yaml` are supported. On the server side, run the following command:
 
 ```bash
-python inference/serve.py --config_file <model_config_file.yaml> --simple --keep_serve_terminal
+python inference/serve.py --models <model_id> --simple --keep_serve_terminal
 ```
 
 For example:
 
 ```bash
-python inference/serve.py --config_file inference/models/gpt-j-6b.yaml --simple --keep_serve_terminal
+python inference/serve.py --models gpt-j-6b --simple --keep_serve_terminal
 ```
 
 On the client side, run the following command:
