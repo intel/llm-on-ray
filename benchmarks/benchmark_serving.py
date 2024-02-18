@@ -1,4 +1,22 @@
-# Adapted from https://github.com/vllm-project/vllm/blob/main/benchmarks/benchmark_serving.py
+#
+# Copyright 2024 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ===========================================================================
+#
+# This file is adapted from https://github.com/vllm-project/vllm/blob/main/benchmarks/benchmark_serving.py
+#
 
 import argparse
 import asyncio
@@ -90,7 +108,7 @@ async def send_request(
     if "max_new_tokens" in config:
         output_len = config["max_new_tokens"]
     else:
-        config["max_tokens"] = output_len
+        config["max_new_tokens"] = output_len
 
     pload = {
         "text": prompt,
@@ -105,9 +123,8 @@ async def send_request(
                 chunks = []
                 async for chunk, _ in response.content.iter_chunks():
                     chunks.append(chunk)
-            output = b"".join(chunks).decode("utf-8")
-            print(f"\n=== Request =====\n{pload}\n================\n")
-            print(f"=== Response ===\n{output}\n================\n")
+            # Decode the response
+            b"".join(chunks).decode("utf-8")
             if progress_bar:
                 progress_bar.update()
             break
