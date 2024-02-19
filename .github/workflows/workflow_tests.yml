@@ -1,13 +1,34 @@
 name: tests
 
 on:
-  workflow_call
+  workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
+      no_proxy:
+        type: string
+        default: 'localhost,127.0.0.1'
+      OPENAI_API_BASE:
+        type: string
+        default: 'http://localhost:8000/v1'
+      OPENAI_API_KEY:
+        type: string
+        default: '$your_openai_api_key'  
+      code_checkout_path:
+        type: string
+        default: '/home/runner/work/llm-on-ray/llm-on-ray'
 
 jobs:
   build:
-    
+
+    name: bare-test
+
     runs-on: ubuntu-latest
-        
+    env:
+      no_proxy: 'localhost,127.0.0.1'
+      OPENAI_API_BASE: 'http://localhost:8000/v1'
+      OPENAI_API_KEY: '$your_openai_api_key' 
     defaults:
       run:
         shell: bash
@@ -23,13 +44,79 @@ jobs:
           architecture: 'x64'
 
       - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
+        run: |
+          python -c "import sys; print(sys.version)"
+          bash -c "ls"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install .[cpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/ -f https://download.pytorch.org/whl/torch_stable.html
+          # Dynamic link oneCCL and Intel MPI libraries
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
           pip install -r ./tests/requirements.txt
+
+      - name: Start Ray Cluster
+        run: |
+          bash -c "ray start --head"
 
       - name: Start tests
         run: |
           bash -c "./tests/run-tests.sh"
+
+  build_docker:
+
+    name: docker-test
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Determine Target
+        id: "target"
+        run: |
+          target="inference"
+          echo "target is ${target}"
+          echo "target=$target" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image
+        run: |
+          DF_SUFFIX=".cpu_and_deepspeed_test"
+          TARGET=${{steps.target.outputs.target}}
+          docker build ./ --build-arg CACHEBUST=1 -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+          docker image prune -f
+
+      - name: Start Docker Container
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker ps -a
+          docker run -tid -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+      
+      - name: Start Ray Cluster
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+
+      - name: Run query Test
+        run: |
+            TARGET=${{steps.target.outputs.target}}
+            docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
+            docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
+           
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
