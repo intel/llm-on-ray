@@ -2,7 +2,7 @@
 import os
 import tempfile
 import ray
-from ray.air.util.torch_dist import (
+from torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
 )
@@ -61,13 +61,18 @@ class HPUDeepSpeedPredictor(Predictor):
 
         return DummyStreamer()
 
+    def get_streamer(self):
+        return ray.get(self.deepspeed_workers[0].get_streamer.remote())
+
     def generate(self, prompt, **config):
         return ray.get(
             [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
         )[0]
 
     def streaming_generate(self, prompt, streamer, **config):
-        pass
+        self.deepspeed_workers[0].streaming_generate.remote(prompt, streamer, **config)
+        for worker in self.deepspeed_workers[1:]:
+            worker.streaming_generate.remote(prompt, self._create_dummy_streamer(), **config)
 
 
 @ray.remote
@@ -79,8 +84,8 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
 
     def load_model_and_tokenizer(self):
         # after init_worker_group, these envvar should be set
-        self.world_size = os.environ["WORLD_SIZE"]
-        self.local_rank = os.environ["LOCAL_RANK"]
+        self.world_size = int(os.environ["WORLD_SIZE"])
+        self.local_rank = int(os.environ["LOCAL_RANK"])
         self.device = torch.device("hpu")
         # optimize transformers for gaudi
         from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
@@ -90,6 +95,11 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         model_config = model_desc.config
         self.load_model(model_desc, model_config)
         self.load_tokenizer(model_desc)
+
+    def get_streamer(self):
+        from utils import RayTextIteratorStreamer
+
+        return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
     def load_model(self, model_desc, model_config):
         import deepspeed
