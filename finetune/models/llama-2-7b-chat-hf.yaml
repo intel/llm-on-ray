@@ -1,8 +1,8 @@
 General:
   base_model: meta-llama/Llama-2-7b-chat-hf
   gpt_base_model: false
-  output_dir: ./output
-  checkpoint_dir: ./checkpoint
+  output_dir: /tmp/llm-ray/output
+  checkpoint_dir: /tmp/llm-ray/checkpoint
   config:
     trust_remote_code: false
     use_auth_token: null

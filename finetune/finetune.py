@@ -67,7 +67,6 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
     supported_dtypes = {
         "fp16": torch.float16,
         "bf16": torch.bfloat16,
-        "fp32": torch.float32,
         "no": None,
     }
     return supported_dtypes[dtype]
