@@ -201,7 +201,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         input_ids = self.tokenize(prompt)
         self.model.generate(
             input_ids,
-            streamer,
+            streamer=streamer,
             lazy_mode=True,
             hpu_graphs=self.infer_conf.model_description.use_hpu_graphs,
             **config,
