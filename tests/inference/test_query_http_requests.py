@@ -32,9 +32,10 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         cmd_http.extend(["--top_p", str(top_p)])
 
     result_http = subprocess.run(cmd_http, capture_output=True, text=True)
-
     # Ensure there are no errors in the http query script execution
     assert "Error" not in result_http.stderr
+
+    assert result_http.returncode == 0
 
     assert isinstance(result_http.stdout, str)
 
@@ -43,7 +44,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
 model_names = ["gpt2"]
 streaming_responses = [False, True]
-max_new_tokens_values = [None, 128]
+max_new_tokens_values = [None, 128, 8192]
 temperature_values = [None, 0.8]
 top_p_values = [None, 0.7]
 
