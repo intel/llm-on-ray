@@ -58,16 +58,16 @@ class PredictorDeployment:
         self.use_vllm = infer_conf.vllm.enabled
 
         if self.use_deepspeed:
-            from deepspeed_predictor import DeepSpeedPredictor
+            from llmonray.inference.deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
             self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
-            from vllm_predictor import VllmPredictor
+            from llmonray.inference.vllm_predictor import VllmPredictor
 
             self.predictor = VllmPredictor(infer_conf)
         else:
-            from transformer_predictor import TransformerPredictor
+            from llmonray.inference.transformer_predictor import TransformerPredictor
 
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()

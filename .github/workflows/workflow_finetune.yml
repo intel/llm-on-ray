@@ -85,7 +85,7 @@ jobs:
           docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
           CMD=$(cat << EOF
           import yaml
-          conf_path = "finetune/finetune.yaml"
+          conf_path = "llmonray/finetune/finetune.yaml"
           with open(conf_path, encoding="utf-8") as reader:
               result = yaml.load(reader, Loader=yaml.FullLoader)
               result['General']['base_model'] = "${{ matrix.model }}"
@@ -120,7 +120,7 @@ jobs:
           docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
           CMD=$(cat << EOF
           import yaml
-          conf_path = "finetune/finetune.yaml"
+          conf_path = "llmonray/finetune/finetune.yaml"
           with open(conf_path, encoding="utf-8") as reader:
               result = yaml.load(reader, Loader=yaml.FullLoader)
               result['General']['lora_config'] = {
@@ -150,7 +150,7 @@ jobs:
           import os
           import yaml
           os.system("cp -r $(python -m pip show deltatuner | grep Location | cut -d: -f2)/deltatuner/conf/best_structure examples/")
-          conf_path = "finetune/finetune.yaml"
+          conf_path = "llmonray/finetune/finetune.yaml"
           with open(conf_path, encoding="utf-8") as reader:
               result = yaml.load(reader, Loader=yaml.FullLoader)
               result['General']['lora_config'] = {
