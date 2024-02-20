@@ -65,7 +65,7 @@ class PredictorDeployment:
                 from deepspeed_predictor import DeepSpeedPredictor
 
                 self.predictor = DeepSpeedPredictor(infer_conf)
-                self.streamer = self.predictor.get_streamer()
+            self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from vllm_predictor import VllmPredictor
 
