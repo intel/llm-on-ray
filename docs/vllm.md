@@ -23,7 +23,7 @@ Please follow [Deploying and Serving LLMs on Intel CPU/GPU/Gaudi](serve.md) docu
 To serve model with vLLM, run the following:
 
 ```bash
-$ python serve.py --config_file inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml --simple --keep_serve_terminal
+$ python -m llmonray.inference.serve --config_file llmonray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml --simple --keep_serve_terminal
 ```
 
 In the above example, `vllm` property is set to `true` in the config file for enabling vLLM.

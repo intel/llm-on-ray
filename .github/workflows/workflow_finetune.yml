@@ -113,7 +113,7 @@ jobs:
           EOF
           )
           docker exec "finetune" python -c "$CMD"
-          docker exec "finetune" bash -c "python finetune/finetune.py --config_file finetune/finetune.yaml"
+          docker exec "finetune" bash -c "python -m llmonray.finetune.finetune --config_file llmonray/finetune/finetune.yaml"
 
       - name: Run PEFT-LoRA Test
         run: |
@@ -138,7 +138,7 @@ jobs:
           EOF
           )
           docker exec "finetune" python -c "$CMD"
-          docker exec "finetune" bash -c "python finetune/finetune.py --config_file finetune/finetune.yaml"
+          docker exec "finetune" bash -c "python -m llmonray.finetune.finetune --config_file llmonray/finetune/finetune.yaml"
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
@@ -168,7 +168,7 @@ jobs:
               yaml.dump(result, output, sort_keys=False)
           EOF)
             docker exec "finetune" python -c "$CMD"
-            docker exec "finetune" bash -c "python finetune/finetune.py --config_file finetune/finetune.yaml"
+            docker exec "finetune" bash -c "python -m llmonray.finetune.finetune --config_file llmonray/finetune/finetune.yaml"
           fi
 
       - name: Stop Ray
