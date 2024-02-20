@@ -18,7 +18,7 @@ jobs:
     name: finetune on gpu test
     strategy:
       matrix:
-        model: [ meta-llama/Llama-2-7b-chat-hf, mistralai/Mistral-7B-v0.1 ]
+        model: [ meta-llama/Llama-2-7b-chat-hf ]
     runs-on: self-hosted
 
     defaults:
