@@ -24,7 +24,7 @@ if "WORKDIR" not in os.environ or not os.environ["WORKDIR"]:
     os.environ["WORKDIR"] = os.getcwd()
 
 parser = argparse.ArgumentParser(
-    description="Example script to query with http requests", add_help=True
+    description="Example script to query with Image through http requests", add_help=True
 )
 parser.add_argument(
     "--request_api_base",
@@ -56,7 +56,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--image_path",
-    default="my_app/test_data/twitter_graph.png",
+    default="https://www.adept.ai/images/blog/fuyu-8b/twitter_graph.png",
     help="input image for LLM to analyze.",
 )
 parser.add_argument(
@@ -130,7 +130,10 @@ for idx, chunk in enumerate(response.iter_lines(decode_unicode=True)):
                 content = choices[0]["delta"].get("content", "")
                 print(content, end="", flush=True)
         else:
-            choices = json.loads(chunk)["choices"]
-            content = choices[0]["message"].get("content", "")
-            print(content, end="", flush=True)
+            try:
+                choices = json.loads(chunk)["choices"]
+                content = choices[0]["message"].get("content", "")
+                print(content, end="", flush=True)
+            except Exception:
+                print(chunk)
 print("")

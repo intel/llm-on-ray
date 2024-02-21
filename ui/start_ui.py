@@ -775,11 +775,7 @@ class ChatBotUI:
         serve.shutdown()
 
     def get_ray_cluster(self):
-        command = (
-            "source ~/anaconda3/bin/activate; conda activate "
-            + self.conda_env_name
-            + "; ray status"
-        )
+        command = "conda activate " + self.conda_env_name + "; ray status"
         stdin, stdout, stderr = self.ssh_connect[-1].exec_command(command)
         out = stdout.read().decode("utf-8")
         # print(f"out is {out}")
