@@ -183,25 +183,17 @@ class PredictorDeployment:
                 generate_text = generate_result.text
             elif self.is_mllm:
                 generate_result = self.predictor.generate(images, prompts, **config)
-                generate_text = generate_result[0]
-                model_response = ModelResponse(
-                    generated_text=generate_text,
-                    num_input_tokens=self.predictor.input_length,
-                    num_input_tokens_batch=self.predictor.input_length,
-                    num_generated_tokens=len(generate_text),
-                    preprocessing_time=0,
-                )
+                generate_text = generate_result.text[0]
             else:
                 generate_result = self.predictor.generate(prompts, **config)
                 generate_text = generate_result.text[0]
-            if model_response is None:
-                model_response = ModelResponse(
-                    generated_text=generate_text,
-                    num_input_tokens=generate_result.input_length,
-                    num_input_tokens_batch=generate_result.input_length,
-                    num_generated_tokens=generate_result.generate_length,
-                    preprocessing_time=0,
-                )
+            model_response = ModelResponse(
+                generated_text=generate_text,
+                num_input_tokens=generate_result.input_length,
+                num_input_tokens_batch=generate_result.input_length,
+                num_generated_tokens=generate_result.generate_length,
+                preprocessing_time=0,
+            )
             yield model_response
         else:
             if self.use_deepspeed:

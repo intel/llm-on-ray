@@ -10,8 +10,8 @@ ipex:
   enabled: false
   precision: bf16
 model_description:
-  model_id_or_path: /mnt/nvme0n1/chendi/llm-on-ray/models/adept/fuyu-8b
-  tokenizer_name_or_path: /mnt/nvme0n1/chendi/llm-on-ray/models/adept/fuyu-8b
+  model_id_or_path: adept/fuyu-8b
+  tokenizer_name_or_path: adept/fuyu-8b
   chat_processor: ChatModelwithImage
   input_processor: FuyuProcessor
   model_loader: FuyuForCausalLM

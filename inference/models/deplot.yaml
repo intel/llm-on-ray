@@ -10,8 +10,8 @@ ipex:
   enabled: false
   precision: bf16
 model_description:
-  model_id_or_path: /mnt/nvme0n1/chendi/llm-on-ray/models/google/deplot
-  tokenizer_name_or_path: /mnt/nvme0n1/chendi/llm-on-ray/models/google/deplot
+  model_id_or_path: google/deplot
+  tokenizer_name_or_path: google/deplot
   chat_processor: ChatModelwithImage
   input_processor: 'AutoProcessor'
   model_loader: 'Pix2StructForConditionalGeneration'
