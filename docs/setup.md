@@ -40,7 +40,7 @@ conda activate llm-on-ray
 ```
 For CPU:
 ```bash
-pip install .[cpu] --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 For GPU:
 ```bash

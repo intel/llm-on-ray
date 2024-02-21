@@ -29,7 +29,7 @@ COPY ./MANIFEST.in .
 
 RUN mkdir ./finetune && mkdir ./inference
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed] --index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 RUN ds_report
