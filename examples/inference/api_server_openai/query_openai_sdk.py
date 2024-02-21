@@ -41,21 +41,42 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-client = OpenAI()
-# # List all models.
-models = client.models.list()
-print(models.data, "\n")
+# List all models.
+#models = openai.Model.list()
+#print(models)
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="not_needed")
 
-# Note: not all arguments are currently supported and will be ignored by the backend.
-chat_completion = client.chat.completions.create(
-    model=args.model_name,
-    messages=[
-        {"role": "assistant", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a long story with many words."},
-    ],
-    stream=args.streaming_response,
-    max_tokens=args.max_new_tokens,
-    temperature=args.temperature,
-    top_p=args.top_p,
-)
-print(chat_completion)
+def stream_chat():
+    for chunk in client.chat.completions.create(
+        model=args.model_name,
+        messages=[{"role": "user", "content": "What is better sorting algorithm than quick sort?"}],
+        stream=True,
+        max_tokens=128,
+        temperature=0.2,
+        top_p=0.7,
+    ):
+        content = chunk["choices"][0].get("delta", {}).get("content")
+        if content is not None:
+            yield content
+       
+def chunk_chat():     
+    output = client.chat.completions.create(
+        model=args.model_name,
+        messages=[
+            {"role": "user", "content": "What is better sorting algorithm than quick sort?"},
+        ],
+        stream=False,
+        max_tokens=128,
+        temperature=0.2,
+        top_p=0.7,
+    )
+    for i in [output]:
+        yield i
+
+if args.streaming_response:
+    for i in stream_chat():
+        print(i)
+else:
+    for i in chunk_chat():
+        print(i)
