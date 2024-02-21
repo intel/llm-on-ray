@@ -128,7 +128,7 @@ def train_func(config: Dict[str, Any]):
             "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
             "config": config["General"]["config"],
             "enable_gradient_checkpointing": config["General"].get(
-                "enable_gradient_checkpointing", "no"
+                "enable_gradient_checkpointing", False
             ),
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
