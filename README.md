@@ -38,10 +38,12 @@ This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, coveri
 ### Setup
 
 #### 1. Clone the repository and install dependencies.
-Software requirement: Python 3.9
+Software requirement: Git and Conda
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
+conda create -n llm-on-ray python=3.9
+conda activate llm-on-ray
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
@@ -83,8 +85,9 @@ curl $ENDPOINT_URL/chat/completions \
 python examples/inference/api_server_openai/query_http_requests.py
 
 # using OpenAI SDK
+# please install openai in current env by running: pip install openai>=1.0
 export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=$your_openai_api_key
+export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,

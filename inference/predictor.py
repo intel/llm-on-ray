@@ -1,8 +1,8 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-from inference.inference_config import InferenceConfig
-from utils import StoppingCriteriaSub
+from inference.inference_config import InferenceConfig, GenerateResult
+from inference.utils import StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
 
 
@@ -10,7 +10,8 @@ class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(
-            infer_conf.model_description.tokenizer_name_or_path
+            infer_conf.model_description.tokenizer_name_or_path,
+            **infer_conf.model_description.config.dict(),
         )
         self.device = torch.device(infer_conf.device)
         # now deepspeed predictor don't have the model
@@ -28,10 +29,14 @@ class Predictor:
             for stop_word in stop_words
         ]
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+        self.input_length = None
 
     def tokenize_inputs(self, text):
         input_tokens = self.tokenizer(text, return_tensors="pt", padding=True)
-        return input_tokens.input_ids.to(device=self.device)
+        input_ids = input_tokens.input_ids
+        self.input_length = input_ids.size()[1]
+        input_ids = input_ids.to(device=self.device)
+        return input_ids, self.input_length
 
     def configure_tokenizer(self, model_name):
         model = self.model
@@ -73,7 +78,7 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
-    def generate(self, prompts: Union[str, List[str]], **config) -> Union[str, List[str]]:
+    def generate(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
         pass
 
     async def generate_async(
