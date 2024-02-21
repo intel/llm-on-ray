@@ -27,8 +27,8 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
 # copy all checkedout file for later non-editable pip
 COPY . .
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
-    -f https://download.pytorch.org/whl/torch_stable.html
+RUN --mount=type=cache,target=/root/.cache/pip pip install .[cpu,deepspeed] --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 RUN ds_report
 
