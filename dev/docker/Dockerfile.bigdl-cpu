@@ -29,7 +29,7 @@ COPY ./MANIFEST.in .
 
 RUN mkdir ./finetune && mkdir ./inference
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] --index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
