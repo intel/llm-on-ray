@@ -50,8 +50,9 @@ from pyrecdp.primitives.operations import (
 from pyrecdp.primitives.document.reader import _default_file_readers
 from pyrecdp.core.cache_utils import RECDP_MODELS_CACHE
 
-if ('RECDP_CACHE_HOME' not in os.environ) or (not os.environ['RECDP_CACHE_HOME']):
-    os.environ['RECDP_CACHE_HOME'] = os.getcwd()
+if ("RECDP_CACHE_HOME" not in os.environ) or (not os.environ["RECDP_CACHE_HOME"]):
+    os.environ["RECDP_CACHE_HOME"] = os.getcwd()
+
 
 class CustomStopper(Stopper):
     def __init__(self):
@@ -67,10 +68,12 @@ class CustomStopper(Stopper):
     def stop(self, flag):
         self.should_stop = flag
 
+
 def is_simple_api(request_url, model_name):
     if model_name is None:
         return True
     return model_name in request_url
+
 
 @ray.remote
 class Progress_Actor:
@@ -154,7 +157,7 @@ class ChatBotUI:
         self._init_ui()
 
     @staticmethod
-    def history_to_messages(history, image = None):
+    def history_to_messages(history, image=None):
         messages = []
         for human_text, bot_text in history:
             if image is not None:
@@ -163,15 +166,13 @@ class ChatBotUI:
 
                 buffered = BytesIO()
                 image.save(buffered, format="JPEG")
-                base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
                 human_text = [
-                    {'type': "text", "text": human_text},
+                    {"type": "text", "text": human_text},
                     {
-                        'type': "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}"
-                        },
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{base64_image}"},
                     },
                 ]
             messages.append(
@@ -186,15 +187,17 @@ class ChatBotUI:
                         "role": "assistant",
                         "content": bot_text,
                     }
-                )                
+                )
         return messages
 
     @staticmethod
     def add_knowledge(prompt, enhance_knowledge):
         description = "Known knowledge: {knowledge}. Then please answer the question based on follow conversation: {conversation}."
-        if not isinstance(prompt[-1]['content'], list):
-            prompt[-1]['content'] = description.format(knowledge=enhance_knowledge, conversation=prompt[-1]['content'])
-        return prompt    
+        if not isinstance(prompt[-1]["content"], list):
+            prompt[-1]["content"] = description.format(
+                knowledge=enhance_knowledge, conversation=prompt[-1]["content"]
+            )
+        return prompt
 
     def clear(self):
         return (
@@ -212,7 +215,7 @@ class ChatBotUI:
     def user(self, user_message, history):
         return "", history + [[user_message, None]]
 
-    def model_generate(self, prompt, request_url, model_name, config, simple_api=True):        
+    def model_generate(self, prompt, request_url, model_name, config, simple_api=True):
         if simple_api:
             prompt = self.process_tool.get_prompt(prompt)
             sample_input = {"text": prompt, "config": config, "stream": True}
@@ -224,7 +227,7 @@ class ChatBotUI:
                 "max_tokens": config["max_new_tokens"],
                 "temperature": config["temperature"],
                 "top_p": config["top_p"],
-                "top_k": config["top_k"]
+                "top_k": config["top_k"],
             }
         proxies = {"http": None, "https": None}
         print(sample_input)
@@ -238,6 +241,7 @@ class ChatBotUI:
             else:
                 import json
                 import re
+
                 chunk_data = re.sub("^data: ", "", output)
                 if chunk_data != "[DONE]":
                     # Get message choices from data
@@ -267,7 +271,7 @@ class ChatBotUI:
         prompt = self.history_to_messages(history, image)
         if enhance_knowledge:
             prompt = self.add_knowledge(prompt, enhance_knowledge)
-        
+
         time_start = time.time()
         token_num = 0
         config = {
@@ -276,10 +280,16 @@ class ChatBotUI:
             "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
-            "model": model_name
+            "model": model_name,
         }
         print("request wip to submit")
-        outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
+        outputs = self.model_generate(
+            prompt=prompt,
+            request_url=request_url,
+            model_name=model_name,
+            config=config,
+            simple_api=simple_api,
+        )
 
         if history[-1][1] is None:
             history[-1][1] = ""
@@ -310,7 +320,7 @@ class ChatBotUI:
         Temperature,
         Top_p,
         Top_k,
-        model_name=None
+        model_name=None,
     ):
         request_url = model_endpoint
         simple_api = is_simple_api(request_url, model_name)
@@ -322,9 +332,15 @@ class ChatBotUI:
             "do_sample": True,
             "top_p": Top_p,
             "top_k": Top_k,
-            "model": model_name
+            "model": model_name,
         }
-        outputs = self.model_generate(prompt=prompt, request_url=request_url, model_name=model_name, config=config, simple_api=simple_api)
+        outputs = self.model_generate(
+            prompt=prompt,
+            request_url=request_url,
+            model_name=model_name,
+            config=config,
+            simple_api=simple_api,
+        )
         history[-1][1] = ""
         for output in outputs:
             if len(output) != 0:
@@ -366,9 +382,11 @@ class ChatBotUI:
             question = history[-1][0]
             print("history: ", history)
             print("question: ", question)
-            
+
             if not hasattr(self, "embeddings"):
-                local_embedding_model_path = os.path.join(RECDP_MODELS_CACHE, self.embedding_model_name)
+                local_embedding_model_path = os.path.join(
+                    RECDP_MODELS_CACHE, self.embedding_model_name
+                )
                 if os.path.exists(local_embedding_model_path):
                     self.embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model_path)
                 else:
@@ -453,7 +471,7 @@ class ChatBotUI:
             "separators": ["\n\n", "\n", " ", ""],
         }
         embeddings_type = "HuggingFaceEmbeddings"
-        
+
         self.embedding_model_name = embedding_model
         local_embedding_model_path = os.path.join(RECDP_MODELS_CACHE, self.embedding_model_name)
         if os.path.exists(local_embedding_model_path):
@@ -462,7 +480,6 @@ class ChatBotUI:
         else:
             self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
             embeddings_args = {"model_name": self.embedding_model_name}
-        
 
         pipeline = TextPipeline()
         ops = [loader]
@@ -552,7 +569,7 @@ class ChatBotUI:
             ray.available_resources()["CPU"]
         ):
             num_req = cpus_per_worker_ftn * worker_num + 1
-            num_act = int(ray.available_resources()['CPU'])
+            num_act = int(ray.available_resources()["CPU"])
             error_msg = f"Resources are not meeting the demand, required num_cpu is {num_req}, actual num_cpu is {num_act}"
             raise gr.Error(error_msg)
         if (
@@ -758,14 +775,20 @@ class ChatBotUI:
         serve.shutdown()
 
     def get_ray_cluster(self):
-        command = "source ~/anaconda3/bin/activate; conda activate " + self.conda_env_name + "; ray status"
+        command = (
+            "source ~/anaconda3/bin/activate; conda activate "
+            + self.conda_env_name
+            + "; ray status"
+        )
         stdin, stdout, stderr = self.ssh_connect[-1].exec_command(command)
         out = stdout.read().decode("utf-8")
-        #print(f"out is {out}")
+        # print(f"out is {out}")
         try:
             out_words = [word for word in out.split("\n") if "CPU" in word][0]
         except Exception:
-            raise ValueError(f"Can't connect Ray cluster info: stderr is {stderr.read().decode('utf-8')}")
+            raise ValueError(
+                f"Can't connect Ray cluster info: stderr is {stderr.read().decode('utf-8')}"
+            )
         cpu_info = out_words.split(" ")[1].split("/")
         total_core = int(float(cpu_info[1]))
         used_core = int(float(cpu_info[0]))
@@ -1129,14 +1152,10 @@ class ChatBotUI:
                             with gr.Row():
                                 endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
                                 model_endpoint = gr.Text(
-                                    label="Model Endpoint",
-                                    value=endpoint_value,
-                                    scale = 1
+                                    label="Model Endpoint", value=endpoint_value, scale=1
                                 )
                                 model_name = gr.Text(
-                                    label="Model Name",
-                                    value="llama-2-7b-chat-hf",
-                                    scale = 1
+                                    label="Model Name", value="llama-2-7b-chat-hf", scale=1
                                 )
                             msg = gr.Textbox(
                                 show_label=False,
@@ -1338,14 +1357,10 @@ class ChatBotUI:
                             with gr.Row():
                                 endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
                                 rag_model_endpoint = gr.Text(
-                                    label="Model Endpoint",
-                                    value=endpoint_value,
-                                    scale = 1
+                                    label="Model Endpoint", value=endpoint_value, scale=1
                                 )
                                 rag_model_name = gr.Text(
-                                    label="Model Name",
-                                    value="llama-2-7b-chat-hf",
-                                    scale = 1
+                                    label="Model Name", value="llama-2-7b-chat-hf", scale=1
                                 )
                             msg_rag = gr.Textbox(
                                 show_label=False,

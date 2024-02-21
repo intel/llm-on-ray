@@ -19,7 +19,9 @@ import argparse
 parser = argparse.ArgumentParser(
     description="Example script to query with langchain sdk", add_help=True
 )
-parser.add_argument("--model_name", default="llama-2-7b-chat-hf", type=str, help="The name of model to request")
+parser.add_argument(
+    "--model_name", default="llama-2-7b-chat-hf", type=str, help="The name of model to request"
+)
 parser.add_argument(
     "--streaming_response",
     default=False,
@@ -39,9 +41,7 @@ llm = ChatOpenAI(
     streaming=args.streaming_response,
 )
 
-prompt = PromptTemplate(
-    template="list 3 {things}",
-    input_variables=["things"])
+prompt = PromptTemplate(template="list 3 {things}", input_variables=["things"])
 
 if args.streaming_response:
     output = llm.stream(prompt.format(things="sports that don't use balls"))
@@ -50,4 +50,3 @@ if args.streaming_response:
 else:
     output = llm.predict(text=prompt.format(things="sports that don't use balls"))
     print(output)
-

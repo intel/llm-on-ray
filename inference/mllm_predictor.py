@@ -1,6 +1,5 @@
-import torch
 from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig, PRECISION_BF16
+from inference.inference_config import InferenceConfig
 from predictor import Predictor
 from inference.utils import module_import
 
@@ -18,17 +17,21 @@ class MllmPredictor(Predictor):
             adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
         # torch_dtype = get_torch_dtype(infer_conf, hf_config)
-        
+
         # model = FuyuForCausalLM.from_pretrained(model_desc.model_id_or_path)
         # processor = FuyuProcessor.from_pretrained(model_desc.model_id_or_path)
         model_loader_name = infer_conf.model_description.model_loader
         input_processor_name = infer_conf.model_description.input_processor
-        model = module_import(f"transformers", model_loader_name).from_pretrained(model_desc.model_id_or_path, local_files_only=True)
-        processor = module_import(f"transformers", input_processor_name).from_pretrained(model_desc.model_id_or_path, local_files_only=True)
-        
-        # model = model.to(self.device)        
+        model = module_import("transformers", model_loader_name).from_pretrained(
+            model_desc.model_id_or_path, local_files_only=True
+        )
+        processor = module_import("transformers", input_processor_name).from_pretrained(
+            model_desc.model_id_or_path, local_files_only=True
+        )
+
+        # model = model.to(self.device)
         # # to channels last
-        # model = model.to(memory_format=torch.channels_last)       
+        # model = model.to(memory_format=torch.channels_last)
         self.model = model
         self.processor = processor
 
@@ -41,7 +44,7 @@ class MllmPredictor(Predictor):
                 config["hpu_graphs"] = True
                 # lazy mode should be True when using hpu graphs
                 config["lazy_mode"] = True
-                
+
     def _process_input(self, image, text_prompt):
         print(image)
         print(text_prompt)

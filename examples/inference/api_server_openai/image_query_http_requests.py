@@ -18,9 +18,10 @@ import json
 import requests
 import argparse
 import os
+from collections.abc import MutableMapping
 
-if 'WORKDIR' not in os.environ or not os.environ['WORKDIR']:
-    os.environ['WORKDIR'] = os.getcwd()
+if "WORKDIR" not in os.environ or not os.environ["WORKDIR"]:
+    os.environ["WORKDIR"] = os.getcwd()
 
 parser = argparse.ArgumentParser(
     description="Example script to query with http requests", add_help=True
@@ -31,7 +32,9 @@ parser.add_argument(
     type=str,
     help="Deployed model endpoint url",
 )
-parser.add_argument("--model_name", default="fuyu-8b", type=str, help="The name of model to request")
+parser.add_argument(
+    "--model_name", default="fuyu-8b", type=str, help="The name of model to request"
+)
 
 parser.add_argument(
     "--streaming_response",
@@ -68,10 +71,13 @@ text_prompt = args.input_text
 img_path = args.image_path
 
 import base64
+
+
 # Function to encode the image
 def encode_image(image_path):
-  with open(image_path, "rb") as image_file:
-    return base64.b64encode(image_file.read()).decode('utf-8')
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 
 if os.path.exists(img_path):
     # Getting the base64 string
@@ -84,23 +90,21 @@ sess = requests.Session()
 invoke_url = f"{args.request_api_base}"
 
 headers = {
-  "Content-Type": "application/json",
+    "Content-Type": "application/json",
 }
 
 payload = {
     "model": args.model_name,
     "messages": [
         {
-            "role": "user", 
+            "role": "user",
             "content": [
-                {'type': "text", "text": text_prompt},
+                {"type": "text", "text": text_prompt},
                 {
-                    'type': "image_url",
-                    "image_url": {
-                        "url": image
-                    },
+                    "type": "image_url",
+                    "image_url": {"url": image},
                 },
-            ]
+            ],
         },
     ],
     "stream": args.streaming_response,
@@ -109,7 +113,7 @@ payload = {
     "top_p": args.top_p,
 }
 
-proxies = {"http": None, "https": None}
+proxies: MutableMapping = {"http": None, "https": None}
 response = sess.post(invoke_url, headers=headers, json=payload, proxies=proxies)
 
 for idx, chunk in enumerate(response.iter_lines(decode_unicode=True)):
@@ -117,6 +121,7 @@ for idx, chunk in enumerate(response.iter_lines(decode_unicode=True)):
         if args.streaming_response:
             # Get data from reponse chunk
             import re
+
             chunk_data = re.sub("^data: ", "", chunk)
             if chunk_data != "[DONE]":
                 # Get message choices from data

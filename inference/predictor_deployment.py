@@ -56,7 +56,7 @@ class PredictorDeployment:
 
         self.use_deepspeed = infer_conf.deepspeed
         self.use_vllm = infer_conf.vllm.enabled
-        self.is_mllm = True if chat_processor_name in ['ChatModelwithImage'] else False
+        self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
 
         if self.use_deepspeed:
             from deepspeed_predictor import DeepSpeedPredictor
@@ -69,6 +69,7 @@ class PredictorDeployment:
             self.predictor = VllmPredictor(infer_conf)
         elif self.is_mllm:
             from mllm_predictor import MllmPredictor
+
             self.predictor = MllmPredictor(infer_conf)
         else:
             from transformer_predictor import TransformerPredictor
@@ -218,7 +219,8 @@ class PredictorDeployment:
                 self.loop.run_in_executor(
                     None,
                     functools.partial(
-                        self.predictor.streaming_generate, images, prompts, streamer, **config),
+                        self.predictor.streaming_generate, images, prompts, streamer, **config
+                    ),
                 )
                 response_handle = self.consume_streamer_async(streamer)
             else:

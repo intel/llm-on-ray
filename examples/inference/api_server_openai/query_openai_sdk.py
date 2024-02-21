@@ -41,11 +41,8 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# List all models.
-#models = openai.Model.list()
-#print(models)
-from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="not_needed")
+
 
 def stream_chat():
     for chunk in client.chat.completions.create(
@@ -59,8 +56,9 @@ def stream_chat():
         content = chunk["choices"][0].get("delta", {}).get("content")
         if content is not None:
             yield content
-       
-def chunk_chat():     
+
+
+def chunk_chat():
     output = client.chat.completions.create(
         model=args.model_name,
         messages=[
@@ -73,6 +71,7 @@ def chunk_chat():
     )
     for i in [output]:
         yield i
+
 
 if args.streaming_response:
     for i in stream_chat():

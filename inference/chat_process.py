@@ -117,7 +117,8 @@ class ChatModelLLama(ChatModel):
         if self.bot_id != "":
             prompt += f"{self.bot_id}:\n"
         return prompt
-    
+
+
 class ChatModelwithImage(ChatModel):
     def __init__(self, intro, human_id, bot_id, stop_words):
         super().__init__(intro, human_id, bot_id, stop_words)
@@ -129,6 +130,7 @@ class ChatModelwithImage(ChatModel):
         from io import BytesIO
         import base64
         import re
+
         prompt = self.intro
         for msg in messages:
             msg = dict(msg)
@@ -136,26 +138,26 @@ class ChatModelwithImage(ChatModel):
             text_prompt = []
             image_prompt = []
             for item in content:
-                if item['type'] == 'text':
-                    text_prompt.append(item['text'])
-                elif item['type'] == 'image_url':
-                    image_prompt.append(item['image_url'])
+                if item["type"] == "text":
+                    text_prompt.append(item["text"])
+                elif item["type"] == "image_url":
+                    image_prompt.append(item["image_url"])
                 else:
                     raise ValueError(f"Unknown content type {item['type']}")
-            
+
             content = "\n".join(text_prompt)
             # prepare images
             images = []
-            for img in image_prompt:                
+            for img in image_prompt:
                 if "url" not in img:
                     continue
-                is_data = len(re.findall('^data:image/.+;base64,', img["url"])) > 0
+                is_data = len(re.findall("^data:image/.+;base64,", img["url"])) > 0
                 if is_data:
-                    encoded_str = re.sub('^data:image/.+;base64,', '', img['url'])
+                    encoded_str = re.sub("^data:image/.+;base64,", "", img["url"])
                     images.append(Image.open(BytesIO(base64.b64decode(encoded_str))))
                 else:
                     images.append(Image.open(requests.get(img["url"], stream=True).raw))
-            
+
             if role == "user":
                 if self.human_id != "":
                     prompt += self.human_id.format(msg=content)
@@ -169,6 +171,7 @@ class ChatModelwithImage(ChatModel):
             prompt += f"{self.bot_id}:\n"
         print(f"prompt is {prompt}")
         return prompt, images
+
 
 if __name__ == "__main__":
     process_tool = ChatModelGptJ(
