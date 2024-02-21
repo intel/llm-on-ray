@@ -92,7 +92,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python llmonray.inference.serve --config_file llmonray/inference/models/gpt2.yaml --simple
+python -m llmonray.inference.serve --config_file llmonray/inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
