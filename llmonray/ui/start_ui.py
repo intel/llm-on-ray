@@ -515,7 +515,7 @@ class ChatBotUI:
         if max_train_step != 0:
             finetune_config["Training"]["max_train_steps"] = max_train_step
 
-        from finetune.finetune import main
+        from llmonray.finetune.finetune import main
 
         finetune_config["total_epochs"] = queue.Queue(
             actor_options={"resources": {"queue_hardware": 1}}
@@ -811,13 +811,16 @@ class ChatBotUI:
 
         title = "Manage LLM Lifecycle"
         with gr.Blocks(css=custom_css, title=title) as gr_chat:
+            logo_path = os.path.join(self.repo_code_path, "ui/images/logo.png")
             head_content = """
                 <div style="color: #fff;text-align: center;">
-                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file=ui/images/logo.png" width="50" height="50"/></div>
+                    <div style="position:absolute; left:15px; top:15px; "><img  src="/file={logo_path}" width="50" height="50"/></div>
                     <p style="color: #fff; font-size: 1.1rem;">Manage LLM Lifecycle</p>
                     <p style="color: #fff; font-size: 0.9rem;">Fine-Tune LLMs using workflow on Ray, Deploy and Inference</p>
                 </div>
-            """
+            """.format(
+                logo_path=logo_path
+            )
             foot_content = """
                 <div class="footer">
                     <p>The workflow is powered by Ray to provide infrastructure management, distributed training, model serving with reliability and auto scaling.</p>
@@ -1256,7 +1259,7 @@ class ChatBotUI:
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
                         with gr.Row():
-                            node_pic = r"./ui/images/Picture2.png"
+                            node_pic = os.path.join(self.repo_code_path, "./ui/images/Picture2.png")
                             gr.Image(
                                 type="pil",
                                 value=node_pic,
@@ -1319,7 +1322,9 @@ class ChatBotUI:
 
                         with gr.Column(scale=0.065, min_width=45):
                             with gr.Row():
-                                node_pic = r"./ui/images/Picture1.png"
+                                node_pic = os.path.join(
+                                    self.repo_code_path, "./ui/images/Picture1.png"
+                                )
                                 gr.Image(
                                     type="pil",
                                     value=node_pic,
@@ -1564,10 +1569,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     file_path = os.path.abspath(__file__)
-    infer_path = os.path.dirname(file_path)
-    repo_path = os.path.abspath(infer_path + os.path.sep + "../")
+    ui_path = os.path.dirname(file_path)
+    repo_path = os.path.abspath(ui_path + os.path.sep + "../")
     default_data_path = os.path.abspath(
-        infer_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl"
+        repo_path + os.path.sep + "../examples/data/sample_finetune_data.jsonl"
     )
 
     from llmonray.finetune.finetune import get_accelerate_environment_variable
