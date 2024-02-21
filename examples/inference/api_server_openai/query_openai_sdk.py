@@ -53,7 +53,7 @@ def stream_chat():
         temperature=0.2,
         top_p=0.7,
     ):
-        content = chunk["choices"][0].get("delta", {}).get("content")
+        content = chunk.choices[0].delta.content
         if content is not None:
             yield content
 
@@ -69,13 +69,19 @@ def chunk_chat():
         temperature=0.2,
         top_p=0.7,
     )
-    for i in [output]:
-        yield i
+    for chunk in [output]:
+        try:
+            content = chunk.choices[0].message.content
+            if content is not None:
+                yield content
+        except Exception:
+            print(chunk)
 
 
 if args.streaming_response:
     for i in stream_chat():
-        print(i)
+        print(i, end="", flush=True)
 else:
     for i in chunk_chat():
-        print(i)
+        print(i, end="", flush=True)
+print("")
