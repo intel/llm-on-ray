@@ -28,7 +28,7 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
     "--temperature", default=None, help="The value used to modulate the next token probabilities"
