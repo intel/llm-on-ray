@@ -35,10 +35,26 @@ from inference.inference_config import all_models
 # (prompt len, output len, latency)
 REQUEST_LATENCY: List[Tuple[int, int, float]] = []
 
+# TODO: (request id, prompt len, output len, latencies list)
+TOKEN_LATENCY_PER_REQUEST: List[Tuple[int, int, int, List[int]]] = []
+
 
 def sample_requests_ShareGPT(
     dataset_path: str, num_requests: int, tokenizer: PreTrainedTokenizer
 ) -> List[Tuple[str, int, int]]:
+    """
+    Sample requests from a dataset of ShareGPT format.
+
+    Args:
+        dataset_path (str): The path to the dataset file.
+        num_requests (int): The number of requests to sample.
+        tokenizer (PreTrainedTokenizer): The tokenizer used to tokenize the prompts and completions.
+
+    Returns:
+        List[Tuple[str, int, int]]: A list of tuples containing the sampled requests. Each tuple
+        consists of the prompt, the length of the prompt, and the length of the completion.
+
+    """
     # Load the dataset.
     with open(dataset_path) as f:
         dataset = json.load(f)
@@ -83,6 +99,19 @@ def sample_requests_IPEX(
     num_requests: int,
     tokenizer: PreTrainedTokenizer,
 ) -> List[Tuple[str, int, int]]:
+    """
+    Sample requests from a dataset of IPEX format.
+
+    Args:
+        dataset_path (str): The path to the dataset.
+        input_tokens (str): The input tokens.
+        max_new_tokens (int): The maximum number of new tokens.
+        num_requests (int): The number of requests to sample.
+        tokenizer (PreTrainedTokenizer): The tokenizer.
+
+    Returns:
+        List[Tuple[str, int, int]]: The sampled requests, each represented as a tuple of (prompt, prompt_len, output_len).
+    """
     with open(dataset_path) as f:
         prompt_pool = json.load(f)
 
@@ -106,6 +135,19 @@ async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
 ) -> AsyncGenerator[Tuple[str, int, int], None]:
+    """
+    Asynchronously generates requests based on the input_requests and request_rate.
+
+    Args:
+        input_requests (List[Tuple[str, int, int]]): A list of input requests, where each request is a tuple
+            containing a string, an integer, and another integer.
+        request_rate (float): The rate at which requests should be generated. If set to float("inf"),
+            requests will be generated without any delay.
+
+    Yields:
+        Tuple[str, int, int]: A request tuple containing a string, an integer, and another integer.
+
+    """
     for request in input_requests:
         yield request
 
@@ -126,6 +168,17 @@ async def send_request(
     config: dict,
     progress_bar: tqdm = None,
 ) -> None:
+    """
+    Sends a request to the specified API URL with the given prompt and configuration.
+
+    Args:
+        api_url (str): The URL of the API to send the request to.
+        prompt (str): The prompt text.
+        prompt_len (int): The length of the prompt text.
+        output_len (int): The desired length of the output.
+        config (dict): The configuration for the request.
+        progress_bar (tqdm, optional): A progress bar to update during the request. Defaults to None.
+    """
     request_start_time = time.perf_counter()
 
     headers = {"User-Agent": "Benchmark Client"}
@@ -167,6 +220,20 @@ async def benchmark(
     config: dict,
     progress: bool,
 ) -> None:
+    """
+    Benchmark the API by sending multiple requests asynchronously.
+
+    Args:
+        api_url (str): The URL of the API.
+        input_requests (List[Tuple[str, int, int]]): A list of input requests, where each request is a tuple
+            containing the prompt, prompt length, and output length.
+        request_rate (float): The rate at which requests should be sent, in requests per second.
+        config (dict): Configuration parameters for sending requests.
+        progress (bool): Whether to display a progress bar.
+
+    Returns:
+        None
+    """
     tasks: List[asyncio.Task] = []
     progress_bar = tqdm(total=len(input_requests)) if progress else None
     async for request in get_request(input_requests, request_rate):
@@ -179,6 +246,15 @@ async def benchmark(
 
 
 def main(args: argparse.Namespace):
+    """
+    Main function for running the benchmark serving.
+
+    Args:
+        args (argparse.Namespace): The command-line arguments.
+
+    Returns:
+        None
+    """
     print(args)
 
     random.seed(args.seed)
