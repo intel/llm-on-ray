@@ -36,7 +36,7 @@ from inference.inference_config import all_models
 REQUEST_LATENCY: List[Tuple[int, int, float]] = []
 
 
-def sample_requests(
+def sample_requests_ShareGPT(
     dataset_path: str, num_requests: int, tokenizer: PreTrainedTokenizer
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
@@ -73,6 +73,32 @@ def sample_requests(
 
     # Sample the requests.
     sampled_requests = random.sample(filtered_dataset, num_requests)
+    return sampled_requests
+
+
+def sample_requests_IPEX(
+    dataset_path: str,
+    input_tokens: str,
+    max_new_tokens: int,
+    num_requests: int,
+    tokenizer: PreTrainedTokenizer,
+) -> List[Tuple[str, int, int]]:
+    with open(dataset_path) as f:
+        prompt_pool = json.load(f)
+
+    # Only sample from gpt-j subset prompts for now
+    model_type = "gpt-j"
+    if str(input_tokens) in prompt_pool[model_type]:
+        prompt = prompt_pool[model_type][input_tokens]
+    else:
+        raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
+
+    prompt_len = len(tokenizer(prompt).input_ids)
+    output_len = prompt_len if not max_new_tokens else max_new_tokens
+
+    # Duplicate prompt to generate samples
+    sampled_requests = [(prompt, prompt_len, output_len)] * num_requests
+
     return sampled_requests
 
 
@@ -154,6 +180,7 @@ async def benchmark(
 
 def main(args: argparse.Namespace):
     print(args)
+
     random.seed(args.seed)
     np.random.seed(args.seed)
 
@@ -166,7 +193,12 @@ def main(args: argparse.Namespace):
         tokenizer_name_or_path, trust_remote_code=args.trust_remote_code
     )
 
-    input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
+    if args.dataset_format == "ShareGPT":
+        input_requests = sample_requests_ShareGPT(args.dataset, args.num_prompts, tokenizer)
+    elif args.dataset_format == "IPEX":
+        input_requests = sample_requests_IPEX(
+            args.dataset, args.input_tokens, args.max_new_tokens, args.num_prompts, tokenizer
+        )
 
     config: Dict[str, Union[int, float]] = {}
 
@@ -227,6 +259,20 @@ if __name__ == "__main__":
     )
     parser.add_argument("--dataset", type=str, required=True, help="Path to the dataset.")
     parser.add_argument(
+        "--dataset-format",
+        type=str,
+        choices=["ShareGPT, IPEX"],
+        required=True,
+        help="Dataset format, should be one of [ShareGPT, IPEX].",
+    )
+    parser.add_argument(
+        "--input-tokens",
+        default="32",
+        type=str,
+        help="input tokens length, used when --dataset-format=IPEX",
+    )
+
+    parser.add_argument(
         "--num-prompts", type=int, default=1000, help="Number of prompts to process."
     )
     parser.add_argument(
@@ -244,7 +290,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--max_new_tokens",
+        "--max-new-tokens",
         default=None,
         help="The maximum numbers of tokens to generate. dataset sample output length is used when not specified.",
     )
