@@ -177,7 +177,6 @@ class PredictorDeployment:
             prompts.append(prompt)
 
         if not streaming_response:
-            model_response = None
             if self.use_vllm:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
                 generate_text = generate_result.text

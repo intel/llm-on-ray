@@ -19,6 +19,7 @@ import requests
 import argparse
 import os
 from collections.abc import MutableMapping
+import base64
 
 if "WORKDIR" not in os.environ or not os.environ["WORKDIR"]:
     os.environ["WORKDIR"] = os.getcwd()
@@ -35,14 +36,12 @@ parser.add_argument(
 parser.add_argument(
     "--model_name", default="fuyu-8b", type=str, help="The name of model to request"
 )
-
 parser.add_argument(
     "--streaming_response",
     default=False,
     action="store_true",
     help="Whether to enable streaming response",
 )
-
 parser.add_argument(
     "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
@@ -65,13 +64,6 @@ parser.add_argument(
     help="input a question you want to ask about this image.",
 )
 
-args = parser.parse_args()
-
-text_prompt = args.input_text
-img_path = args.image_path
-
-import base64
-
 
 # Function to encode the image
 def encode_image(image_path):
@@ -79,20 +71,25 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
+# ================================= #
+
+args = parser.parse_args()
+sess = requests.Session()
+
+text_prompt = args.input_text
+img_path = args.image_path
+
 if os.path.exists(img_path):
     # Getting the base64 string
     base64_image = encode_image(img_path)
     image = f"data:image/png;base64,{base64_image}"
 else:
     image = img_path
-sess = requests.Session()
 
 invoke_url = f"{args.request_api_base}"
-
 headers = {
     "Content-Type": "application/json",
 }
-
 payload = {
     "model": args.model_name,
     "messages": [

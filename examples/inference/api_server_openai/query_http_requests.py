@@ -35,14 +35,14 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=256, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
-    "--temperature", default=0.2, help="The value used to modulate the next token probabilities"
+    "--temperature", default=None, help="The value used to modulate the next token probabilities"
 )
 parser.add_argument(
     "--top_p",
-    default=0.7,
+    default=None,
     help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation",
 )
 parser.add_argument(
@@ -58,6 +58,7 @@ url = f"{args.request_api_base}/chat/completions"
 body = {
     "model": args.model_name,
     "messages": [
+        {"role": "assistant", "content": "You are a helpful assistant."},
         {"role": "user", "content": args.input_text},
     ],
     "stream": args.streaming_response,

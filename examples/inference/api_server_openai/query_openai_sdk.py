@@ -49,9 +49,9 @@ def stream_chat():
         model=args.model_name,
         messages=[{"role": "user", "content": "What is better sorting algorithm than quick sort?"}],
         stream=True,
-        max_tokens=128,
-        temperature=0.2,
-        top_p=0.7,
+        max_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        top_p=args.top_p,
     ):
         content = chunk.choices[0].delta.content
         if content is not None:
@@ -65,9 +65,9 @@ def chunk_chat():
             {"role": "user", "content": "What is better sorting algorithm than quick sort?"},
         ],
         stream=False,
-        max_tokens=128,
-        temperature=0.2,
-        top_p=0.7,
+        max_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        top_p=args.top_p,
     )
     for chunk in [output]:
         try:

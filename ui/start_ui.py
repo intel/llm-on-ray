@@ -902,19 +902,19 @@ class ChatBotUI:
         for index in range(len(self.ray_nodes)):
             if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
                 mark_alive = index
-                node_ip = self.ray_nodes[index]["NodeName"]
-                self.ssh_connect[index] = paramiko.SSHClient()
-                self.ssh_connect[index].load_system_host_keys()
-                self.ssh_connect[index].set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                self.ssh_connect[index].connect(
-                    hostname=node_ip, port=self.node_port, username=self.user_name
-                )
+            node_ip = self.ray_nodes[index]["NodeName"]
+            self.ssh_connect[index] = paramiko.SSHClient()
+            self.ssh_connect[index].load_system_host_keys()
+            self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
+            self.ssh_connect[index].connect(
+                hostname=node_ip, port=self.node_port, username=self.user_name
+            )
         if mark_alive is None:
             print("No alive ray worker found! Exit")
             return
         self.ssh_connect[-1] = paramiko.SSHClient()
         self.ssh_connect[-1].load_system_host_keys()
-        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
         self.ssh_connect[-1].connect(
             hostname=self.ray_nodes[mark_alive]["NodeName"],
             port=self.node_port,
@@ -1142,18 +1142,14 @@ class ChatBotUI:
                     )
 
                     with gr.Row():
-                        with gr.Accordion("Image", open=False, visible=True):
-                            image = gr.Image(type="pil")
-                    with gr.Row():
-                        endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
-                        model_endpoint = gr.Text(
-                            label="Model Endpoint", value=endpoint_value, scale=1
-                        )
-                        model_name = gr.Text(
-                            label="Model Name", value="llama-2-7b-chat-hf", scale=1
-                        )
-                    with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Accordion("image", open=False, visible=True):
+                                image = gr.Image(type="pil")
+                            with gr.Row():
+                                model_endpoint = gr.Text(
+                                    label="Model Endpoint", value=None, scale=1
+                                )
+                                model_name = gr.Text(label="Model Name", value=None, scale=1)
                             msg = gr.Textbox(
                                 show_label=False,
                                 container=False,
@@ -1348,18 +1344,14 @@ class ChatBotUI:
                     )
 
                     with gr.Row():
-                        with gr.Accordion("Image", open=False, visible=True):
-                            rag_image = gr.Image(type="pil")
-                    with gr.Row():
-                        endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
-                        rag_model_endpoint = gr.Text(
-                            label="Model Endpoint", value=endpoint_value, scale=1
-                        )
-                        rag_model_name = gr.Text(
-                            label="Model Name", value="llama-2-7b-chat-hf", scale=1
-                        )
-                    with gr.Row():
                         with gr.Column(scale=0.8):
+                            with gr.Accordion("image", open=False, visible=True):
+                                rag_image = gr.Image(type="pil")
+                            with gr.Row():
+                                rag_model_endpoint = gr.Text(
+                                    label="Model Endpoint", value=None, scale=1
+                                )
+                                rag_model_name = gr.Text(label="Model Name", value=None, scale=1)
                             msg_rag = gr.Textbox(
                                 show_label=False,
                                 container=False,
