@@ -1142,23 +1142,24 @@ class ChatBotUI:
                     )
 
                     with gr.Row():
+                        with gr.Accordion("Image", open=False, visible=True):
+                            image = gr.Image(type="pil")
+                    with gr.Row():
+                        endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
+                        model_endpoint = gr.Text(
+                            label="Model Endpoint", value=endpoint_value, scale=1
+                        )
+                        model_name = gr.Text(
+                            label="Model Name", value="llama-2-7b-chat-hf", scale=1
+                        )
+                    with gr.Row():
                         with gr.Column(scale=0.8):
-                            with gr.Accordion("image", open=False, visible=True):
-                                image = gr.Image(type="pil")
-                            with gr.Row():
-                                endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
-                                model_endpoint = gr.Text(
-                                    label="Model Endpoint", value=endpoint_value, scale=1
-                                )
-                                model_name = gr.Text(
-                                    label="Model Name", value="llama-2-7b-chat-hf", scale=1
-                                )
                             msg = gr.Textbox(
                                 show_label=False,
                                 container=False,
                                 placeholder="Input your question and press Enter",
                             )
-                        with gr.Column(scale=0.2, min_width=20):
+                        with gr.Column(scale=0.2, min_width=0):
                             latency_status = gr.Markdown(
                                 """
                                                 | <!-- --> | <!-- --> |
@@ -1347,17 +1348,18 @@ class ChatBotUI:
                     )
 
                     with gr.Row():
+                        with gr.Accordion("Image", open=False, visible=True):
+                            rag_image = gr.Image(type="pil")
+                    with gr.Row():
+                        endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
+                        rag_model_endpoint = gr.Text(
+                            label="Model Endpoint", value=endpoint_value, scale=1
+                        )
+                        rag_model_name = gr.Text(
+                            label="Model Name", value="llama-2-7b-chat-hf", scale=1
+                        )
+                    with gr.Row():
                         with gr.Column(scale=0.8):
-                            with gr.Accordion("image", open=False, visible=True):
-                                rag_image = gr.Image(type="pil")
-                            with gr.Row():
-                                endpoint_value = "http://127.0.0.1:8000/v1/chat/completions"
-                                rag_model_endpoint = gr.Text(
-                                    label="Model Endpoint", value=endpoint_value, scale=1
-                                )
-                                rag_model_name = gr.Text(
-                                    label="Model Name", value="llama-2-7b-chat-hf", scale=1
-                                )
                             msg_rag = gr.Textbox(
                                 show_label=False,
                                 container=False,
