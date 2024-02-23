@@ -10,7 +10,7 @@ ipex:
   enabled: false
   precision: bf16
 model_description:
-  model_id_or_path: mosaicml/mpt-7b
+  model_id_or_path: mosaicml/mpt-7b-chat
   bigdl: true
   tokenizer_name_or_path: EleutherAI/gpt-neox-20b
   chat_processor: ChatModelGptJ
