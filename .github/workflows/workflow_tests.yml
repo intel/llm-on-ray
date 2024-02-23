@@ -6,23 +6,27 @@ on:
       ci_type:
         type: string
         default: 'pr'
-      no_proxy:
-        type: string
-        default: 'localhost,127.0.0.1'
-      OPENAI_API_BASE:
-        type: string
-        default: 'http://localhost:8000/v1'
-      OPENAI_API_KEY:
-        type: string
-        default: '$your_openai_api_key'  
       code_checkout_path:
         type: string
         default: '/home/runner/work/llm-on-ray/llm-on-ray'
 
 jobs:
-  build:
+  bare-test:
 
     name: bare-test
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10 , 3.11]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
+
+        exclude:
+          - { isPR: true }
+
+        include:
+          - {python-version: "3.9"}
+          - {python-version: "3.10"}
+          - {python-version: "3.11"}
 
     runs-on: ubuntu-latest
     env:
@@ -46,7 +50,6 @@ jobs:
       - name: Display Python version
         run: |
           python -c "import sys; print(sys.version)"
-          bash -c "ls"
 
       - name: Install dependencies
         run: |
