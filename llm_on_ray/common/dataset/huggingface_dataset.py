@@ -25,7 +25,7 @@ class HuggingfaceDataset(Dataset):
             if validation_file is not None:
                 validation_dataset = local_load(validation_file)
                 return datasets.DatasetDict(
-                    {"train": train_dataset, "validation_dataset": validation_dataset}
+                    {"train": train_dataset, "validation": validation_dataset}
                 )
             if validation_split_percentage / 100 > 0.0 and validation_split_percentage / 100 < 1.0:
                 datasets_dict = train_dataset.train_test_split(

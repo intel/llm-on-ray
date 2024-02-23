@@ -2,9 +2,8 @@ import yaml
 import argparse
 
 
-def update_finetune_config(base_model):
-    conf_file = "llm_on_ray/finetune/finetune.yaml"
-    with open(conf_file) as f:
+def update_finetune_config(config_file, base_model):
+    with open(config_file) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
         # due to compute node can't connect network
         # base models are downloaded as local files in directory ~/models/
@@ -23,18 +22,21 @@ def update_finetune_config(base_model):
         # pythia-6.9b
 
         config["General"]["base_model"] = base_model
-        # config["General"]["base_model"] = "pythia-70m"
+        config["General"]["output_dir"] = "./output"
+        config["General"]["checkpoint_dir"] = "./checkpoint"
         config["Training"]["device"] = "GPU"
         config["Training"]["resources_per_worker"]["CPU"] = 1
         config["Training"]["resources_per_worker"]["GPU"] = 1
         config["Training"]["accelerate_mode"] = "GPU_DDP"
+        config["Training"]["logging_steps"] = 1
 
-    with open(conf_file, "w") as f:
+    with open(config_file, "w") as f:
         yaml.dump(config, f, sort_keys=False)
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description="Finetuning on Intel GPU")
+    parser.add_argument("--config_file", type=str, required=True, default=None)
     parser.add_argument("--base_model", type=str, required=True, default=None)
     return parser
 
@@ -43,4 +45,4 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
-    update_finetune_config(args.base_model)
+    update_finetune_config(args.config_file, args.base_model)
