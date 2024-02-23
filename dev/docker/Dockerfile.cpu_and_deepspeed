@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
 
-RUN mkdir ./finetune && mkdir ./inference
+RUN mkdir ./llm-on-ray
 
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed] -f https://developer.intel.com/ipex-whl-stable-cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
