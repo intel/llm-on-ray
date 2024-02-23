@@ -65,13 +65,9 @@ deepspeed = [
 ]
 
 bigdl-cpu = [
-    "bigdl-llm[all]"
+    "bigdl-llm[all]==2.5.0b20240222"
 ]
 
-ui = [
-    "gradio==4.11.0",
-    "paramiko==3.4.0",
-]
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container

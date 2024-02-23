@@ -2,7 +2,7 @@
 
 import os
 import argparse
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional
 
 import torch
 import accelerate
@@ -71,12 +71,13 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
     return mode_env_vars[mode]
 
 
-def convert_dtype(dtype: str) -> torch.dtype:
-    supported_dtypes = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}
-    if dtype in supported_dtypes:
-        return supported_dtypes[dtype]
-    else:
-        raise ValueError(f"only supported torch.dtype list [{supported_dtypes.keys()}]")
+def convert_dtype(dtype: str) -> Optional[torch.dtype]:
+    supported_dtypes = {
+        "fp16": torch.float16,
+        "bf16": torch.bfloat16,
+        "no": None,
+    }
+    return supported_dtypes[dtype]
 
 
 def train_func(config: Dict[str, Any]):
@@ -106,25 +107,15 @@ def train_func(config: Dict[str, Any]):
         fsdp_plugin = None
         deepspeed_plugin = None
 
-    log_with = "tensorboard"  # only support tensorboard as tracker
     output_dir = config["General"]["output_dir"]
-    tracking_dir = config["General"]["tracking_dir"]
     accelerator = accelerate.Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
         deepspeed_plugin=deepspeed_plugin,
-        log_with=log_with,
-        project_dir=tracking_dir,
     )
     epochs = config["Training"]["epochs"]
-    tracker_config = {
-        "epochs": epochs,
-        "learning_rate": config["Training"]["learning_rate"],
-        "batch_size": config["Training"]["batch_size"],
-    }
     base_model = config["General"]["base_model"]
     dataset_file = config["Dataset"]["train_file"]
-    accelerator.init_trackers("fine-tuning", config=tracker_config)
 
     common.logger.info(
         f"accelerator generate finish, accelerator device type = {accelerator.device}"
@@ -152,9 +143,11 @@ def train_func(config: Dict[str, Any]):
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
             "name": base_model,
-            "dtype": convert_dtype(config["Training"]["mixed_precision"]),
+            "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
             "config": config["General"]["config"],
-            "enable_gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
+            "enable_gradient_checkpointing": config["General"].get(
+                "enable_gradient_checkpointing", False
+            ),
             "lora_config": config["General"]["lora_config"]
             if config["General"].get("lora_config")
             else None,

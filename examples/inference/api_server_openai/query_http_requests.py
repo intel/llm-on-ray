@@ -35,7 +35,7 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
     "--temperature", default=None, help="The value used to modulate the next token probabilities"
@@ -64,20 +64,24 @@ body = {
 }
 
 proxies = {"http": None, "https": None}
-response = s.post(url, json=body, proxies=proxies)  # type: ignore
+response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
-    if chunk is not None:
-        if args.streaming_response:
-            # Get data from reponse chunk
-            chunk_data = chunk.split("data: ")[1]
-            if chunk_data != "[DONE]":
-                # Get message choices from data
-                choices = json.loads(chunk_data)["choices"]
-                # Pick content from first choice
-                content = choices[0]["delta"].get("content", "")
+    try:
+        if chunk is not None:
+            if args.streaming_response:
+                # Get data from reponse chunk
+                chunk_data = chunk.split("data: ")[1]
+                if chunk_data != "[DONE]":
+                    # Get message choices from data
+                    choices = json.loads(chunk_data)["choices"]
+                    # Pick content from first choice
+                    content = choices[0]["delta"].get("content", "")
+                    print(content, end="", flush=True)
+            else:
+                choices = json.loads(chunk)["choices"]
+                content = choices[0]["message"].get("content", "")
                 print(content, end="", flush=True)
-        else:
-            choices = json.loads(chunk)["choices"]
-            content = choices[0]["message"].get("content", "")
-            print(content, end="", flush=True)
-print("")
+    except Exception as e:
+        print("chunk content: ", chunk)
+        raise e
+print()

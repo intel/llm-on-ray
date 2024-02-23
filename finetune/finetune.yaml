@@ -3,7 +3,6 @@ General:
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
-  tracking_dir: /tmp/llm-ray/tracking
   config:
     trust_remote_code: false
     use_auth_token: null
@@ -30,6 +29,6 @@ Training:
   resources_per_worker:
     CPU: 32
   accelerate_mode: CPU_DDP
-  gradient_accumulation_steps: 2
+  gradient_accumulation_steps: 1
   logging_steps: 10
   deepspeed_config_file: finetune/ds_config_zero2.yaml

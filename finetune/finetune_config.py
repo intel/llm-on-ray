@@ -26,7 +26,6 @@ class General(BaseModel):
     gpt_base_model: bool
     output_dir: str
     checkpoint_dir: str
-    tracking_dir: str
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
@@ -56,7 +55,7 @@ class Training(BaseModel):
     resources_per_worker: RayResourceConfig
     accelerate_mode: str
     mixed_precision: str = "no"
-    gradient_accumulation_steps: int
+    gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
 
@@ -72,6 +71,13 @@ class Training(BaseModel):
         modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "GPU_DEEPSPEED"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
+        return v
+
+    @validator("mixed_precision")
+    def check_mixed_precision(cls, v: str):
+        supported_precisions = ["no", "fp16", "bf16"]
+        if v not in supported_precisions:
+            raise ValueError(f"mixed_precision must be one of {supported_precisions}")
         return v
 
     @validator("logging_steps")
