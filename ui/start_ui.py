@@ -70,7 +70,7 @@ class CustomStopper(Stopper):
 
 
 def is_simple_api(request_url, model_name):
-    if model_name is None:
+    if model_name is None or len(model_name) == 0:
         return True
     return model_name in request_url
 
@@ -230,7 +230,6 @@ class ChatBotUI:
                 "top_k": config["top_k"],
             }
         proxies = {"http": None, "https": None}
-        print(sample_input)
         outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
         for output in outputs.iter_lines(chunk_size=None, decode_unicode=True):
@@ -239,6 +238,8 @@ class ChatBotUI:
                 if prompt in output:
                     output = output[len(prompt) :]
             else:
+                if output is None or output == "":
+                    continue
                 import json
                 import re
 
@@ -265,9 +266,10 @@ class ChatBotUI:
         image=None,
         enhance_knowledge=None,
     ):
-        print("request submitted!")
         request_url = model_endpoint if model_endpoint != "" else deploy_model_endpoint
         simple_api = is_simple_api(request_url, model_name)
+        if simple_api and image is not None:
+            raise gr.Error("SimpleAPI image inference is not implemented.")
         prompt = self.history_to_messages(history, image)
         if enhance_knowledge:
             prompt = self.add_knowledge(prompt, enhance_knowledge)
@@ -282,7 +284,6 @@ class ChatBotUI:
             "top_k": Top_k,
             "model": model_name,
         }
-        print("request wip to submit")
         outputs = self.model_generate(
             prompt=prompt,
             request_url=request_url,
@@ -762,11 +763,12 @@ class ChatBotUI:
             name=finetuned_deploy.name,
             route_prefix=finetuned_deploy.route_prefix,
         )
-        return (
+        endpoint = (
             self.ip_port
             if finetuned_deploy.route_prefix is None
             else self.ip_port + finetuned_deploy.route_prefix
         )
+        return endpoint, endpoint, None, endpoint, None
 
     def shutdown_finetune(self):
         self.stopper.stop(True)
@@ -1643,7 +1645,13 @@ class ChatBotUI:
             deploy_event = deploy_btn.click(
                 self.deploy_func,
                 [all_model_dropdown, replica_num, cpus_per_worker_deploy],
-                [deployed_model_endpoint],
+                [
+                    deployed_model_endpoint,
+                    model_endpoint,
+                    model_name,
+                    rag_model_endpoint,
+                    rag_model_name,
+                ],
             )
             stop_deploy_btn.click(
                 fn=self.shutdown_deploy,
