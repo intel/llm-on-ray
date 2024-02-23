@@ -64,7 +64,7 @@ deepspeed = [
 ]
 
 bigdl-cpu = [
-    "bigdl-llm[all]"
+    "bigdl-llm[all]==2.5.0b20240222"
 ]
 
 
