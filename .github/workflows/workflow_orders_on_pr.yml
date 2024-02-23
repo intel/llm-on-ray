@@ -15,7 +15,6 @@ on:
       - 'tools/**'
       - 'pyproject.toml'
       - 'tests/**'
-      - 'examples/**'
 
 jobs:
 
