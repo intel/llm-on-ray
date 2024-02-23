@@ -60,6 +60,9 @@ chat_completion = client.chat.completions.create(
 )
 if args.streaming_response:
     for chunk in chat_completion:
-        print(chunk)
+        content = chunk.choices[0].delta.content
+        if content is not None:
+            print(content, end="")
+    print("")
 else:
     print(chat_completion)
