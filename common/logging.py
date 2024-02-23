@@ -11,9 +11,9 @@ logger_name = "common"
 logging_config = {
     "version": 1,
     "loggers": {
-        "root": {"level": "DEBUG", "handlers": ["consoleHandler"]},
+        "root": {"level": "INFO", "handlers": ["consoleHandler"]},
         "common": {
-            "level": "DEBUG",
+            "level": "INFO",
             "handlers": ["consoleHandler"],
             "qualname": "common",
             "propagate": 0,
@@ -22,7 +22,7 @@ logging_config = {
     "handlers": {
         "consoleHandler": {
             "class": "logging.StreamHandler",
-            "level": "DEBUG",
+            "level": "INFO",
             "formatter": "standardFormatter",
         },
     },

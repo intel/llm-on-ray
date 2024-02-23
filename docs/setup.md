@@ -29,6 +29,8 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 #### 1. Prerequisites
 For Intel GPU, ensure the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html) is installed.
 
+For Gaudi, ensure the [SynapseAI SW stack and container runtime](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html?highlight=installer#run-using-containers) is installed.
+
 #### 2. Clone the repository and install dependencies.
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
@@ -51,7 +53,7 @@ source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_
 
 For Gaudi:
 
-Please use the [Dockerfile](../inference/habana/Dockerfile) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
+Please use the [Dockerfile](../dev/docker/Dockerfile.habana) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
 
 ```bash
 docker build \

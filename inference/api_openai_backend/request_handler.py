@@ -35,7 +35,7 @@
 import asyncio
 import traceback
 from typing import AsyncIterator, List
-from fastapi import status, HTTPException
+from fastapi import status, HTTPException, Request
 from starlette.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from logger import get_logger
@@ -56,7 +56,7 @@ class OpenAIHTTPException(Exception):
         self.type = type
 
 
-def openai_exception_handler(exc: OpenAIHTTPException):
+def openai_exception_handler(r: Request, exc: OpenAIHTTPException):
     assert isinstance(exc, OpenAIHTTPException), f"Unable to handle invalid exception {type(exc)}"
     if exc.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
         message = "Internal Server Error"
