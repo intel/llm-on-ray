@@ -29,10 +29,11 @@ jobs:
           - {python-version: "3.11"}
 
     runs-on: ubuntu-latest
-    # env:
-    #   no_proxy: 'localhost,127.0.0.1'
-    #   OPENAI_API_BASE: 'http://localhost:8000/v1'
-    #   OPENAI_API_KEY: '$your_openai_api_key' 
+    env:
+      no_proxy: 'localhost,127.0.0.1'
+      OPENAI_API_BASE: 'http://localhost:8000/v1'
+      OPENAI_API_KEY: '$your_openai_api_key' 
+      OPENAI_BASE_URL: 'http://localhost:8000/v1'
     defaults:
       run:
         shell: bash
@@ -65,10 +66,10 @@ jobs:
 
       - name: Start tests
         run: |
-          bash -c "export OPENAI_BASE_URL=http://localhost:8000/v1"
-          bash -c "export OPENAI_API_BASE=http://localhost:8000/v1"
-          bash -c "export OPENAI_API_KEY=not_a_real_key"
-          bash -c "export no_proxy=localhost,127.0.0.1"
+          # bash -c "export OPENAI_BASE_URL=http://localhost:8000/v1"
+          # bash -c "export OPENAI_API_BASE=http://localhost:8000/v1"
+          # bash -c "export OPENAI_API_KEY=not_a_real_key"
+          # bash -c "export no_proxy=localhost,127.0.0.1"
           bash -c "./tests/run-tests.sh"
 
   build_docker:
