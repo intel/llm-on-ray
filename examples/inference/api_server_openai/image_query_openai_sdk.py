@@ -74,7 +74,20 @@ if os.path.exists(img_path):
 else:
     image = img_path
 
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="not_needed")
+if "OPENAI_API_KEY" in os.environ:
+    openai_api_key = os.environ["OPENAI_API_KEY"]
+else:
+    openai_api_key = "not_needed"
+
+if "OPENAI_BASE_URL" in os.environ:
+    openai_base_url = os.environ["OPENAI_BASE_URL"]
+elif openai_api_key == "not_needed":
+    openai_base_url = "http://localhost:8000/v1"
+else:
+    openai_base_url = "https://api.openai.com/v1"
+
+client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
+
 message = [
     {
         "role": "user",

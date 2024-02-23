@@ -64,10 +64,22 @@ if os.path.exists(img_path):
 else:
     image = img_path
 
+if "OPENAI_API_KEY" in os.environ:
+    openai_api_key = os.environ["OPENAI_API_KEY"]
+else:
+    openai_api_key = "not_needed"
+
+if "OPENAI_BASE_URL" in os.environ:
+    openai_base_url = os.environ["OPENAI_BASE_URL"]
+elif openai_api_key == "not_needed":
+    openai_base_url = "http://localhost:8000/v1"
+else:
+    openai_base_url = "https://api.openai.com/v1"
+
 llm = ChatOpenAI(
-    openai_api_base="http://localhost:8000/v1",
+    openai_api_base=openai_base_url,
     model_name=args.model_name,
-    openai_api_key="not_needed",
+    openai_api_key=openai_api_key,
     streaming=args.streaming_response,
     max_tokens=args.max_tokens,
 )
