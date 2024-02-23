@@ -1,6 +1,7 @@
 port: 8000
 name: gpt-j-6b
 route_prefix: /gpt-j-6b
+num_replicas: 1
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
