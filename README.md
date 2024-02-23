@@ -44,7 +44,7 @@ git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
 conda create -n llm-on-ray python=3.9
 conda activate llm-on-ray
-pip install .[cpu] --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 
 #### 2. Start Ray
