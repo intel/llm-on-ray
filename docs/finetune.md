@@ -65,5 +65,5 @@ The following models have been verified on Intel CPUs or GPUs.
 ## Finetune the model
 To finetune your model, execute the following command. The finetuned model will be saved in /tmp/llm-ray/output by default.
 ``` bash
-python -m llmonray.finetune.finetune --config_file <your finetuning conf file>
+python -m llm_on_ray.finetune.finetune --config_file <your finetuning conf file>
 ```

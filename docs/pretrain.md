@@ -123,27 +123,27 @@ Set up `megatron_deepspeed_path` in the configuration.
 ```bash
 cd /home/user/workspace/llm-on-ray
 #Bloom-7B
-python -m llmonray.pretrain.megatron_deepspeed_pretrain --config_file llmonray/pretrain/config/bloom_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
+python -m llm_on_ray.pretrain.megatron_deepspeed_pretrain --config_file llm_on_ray/pretrain/config/bloom_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
 #llama-7B
-python -m llmonray.pretrain.megatron_deepspeed_pretrain --config_file llmonray/pretrain/config/llama_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
+python -m llm_on_ray.pretrain.megatron_deepspeed_pretrain --config_file llm_on_ray/pretrain/config/llama_7b_megatron_deepspeed_zs0_8Gaudi_pretrain.conf
 ```
 
 ##### Huggingface Trainer
 ```bash
 cd /home/user/workspace/llm-on-ray
 #llama-7B
-python -m llmonray.pretrain.pretrain --config_file llmonray/pretrain/config/llama_7b_8Guadi_pretrain.conf
+python -m llm_on_ray.pretrain.pretrain --config_file llm_on_ray/pretrain/config/llama_7b_8Guadi_pretrain.conf
 ```
 ##### Nvidia GPU:
 ###### Megatron-DeepSpeed
 ```bash
 cd /home/user/workspace/llm-on-ray
 #llama2-7B
-python -m llmonray.pretrain.megatron_deepspeed_pretrain --config_file llmonray/pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
+python -m llm_on_ray.pretrain.megatron_deepspeed_pretrain --config_file llm_on_ray/pretrain/config/llama2_3b_megatron_deepspeed_zs0_8gpus_pretrain.conf
 ```
 ##### Huggingface Trainer
 ```bash
 cd /home/user/workspace/llm-on-ray
 #llama-7B
-python -m llmonray.pretrain.pretrain --config_file llmonray/pretrain/config/llama_7b_8gpu_pretrain.conf
+python -m llm_on_ray.pretrain.pretrain --config_file llm_on_ray/pretrain/config/llama_7b_8gpu_pretrain.conf
 ```

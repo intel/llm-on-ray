@@ -30,22 +30,22 @@ LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP
 We support three methods to specify the models to be served, and they have the following priorities.
 1. Use inference configuration file if config_file is set.
 ```
-python -m llmonray.inference.serve --config_file llmonray/inference/models/gpt2.yaml
+python -m llm_on_ray.inference.serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 2. Use relevant configuration parameters if model_id_or_path is set.
 ```
-python -m llmonray.inference.serve --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix ...]
+python -m llm_on_ray.inference.serve --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix ...]
 ```
 3. If --config_file and --model_id_or_path are both None, it will serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
 ```
-python -m llmonray.inference.serve --models gpt2 gpt-j-6b
+python -m llm_on_ray.inference.serve --models gpt2 gpt-j-6b
 ```
 ### OpenAI-compatible API
 To deploy your model, execute the following command with the model's configuration file. This will create an OpenAI-compatible API ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)) for serving.
 ```bash
-python -m llmonray.inference.serve --config_file <path to the conf file>
+python -m llm_on_ray.inference.serve --config_file <path to the conf file>
 ```
-To deploy and serve multiple models concurrently, place all models' configuration files under `llmonray/inference/models` and directly run `python -m llmonray.inference.serve` without passing any conf file.
+To deploy and serve multiple models concurrently, place all models' configuration files under `llm_on_ray/inference/models` and directly run `python -m llm_on_ray.inference.serve` without passing any conf file.
 
 After deploying the model, you can access and test it in many ways:
 ```bash
@@ -71,7 +71,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py
 ### Serving Model to a Simple Endpoint
 This will create a simple endpoint for serving according to the `port` and `route_prefix` parameters in conf file, for example: http://127.0.0.1:8000/gpt2.
 ```bash
-python -m llmonray.inference.serve --config_file <path to the conf file> --simple
+python -m llm_on_ray.inference.serve --config_file <path to the conf file> --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash

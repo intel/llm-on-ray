@@ -3,7 +3,7 @@ import argparse
 
 
 def update_finetune_config(base_model):
-    conf_file = "llmonray/finetune/finetune.yaml"
+    conf_file = "llm_on_ray/finetune/finetune.yaml"
     with open(conf_file) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
         # due to compute node can't connect network

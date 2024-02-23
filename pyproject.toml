@@ -70,7 +70,7 @@ bigdl-cpu = [
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container
-package-dir = {"llmonray" = "llmonray"}
+package-dir = {"llm_on_ray" = "llm_on_ray"}
 include-package-data = true
 
 [project.urls]

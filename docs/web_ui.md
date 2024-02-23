@@ -14,7 +14,7 @@ $ dev/scripts/install-ui.sh
 ## Start Web UI
 
 ```bash
-python -m llmonray.ui.start_ui --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
+python -m llm_on_ray.ui.start_ui --node_user_name $user --conda_env_name $conda_env --master_ip_port "$node_ip:6379"
 ```
 You will get URL from the command line output (E.g. http://0.0.0.0:8080 for local network and https://180cd5f7c31a1cfd3c.gradio.live for public network) and use the web browser to open it.
 
