@@ -77,5 +77,9 @@ include-package-data = true
 Repository = "https://github.com/intel/llm-on-ray.git"
 Issues = "https://github.com/intel/llm-on-ray.git/issues"
 
+[project.scripts]
+llm_on_ray-finetune = "llm_on_ray.finetune.finetune:main"
+llm_on_ray-serve = "llm_on_ray.inference.serve:main"
+
 [tool.black]
 line-length = 100

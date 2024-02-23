@@ -59,14 +59,14 @@ ray start --head
 Use the following command to finetune a model using an example dataset and default configurations. The finetuned model will be stored in `/tmp/llm-ray/output` by default. To customize the base model, dataset and configurations, please see the [finetuning document](#finetune):
 
 ```bash
-python -m llm_on_ray.finetune.finetune --config_file llm_on_ray/finetune/finetune.yaml
+llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml
 ```
 
 ### Serving
 Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2 as an example, but more model configuration examples can be found in the [inference/models](inference/models) directory:
 
 ```bash
-python -m llm_on_ray.inference.serve --config_file llm_on_ray/inference/models/gpt2.yaml
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
@@ -92,7 +92,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python -m llm_on_ray.inference.serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
