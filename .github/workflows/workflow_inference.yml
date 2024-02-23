@@ -34,8 +34,7 @@ jobs:
     name: inference test
     strategy:
       matrix:
-        # remove 'mpt-7b-bigdl' temporarily due to https://github.com/intel-analytics/BigDL/issues/10177
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm ]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -45,6 +44,7 @@ jobs:
         include:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
+          - { model: "mpt-7b-bigdl"}
           - { model: "llama-2-7b-chat-hf-vllm"}
           - dtuner_model: nathan0/mpt-7b-deltatuner-model
             model: mpt-7b
