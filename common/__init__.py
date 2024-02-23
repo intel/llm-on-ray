@@ -4,6 +4,8 @@ from . import agentenv
 from .torch_config import TorchConfig  # noqa: F401
 from typing import Dict, Any
 import sys
+from .config import Config  # noqa: F401
+from .init import init  # noqa: F401
 
 
 @load_check_decorator  # noqa: F405 # may be undefined, or defined from star imports
