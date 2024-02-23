@@ -58,4 +58,8 @@ chat_completion = client.chat.completions.create(
     temperature=args.temperature,
     top_p=args.top_p,
 )
-print(chat_completion)
+if args.streaming_response:
+    for chunk in chat_completion:
+        print(chunk)
+else:
+    print(chat_completion)

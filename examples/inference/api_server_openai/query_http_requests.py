@@ -67,7 +67,7 @@ proxies = {"http": None, "https": None}
 response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
     try:
-        if chunk is not None:
+        if chunk is not None and chunk != "":
             if args.streaming_response:
                 # Get data from reponse chunk
                 chunk_data = chunk.split("data: ")[1]
