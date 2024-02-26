@@ -58,4 +58,11 @@ chat_completion = client.chat.completions.create(
     temperature=args.temperature,
     top_p=args.top_p,
 )
-print(chat_completion)
+if args.streaming_response:
+    for chunk in chat_completion:
+        content = chunk.choices[0].delta.content
+        if content is not None:
+            print(content, end="")
+    print("")
+else:
+    print(chat_completion)

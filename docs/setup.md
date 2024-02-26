@@ -40,15 +40,15 @@ conda activate llm-on-ray
 ```
 For CPU:
 ```bash
-pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 For GPU:
 ```bash
-pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
+pip install .[gpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 ```
 If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked in every node before Ray starts:
 ```bash
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 For Gaudi:
@@ -68,7 +68,7 @@ docker build \
 After the image is built successfully, start a container:
 
 ```bash
-docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-habana-demo" llm-ray-habana:latest 
+docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-habana-demo" llm-ray-habana:latest
 ```
 
 #### 3. Launch Ray cluster

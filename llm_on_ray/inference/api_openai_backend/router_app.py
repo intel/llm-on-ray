@@ -109,7 +109,7 @@ async def _completions_wrapper(
                     logger.error(f"{subresult_dict['error']}")
                     all_results.pop()
                     had_error = True
-                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n"
+                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n\n"
                     # Return early in case of an error
                     break
                 choices = [
@@ -126,7 +126,7 @@ async def _completions_wrapper(
                     model=body.model,
                     choices=choices,
                     usage=usage,
-                ).json() + "\n"
+                ).json() + "\n\n"
             if had_error:
                 # Return early in case of an error
                 break
@@ -142,8 +142,8 @@ async def _completions_wrapper(
                 model=body.model,
                 choices=choices,
                 usage=usage,
-            ).json() + "\n"
-        yield "data: [DONE]\n"
+            ).json() + "\n\n"
+        yield "data: [DONE]\n\n"
 
 
 async def _chat_completions_wrapper(
@@ -168,7 +168,7 @@ async def _chat_completions_wrapper(
             model=body.model,
             choices=choices,
             usage=None,
-        ).json() + "\n"
+        ).json() + "\n\n"
 
         all_results = []
         async for results in generator:
@@ -183,7 +183,7 @@ async def _chat_completions_wrapper(
                     subresult_dict["finish_reason"] = None
                     all_results.pop()
                     had_error = True
-                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n"
+                    yield "data: " + ModelResponse(**subresult_dict).json() + "\n\n"
                     # Return early in case of an error
                     break
                 else:
@@ -201,7 +201,7 @@ async def _chat_completions_wrapper(
                         model=body.model,
                         choices=choices,
                         usage=None,
-                    ).json() + "\n"
+                    ).json() + "\n\n"
             if had_error:
                 # Return early in case of an error
                 break
@@ -224,8 +224,8 @@ async def _chat_completions_wrapper(
                 model=body.model,
                 choices=choices,
                 usage=usage,
-            ).json() + "\n"
-        yield "data: [DONE]\n"
+            ).json() + "\n\n"
+        yield "data: [DONE]\n\n"
 
 
 class Router:

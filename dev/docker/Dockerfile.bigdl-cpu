@@ -29,8 +29,8 @@ COPY ./MANIFEST.in .
 
 RUN mkdir ./llm_on_ray
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] -f https://developer.intel.com/ipex-whl-stable-cpu \
-    -f https://download.pytorch.org/whl/torch_stable.html
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
