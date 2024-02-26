@@ -6,9 +6,6 @@ on:
       ci_type:
         type: string
         default: 'pr'
-      # code_checkout_path:
-      #   type: string
-      #   default: '/home/runner/work/llm-on-ray/llm-on-ray'
 
 jobs:
   bare-test:
@@ -104,7 +101,7 @@ jobs:
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker ps -a
-          docker run -tid -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e no_proxy=${{ inputs.no_proxy }} -e OPENAI_API_BASE=http://localhost:8000/v1 -e OPENAI_API_KEY=$not_a_real_key --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+          docker run -tid -v :/root/llm-on-ray  --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
       
       - name: Start Ray Cluster
         run: |
