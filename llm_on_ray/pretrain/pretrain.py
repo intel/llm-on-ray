@@ -17,12 +17,12 @@ from importlib import util
 use_habana = False
 loader = util.find_spec("habana_frameworks")
 if loader is not None:
-    from backend.habana_backend import TorchConfig
+    from llm_on_ray.pretrain.backend.habana_backend import TorchConfig
 
     use_habana = True
 else:
     from ray.train.torch import TorchConfig
-    from backend.deepspeed_backend import TorchConfig as DeepSpeedTorchConfig
+    from llm_on_ray.pretrain.backend.deepspeed_backend import TorchConfig as DeepSpeedTorchConfig
 
 
 def train_func(config: Dict[str, Any]):
