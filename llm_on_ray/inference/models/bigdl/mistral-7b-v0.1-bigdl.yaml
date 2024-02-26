@@ -1,6 +1,7 @@
 port: 8000
 name: mistral-7b-v0.1-bigdl
 route_prefix: /mistral-7b-v0.1-bigdl
+num_replicas: 1
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false

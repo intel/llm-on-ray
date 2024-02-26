@@ -103,6 +103,7 @@ class InferenceConfig(BaseModel):
     port: int = 8000
     name: str = "default"
     route_prefix: Union[str, None] = None
+    num_replicas: int = 1
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
