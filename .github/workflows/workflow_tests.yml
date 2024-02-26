@@ -13,7 +13,7 @@ jobs:
     name: bare-test
     strategy:
       matrix:
-        python-version: [3.8, 3.9, 3.10 , 3.11]
+        python-version: [3.9, 3.10 , 3.11]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -50,8 +50,7 @@ jobs:
           pip install .[cpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/ -f https://download.pytorch.org/whl/torch_stable.html
           # Dynamic link oneCCL and Intel MPI libraries
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
-          pip install -r ./tests/requirements.txt
-
+          
       - name: Start Ray Cluster
         run: |
           ray start --head
@@ -107,7 +106,6 @@ jobs:
       - name: Run query Test
         run: |
             TARGET=${{steps.target.outputs.target}}
-            docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
             docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
       - name: Stop Container
