@@ -6,9 +6,9 @@ on:
       ci_type:
         type: string
         default: 'pr'
-      code_checkout_path:
-        type: string
-        default: '/home/runner/work/llm-on-ray/llm-on-ray'
+      # code_checkout_path:
+      #   type: string
+      #   default: '/home/runner/work/llm-on-ray/llm-on-ray'
 
 jobs:
   bare-test:
