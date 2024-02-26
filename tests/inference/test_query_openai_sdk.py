@@ -1,12 +1,18 @@
 import subprocess
 import pytest
+import os
+
+os.environ["no_proxy"] = "localhost,127.0.0.1"
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
+os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
 
 
 def script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
     # Other OpenAI SDK tests
     if api_base != "http://localhost:8000/v1":
-        bash_command = f'export OPENAI_API_BASE="{api_base}"'
-        subprocess.run(bash_command, shell=True)
+        os.environ["OPENAI_API_BASE"] = api_base
+        os.environ["OPENAI_BASE_URL"] = api_base
 
     config_path = "../.github/workflows/config/" + model_name + ".yaml"
 

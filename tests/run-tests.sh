@@ -7,6 +7,6 @@ export OPENAI_API_KEY=not_a_real_key
 export no_proxy=localhost,127.0.0.1
 
 # Run pytest with the test file
-pytest -vs --capture=tee-sys --show-capture=all ./inference
+pytest -vv --capture=tee-sys --show-capture=all ./inference
 
 echo "Pytest finished running tests."
