@@ -94,7 +94,7 @@ jobs:
             DF_SUFFIX=".cpu_and_deepspeed"
           fi
           TARGET=${{steps.target.outputs.target}}
-          source ${{ inputs.code_checkout_path }}:/root/llm-on-ray/.github/workflows/docker_build.sh
+          source .github/workflows/config/docker_build.sh
           build_and_prune TARGET DF_SUFFIX ${{ inputs.http_proxy }} ${{ inputs.https_proxy }}
           # docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           # docker image prune -f
