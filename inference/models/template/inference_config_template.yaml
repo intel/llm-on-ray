@@ -1,6 +1,7 @@
 port: 8000
 name: null
 route_prefix: null
+num_replicas: 1
 cpus_per_worker: 24
 gpus_per_worker: 0
 hpus_per_worker: 0

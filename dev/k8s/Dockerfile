@@ -23,7 +23,7 @@ RUN "$HOME/anaconda3/bin/pip install accelerate==0.19.0" \
     "$HOME/anaconda3/bin/pip install gymnasium"  \
     "$HOME/anaconda3/bin/pip install dm-tree"  \
     "$HOME/anaconda3/bin/pip install scikit-image"  \
-    "$HOME/anaconda3/bin/pip install oneccl_bind_pt==1.13 -f https://developer.intel.com/ipex-whl-stable-cpu"
+    "$HOME/anaconda3/bin/pip install oneccl_bind_pt==1.13 --extra-index-url https://developer.intel.com/ipex-whl-stable-cpu"
 
 # set http_proxy & https_proxy
 ENV http_proxy=${http_proxy}

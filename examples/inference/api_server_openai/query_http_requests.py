@@ -35,7 +35,7 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
     "--temperature", default=None, help="The value used to modulate the next token probabilities"
@@ -71,7 +71,7 @@ proxies = {"http": None, "https": None}
 response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
     try:
-        if chunk is not None:
+        if chunk is not None and chunk != "":
             if args.streaming_response:
                 # Get data from reponse chunk
                 chunk_data = chunk.split("data: ")[1]
