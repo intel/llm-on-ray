@@ -24,7 +24,7 @@ import json
 import random
 import time
 from tqdm import tqdm
-from typing import AsyncGenerator, Dict, List, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import aiohttp
 import numpy as np
@@ -35,8 +35,8 @@ from inference.inference_config import all_models
 # (prompt len, output len, latency)
 REQUEST_LATENCY: List[Tuple[int, int, float]] = []
 
-# TODO: (request id, prompt len, output len, latencies list)
-TOKEN_LATENCY_PER_REQUEST: List[Tuple[int, int, int, List[int]]] = []
+# TODO: (prompt len, output len, request latency, latencies list)
+LATENCY_TRACK_LIST: List[Tuple[int, int, float, Optional[List[float]]]] = []
 
 
 def sample_requests_ShareGPT(
@@ -166,6 +166,7 @@ async def send_request(
     prompt_len: int,
     output_len: int,
     config: dict,
+    track_per_token_latency: bool = True,
     progress_bar: tqdm = None,
 ) -> None:
     """
@@ -192,16 +193,29 @@ async def send_request(
     pload = {
         "text": prompt,
         "config": config,
-        "stream": False,
+        "stream": track_per_token_latency,
     }
+
+    token_latencies_per_request: Optional[List[float]] = [] if track_per_token_latency else None
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         while True:
             async with session.post(api_url, headers=headers, json=pload) as response:
                 chunks = []
+
+                start_ts = time.perf_counter()
+
                 async for chunk, _ in response.content.iter_chunks():
+                    end_ts = time.perf_counter()
+                    latency = end_ts - start_ts
+                    if track_per_token_latency and token_latencies_per_request:
+                        token_latencies_per_request.append(latency)
+                    start_ts = end_ts
                     chunks.append(chunk)
+                    print(chunk.decode("utf-8") + "|", end="", flush=True)
+                print("Token Latencies:", token_latencies_per_request)
+                # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
             b"".join(chunks).decode("utf-8")
             if progress_bar:
@@ -211,6 +225,12 @@ async def send_request(
     request_end_time = time.perf_counter()
     request_latency = request_end_time - request_start_time
     REQUEST_LATENCY.append((prompt_len, output_len, request_latency))
+    if track_per_token_latency:
+        LATENCY_TRACK_LIST.append(
+            (prompt_len, output_len, request_latency, token_latencies_per_request)
+        )
+    else:
+        LATENCY_TRACK_LIST.append((prompt_len, output_len, request_latency, None))
 
 
 async def benchmark(
@@ -239,7 +259,15 @@ async def benchmark(
     async for request in get_request(input_requests, request_rate):
         prompt, prompt_len, output_len = request
         task = asyncio.create_task(
-            send_request(api_url, prompt, prompt_len, output_len, config, progress_bar)
+            send_request(
+                api_url,
+                prompt,
+                prompt_len,
+                output_len,
+                config,
+                track_per_token_latency=True,
+                progress_bar=progress_bar,
+            )
         )
         tasks.append(task)
     await asyncio.gather(*tasks)
@@ -337,7 +365,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-format",
         type=str,
-        choices=["ShareGPT, IPEX"],
+        choices=["ShareGPT", "IPEX"],
         required=True,
         help="Dataset format, should be one of [ShareGPT, IPEX].",
     )
