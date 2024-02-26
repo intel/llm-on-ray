@@ -196,7 +196,7 @@ async def send_request(
         "stream": track_per_token_latency,
     }
 
-    token_latencies_per_request: Optional[List[float]] = [] if track_per_token_latency else None
+    token_latencies_per_request = []
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -209,7 +209,7 @@ async def send_request(
                 async for chunk, _ in response.content.iter_chunks():
                     end_ts = time.perf_counter()
                     latency = end_ts - start_ts
-                    if track_per_token_latency and token_latencies_per_request:
+                    if track_per_token_latency:
                         token_latencies_per_request.append(latency)
                     start_ts = end_ts
                     chunks.append(chunk)
