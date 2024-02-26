@@ -80,6 +80,8 @@ Issues = "https://github.com/intel/llm-on-ray.git/issues"
 [project.scripts]
 llm_on_ray-finetune = "llm_on_ray.finetune.finetune:main"
 llm_on_ray-serve = "llm_on_ray.inference.serve:main"
+llm_on_ray-pretrain = "llm_on_ray.pretrain.pretrain:main"
+llm_on_ray-megatron_deepspeed_pretrain = "llm_on_ray.pretrain.megatron_deepspeed_pretrain:main"
 
 [tool.black]
 line-length = 100
