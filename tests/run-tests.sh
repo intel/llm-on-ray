@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 cd $(dirname $0)
 
 export OPENAI_BASE_URL=http://localhost:8000/v

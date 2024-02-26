@@ -101,7 +101,7 @@ jobs:
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker ps -a
-          docker run -tid -v :/root/llm-on-ray  --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+          docker run -tid -v /root/llm-on-ray --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
       
       - name: Start Ray Cluster
         run: |
