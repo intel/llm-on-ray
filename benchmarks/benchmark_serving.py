@@ -348,10 +348,7 @@ def main(args: argparse.Namespace):
     total_num_tokens = sum(
         prompt_len + output_len for _, _, prompt_len, output_len, _, _ in latency_tracking
     )
-    print(
-        f"Request Throughput (QPS): {args.num_prompts / benchmark_time:.3f} requests/s, "
-        f"{total_num_tokens / benchmark_time:.3f} tokens/s"
-    )
+    print(f"Request Throughput (QPS): {args.num_prompts / benchmark_time:.3f} requests/s")
     print(f"Token Throughput: {total_num_tokens / benchmark_time:.3f} tokens/s")
 
     # Compute the latency statistics
