@@ -13,8 +13,8 @@ build_and_prune() {
         --build-arg CACHEBUST=1 \
         ${http_proxy:+--build-arg http_proxy="$http_proxy"} \
         ${https_proxy:+--build-arg https_proxy="$https_proxy"} \
-        -f "dev/docker/Dockerfile${DF_SUFFIX}" \
-        -t "${TARGET}:latest" && yes | docker container prune && yes | docker image prune -f
+        -f dev/docker/Dockerfile${DF_SUFFIX} \
+        -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f
 }
 
 run_docker() {
