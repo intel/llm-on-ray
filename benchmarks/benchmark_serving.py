@@ -34,9 +34,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizer
 from inference.inference_config import all_models
 
 # (prompt str, output str, prompt len, output len, request latency, latencies list)
-latency_tracking: List[
-    Tuple[Optional[str], Optional[str], int, int, float, Optional[List[float]]]
-] = []
+latency_tracking: List[Tuple[Optional[str], Optional[str], int, int, float, List[float]]] = []
 
 
 def sample_requests_ShareGPT(
@@ -147,8 +145,8 @@ def sample_requests_from_random_generation(
         tokenizer (PreTrainedTokenizer): The tokenizer.
         input_len_mean (int): The input length mean.
         input_len_stddev (int): The input length standard deviation.
-        output_len_stddev (int): The output length mean.
-        output_stddev (int): The output length standard deviation.
+        output_len_mean (int): The output length mean.
+        output_len_stddev (int): The output length standard deviation.
         num_requests (int): The number of requests to sample.
 
     Returns:
@@ -238,7 +236,7 @@ async def send_request(
         "stream": track_token_latency,
     }
 
-    token_latencies_per_request: Optional[List[float]] = [] if track_token_latency else None
+    token_latencies_per_request: List[float] = []
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -251,7 +249,7 @@ async def send_request(
                 async for chunk, _ in response.content.iter_chunks():
                     end_ts = time.perf_counter()
                     latency = end_ts - start_ts
-                    if track_token_latency and token_latencies_per_request is not None:
+                    if track_token_latency:
                         token_latencies_per_request.append(latency)
                     start_ts = end_ts
                     chunks.append(chunk)
@@ -389,8 +387,10 @@ def main(args: argparse.Namespace):
     total_num_tokens = sum(
         prompt_len + output_len for _, _, prompt_len, output_len, _, _ in latency_tracking
     )
-    print(f"Request Throughput (QPS): {args.num_prompts / benchmark_time:.3f} requests/s")
-    print(f"Token Throughput: {total_num_tokens / benchmark_time:.3f} tokens/s")
+    throughput_requests_per_s = args.num_prompts / benchmark_time
+    throughput_tokens_per_s = total_num_tokens / benchmark_time
+    print(f"Request Throughput (QPS): {throughput_requests_per_s:.3f} requests/s")
+    print(f"Token Throughput: {throughput_tokens_per_s:.3f} tokens/s")
 
     # Compute the latency statistics
     avg_latency = np.mean([latency for _, _, _, _, latency, _ in latency_tracking])
@@ -403,6 +403,17 @@ def main(args: argparse.Namespace):
         ]
     )
     print(f"Average latency per Token: {avg_per_token_latency:.3f} s")
+
+    if args.track_token_latency and latency_tracking:
+        avg_first_token_latency = np.mean(
+            [latencies[0] for _, _, _, _, _, latencies in latency_tracking]
+        )
+        avg_next_token_latency = np.mean(
+            [np.mean(latencies[1:]) for _, _, _, _, _, latencies in latency_tracking]
+        )
+
+        print(f"Average latency for First Tokens: {avg_first_token_latency:.3f} s")
+        print(f"Average latency for Next Tokens: {avg_next_token_latency:.3f} s")
 
     if args.results_dir:
         results_dir = Path(args.results_dir)
@@ -425,10 +436,16 @@ def main(args: argparse.Namespace):
                     "min_prompt_len": int(min_prompt_len),
                     "med_prompt_len": int(med_prompt_len),
                     "max_prompt_len": int(max_prompt_len),
-                    "throughput_requests_per_s": float(f"{args.num_prompts / benchmark_time:.3f}"),
-                    "throughput_tokens_per_s": float(f"{total_num_tokens / benchmark_time:.3f}"),
+                    "throughput_requests_per_s": float(f"{throughput_requests_per_s:.3f}"),
+                    "throughput_tokens_per_s": float(f"{throughput_tokens_per_s:.3f}"),
                     "avg_latency": float(f"{avg_latency:.3f}"),
                     "avg_per_token_latency": float(f"{avg_per_token_latency:.3f}"),
+                    "avg_first_token_latency": float(f"{avg_first_token_latency:.3f}")
+                    if args.track_token_latency
+                    else None,
+                    "avg_next_token_latency": float(f"{avg_next_token_latency:.3f}")
+                    if args.track_token_latency
+                    else None,
                 },
                 f,
             )
@@ -437,7 +454,7 @@ def main(args: argparse.Namespace):
             json.dump(latency_tracking, f)
 
         print(
-            f"Results saved to {results_dir / file_name_summary} and {results_dir / file_name_latency_tracking}"
+            f'Results saved to "{results_dir / file_name_summary}" and "{results_dir / file_name_latency_tracking}"'
         )
 
 
@@ -516,12 +533,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--track-token-latency",
-        default=False,
+        action="store_true",
         help="Whether to track token latency in the benchmark.",
     )
     parser.add_argument(
         "--track-input-output",
-        default=False,
+        action="store_true",
         help="Whether to track input prompt and output response in the benchmark.",
     )
     parser.add_argument(
