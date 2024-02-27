@@ -131,6 +131,47 @@ def sample_requests_IPEX(
     return sampled_requests
 
 
+# Sample requests from random generated prompt with input and output length following gaussian distribution
+def sample_requests_from_random_generation(
+    tokenizer: PreTrainedTokenizer,
+    input_len_mean: int,
+    input_len_stddev: int,
+    output_len_mean: int,
+    output_len_stddev: int,
+    num_requests: int,
+) -> List[Tuple[str, int, int]]:
+    """
+    Sample requests from random generated prompts.
+
+    Args:
+        tokenizer (PreTrainedTokenizer): The tokenizer.
+        input_len_mean (int): The input length mean.
+        input_len_stddev (int): The input length standard deviation.
+        output_len_stddev (int): The output length mean.
+        output_stddev (int): The output length standard deviation.
+        num_requests (int): The number of requests to sample.
+
+    Returns:
+        List[Tuple[str, int, int]]: The sampled requests, each represented as a tuple of (prompt, prompt_len, output_len).
+    """
+    sampled_requests = []
+    for _ in range(num_requests):
+        prompt_len = int(np.random.normal(input_len_mean, input_len_stddev))
+        output_len = int(np.random.normal(output_len_mean, output_len_stddev))
+
+        # generate random id list for the prompt having length prompt_len
+        def gen_prompt_ids(prompt_len):
+            ids = []
+            for _ in range(prompt_len):
+                ids.append(random.choice(list(tokenizer.get_vocab().values())).value)
+            return ids
+
+        # Generte random prompt from tokenizer's vocabulary
+        prompt = tokenizer.decode(gen_prompt_ids(prompt_len), return_tensors="pt")
+        sampled_requests.append((prompt, prompt_len, output_len))
+    return sampled_requests
+
+
 async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
