@@ -126,6 +126,7 @@ class ChatBotUI:
         node_user_name: str,
         conda_env_name: str,
         master_ip_port: str,
+        ref_app_url: str,
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -155,6 +156,7 @@ class ChatBotUI:
         self.finetune_actor = None
         self.finetune_status = False
         self.default_rag_path = default_rag_path
+        self.ref_app_url = ref_app_url
         self.embedding_model_name = "sentence-transformers/all-mpnet-base-v2"
         self._init_ui()
 
@@ -1422,6 +1424,9 @@ class ChatBotUI:
                         with gr.Column(scale=0.5, min_width=0):
                             clear_btn_rag = gr.Button("Clear")
 
+            with gr.Tab("Ref Apps"):
+                gr.HTML(f"<iframe src='{self.ref_app_url}' width='1400' height='800'></iframe>")
+
             with gr.Accordion("Cluster Status", open=False, visible=True):
                 with gr.Row():
                     with gr.Column(scale=0.1, min_width=45):
@@ -1753,6 +1758,12 @@ if __name__ == "__main__":
         type=str,
         help="The ip:port of head node to connect when restart a worker node.",
     )
+    parser.add_argument(
+        "--ref_app_url",
+        default="http://127.0.0.1:8501",
+        type=str,
+        help="follow format as http://127.0.0.1:8501",
+    )
     args = parser.parse_args()
 
     file_path = os.path.abspath(__file__)
@@ -1820,6 +1831,7 @@ if __name__ == "__main__":
         args.node_user_name,
         args.conda_env_name,
         args.master_ip_port,
+        args.ref_app_url,
     )
     ui.gr_chat.queue(concurrency_count=10).launch(
         share=True, server_port=8080, server_name="0.0.0.0"

@@ -106,18 +106,55 @@ class CompletionResponse(BaseModel):
     usage: Optional[UsageInfo]
 
 
-class ChatMessage(BaseModel):
-    role: Literal["system", "assistant", "user"]
-    content: Union[str, list]
+class FunctionCall(BaseModel):
+    name: str
+    arguments: Optional[str] = None
+
+
+class ToolCall(BaseModel):
+    function: FunctionCall
+    type: Literal["function"]
+    id: str
 
     def __str__(self):
-        return self.content
+        return str(self.dict())
+
+
+class ChatMessage(BaseModel):
+    role: Literal["system", "assistant", "user", "tool"]
+    content: Optional[Union[str, list]] = None
+    tool_calls: Optional[List[ToolCall]] = None
+    tool_call_id: Optional[str] = None
+
+    def __str__(self):
+        # if tool_calls is not None, then we are passing a tool message
+        # using get attr instead of  just in case the attribute is deleted off of
+        # the object
+        if getattr(self, "tool_calls", None):
+            return str(self.content)
+        return str(self.dict())
 
 
 class ChatCompletionResponseChoice(BaseModel):
     index: int
     message: ChatMessage
     finish_reason: Optional[str]
+
+
+class Function(BaseModel):
+    name: str
+    description: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+
+
+class ToolChoice(BaseModel):
+    type: Literal["function"]
+    function: Function
+
+
+class Tool(BaseModel):
+    type: Literal["function"]
+    function: Function
 
 
 class DeltaRole(BaseModel):
@@ -129,9 +166,13 @@ class DeltaRole(BaseModel):
 
 class DeltaContent(BaseModel):
     content: str
+    tool_calls: Optional[List[Dict[str, Any]]] = None
 
     def __str__(self):
-        return self.content
+        if self.tool_calls:
+            return str(self.tool_calls)
+        else:
+            return str(self.dict())
 
 
 class DeltaEOS(BaseModel):
@@ -158,6 +199,8 @@ class Prompt(BaseModel):
     prompt: Union[str, List[ChatMessage]]
     use_prompt_format: bool = True
     parameters: Optional[Union[Dict[str, Any], BaseModel]] = None
+    tools: Optional[List[Tool]] = None
+    tool_choice: Union[Literal["auto", "none"], ToolChoice] = "auto"
 
 
 class BaseModelExtended(BaseModel):
@@ -225,6 +268,7 @@ class ComputedPropertyMixin:
 
 class ModelResponse(ComputedPropertyMixin, BaseModelExtended):
     generated_text: Optional[str] = None
+    tool_calls: Optional[List[ToolCall]] = None
     num_input_tokens: Optional[int] = None
     num_input_tokens_batch: Optional[int] = None
     num_generated_tokens: Optional[int] = None
@@ -366,6 +410,8 @@ class ChatCompletionRequest(BaseModel):
     logprobs: Optional[int] = None
     logit_bias: Optional[Dict[str, float]] = None
     user: Optional[str] = None
+    tools: Optional[List[Tool]] = None
+    tool_choice: Union[Literal["auto", "none"], ToolChoice] = "auto"
 
 
 class FinishReason(str, Enum):
@@ -373,6 +419,7 @@ class FinishReason(str, Enum):
     STOP = "stop"
     ERROR = "error"
     CANCELLED = "cancelled"
+    TOOL_CALLS = "tool_calls"
 
     def __str__(self) -> str:
         return self.value

@@ -53,11 +53,7 @@ class RouterQueryClient:
         temperature = request_config.get("temperature", 1.0)
         top_p = request_config.get("top_p", 1.0)
         max_new_tokens = request_config.get("max_tokens", None)
-        gen_config = {
-            "max_new_tokens": max_new_tokens,
-            "temperature": temperature,
-            "top_p": top_p,
-        }
+        gen_config = {"max_new_tokens": max_new_tokens, "temperature": temperature, "top_p": top_p}
         if temperature != 1.0 or top_p != 1.0:
             gen_config.update({"do_sample": True})
 
@@ -67,7 +63,13 @@ class RouterQueryClient:
             request_id=request_id,
             async_iterator=deploy_handle.options(stream=True)
             .openai_call.options(stream=True, use_new_handle_api=True)
-            .remote(prompt_content, gen_config, streaming_response=streaming_reponse),
+            .remote(
+                prompt_content,
+                gen_config,
+                streaming_response=streaming_reponse,
+                tools=prompt.tools,
+                tool_choice=prompt.tool_choice,
+            ),
         ):
             yield x
 

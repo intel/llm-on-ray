@@ -155,7 +155,9 @@ class PredictorDeployment:
                 self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
-    async def openai_call(self, prompt, config, streaming_response=True):
+    async def openai_call(
+        self, prompt, config, streaming_response=True, tools=None, tool_choice=None
+    ):
         prompts = []
         images = []
         if isinstance(prompt, list):

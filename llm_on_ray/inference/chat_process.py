@@ -169,7 +169,6 @@ class ChatModelwithImage(ChatModel):
                 prompt += f"### Unknown:\n{content}\n"
         if self.bot_id != "":
             prompt += f"{self.bot_id}:\n"
-        print(f"prompt is {prompt}")
         return prompt, images
 
 
