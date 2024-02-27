@@ -15,12 +15,13 @@
 #
 # ===========================================================================
 #
-# This file is adapted from https://github.com/vllm-project/vllm/blob/main/benchmarks/benchmark_serving.py
+# This file is inspired by https://github.com/vllm-project/vllm/blob/main/benchmarks/benchmark_serving.py
 #
 
 import argparse
 import asyncio
 import json
+from pathlib import Path
 import random
 import time
 from tqdm import tqdm
@@ -32,11 +33,10 @@ from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from inference.inference_config import all_models
 
-# (prompt len, output len, latency)
-REQUEST_LATENCY: List[Tuple[int, int, float]] = []
-
-# TODO: (prompt len, output len, request latency, latencies list)
-LATENCY_TRACK_LIST: List[Tuple[int, int, float, Optional[List[float]]]] = []
+# (prompt str, output str, prompt len, output len, request latency, latencies list)
+latency_tracking: List[
+    Tuple[Optional[str], Optional[str], int, int, float, Optional[List[float]]]
+] = []
 
 
 def sample_requests_ShareGPT(
@@ -166,7 +166,8 @@ async def send_request(
     prompt_len: int,
     output_len: int,
     config: dict,
-    track_per_token_latency: bool = True,
+    track_token_latency: bool = True,
+    track_input_output: bool = False,
     progress_bar: tqdm = None,
 ) -> None:
     """
@@ -193,10 +194,10 @@ async def send_request(
     pload = {
         "text": prompt,
         "config": config,
-        "stream": track_per_token_latency,
+        "stream": track_token_latency,
     }
 
-    token_latencies_per_request = []
+    token_latencies_per_request: Optional[List[float]] = [] if track_token_latency else None
 
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -209,7 +210,7 @@ async def send_request(
                 async for chunk, _ in response.content.iter_chunks():
                     end_ts = time.perf_counter()
                     latency = end_ts - start_ts
-                    if track_per_token_latency:
+                    if track_token_latency and token_latencies_per_request is not None:
                         token_latencies_per_request.append(latency)
                     start_ts = end_ts
                     chunks.append(chunk)
@@ -217,20 +218,28 @@ async def send_request(
                 print("Token Latencies:", token_latencies_per_request)
                 # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
-            b"".join(chunks).decode("utf-8")
+            response_text = b"".join(chunks).decode("utf-8")
             if progress_bar:
                 progress_bar.update()
             break
 
     request_end_time = time.perf_counter()
     request_latency = request_end_time - request_start_time
-    REQUEST_LATENCY.append((prompt_len, output_len, request_latency))
-    if track_per_token_latency:
-        LATENCY_TRACK_LIST.append(
-            (prompt_len, output_len, request_latency, token_latencies_per_request)
+
+    prompt_str = prompt if track_input_output else None
+    output_str = response_text if track_input_output else None
+    # token_latencies_per_request = None if not track_token_latency else token_latencies_per_request
+
+    latency_tracking.append(
+        (
+            prompt_str,
+            output_str,
+            prompt_len,
+            output_len,
+            request_latency,
+            token_latencies_per_request,
         )
-    else:
-        LATENCY_TRACK_LIST.append((prompt_len, output_len, request_latency, None))
+    )
 
 
 async def benchmark(
@@ -238,7 +247,9 @@ async def benchmark(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
     config: dict,
-    progress: bool,
+    track_token_latency: bool = False,
+    track_input_output: bool = False,
+    progress: bool = False,
 ) -> None:
     """
     Benchmark the API by sending multiple requests asynchronously.
@@ -257,19 +268,14 @@ async def benchmark(
     tasks: List[asyncio.Task] = []
     progress_bar = tqdm(total=len(input_requests)) if progress else None
     async for request in get_request(input_requests, request_rate):
-        prompt, prompt_len, output_len = request
-        task = asyncio.create_task(
-            send_request(
-                api_url,
-                prompt,
-                prompt_len,
-                output_len,
-                config,
-                track_per_token_latency=True,
-                progress_bar=progress_bar,
+        tasks.append(
+            asyncio.create_task(
+                send_request(
+                    api_url, *request, config, track_token_latency, track_input_output, progress_bar
+                )
             )
         )
-        tasks.append(task)
+
     await asyncio.gather(*tasks)
 
 
@@ -316,33 +322,85 @@ def main(args: argparse.Namespace):
         config["top_k"] = float(args.top_k)
 
     benchmark_start_time = time.perf_counter()
-    asyncio.run(benchmark(api_url, input_requests, args.request_rate, config, args.progress))
+    asyncio.run(
+        benchmark(
+            api_url,
+            input_requests,
+            args.request_rate,
+            config,
+            args.track_token_latency,
+            args.track_input_output,
+            args.progress,
+        )
+    )
+
     benchmark_end_time = time.perf_counter()
     benchmark_time = benchmark_end_time - benchmark_start_time
-    print(f"Total time: {benchmark_time:.2f} s")
+    print(f"Total time: {benchmark_time:.3f} s")
 
     # Compute prompts statistics
-    prompt_lens = [prompt_len for prompt_len, _, _ in REQUEST_LATENCY]
+    prompt_lens = [prompt_len for _, _, prompt_len, _, _, _ in latency_tracking]
     min_prompt_len = np.min(prompt_lens)
     med_prompt_len = int(np.median(prompt_lens))
     max_prompt_len = np.max(prompt_lens)
     print(f"Prompt Length (Min/Med/Max): {min_prompt_len} / {med_prompt_len} / {max_prompt_len}")
 
     # Compute the throughput statistics
-    total_num_tokens = sum(prompt_len + output_len for prompt_len, output_len, _ in REQUEST_LATENCY)
+    total_num_tokens = sum(
+        prompt_len + output_len for _, _, prompt_len, output_len, _, _ in latency_tracking
+    )
     print(
-        f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s, "
-        f"{total_num_tokens / benchmark_time:.2f} tokens/s"
+        f"Throughput: {args.num_prompts / benchmark_time:.3f} requests/s, "
+        f"{total_num_tokens / benchmark_time:.3f} tokens/s"
     )
 
     # Compute the latency statistics
-    avg_latency = np.mean([latency for _, _, latency in REQUEST_LATENCY])
-    print(f"Average latency: {avg_latency:.2f} s")
+    avg_latency = np.mean([latency for _, _, _, _, latency, _ in latency_tracking])
+    print(f"Average latency: {avg_latency:.3f} s")
 
     avg_per_token_latency = np.mean(
-        [latency / (prompt_len + output_len) for prompt_len, output_len, latency in REQUEST_LATENCY]
+        [
+            latency / (prompt_len + output_len)
+            for _, _, prompt_len, output_len, latency, _ in latency_tracking
+        ]
     )
-    print(f"Average latency per token: {avg_per_token_latency:.2f} s")
+    print(f"Average latency per token: {avg_per_token_latency:.3f} s")
+
+    if args.results_dir:
+        results_dir = Path(args.results_dir)
+        if not results_dir.exists():
+            results_dir.mkdir(parents=True)
+        elif not results_dir.is_dir():
+            raise ValueError(f"{args.results_dir} is not a directory")
+
+        print(f"Saving results to {results_dir} ...")
+
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        file_name_summary = "summary_" + timestamp + ".json"
+        file_name_latency_tracking = "latency_tracking_" + timestamp + ".json"
+
+        with open(results_dir / file_name_summary, "w") as f:
+            json.dump(
+                {
+                    "num_prompts": args.num_prompts,
+                    "benchmark_time": float(f"{benchmark_time:.3f}"),
+                    "min_prompt_len": int(min_prompt_len),
+                    "med_prompt_len": int(med_prompt_len),
+                    "max_prompt_len": int(max_prompt_len),
+                    "throughput_requests_per_s": float(f"{args.num_prompts / benchmark_time:.3f}"),
+                    "throughput_tokens_per_s": float(f"{total_num_tokens / benchmark_time:.3f}"),
+                    "avg_latency": float(f"{avg_latency:.3f}"),
+                    "avg_per_token_latency": float(f"{avg_per_token_latency:.3f}"),
+                },
+                f,
+            )
+
+        with open(results_dir / file_name_latency_tracking, "w") as f:
+            json.dump(latency_tracking, f)
+
+        print(
+            f"Results saved to {results_dir / file_name_summary} and {results_dir / file_name_latency_tracking}"
+        )
 
 
 if __name__ == "__main__":
@@ -418,6 +476,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--progress", action="store_true", help="Whether to display a progress bar."
     )
-
+    parser.add_argument(
+        "--track-token-latency",
+        default=False,
+        help="Whether to track token latency in the benchmark.",
+    )
+    parser.add_argument(
+        "--track-input-output",
+        default=False,
+        help="Whether to track input prompt and output response in the benchmark.",
+    )
+    parser.add_argument(
+        "--results-dir", default=None, help="The file to output the benchmark results."
+    )
     args = parser.parse_args()
     main(args)
