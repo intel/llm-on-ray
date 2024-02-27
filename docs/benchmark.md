@@ -4,20 +4,27 @@
 
 `benchmark_serving.py` is a Python script used for benchmarking LLM-on-Ray serving system.
 
-## Features
+## Key Features
 
-* Send requests to the serving system in one of the following fasions:
-    * Samples from prompt dataset
-    * Random samples from model vocaburary with specific distribution (TODO)
-* Generate a load on the server by specifying requests per second to test its performance under stress
-* Track the throughput (requests per second) and latency (seconds) of the server
-* Report and record key statistics of the serving performance
-    * throughput requests per second
-    * throughput tokens per second
-    * average latency per request
-    * average latency per token
-    * first and next token latency per request
-* Record individual request and response for further analysis
+* **Request Types**:
+   - We will send requests to the serving system using two different methods:
+     - **Samples from Prompt Dataset**: These requests will be based on actual prompts from the dataset.
+     - **Random Samples from Model Vocabulary**: We'll generate random samples using the model's vocabulary, following a specific distribution (TODO).
+* **Load Generation**:
+   - To stress-test the server, we'll generate a load by specifying the desired query(request) per second (QPS).
+* **Performance Metrics**:
+   - We'll track the following metrics:
+     - **Throughput**: The number of queries(requests) or tokens processed by the server per second.
+     - **Latency**: The time taken by the server to respond to a request.
+* **Key Statistics**:
+   - We'll record the following key statistics:
+     - **Throughput (QPS)**: The average number of queries handled per second.
+     - **Throughput (Tokens per Second)**: The rate at which tokens (words or units) are processed.
+     - **Average Latency per Request**: The average time taken to process a single request.
+     - **Average Latency per Token**: The average time per token processed.
+     - **First and Next Token Latency per Request**: The time taken for the first token and subsequent tokens in a request.
+* **Individual Request and Response Logging**:
+   - We'll maintain detailed logs of each request and its corresponding response for further analysis.
 
 ## Dataset
 
@@ -103,3 +110,8 @@ python benchmarks/benchmark_serving.py --help
 ## Save Benchmark Results
 
 `benchmark_serving.py` supports saving benchmark statistics and individual requests and responses into json file. Please specify `--results-dir` argument when running the script, then the benchmark results will be saved to the specified directory.
+
+## Recommendations
+- Ensure that the serving system can handle the specified load without compromising performance.
+- Monitor the system during testing to identify bottlenecks or issues.
+- Use the recorded statistics to fine-tune the system for optimal performance.
