@@ -293,8 +293,8 @@ def main(external_config=None):
         run_config=run_config,
     )
     results = trainer.fit()
-
-    return results
+    if external_config is not None:
+        return results
 
 
 if __name__ == "__main__":
