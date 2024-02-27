@@ -2,7 +2,7 @@
 
 ## Overview
 
-`benchmark_serving.py` is a Python script used for benchmarking LLM-on-Ray serving system.
+The `benchmark_serving.py` script is designed for benchmarking the LLM-on-Ray serving system. This document outlines its key features, testing approach, and dataset information.
 
 ## Key Features
 
@@ -11,13 +11,13 @@
      - **Samples from Prompt Dataset**: These requests will be based on actual prompts from the dataset.
      - **Random Samples from Model Vocabulary**: We'll generate random samples using the model's vocabulary, following a specific distribution (TODO).
 * **Load Generation**:
-   - To stress-test the server, we'll generate a load by specifying the desired query(request) per second (QPS).
+   - To stress-test the server, we'll generate load by specifying the desired queries per second (QPS).
 * **Performance Metrics**:
-   - We'll track the following metrics:
-     - **Throughput**: The number of queries(requests) or tokens processed by the server per second.
-     - **Latency**: The time taken by the server to respond to a request.
+   - We'll track the following metrics at both the request and token levels::
+     - **Throughput**: The number of queries or tokens processed by the server per second.
+     - **Latency**: The time taken by the server to respond to a request or generate a token.
 * **Key Statistics**:
-   - We'll record the following key statistics:
+   - We'll record the following key statistics, including:
      - **Throughput (QPS)**: The average number of queries handled per second.
      - **Throughput (Tokens per Second)**: The rate at which tokens (words or units) are processed.
      - **Average Latency per Request**: The average time taken to process a single request.
