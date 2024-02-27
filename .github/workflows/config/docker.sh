@@ -1,7 +1,7 @@
 set -eo pipefail
 ## $1 TARGET
 
-fuction build_and_prune() {
+build_and_prune() {
     # Set TARGET and DF-SUFFIX using the passed in parameters
     local TARGET="$1"
     local DF_SUFFIX="$2"
@@ -17,7 +17,7 @@ fuction build_and_prune() {
         -t "${TARGET}:latest" && yes | docker container prune && yes | docker image prune -f
 }
 
-fuction run_docker() {
+run_docker() {
     local TARGET="$1" 
     local DF_SUFFIX="$2"  
     local http_proxy="$3"
@@ -46,7 +46,7 @@ fuction run_docker() {
         "${TARGET}:latest"
 }
 
-fuction docker_bash(){
+docker_bash(){
     local TARGET="$1" 
     local bash_command="$2"
 
