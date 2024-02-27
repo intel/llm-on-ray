@@ -1,4 +1,4 @@
-
+set -eo pipefail
 ## $1 TARGET
 
 fuction build_and_prune() {
@@ -14,9 +14,7 @@ fuction build_and_prune() {
         --build-arg http_proxy="${http_proxy}" \
         --build-arg https_proxy="${https_proxy}" \
         -f "dev/docker/Dockerfile${DF_SUFFIX}" \
-        -t "${TARGET}:latest" && \
-    yes | docker container prune && \
-    yes | docker image prune -f
+        -t "${TARGET}:latest" && yes | docker container prune && yes | docker image prune -f
 }
 
 fuction run_docker() {
