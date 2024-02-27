@@ -228,7 +228,6 @@ async def send_request(
 
     prompt_str = prompt if track_input_output else None
     output_str = response_text if track_input_output else None
-    # token_latencies_per_request = None if not track_token_latency else token_latencies_per_request
 
     latency_tracking.append(
         (

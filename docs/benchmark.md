@@ -1,6 +1,27 @@
 # Benchmarking LLM-on-Ray Serving
 
-## Download the datasets
+## Overview
+
+`benchmark_serving.py` is a Python script used for benchmarking LLM-on-Ray serving system.
+
+## Features
+
+* Send requests to the serving system in one of the following fasions:
+    * Samples from prompt dataset
+    * Random samples from model vocaburary with specific distribution (TODO)
+* Generate a load on the server by specifying requests per second to test its performance under stress
+* Track the throughput (requests per second) and latency (seconds) of the server
+* Report and record key statistics of the serving performance
+    * throughput requests per second
+    * throughput tokens per second
+    * average latency per request
+    * average latency per token
+    * first and next token latency per request
+* Record individual request and response for further analysis
+
+## Dataset
+
+`benchmark_serving.py` currently support two formats of the prompt dataset: `ShareGPT` and `IPEX`
 
 You can download the datasets by running:
 
@@ -9,14 +30,18 @@ You can download the datasets by running:
 # ShareGPT dataset
 wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json
 
-# IPEX dataset
+# IPEX sample dataset
 wget https://intel-extension-for-pytorch.s3.amazonaws.com/miscellaneous/llm/prompt.json
 
 ```
 
 ## Benchmark
 
-Currently only models from `inference/models/*.yaml` are supported. On the server side, run the following command:
+For benchmarking, user needs to run `llm-on-ray` serving first and then run `benchmark_serving.py`.
+
+Currently only serving models from `inference/models/*.yaml` are supported. It can be specified with `model_id` from the serving script.
+
+On the server side, run the following command:
 
 ```bash
 python inference/serve.py --models <model_id> --simple --keep_serve_terminal
@@ -65,9 +90,16 @@ python benchmarks/benchmark_serving.py \
     --input-tokens 32 \
     --max-new-tokens 32 \
     --num-prompts 10
+```
 
-## Help on parameters
+## Arguments
+
+Run the following commands to get argument details of the the script:
 
 ```bash
 python benchmarks/benchmark_serving.py --help
 ```
+
+## Save Benchmark Results
+
+`benchmark_serving.py` supports saving benchmark statistics and individual requests and responses into json file. Please specify `--results-dir` argument when running the script, then the benchmark results will be saved to the specified directory.
