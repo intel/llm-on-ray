@@ -349,13 +349,14 @@ def main(args: argparse.Namespace):
         prompt_len + output_len for _, _, prompt_len, output_len, _, _ in latency_tracking
     )
     print(
-        f"Throughput: {args.num_prompts / benchmark_time:.3f} requests/s, "
+        f"Request Throughput (QPS): {args.num_prompts / benchmark_time:.3f} requests/s, "
         f"{total_num_tokens / benchmark_time:.3f} tokens/s"
     )
+    print(f"Token Throughput: {total_num_tokens / benchmark_time:.3f} tokens/s")
 
     # Compute the latency statistics
     avg_latency = np.mean([latency for _, _, _, _, latency, _ in latency_tracking])
-    print(f"Average latency: {avg_latency:.3f} s")
+    print(f"Average latency per Request: {avg_latency:.3f} s")
 
     avg_per_token_latency = np.mean(
         [
@@ -363,7 +364,7 @@ def main(args: argparse.Namespace):
             for _, _, prompt_len, output_len, latency, _ in latency_tracking
         ]
     )
-    print(f"Average latency per token: {avg_per_token_latency:.3f} s")
+    print(f"Average latency per Token: {avg_per_token_latency:.3f} s")
 
     if args.results_dir:
         results_dir = Path(args.results_dir)
