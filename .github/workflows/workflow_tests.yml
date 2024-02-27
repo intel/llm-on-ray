@@ -85,7 +85,7 @@ jobs:
           DF_SUFFIX=".cpu_and_deepspeed_test"
           TARGET=${{steps.target.outputs.target}}
           source .github/workflows/config/docker.sh
-          build_and_prune ${TARGET} DF_SUFFIX 
+          build_and_prune ${TARGET} ${DF_SUFFIX} 
           # docker build ./ --build-arg CACHEBUST=1 -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           # docker image prune -f
 
