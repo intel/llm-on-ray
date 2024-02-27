@@ -19,4 +19,4 @@ def import_all_module(basedir, prefix=None):
             try:
                 importlib.import_module(module_name)
             except Exception:
-                logger.warning(f"import {module_name} erro", exc_info=True)
+                logger.warning(f"import {module_name} error", exc_info=True)
