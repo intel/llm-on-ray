@@ -466,13 +466,13 @@ if __name__ == "__main__":
         "--model_endpoint_base",
         default="http://127.0.0.1:8000",
         type=str,
-        help="model endpoint base url",
+        help="Model endpoint base url",
     )
     parser.add_argument(
         "--model_name",
         type=str,
         required=True,
-        help="model name used to extract tokenizer from configuration file",
+        help="Model name used to extract tokenizer from configuration file",
     )
     parser.add_argument("--dataset", type=str, required=True, help="Path to the dataset.")
     parser.add_argument(
@@ -480,13 +480,13 @@ if __name__ == "__main__":
         type=str,
         choices=["ShareGPT", "IPEX"],
         required=True,
-        help="Dataset format, should be one of [ShareGPT, IPEX].",
+        help="Dataset format, should be one of {ShareGPT, IPEX}.",
     )
     parser.add_argument(
         "--input-tokens",
         default="32",
         type=str,
-        help="input tokens length, used when --dataset-format=IPEX",
+        help="Input tokens length, used when --dataset-format=IPEX",
     )
 
     parser.add_argument(
@@ -503,7 +503,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
-        "--trust-remote-code", action="store_true", help="trust remote code from huggingface"
+        "--trust-remote-code",
+        action="store_true",
+        help="Trust remote code when downloading tokenizer.",
     )
 
     parser.add_argument(
@@ -542,7 +544,7 @@ if __name__ == "__main__":
         help="Whether to track input prompt and output response in the benchmark.",
     )
     parser.add_argument(
-        "--results-dir", default=None, help="The file to output the benchmark results."
+        "--results-dir", default=None, help="The directory to output the benchmark results."
     )
     args = parser.parse_args()
     main(args)
