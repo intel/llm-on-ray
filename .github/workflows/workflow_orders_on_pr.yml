@@ -25,9 +25,9 @@ jobs:
     needs: call-lint
     uses: ./.github/workflows/workflow_tests.yml
 
-  # call-inference:
-  #   needs: call-lint
-  #   uses: ./.github/workflows/workflow_inference.yml
+  call-inference:
+    needs: call-lint
+    uses: ./.github/workflows/workflow_inference.yml
 
   call-finetune:
     needs: call-lint

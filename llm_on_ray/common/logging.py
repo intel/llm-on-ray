@@ -39,7 +39,6 @@ if logging_config is not None:
         logging.config.dictConfig(logging_config)
     except Exception:
         traceback.print_exc()
-        print("pass here........................")
         exit(1)
 
 if use_accelerate_log:
