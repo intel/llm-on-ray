@@ -20,7 +20,7 @@ ray start --head
 
 # Step 2: Serving
 # take gpt2 for example
-python inference/serve.py --config_file inference/models/gpt2.yaml
+python ../inference/serve.py --config_file inference/models/gpt2.yaml
 
 # Three ways to access OpenAI API
 # 1.Using curl
