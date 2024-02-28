@@ -712,11 +712,17 @@ class ChatBotUI:
     def get_cpu_memory(self, index):
         if self.ray_nodes[index]["Alive"] == "False":
             return cpu_memory_html.format(str(round(0, 1)), str(round(0, 1)))
-        cpu_command = "export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)"
+        cpu_command = "top -n 1 -b"
+        if not self.container_mode:
+            cpu_command = f"export TERM=xterm; echo $({cpu_command} | head -n 4 | tail -n 2)"
         cpu_out, _ = self.exec_command(index, cpu_command)
-        cpu_out_words = cpu_out.split(" ")
+        if self.container_mode:
+            cpu_out_words = cpu_out.split("\n")[2]
+        cpu_out_words = cpu_out.split()
         cpu_value = 100 - float(cpu_out_words[7])
-        memory_command = "export TERM=xterm; echo $(free -m)"
+        memory_command = "free -m"
+        if not self.container_mode:
+            memory_command = f"export TERM=xterm; echo $({memory_command})"
         memory_out, _ = self.exec_command(index, memory_command)
         memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split(" ")
         memory_out_words = [m for m in memory_out_words if m != ""]
