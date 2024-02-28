@@ -693,15 +693,15 @@ class ChatBotUI:
         if not self.container_mode:
             if ray:
                 command = f"conda activate {self.conda_env_name}; " + command
-            return self.ssh_connect[index].exec_command(command)
+            _, stdout, stderr = self.ssh_connect[index].exec_command(command)
+            return stdout.read().decode("utf-8"), stderr.read().decode("utf-8")
         else:
-            p = subprocess.run(command, capture_output=True, text=True)
-            return None, p.stdout, p.stderr
+            p = subprocess.run(command.split(" "), capture_output=True, text=True)
+            return p.stdout, p.stderr
 
     def get_ray_cluster(self):
         command = "ray status"
-        _, stdout, _ = self.exec_command(-1, command, ray=True)
-        out = stdout.read().decode("utf-8")
+        out, _ = self.exec_command(-1, command, ray=True)
         out_words = [word for word in out.split("\n") if "CPU" in word][0]
         cpu_info = out_words.split(" ")[1].split("/")
         total_core = int(float(cpu_info[1]))
@@ -713,13 +713,11 @@ class ChatBotUI:
         if self.ray_nodes[index]["Alive"] == "False":
             return cpu_memory_html.format(str(round(0, 1)), str(round(0, 1)))
         cpu_command = "export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)"
-        _, cpu_stdout, _ = self.exec_command(index, cpu_command)
-        cpu_out = cpu_stdout.read().decode("utf-8")
+        cpu_out, _ = self.exec_command(index, cpu_command)
         cpu_out_words = cpu_out.split(" ")
         cpu_value = 100 - float(cpu_out_words[7])
         memory_command = "export TERM=xterm; echo $(free -m)"
-        _, memory_stdout, _ = self.exec_command(index, memory_command)
-        memory_out = memory_stdout.read().decode("utf-8")
+        memory_out, _ = self.exec_command(index, memory_command)
         memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split(" ")
         memory_out_words = [m for m in memory_out_words if m != ""]
         total_memory = float(memory_out_words[0].strip())
