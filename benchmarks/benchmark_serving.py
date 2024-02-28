@@ -129,8 +129,8 @@ def sample_requests_IPEX(
     return sampled_requests
 
 
-# Sample requests from random generated prompt with input and output length following gaussian distribution
-def sample_requests_from_random_generation(
+# Sample requests from synthetic prompts with input and output length following gaussian distribution
+def sample_requests_synthesis(
     tokenizer: PreTrainedTokenizer,
     input_len_mean: int,
     input_len_stddev: int,
@@ -347,6 +347,15 @@ def main(args: argparse.Namespace):
         input_requests = sample_requests_IPEX(
             args.dataset, args.input_tokens, args.max_new_tokens, args.num_prompts, tokenizer
         )
+    elif args.dataset_format == "Synthesis":
+        input_requests = sample_requests_synthesis(
+            tokenizer,
+            args.input_len_mean,
+            args.input_len_stddev,
+            args.output_len_mean,
+            args.output_len_stddev,
+            args.num_prompts,
+        )
 
     config: Dict[str, Union[int, float]] = {}
 
@@ -478,7 +487,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-format",
         type=str,
-        choices=["ShareGPT", "IPEX"],
+        choices=["ShareGPT", "IPEX", "Synthesis"],
         required=True,
         help="Dataset format, should be one of {ShareGPT, IPEX}.",
     )
@@ -487,6 +496,33 @@ if __name__ == "__main__":
         default="32",
         type=str,
         help="Input tokens length, used when --dataset-format=IPEX",
+    )
+    parser.add_argument(
+        "--input-len-mean",
+        type=int,
+        default=32,
+        help="The mean of input length for synthetic generation, used when --dataset-format=Synthesis",
+    )
+
+    parser.add_argument(
+        "--input-len-stddev",
+        type=int,
+        default=8,
+        help="The standard deviation of input length for synthetic generation, used when --dataset-format=Synthesis",
+    )
+
+    parser.add_argument(
+        "--output-len-mean",
+        type=int,
+        default=128,
+        help="The mean of output length for synthetic generation, used when --dataset-format=Synthesis",
+    )
+
+    parser.add_argument(
+        "--output-len-stddev",
+        type=int,
+        default=32,
+        help="The standard deviation of output length for synthetic generation, used when --dataset-format=Synthesis",
     )
 
     parser.add_argument(
