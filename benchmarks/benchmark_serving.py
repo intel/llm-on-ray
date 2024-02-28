@@ -475,13 +475,13 @@ if __name__ == "__main__":
         "--model_endpoint_base",
         default="http://127.0.0.1:8000",
         type=str,
-        help="Model endpoint base url",
+        help="Model endpoint base url. Default is http://127.0.0.1:8000",
     )
     parser.add_argument(
         "--model_name",
         type=str,
         required=True,
-        help="Model name used to extract tokenizer from configuration file",
+        help="Model name used to extract tokenizer from configuration file.",
     )
     parser.add_argument("--dataset", type=str, required=True, help="Path to the dataset.")
     parser.add_argument(
@@ -495,38 +495,41 @@ if __name__ == "__main__":
         "--input-tokens",
         default="32",
         type=str,
-        help="Input tokens length, used when --dataset-format=IPEX",
+        help="Input tokens length, used when --dataset-format=IPEX. Default is 32.",
     )
     parser.add_argument(
         "--input-len-mean",
         type=int,
         default=32,
-        help="The mean of input length for synthetic generation, used when --dataset-format=Synthesis",
+        help="The mean of input length for synthetic generation, used when --dataset-format=Synthesis. Default is 32.",
     )
 
     parser.add_argument(
         "--input-len-stddev",
         type=int,
         default=8,
-        help="The standard deviation of input length for synthetic generation, used when --dataset-format=Synthesis",
+        help="The standard deviation of input length for synthetic generation, used when --dataset-format=Synthesis. Default is 8.",
     )
 
     parser.add_argument(
         "--output-len-mean",
         type=int,
         default=128,
-        help="The mean of output length for synthetic generation, used when --dataset-format=Synthesis",
+        help="The mean of output length for synthetic generation, used when --dataset-format=Synthesis. Default is 128.",
     )
 
     parser.add_argument(
         "--output-len-stddev",
         type=int,
         default=32,
-        help="The standard deviation of output length for synthetic generation, used when --dataset-format=Synthesis",
+        help="The standard deviation of output length for synthetic generation, used when --dataset-format=Synthesis, Default is 32.",
     )
 
     parser.add_argument(
-        "--num-prompts", type=int, default=1000, help="Number of prompts to process."
+        "--num-prompts",
+        type=int,
+        default=1000,
+        help="Number of prompts to process. Default is 1000.",
     )
     parser.add_argument(
         "--request-rate",
@@ -535,7 +538,7 @@ if __name__ == "__main__":
         help="Number of requests per second. If this is inf, "
         "then all the requests are sent at time 0. "
         "Otherwise, we use Poisson process to synthesize "
-        "the request arrival times.",
+        "the request arrival times. Default is inf.",
     )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
