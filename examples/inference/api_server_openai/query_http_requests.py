@@ -45,7 +45,11 @@ parser.add_argument(
     default=None,
     help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation",
 )
-
+parser.add_argument(
+    "--input_text",
+    default="Tell me a long story with many words.",
+    help="question to ask model",
+)
 args = parser.parse_args()
 
 s = requests.Session()
@@ -55,7 +59,7 @@ body = {
     "model": args.model_name,
     "messages": [
         {"role": "assistant", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a long story with many words."},
+        {"role": "user", "content": args.input_text},
     ],
     "stream": args.streaming_response,
     "max_tokens": args.max_new_tokens,

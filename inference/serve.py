@@ -16,7 +16,7 @@
 
 import ray
 import sys
-from utils import get_deployment_actor_options
+from inference.utils import get_deployment_actor_options
 from pydantic_yaml import parse_yaml_raw_as
 from api_server_simple import serve_run
 from api_server_openai import openai_serve_run
