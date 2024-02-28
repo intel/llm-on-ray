@@ -489,7 +489,7 @@ if __name__ == "__main__":
         type=str,
         choices=["ShareGPT", "IPEX", "Synthesis"],
         required=True,
-        help="Dataset format, should be one of {ShareGPT, IPEX}.",
+        help="Dataset format, should be one of {ShareGPT, IPEX, Synthesis}.",
     )
     parser.add_argument(
         "--input-tokens",
