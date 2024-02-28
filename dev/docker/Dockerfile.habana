@@ -2,7 +2,7 @@ FROM vault.habana.ai/gaudi-docker/1.14.0/ubuntu22.04/habanalabs/pytorch-installe
 
 ENV LANG=en_US.UTF-8
 
-COPY ../../ /root/llm-on-ray
+COPY . /root/llm-on-ray
 
 WORKDIR /root/llm-on-ray
 

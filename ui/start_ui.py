@@ -17,6 +17,7 @@
 import requests
 import time
 import os
+import subprocess
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -114,6 +115,7 @@ class ChatBotUI:
         node_user_name: str,
         conda_env_name: str,
         master_ip_port: str,
+        container_mode: bool,
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -127,6 +129,7 @@ class ChatBotUI:
         self.user_name = node_user_name
         self.conda_env_name = conda_env_name
         self.master_ip_port = master_ip_port
+        self.container_mode = container_mode
         self.ray_nodes = ray.nodes()
         self.ssh_connect = [None] * (len(self.ray_nodes) + 1)
         self.ip_port = "http://127.0.0.1:8000"
@@ -615,9 +618,17 @@ class ChatBotUI:
         self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
-    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker_deploy: int):
+    def deploy_func(
+        self,
+        model_name: str,
+        replica_num: int,
+        cpus_per_worker_deploy: int,
+        hpus_per_worker_deploy: int,
+    ):
         self.shutdown_deploy()
-        if cpus_per_worker_deploy * replica_num > int(ray.available_resources()["CPU"]):
+        if cpus_per_worker_deploy * replica_num > int(
+            ray.available_resources()["CPU"]
+        ) or hpus_per_worker_deploy * replica_num > int(ray.available_resources()["HPU"]):
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
@@ -639,8 +650,12 @@ class ChatBotUI:
             self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
-        finetuned_deploy.device = "cpu"
-        finetuned_deploy.ipex.precision = "bf16"
+        if hpus_per_worker_deploy > 1:
+            finetuned_deploy.device = "hpu"
+            finetuned_deploy.hpus_per_worker = hpus_per_worker_deploy
+        else:
+            finetuned_deploy.device = "cpu"
+            finetuned_deploy.ipex.precision = "bf16"
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
@@ -652,6 +667,7 @@ class ChatBotUI:
             ray_actor_options={
                 "num_cpus": cpus_per_worker_deploy,
                 "runtime_env": {"pip": [pip_env]},
+                "resources": {"HPU": hpus_per_worker_deploy},
             },
         ).bind(finetuned_deploy)
         serve.run(
@@ -673,9 +689,18 @@ class ChatBotUI:
     def shutdown_deploy(self):
         serve.shutdown()
 
+    def exec_command(self, index, command, ray=False):
+        if not self.container_mode:
+            if ray:
+                command = f"conda activate {self.conda_env_name}; " + command
+            return self.ssh_connect[index].exec_command(command)
+        else:
+            p = subprocess.run(command, capture_output=True, text=True)
+            return None, p.stdout, p.stderr
+
     def get_ray_cluster(self):
-        command = "conda activate " + self.conda_env_name + "; ray status"
-        stdin, stdout, stderr = self.ssh_connect[-1].exec_command(command)
+        command = "ray status"
+        _, stdout, _ = self.exec_command(-1, command, ray=True)
         out = stdout.read().decode("utf-8")
         out_words = [word for word in out.split("\n") if "CPU" in word][0]
         cpu_info = out_words.split(" ")[1].split("/")
@@ -688,12 +713,12 @@ class ChatBotUI:
         if self.ray_nodes[index]["Alive"] == "False":
             return cpu_memory_html.format(str(round(0, 1)), str(round(0, 1)))
         cpu_command = "export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)"
-        _, cpu_stdout, _ = self.ssh_connect[index].exec_command(cpu_command)
+        _, cpu_stdout, _ = self.exec_command(index, cpu_command)
         cpu_out = cpu_stdout.read().decode("utf-8")
         cpu_out_words = cpu_out.split(" ")
         cpu_value = 100 - float(cpu_out_words[7])
         memory_command = "export TERM=xterm; echo $(free -m)"
-        _, memory_stdout, _ = self.ssh_connect[index].exec_command(memory_command)
+        _, memory_stdout, _ = self.exec_command(index, memory_command)
         memory_out = memory_stdout.read().decode("utf-8")
         memory_out_words = memory_out.split("Mem:")[1].split("Swap")[0].split(" ")
         memory_out_words = [m for m in memory_out_words if m != ""]
@@ -707,21 +732,19 @@ class ChatBotUI:
         serve.shutdown()
         if btn_txt == "Kill":
             index = int(index)
-            command = "conda activate " + self.conda_env_name + "; ray stop"
-            self.ssh_connect[index].exec_command(command)
+            command = "ray stop"
+            self.exec_command(index, command, ray=True)
             self.ray_nodes[index]["Alive"] = "False"
             time.sleep(2)
             return "Start", ""
         elif btn_txt == "Start":
             index = int(index)
             command = (
-                "conda activate "
-                + self.conda_env_name
-                + "; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address="
+                "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address="
                 + self.master_ip_port
                 + r""" --resources='{"special_hardware": 2}'"""
             )
-            self.ssh_connect[index].exec_command(command)
+            self.exec_command(index, command, ray=True)
             self.ray_nodes[index]["Alive"] = "True"
             time.sleep(2)
             return "Kill", ""
@@ -791,25 +814,26 @@ class ChatBotUI:
             return self.default_rag_path
 
     def _init_ui(self):
-        mark_alive = None
-        for index in range(len(self.ray_nodes)):
-            if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
-                mark_alive = index
-            node_ip = self.ray_nodes[index]["NodeName"]
-            self.ssh_connect[index] = paramiko.SSHClient()
-            self.ssh_connect[index].load_system_host_keys()
-            self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
-            self.ssh_connect[index].connect(
-                hostname=node_ip, port=self.node_port, username=self.user_name
+        if not self.container_mode:
+            mark_alive = None
+            for index in range(len(self.ray_nodes)):
+                if "node:__internal_head__" in ray.nodes()[index]["Resources"]:
+                    mark_alive = index
+                node_ip = self.ray_nodes[index]["NodeName"]
+                self.ssh_connect[index] = paramiko.SSHClient()
+                self.ssh_connect[index].load_system_host_keys()
+                self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
+                self.ssh_connect[index].connect(
+                    hostname=node_ip, port=self.node_port, username=self.user_name
+                )
+            self.ssh_connect[-1] = paramiko.SSHClient()
+            self.ssh_connect[-1].load_system_host_keys()
+            self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
+            self.ssh_connect[-1].connect(
+                hostname=self.ray_nodes[mark_alive]["NodeName"],
+                port=self.node_port,
+                username=self.user_name,
             )
-        self.ssh_connect[-1] = paramiko.SSHClient()
-        self.ssh_connect[-1].load_system_host_keys()
-        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
-        self.ssh_connect[-1].connect(
-            hostname=self.ray_nodes[mark_alive]["NodeName"],
-            port=self.node_port,
-            username=self.user_name,
-        )
 
         title = "Manage LLM Lifecycle"
         with gr.Blocks(css=custom_css, title=title) as gr_chat:
@@ -974,6 +998,15 @@ class ChatBotUI:
                         interactive=True,
                         label="Gpus per Worker",
                         info="the number of gpu used for every worker.",
+                    )
+                    hpus_per_worker_deploy = gr.Slider(
+                        0,
+                        8,
+                        0,
+                        step=1,
+                        interactive=True,
+                        label="Hpus per Worker",
+                        info="the number of hpu used for every worker.",
                     )
 
                 with gr.Row():
@@ -1507,7 +1540,7 @@ class ChatBotUI:
             )
             deploy_event = deploy_btn.click(
                 self.deploy_func,
-                [all_model_dropdown, replica_num, cpus_per_worker_deploy],
+                [all_model_dropdown, replica_num, cpus_per_worker_deploy, hpus_per_worker_deploy],
                 [deployed_model_endpoint],
             )
             stop_deploy_btn.click(
@@ -1562,6 +1595,11 @@ if __name__ == "__main__":
         default="None",
         type=str,
         help="The ip:port of head node to connect when restart a worker node.",
+    )
+    parser.add_argument(
+        "--container_mode",
+        action="store_true",
+        help="Turn on container mode if running in a container",
     )
     args = parser.parse_args()
 
@@ -1630,6 +1668,7 @@ if __name__ == "__main__":
         args.node_user_name,
         args.conda_env_name,
         args.master_ip_port,
+        args.container_mode,
     )
     ui.gr_chat.queue(concurrency_count=10).launch(
         share=True, server_port=8080, server_name="0.0.0.0"
