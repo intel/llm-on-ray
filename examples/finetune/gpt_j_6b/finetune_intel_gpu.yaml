@@ -11,6 +11,7 @@ General:
     r: 8
     lora_alpha: 32
     lora_dropout: 0.1
+  enable_gradient_checkpointing: false
 Dataset:
   train_file: examples/data/sample_finetune_data.jsonl
   validation_file: null
@@ -22,9 +23,12 @@ Training:
   learning_rate: 1.0e-05
   lr_scheduler: linear
   weight_decay: 0.0
+  mixed_precision: bf16
   device: GPU
   num_training_workers: 2
   accelerate_mode: GPU_DDP
   resources_per_worker:
     CPU: 1
     GPU: 1
+  gradient_accumulation_steps: 1
+  logging_steps: 10

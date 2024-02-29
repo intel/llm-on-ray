@@ -43,7 +43,7 @@ cpu = [
     "transformers>=4.35.0",
     "intel_extension_for_pytorch==2.1.0+cpu",
     "torch==2.1.0+cpu",
-    "oneccl_bind_pt==2.1.0"
+    "oneccl_bind_pt==2.1.0+cpu"
 ]
 
 gpu = [
@@ -64,13 +64,9 @@ deepspeed = [
 ]
 
 bigdl-cpu = [
-    "bigdl-llm[all]"
+    "bigdl-llm[all]==2.5.0b20240222"
 ]
 
-ui = [
-    "gradio==4.11.0",
-    "paramiko==3.4.0",
-]
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container

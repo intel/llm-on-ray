@@ -6,7 +6,7 @@ The integration with BigDL-LLM currently only supports running on Intel CPU.
 ## Setup
 Please follow [setup.md](setup.md) to setup the environment first. Additional, you will need to install bigdl dependencies as below.
 ```bash
-pip install .[bigdl-cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+pip install .[bigdl-cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 
 ## Configure Serving Parameters

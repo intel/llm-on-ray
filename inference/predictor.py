@@ -2,7 +2,7 @@ import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
 from inference.inference_config import InferenceConfig, GenerateResult
-from utils import StoppingCriteriaSub
+from inference.utils import StoppingCriteriaSub
 from typing import List, AsyncGenerator, Union
 
 
@@ -10,7 +10,8 @@ class Predictor:
     def __init__(self, infer_conf: InferenceConfig) -> None:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(
-            infer_conf.model_description.tokenizer_name_or_path
+            infer_conf.model_description.tokenizer_name_or_path,
+            **infer_conf.model_description.config.dict(),
         )
         self.device = torch.device(infer_conf.device)
         # now deepspeed predictor don't have the model
