@@ -1,9 +1,8 @@
 import torch
 from transformers import TextIteratorStreamer
-from inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from predictor import Predictor
-from inference.utils import module_import
-from inference.utils import get_torch_dtype
+from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llm_on_ray.inference.utils import get_torch_dtype, module_import
+from llm_on_ray.inference.predictor import Predictor
 
 
 class MllmPredictor(Predictor):

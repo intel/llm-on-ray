@@ -68,7 +68,7 @@ class PredictorDeployment:
 
             self.predictor = VllmPredictor(infer_conf)
         elif self.is_mllm:
-            from mllm_predictor import MllmPredictor
+            from llm_on_ray.inference.mllm_predictor import MllmPredictor
 
             self.predictor = MllmPredictor(infer_conf)
         else:

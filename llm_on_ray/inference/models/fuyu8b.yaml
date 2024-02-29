@@ -1,6 +1,7 @@
 port: 8000
 name: fuyu-8b
 route_prefix: /fuyu-8b
+num_replicas: 1
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
