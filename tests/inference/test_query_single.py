@@ -13,7 +13,7 @@ top_k_array = [5, None]
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
-    "model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k",
+    "models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k",
     [
         (models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k)
         for models in models_array
