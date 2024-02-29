@@ -6,18 +6,18 @@ import pytest
 # model_endpoint_array = ["http://127.0.0.1:8000", None]
 # streaming_response_array = [True, False]
 # max_new_tokens_array = [10, None]
-# temperature_array = [None]
+# temperature_array = [0.7, None]
 # top_p_array = [0.6, None]
 # top_k_array = [5, None]
 
 # Temp Config matrix
 models_array = ["gpt2"]
-model_endpoint_array = [None]
+model_endpoint_array = ["http://127.0.0.1:8000"]
 streaming_response_array = [False]
-max_new_tokens_array = [None]
-temperature_array = [None]
-top_p_array = [None]
-top_k_array = [None]
+max_new_tokens_array = [10]
+temperature_array = [0.7]
+top_p_array = [0.6]
+top_k_array = [5]
 
 
 # Parametrize the test function with different combinations of parameters
