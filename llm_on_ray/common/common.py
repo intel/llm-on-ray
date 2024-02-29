@@ -5,7 +5,7 @@ import importlib
 from llm_on_ray.common.logging import logger
 
 
-def import_all_module(basedir, prefix=None):
+def import_all_modules(basedir, prefix=None):
     all_py_files = glob.glob(basedir + "/*.py")
     modules = [os.path.basename(f) for f in all_py_files]
 

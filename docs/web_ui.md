@@ -8,7 +8,7 @@ Please follow [setup.md](setup.md) to setup the base environment first.
 ## Setup UI Environment
 After activating the environment installed from the previous step, please run the following script to install environment for Web UI.
 ```bash
-$ dev/scripts/install-ui.sh
+dev/scripts/install-ui.sh
 ```
 
 ## Start Web UI

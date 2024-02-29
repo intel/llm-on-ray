@@ -202,9 +202,3 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           cid=$(docker ps -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-
-      - name: Test Summary
-        run: echo "to be continued"
-
-
-
