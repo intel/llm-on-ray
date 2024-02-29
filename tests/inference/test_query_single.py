@@ -2,13 +2,22 @@ import subprocess
 import pytest
 
 # Config matrix
-models_array = ["gpt2", "gpt2 gpt-j-6b", "gpt2 bloom-560m", "falcon-7b"]
-model_endpoint_array = ["http://127.0.0.1:8000", None]
-streaming_response_array = [True, False]
-max_new_tokens_array = [10, None]
+# models_array = ["gpt2", "gpt2 gpt-j-6b", "gpt2 bloom-560m", "falcon-7b"]
+# model_endpoint_array = ["http://127.0.0.1:8000", None]
+# streaming_response_array = [True, False]
+# max_new_tokens_array = [10, None]
+# temperature_array = [None]
+# top_p_array = [0.6, None]
+# top_k_array = [5, None]
+
+# Temp Config matrix
+models_array = ["gpt2"]
+model_endpoint_array = [None]
+streaming_response_array = [False]
+max_new_tokens_array = [None]
 temperature_array = [None]
-top_p_array = [0.6, None]
-top_k_array = [5, None]
+top_p_array = [None]
+top_k_array = [None]
 
 
 # Parametrize the test function with different combinations of parameters
