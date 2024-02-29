@@ -2,7 +2,7 @@ import subprocess
 import pytest
 
 # Config matrix
-models_array = ["gpt2", "gpt2 gpt-j-6b", "gpt2 bloom-560m falcon-7b"]
+models_array = ["gpt2", "gpt2 gpt-j-6b", "gpt2 bloom-560m", "falcon-7b"]
 model_endpoint_array = ["http://127.0.0.1:8000", None]
 streaming_response_array = [True, False]
 max_new_tokens_array = [10, None]
