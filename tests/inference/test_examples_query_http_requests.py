@@ -4,20 +4,28 @@ import os
 
 
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    current_path = os.path.dirname(os.path.abspath(__file__))
 
-    config_path = "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    config_path = os.path.join(
+        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    )
 
-    cmd_serve = ["python", "../../inference/serve.py", "--config_file", config_path]
+    serve_path = os.path.join(current_path, "../../inference/serve.py")
+
+    cmd_serve = ["python", serve_path, "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
     # Ensure there are no errors in the serve script execution
     assert "Error" not in result_serve.stderr
 
+    example_http_path = os.path.join(
+        current_path, "../../examples/inference/api_server_openai/query_http_requests.py"
+    )
+
     cmd_http = [
         "python",
-        "../../examples/inference/api_server_openai/query_http_requests.py",
+        example_http_path,
         "--model_name",
         model_name,
     ]

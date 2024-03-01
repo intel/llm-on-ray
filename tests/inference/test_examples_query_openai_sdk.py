@@ -14,20 +14,28 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         os.environ["OPENAI_API_BASE"] = api_base
         os.environ["OPENAI_BASE_URL"] = api_base
 
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    current_path = os.path.dirname(os.path.abspath(__file__))
 
-    config_path = "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    config_path = os.path.join(
+        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    )
 
-    cmd_serve = ["python", "../../inference/serve.py", "--config_file", config_path]
+    serve_path = os.path.join(current_path, "../../inference/serve.py")
+
+    cmd_serve = ["python", serve_path, "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
     # Ensure there are no errors in the serve script execution
     assert "Error" not in result_serve.stderr
 
+    example_openai_path = os.path.join(
+        current_path, "../../examples/inference/api_server_openai/query_openai_sdk.py"
+    )
+
     cmd_openai = [
         "python",
-        "../../examples/inference/api_server_openai/query_openai_sdk.py",
+        example_openai_path,
         "--model_name",
         model_name,
     ]
