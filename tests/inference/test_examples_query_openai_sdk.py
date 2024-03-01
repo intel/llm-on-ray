@@ -17,7 +17,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
     script_path = os.getcwd()
     print(script_path)
 
-    config_path = "../.github/workflows/config/" + model_name + ".yaml"
+    config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
