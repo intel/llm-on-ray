@@ -11,8 +11,8 @@ build_and_prune() {
     # Build Docker image and perform cleaning operation
     docker build ./ \
         --build-arg CACHEBUST=1 \
-        ${http_proxy:+--build-arg http_proxy="$http_proxy"} \
-        ${https_proxy:+--build-arg https_proxy="$https_proxy"} \
+        # ${http_proxy:+--build-arg http_proxy="$http_proxy"} \
+        # ${https_proxy:+--build-arg https_proxy="$https_proxy"} \
         -f dev/docker/Dockerfile${DF_SUFFIX} \
         -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f
 }
