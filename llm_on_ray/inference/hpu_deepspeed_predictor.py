@@ -2,7 +2,7 @@
 import os
 import tempfile
 import ray
-from torch_dist import (
+from inference.torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
 )
@@ -97,7 +97,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.load_tokenizer(model_desc)
 
     def get_streamer(self):
-        from utils import RayTextIteratorStreamer
+        from inference.utils import RayTextIteratorStreamer
 
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
