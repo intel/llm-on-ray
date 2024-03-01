@@ -1,8 +1,11 @@
 import subprocess
 import pytest
+import os
 
 
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]

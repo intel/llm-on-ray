@@ -14,8 +14,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         os.environ["OPENAI_API_BASE"] = api_base
         os.environ["OPENAI_BASE_URL"] = api_base
 
-    script_path = os.getcwd()
-    print(script_path)
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
 
