@@ -3,8 +3,6 @@ FROM ubuntu:22.04
 
 ARG python_v 
 
-ENV PYTHON_VERSION = $python_v
-
 ENV LANG C.UTF-8
 
 WORKDIR /root/llm-on-ray
@@ -26,7 +24,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
     conda config --add channels intel && \
-    conda install python==PYTHON_VERSION
+    conda install python==${python_v}
 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
