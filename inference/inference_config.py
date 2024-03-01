@@ -85,6 +85,10 @@ class ModelDescription(BaseModel):
     # DO NOT TOUCH
     model_config = ConfigDict(protected_namespaces=())  # type: ignore
 
+    # specify model_loader and input_processor
+    input_processor: str = "AutoProcessor"
+    model_loader: str = "AutoModel"
+
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
         if v:
@@ -103,6 +107,7 @@ class InferenceConfig(BaseModel):
     port: int = 8000
     name: str = "default"
     route_prefix: Union[str, None] = None
+    num_replicas: int = 1
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0

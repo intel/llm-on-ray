@@ -16,7 +16,7 @@
 
 import ray
 import sys
-from utils import get_deployment_actor_options
+from inference.utils import get_deployment_actor_options
 from pydantic_yaml import parse_yaml_raw_as
 from api_server_simple import serve_run
 from api_server_openai import openai_serve_run
@@ -61,6 +61,7 @@ def get_deployed_models(args):
             infer_conf.port = args.port
             rp = args.route_prefix if args.route_prefix else ""
             infer_conf.route_prefix = "/{}".format(rp)
+            infer_conf.num_replicas = args.num_replicas
             infer_conf.name = rp
             infer_conf.ipex.enabled = args.ipex
         model_list = {}
@@ -70,7 +71,7 @@ def get_deployed_models(args):
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
         deployments[model_id] = PredictorDeployment.options(
-            ray_actor_options=ray_actor_options
+            num_replicas=infer_conf.num_replicas, ray_actor_options=ray_actor_options
         ).bind(infer_conf)
     return deployments, model_list
 
@@ -103,6 +104,12 @@ def main(argv=None):
         default=None,
         type=str,
         help="The route prefix for HTTP requests.",
+    )
+    parser.add_argument(
+        "--num_replicas",
+        default=1,
+        type=int,
+        help="The number of replicas used to respond to HTTP requests.",
     )
     parser.add_argument("--cpus_per_worker", default="24", type=int, help="CPUs per worker.")
     parser.add_argument(
