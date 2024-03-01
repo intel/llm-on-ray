@@ -10,8 +10,8 @@ ipex:
   enabled: false
   precision: bf16
 model_description:
-  model_id_or_path: meta-llama/Llama-2-70b-chat-hf/
-  tokenizer_name_or_path: meta-llama/Llama-2-70b-chat-hf/
+  model_id_or_path: meta-llama/Llama-2-70b-chat-hf
+  tokenizer_name_or_path: meta-llama/Llama-2-70b-chat-hf
   chat_processor: ChatModelLLama
   prompt:
     intro: ''
