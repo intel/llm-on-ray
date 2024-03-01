@@ -6,9 +6,9 @@ import os
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
+    config_path = "../../.github/workflows/config/" + model_name + "-ci.yaml"
 
-    cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
+    cmd_serve = ["python", "../../inference/serve.py", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
@@ -17,7 +17,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
     cmd_http = [
         "python",
-        "../examples/inference/api_server_openai/query_http_requests.py",
+        "../../examples/inference/api_server_openai/query_http_requests.py",
         "--model_name",
         model_name,
     ]

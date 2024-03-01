@@ -16,9 +16,9 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
+    config_path = "../../.github/workflows/config/" + model_name + "-ci.yaml"
 
-    cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
+    cmd_serve = ["python", "../../inference/serve.py", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
@@ -27,7 +27,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     cmd_openai = [
         "python",
-        "../examples/inference/api_server_openai/query_openai_sdk.py",
+        "../../examples/inference/api_server_openai/query_openai_sdk.py",
         "--model_name",
         model_name,
     ]
