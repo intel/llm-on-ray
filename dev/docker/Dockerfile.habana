@@ -13,9 +13,20 @@ RUN pip install -e . && \
     pip install --upgrade-strategy eager optimum[habana] && \
     pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.14.0
 
-# Comment out if you are not using UI
+# Optinal. Comment out if you are not using UI
 COPY ./dev/scripts/install-ui.sh /tmp
 
 RUN /tmp/install-ui.sh
 
 ENV no_proxy=localhost,127.0.0.1
+
+# Required by deepspeed demo
+ENV RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES=1
+
+ENV PT_HPU_LAZY_ACC_PAR_MODE=0
+
+ENV PT_HPU_ENABLE_REFINE_DYNAMIC_SHAPES=0
+
+ENV PT_HPU_ENABLE_WEIGHT_CPU_PERMUTE=0
+
+ENV PT_HPU_ENABLE_LAZY_COLLECTIVES=true

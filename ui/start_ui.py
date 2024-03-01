@@ -650,7 +650,7 @@ class ChatBotUI:
             self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
-        if hpus_per_worker_deploy > 1:
+        if hpus_per_worker_deploy > 0:
             finetuned_deploy.device = "hpu"
             finetuned_deploy.hpus_per_worker = hpus_per_worker_deploy
         else:
@@ -659,7 +659,7 @@ class ChatBotUI:
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
         ray_actor_options = {
             "num_cpus": cpus_per_worker_deploy,
-            "resources": {"HPU": hpus_per_worker_deploy},
+            "resources": {"HPU": 0 if finetuned_deploy.deepspeed else hpus_per_worker_deploy},
         }
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
@@ -714,7 +714,7 @@ class ChatBotUI:
             cpu_command = f"export TERM=xterm; echo $({cpu_command} | head -n 4 | tail -n 2)"
         cpu_out, _ = self.exec_command(index, cpu_command)
         if self.container_mode:
-            cpu_out_words = cpu_out.split("\n")[2]
+            cpu_out = cpu_out.split("\n")[2]
         cpu_out_words = cpu_out.split()
         cpu_value = 100 - float(cpu_out_words[7])
         memory_command = "free -m"
