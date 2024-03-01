@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:22.04
 
-ARG PYTHON_VERSION = PYTHON_VERSION
+ARG python_v 
+
+ENV PYTHON_VERSION = $python_v
 
 ENV LANG C.UTF-8
 
