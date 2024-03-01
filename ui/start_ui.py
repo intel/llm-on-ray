@@ -657,18 +657,15 @@ class ChatBotUI:
             finetuned_deploy.device = "cpu"
             finetuned_deploy.ipex.precision = "bf16"
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
+        ray_actor_options = {
+            "num_cpus": cpus_per_worker_deploy,
+            "resources": {"HPU": hpus_per_worker_deploy},
+        }
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
-            pip_env = "transformers==4.35.0"
-        else:
-            pip_env = "transformers==4.31.0"
+            ray_actor_options["runtime_env"] = {"pip": "transformers==4.35.0"}
         deployment = PredictorDeployment.options(  # type: ignore
-            num_replicas=replica_num,
-            ray_actor_options={
-                "num_cpus": cpus_per_worker_deploy,
-                "runtime_env": {"pip": [pip_env]},
-                "resources": {"HPU": hpus_per_worker_deploy},
-            },
+            num_replicas=replica_num, ray_actor_options=ray_actor_options
         ).bind(finetuned_deploy)
         serve.run(
             deployment,

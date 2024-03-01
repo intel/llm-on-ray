@@ -2,9 +2,20 @@ FROM vault.habana.ai/gaudi-docker/1.14.0/ubuntu22.04/habanalabs/pytorch-installe
 
 ENV LANG=en_US.UTF-8
 
-COPY . /root/llm-on-ray
-
 WORKDIR /root/llm-on-ray
 
-RUN pip install . && \
-    pip install --upgrade-strategy eager optimum[habana]
+COPY ./pyproject.toml .
+COPY ./MANIFEST.in .
+
+RUN mkdir ./finetune && mkdir ./inference
+
+RUN pip install -e . && \
+    pip install --upgrade-strategy eager optimum[habana] && \
+    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.14.0
+
+# Comment out if you are not using UI
+COPY ./dev/scripts/install-ui.sh /tmp
+
+RUN /tmp/install-ui.sh
+
+ENV no_proxy=localhost,127.0.0.1
