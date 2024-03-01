@@ -3,7 +3,7 @@ import pytest
 
 
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
-    config_path = "../.github/workflows/config/" + model_name + ".yaml"
+    config_path = "../.github/workflows/config/" + model_name + "-ci.yaml"
 
     cmd_serve = ["python", "../inference/serve.py", "--config_file", config_path]
 
@@ -41,22 +41,15 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
     assert len(result_http.stdout) > 0
 
 
-model_names = ["gpt2"]
-streaming_responses = [False, True]
-max_new_tokens_values = [None, 128]
-temperature_values = [None, 0.8]
-top_p_values = [None, 0.7]
-
-
 @pytest.mark.parametrize(
     "model_name,streaming_response,max_new_tokens,temperature,top_p",
     [
         (model_name, streaming_response, max_new_tokens, temperature, top_p)
-        for model_name in model_names
-        for streaming_response in streaming_responses
-        for max_new_tokens in max_new_tokens_values
-        for temperature in temperature_values
-        for top_p in top_p_values
+        for model_name in ["gpt2"]
+        for streaming_response in [False, True]
+        for max_new_tokens in [None, 128]
+        for temperature in [None, 0.8]
+        for top_p in [None, 0.7]
     ],
 )
 def test_script(model_name, streaming_response, max_new_tokens, temperature, top_p):

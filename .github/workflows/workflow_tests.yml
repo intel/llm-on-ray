@@ -13,7 +13,7 @@ jobs:
     name: bare-test
     strategy:
       matrix:
-        python-version: [3.9, 3.10 , 3.11]
+        python-version: [3.9, 3.10, 3.11]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -47,9 +47,11 @@ jobs:
       - name: Install dependencies for tests
         run: |
           python -m pip install --upgrade pip
-          pip install .[cpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/ -f https://download.pytorch.org/whl/torch_stable.html
+          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
           # Dynamic link oneCCL and Intel MPI libraries
-          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
+          # Additional libraries required for pytest
+          pip install -r ./tests/requirements.txt
           
       - name: Start Ray Cluster
         run: |
@@ -59,7 +61,7 @@ jobs:
         run: |
           ./tests/run-tests.sh
 
-  build_docker:
+  docker-test:
 
     name: docker-test
 
@@ -97,16 +99,21 @@ jobs:
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker ps -a
           docker run -tid -v ${{ github.workspace }}:/root/llm-on-ray --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
-      
+
+      - name: Install Dependencies for Tests
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
+
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
           docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
 
-      - name: Run query Test
+      - name: Run Tests
         run: |
-            TARGET=${{steps.target.outputs.target}}
-            docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
            
       - name: Stop Container
         if: success() || failure()
