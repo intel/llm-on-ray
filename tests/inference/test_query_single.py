@@ -66,9 +66,11 @@ def test_script(
         model = it.strip()
         assert len(model) > 0, "Invalid empty model."
         if model_endpoint is not None:
-            cmd_serve.append["--model_endpoint", model_endpoint + "/" + model]
+            cmd_serve.append("--model_endpoint")
+            cmd_serve.append(model_endpoint + "/" + model)
         else:
-            cmd_serve.append["--model_endpoint", "http://127.0.0.1:8000" + "/" + model]
+            cmd_serve.append("--model_endpoint")
+            cmd_serve.append("http://127.0.0.1:8000" + "/" + model)
         result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
         # TODO: Find a better way to assert the result, like checking processes etc.
         assert "Error" not in result_serve.stderr
