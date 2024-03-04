@@ -48,15 +48,19 @@ def test_script(
     cmd_serve = ["python", "../inference/serve.py", "--models", models, "--port", port, "--simple"]
 
     if streaming_response:
-        cmd_serve.append["--streaming_response"]
+        cmd_serve.append("--streaming_response")
     if max_new_tokens is not None:
-        cmd_serve.append["--max_new_tokens", str(max_new_tokens)]
+        cmd_serve.append("--max_new_tokens")
+        cmd_serve.append(str(max_new_tokens))
     if temperature is not None:
-        cmd_serve.append["--temperature", str(temperature)]
+        cmd_serve.append("--temperature")
+        cmd_serve.append(str(temperature))
     if top_p is not None:
-        cmd_serve.append["--top_p", str(top_p)]
+        cmd_serve.append("--top_p")
+        cmd_serve.append(str(top_p))
     if top_k is not None:
-        cmd_serve.append["--top_k", str(top_k)]
+        cmd_serve.append("--top_k")
+        cmd_serve.append(str(top_k))
 
     for it in models.split(" "):
         model = it.strip()
