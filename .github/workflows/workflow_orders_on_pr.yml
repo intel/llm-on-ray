@@ -32,7 +32,3 @@ jobs:
   call-finetune:
     needs: call-lint
     uses: ./.github/workflows/workflow_finetune.yml
-
-  call-finetune-on-intel-gpu:
-    needs: call-lint
-    uses: ./.github/workflows/workflow_finetune_gpu.yml
