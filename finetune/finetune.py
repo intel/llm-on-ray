@@ -62,6 +62,11 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "ACCELERATE_USE_XPU": "true",
             "ACCELERATE_USE_IPEX": "true",
             "ACCELERATE_USE_DEEPSPEED": "true",
+        },
+        "HPU_DDP": {
+            "ACCELERATE_USE_CPU": "false",
+            "ACCELERATE_USE_XPU": "false",
+            "ACCELERATE_USE_IPEX": "false",
             "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
     }
@@ -287,7 +292,11 @@ def main(external_config=None):
         device = "xpu"
 
     if config.get("torch_config", None) is None:
-        backend = "ccl" if device == "cpu" or device == "xpu" else None
+        backend = None
+        if device == "cpu" or device == "xpu":
+            backend = "ccl"
+        elif device == "hpu":
+            backend = "hccl"
         torch_config = common.TorchConfig(backend=backend, device=device)
     else:
         customer_torch_config = config.get("torch_config")

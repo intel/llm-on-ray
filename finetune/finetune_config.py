@@ -41,6 +41,7 @@ class Dataset(BaseModel):
 class RayResourceConfig(BaseModel):
     CPU: int
     GPU: int = 0
+    HPU: int = 0
 
 
 class Training(BaseModel):
@@ -61,14 +62,14 @@ class Training(BaseModel):
 
     @validator("device")
     def check_device(cls, v: str):
-        devices = ["CPU", "GPU"]
+        devices = ["CPU", "GPU", "HPU"]
         if v not in devices:
             raise ValueError(f"device must be one of {devices}")
         return v
 
     @validator("accelerate_mode")
     def check_accelerate_mode(cls, v: str):
-        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "GPU_DEEPSPEED"]
+        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "HPU_DDP", "GPU_DEEPSPEED"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
         return v
