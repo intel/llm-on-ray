@@ -18,3 +18,5 @@ jobs:
 
   call-finetune-on-intel-gpu:
     uses: ./.github/workflows/workflow_finetune_gpu.yml
+    with:
+      ci_type: nightly
