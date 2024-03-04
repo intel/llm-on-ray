@@ -93,35 +93,45 @@ def test_script(
 ):
     cmd_serve = ["python", "../inference/serve.py"]
     if config_file is not None:
-        cmd_serve.append["--config_file", str(config_file)]
+        cmd_serve.append("--config_file")
+        cmd_serve.append(str(config_file))
     if model_id_or_path is not None:
-        cmd_serve.append["--model_id_or_path", str(model_id_or_path)]
+        cmd_serve.append("--model_id_or_path")
+        cmd_serve.append(str(model_id_or_path))
     if models is not None:
-        cmd_serve.append["--models", str(models)]
+        cmd_serve.append("--models")
+        cmd_serve.append(str(models))
     if port is not None:
-        cmd_serve.append["--port", str(port)]
+        cmd_serve.append("--port")
+        cmd_serve.append(str(port))
     if route_prefix is not None:
-        cmd_serve.append["--route_prefix", str(route_prefix)]
+        cmd_serve.append("--route_prefix")
+        cmd_serve.append(str(route_prefix))
     if cpus_per_worker is not None:
-        cmd_serve.append["--cpus_per_worker", str(cpus_per_worker)]
+        cmd_serve.append("--cpus_per_worker")
+        cmd_serve.append(str(cpus_per_worker))
     if gpus_per_worker is not None:
-        cmd_serve.append["--gpus_per_worker", str(gpus_per_worker)]
+        cmd_serve.append("--gpus_per_worker")
+        cmd_serve.append(str(gpus_per_worker))
     if hpus_per_worker is not None:
-        cmd_serve.append["--hpus_per_worker", str(hpus_per_worker)]
+        cmd_serve.append("--hpus_per_worker")
+        cmd_serve.append(str(hpus_per_worker))
     if deepspeed:
-        cmd_serve.append["--deepspeed"]
+        cmd_serve.append("--deepspeed")
     if workers_per_group is not None:
-        cmd_serve.append["--workers_per_group", str(workers_per_group)]
+        cmd_serve.append("--workers_per_group")
+        cmd_serve.append(str(workers_per_group))
     if ipex:
-        cmd_serve.append["--ipex"]
+        cmd_serve.append("--ipex")
     if device is not None:
-        cmd_serve.append["--device", str(device)]
+        cmd_serve.append("--device")
+        cmd_serve.append(str(device))
     if serve_local_only:
-        cmd_serve.append["--serve_local_only"]
+        cmd_serve.append("--serve_local_only")
     if simple:
-        cmd_serve.append["--simple"]
+        cmd_serve.append("--simple")
     if keep_serve_termimal:
-        cmd_serve.append["--keep_serve_termimal"]
+        cmd_serve.append("--keep_serve_termimal")
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
