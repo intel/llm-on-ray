@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 import transformers
+from accelerate.utils import DummyOptim, DummyScheduler
 
 from ray.train import report, Checkpoint
 
@@ -17,6 +18,7 @@ from ..logging import logger
 
 class DefaultTrainer(Trainer):
     def __init__(self, config):
+        self.model = None
         self.config = config
         dataprocesser_config = config.get("dataprocesser")
         dataprocesser_type = dataprocesser_config.get("type")
@@ -135,14 +137,31 @@ class DefaultTrainer(Trainer):
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
-        self.model = accelerator.prepare(model)
-
-        (
-            self.optimizer,
-            self.train_dataloader,
-            self.eval_dataloader,
-            self.lr_scheduler,
-        ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
+        accelerate_mode = self.config.get("accelerate_mode")
+        if accelerate_mode in ["GPU_DEEPSPEED"]:
+            lr = lr_scheduler_config.get("learning_rate", 0.001)
+            weight_decay = lr_scheduler_config.get("weight_decay", 0)
+            dummy_optimizer = DummyOptim(
+                params=model.parameters(), lr=lr, weight_decay=weight_decay
+            )
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=lr_scheduler)
+            (
+                self.model,
+                self.optimizer,
+                self.train_dataloader,
+                self.eval_dataloader,
+                self.lr_scheduler,
+            ) = accelerator.prepare(
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
+            )
+        else:
+            self.model = accelerator.prepare(model)
+            (
+                self.optimizer,
+                self.train_dataloader,
+                self.eval_dataloader,
+                self.lr_scheduler,
+            ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
         checkpoint = self.config.get("checkpoint")
         if checkpoint is not None:

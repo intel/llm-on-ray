@@ -57,6 +57,7 @@ class Training(BaseModel):
     mixed_precision: str = "no"
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
+    deepspeed_config_file: str = ""
 
     @validator("device")
     def check_device(cls, v: str):
@@ -67,7 +68,7 @@ class Training(BaseModel):
 
     @validator("accelerate_mode")
     def check_accelerate_mode(cls, v: str):
-        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP"]
+        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "GPU_DEEPSPEED"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
         return v
