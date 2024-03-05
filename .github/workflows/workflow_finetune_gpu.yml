@@ -38,9 +38,9 @@ jobs:
 
       - name: Running task on Intel GPU
         run: |
-          rm ~/borealis-runner/llm-on-ray.tar.gz -f
-          tar zcf ~/borealis-runner/llm-on-ray.tar.gz -C ~/actions-runner/_work/llm-on-ray .
-          cd ~/borealis-runner/
+          rm /home/ci/borealis-runner/llm-on-ray.tar.gz -f
+          tar zcf /home/ci/borealis-runner/llm-on-ray.tar.gz -C /home/ci/actions-runner/_work/llm-on-ray .
+          cd /home/ci/borealis-runner/
           python3 finetune_on_pvc.py --need_create_conda_env true --base_models "${{ matrix.model }}"
       - name: Test Summary
         run: echo "to be continued"
