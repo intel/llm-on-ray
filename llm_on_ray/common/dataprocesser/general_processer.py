@@ -5,7 +5,7 @@ import torch
 import datasets
 import transformers
 
-from llm_on_ray.common.dataprocesser.dataprocesser import DataProcesser
+from llm_on_ray.common.dataprocesser import DataProcesser
 
 INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
 INSTRUCTION_KEY = "### Instruction:"

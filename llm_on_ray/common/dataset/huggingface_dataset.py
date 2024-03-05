@@ -1,7 +1,7 @@
 import os
 import datasets
 
-from llm_on_ray.common.dataset.dataset import Dataset
+from llm_on_ray.common.dataset import Dataset
 
 
 def local_load(name, **load_config):

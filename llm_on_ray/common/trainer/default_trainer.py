@@ -10,7 +10,7 @@ import transformers
 from ray.train import report, Checkpoint
 
 from llm_on_ray.common import dataprocesser
-from llm_on_ray.common.trainer.trainer import Trainer
+from llm_on_ray.common.trainer import Trainer
 from llm_on_ray.common.logging import logger
 
 

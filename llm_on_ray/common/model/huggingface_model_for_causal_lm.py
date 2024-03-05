@@ -1,6 +1,6 @@
 import transformers
 
-from llm_on_ray.common.model.model import Model
+from llm_on_ray.common.model import Model
 from peft import get_peft_model, LoraConfig
 import deltatuner
 

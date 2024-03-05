@@ -1,7 +1,7 @@
 import torch
 import math
 import transformers
-from llm_on_ray.common.model.model import Model
+from llm_on_ray.common.model import Model
 
 
 # for huggingface model weight random initialization

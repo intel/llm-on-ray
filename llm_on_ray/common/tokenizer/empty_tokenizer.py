@@ -1,4 +1,4 @@
-from llm_on_ray.common.tokenizer.tokenizer import Tokenizer
+from llm_on_ray.common.tokenizer import Tokenizer
 
 
 class _EmptyTokenizer:

@@ -7,7 +7,7 @@ import tree
 from ray.rllib.utils.spaces.repeated import Repeated
 import gymnasium.spaces as sp
 
-from llm_on_ray.common.agentenv.agentenv import AgentEnv
+from llm_on_ray.common.agentenv import AgentEnv
 from llm_on_ray.common.load import load_dataset, load_model, load_tokenizer
 
 

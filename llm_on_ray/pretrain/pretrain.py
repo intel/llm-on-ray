@@ -29,7 +29,7 @@ def train_func(config: Dict[str, Any]):
     cwd = config.get("cwd")
     if cwd:
         os.chdir(cwd)
-    from llm_on_ray.common.common import import_all_modules
+    from llm_on_ray.common import import_all_modules
 
     import_all_modules(f"{os.path.dirname(os.path.realpath(__file__))}/plugin", "plugin")
     common.init(config)  # type: ignore

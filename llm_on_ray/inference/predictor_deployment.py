@@ -59,20 +59,20 @@ class PredictorDeployment:
         self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
 
         if self.use_deepspeed:
-            from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
+            from llm_on_ray.inference import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
             self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
-            from llm_on_ray.inference.vllm_predictor import VllmPredictor
+            from llm_on_ray.inference import VllmPredictor
 
             self.predictor = VllmPredictor(infer_conf)
         elif self.is_mllm:
-            from llm_on_ray.inference.mllm_predictor import MllmPredictor
+            from llm_on_ray.inference import MllmPredictor
 
             self.predictor = MllmPredictor(infer_conf)
         else:
-            from llm_on_ray.inference.transformer_predictor import TransformerPredictor
+            from llm_on_ray.inference import TransformerPredictor
 
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()

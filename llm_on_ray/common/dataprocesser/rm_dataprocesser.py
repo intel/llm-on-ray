@@ -1,7 +1,7 @@
 import torch
 import transformers
 
-from llm_on_ray.common.dataprocesser.dataprocesser import DataProcesser
+from llm_on_ray.common.dataprocesser import DataProcesser
 from llm_on_ray.common.logging import logger
 
 

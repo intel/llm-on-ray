@@ -31,7 +31,7 @@ from ray.tune.logger import LoggerCallback
 from ray.util import queue
 from llm_on_ray.inference.inference_config import all_models, ModelDescription, Prompt
 from llm_on_ray.inference.inference_config import InferenceConfig as FinetunedConfig
-from llm_on_ray.inference.chat_process import (  # noqa: F401
+from llm_on_ray.inference.chat_process import (
     ChatModelGptJ,
     ChatModelLLama,
     ChatModelwithImage,

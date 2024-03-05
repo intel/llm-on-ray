@@ -1,5 +1,5 @@
-import torch  # noqa: F401
-from llm_on_ray.common.optimizer.optimizer import Optimizer
+import torch
+from llm_on_ray.common.optimizer import Optimizer
 
 
 class GroupOptimizer(Optimizer):

@@ -4,7 +4,7 @@ from transformers.models.auto import MODEL_MAPPING
 import torch
 import torch.nn as nn
 
-from llm_on_ray.common.model.model import Model
+from llm_on_ray.common.model import Model
 
 
 class HuggingFaceRewardModel(Model):

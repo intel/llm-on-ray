@@ -13,7 +13,7 @@ class TorchConfig(RayTorchConfig):
 
 def habana_import():
     try:
-        import habana_frameworks.torch  # noqa: F401
+        import habana_frameworks.torch
     except ImportError as habana_not_exist:
         raise ImportError("Please install habana_frameworks") from habana_not_exist
 
