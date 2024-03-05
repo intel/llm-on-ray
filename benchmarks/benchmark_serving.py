@@ -520,7 +520,10 @@ if __name__ == "__main__":
         "--model-type",
         default="llama",
         type=str,
-        help="Model type used to select input prompt, should be one of {gpt-j, llama, gpt-neox, opt, falcon-rw-1b, falcon, bloom, chatglm, codegen, gptbigcode, baichuan, baichuan2, t5, mistral, mpt, qwen, mixtral, stablelm}, and need to correspond to --model_name. Default is llama",
+        help="Model type used to select input prompt, should be one of \
+            {gpt-j, llama, gpt-neox, opt, falcon-rw-1b, falcon, bloom, chatglm, codegen, \
+            gptbigcode, baichuan, baichuan2, t5, mistral, mpt, qwen, mixtral, stablelm}, \
+            and need to correspond to --model_name. Default is llama",
     )
     parser.add_argument(
         "--input-len-mean",

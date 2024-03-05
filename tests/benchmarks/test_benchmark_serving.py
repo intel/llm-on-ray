@@ -30,6 +30,7 @@ def test_sample_requests_IPEX(input_tokens, max_new_tokens, num_requests):
     sampled_requests = sample_requests_IPEX(
         dataset_path="prompt.json",
         input_tokens=input_tokens,
+        model_type="gpt-j",
         max_new_tokens=max_new_tokens,
         num_requests=num_requests,
         tokenizer=AutoTokenizer.from_pretrained("EleutherAI/gpt-j-6b"),
