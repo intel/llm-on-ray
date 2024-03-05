@@ -32,6 +32,7 @@ import numpy as np
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from inference.inference_config import all_models
+import copy
 
 # (prompt str, output str, prompt len, output len, request latency, latencies list)
 latency_tracking: List[Tuple[Optional[str], Optional[str], int, int, float, List[float]]] = []
@@ -93,6 +94,7 @@ def sample_requests_ShareGPT(
 def sample_requests_IPEX(
     dataset_path: str,
     input_tokens: str,
+    model_type: str,
     max_new_tokens: int,
     num_requests: int,
     tokenizer: PreTrainedTokenizer,
@@ -113,8 +115,6 @@ def sample_requests_IPEX(
     with open(dataset_path) as f:
         prompt_pool = json.load(f)
 
-    # Only sample from gpt-j subset prompts for now
-    model_type = "gpt-j"
     if str(input_tokens) in prompt_pool[model_type]:
         prompt = prompt_pool[model_type][input_tokens]
     else:
@@ -205,6 +205,7 @@ async def send_request(
     prompt_len: int,
     output_len: int,
     config: dict,
+    tokenizer: PreTrainedTokenizer,
     track_token_latency: bool = True,
     track_input_output: bool = False,
     progress_bar: tqdm = None,
@@ -225,14 +226,13 @@ async def send_request(
     headers = {"User-Agent": "Benchmark Client"}
 
     # Use sample output_len if max_new_tokens not specified
-    if "max_new_tokens" in config:
-        output_len = config["max_new_tokens"]
-    else:
-        config["max_new_tokens"] = output_len
+    temp_config = copy.deepcopy(config)
+    if "max_new_tokens" not in temp_config:
+        temp_config["max_new_tokens"] = output_len
 
     pload = {
         "text": prompt,
-        "config": config,
+        "config": temp_config,
         "stream": track_token_latency,
     }
 
@@ -258,6 +258,7 @@ async def send_request(
                 # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
             response_text = b"".join(chunks).decode("utf-8")
+            generate_len = len(tokenizer.encode(response_text))
             if progress_bar:
                 progress_bar.update()
             break
@@ -273,7 +274,7 @@ async def send_request(
             prompt_str,
             output_str,
             prompt_len,
-            output_len,
+            generate_len,
             request_latency,
             token_latencies_per_request,
         )
@@ -285,6 +286,7 @@ async def benchmark(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
     config: dict,
+    tokenizer: PreTrainedTokenizer,
     track_token_latency: bool = False,
     track_input_output: bool = False,
     progress: bool = False,
@@ -309,7 +311,13 @@ async def benchmark(
         tasks.append(
             asyncio.create_task(
                 send_request(
-                    api_url, *request, config, track_token_latency, track_input_output, progress_bar
+                    api_url,
+                    *request,
+                    config,
+                    tokenizer,
+                    track_token_latency,
+                    track_input_output,
+                    progress_bar,
                 )
             )
         )
@@ -345,7 +353,12 @@ def main(args: argparse.Namespace):
         input_requests = sample_requests_ShareGPT(args.dataset, args.num_prompts, tokenizer)
     elif args.dataset_format == "IPEX":
         input_requests = sample_requests_IPEX(
-            args.dataset, args.input_tokens, args.max_new_tokens, args.num_prompts, tokenizer
+            args.dataset,
+            args.input_tokens,
+            args.model_type,
+            args.max_new_tokens,
+            args.num_prompts,
+            tokenizer,
         )
     elif args.dataset_format == "Synthesis":
         input_requests = sample_requests_synthesis(
@@ -375,6 +388,7 @@ def main(args: argparse.Namespace):
             input_requests,
             args.request_rate,
             config,
+            tokenizer,
             args.track_token_latency,
             args.track_input_output,
             args.progress,
@@ -393,13 +407,15 @@ def main(args: argparse.Namespace):
     print(f"Prompt Length (Min/Med/Max): {min_prompt_len} / {med_prompt_len} / {max_prompt_len}")
 
     # Compute the throughput statistics
-    total_num_tokens = sum(
-        prompt_len + output_len for _, _, prompt_len, output_len, _, _ in latency_tracking
-    )
+    input_num_tokens = sum(prompt_len for _, _, prompt_len, _, _, _ in latency_tracking)
+    output_num_tokens = sum(output_len for _, _, _, output_len, _, _ in latency_tracking)
+
     throughput_requests_per_s = args.num_prompts / benchmark_time
-    throughput_tokens_per_s = total_num_tokens / benchmark_time
+    input_throughput_tokens_per_s = input_num_tokens / benchmark_time
+    output_throughput_tokens_per_s = output_num_tokens / benchmark_time
     print(f"Request Throughput (QPS): {throughput_requests_per_s:.3f} requests/s")
-    print(f"Token Throughput: {throughput_tokens_per_s:.3f} tokens/s")
+    print(f"Input Token Throughput: {input_throughput_tokens_per_s:.3f} tokens/s")
+    print(f"output Token Throughput: {output_throughput_tokens_per_s:.3f} tokens/s")
 
     # Compute the latency statistics
     avg_latency = np.mean([latency for _, _, _, _, latency, _ in latency_tracking])
@@ -407,8 +423,8 @@ def main(args: argparse.Namespace):
 
     avg_per_token_latency = np.mean(
         [
-            latency / (prompt_len + output_len)
-            for _, _, prompt_len, output_len, latency, _ in latency_tracking
+            latency / output_len if output_len != 0 else latency
+            for _, _, _, output_len, latency, _ in latency_tracking
         ]
     )
     print(f"Average latency per Token: {avg_per_token_latency:.3f} s")
@@ -446,7 +462,10 @@ def main(args: argparse.Namespace):
                     "med_prompt_len": int(med_prompt_len),
                     "max_prompt_len": int(max_prompt_len),
                     "throughput_requests_per_s": float(f"{throughput_requests_per_s:.3f}"),
-                    "throughput_tokens_per_s": float(f"{throughput_tokens_per_s:.3f}"),
+                    "input_throughput_tokens_per_s": float(f"{input_throughput_tokens_per_s:.3f}"),
+                    "output_throughput_tokens_per_s": float(
+                        f"{output_throughput_tokens_per_s:.3f}"
+                    ),
                     "avg_latency": float(f"{avg_latency:.3f}"),
                     "avg_per_token_latency": float(f"{avg_per_token_latency:.3f}"),
                     "avg_first_token_latency": float(f"{avg_first_token_latency:.3f}")
@@ -496,6 +515,12 @@ if __name__ == "__main__":
         default="32",
         type=str,
         help="Input tokens length, used when --dataset-format=IPEX. Default is 32.",
+    )
+    parser.add_argument(
+        "--model-type",
+        default="llama",
+        type=str,
+        help="Model type used to select input prompt, should be one of {gpt-j, llama, gpt-neox, opt, falcon-rw-1b, falcon, bloom, chatglm, codegen, gptbigcode, baichuan, baichuan2, t5, mistral, mpt, qwen, mixtral, stablelm}, and need to correspond to --model_name. Default is llama",
     )
     parser.add_argument(
         "--input-len-mean",
