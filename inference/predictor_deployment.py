@@ -66,7 +66,6 @@ class PredictorDeployment:
                 from deepspeed_predictor import DeepSpeedPredictor
 
                 self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from vllm_predictor import VllmPredictor
 
@@ -77,8 +76,8 @@ class PredictorDeployment:
             self.predictor = TransformerPredictor(infer_conf)
         self.loop = asyncio.get_running_loop()
 
-    def consume_streamer(self):
-        for text in self.streamer:
+    def consume_streamer(self, streamer):
+        for text in streamer:
             yield text
 
     async def consume_streamer_async(self, streamer: TextIteratorStreamer):
@@ -126,9 +125,10 @@ class PredictorDeployment:
                 return self.predictor.generate(prompts, **config)
 
         if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
+            streamer = self.predictor.get_streamer()
+            self.predictor.streaming_generate(prompts, streamer, **config)
             return StreamingResponse(
-                self.consume_streamer(), status_code=200, media_type="text/plain"
+                self.consume_streamer(streamer), status_code=200, media_type="text/plain"
             )
         elif self.use_vllm:
             # TODO: streaming only support single prompt
