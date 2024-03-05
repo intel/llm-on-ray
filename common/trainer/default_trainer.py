@@ -18,6 +18,7 @@ from ..logging import logger
 
 class DefaultTrainer(Trainer):
     def __init__(self, config):
+        self.model = None
         self.config = config
         dataprocesser_config = config.get("dataprocesser")
         dataprocesser_type = dataprocesser_config.get("type")
@@ -105,6 +106,7 @@ class DefaultTrainer(Trainer):
         return lr_scheduler
 
     def prepare(self, model, tokenizer, dataset, optimizer, accelerator):
+        logger.info("prepare")
         self._coordinate(accelerator)
 
         embedding_size = model.get_input_embeddings().weight.shape[0]
@@ -136,7 +138,6 @@ class DefaultTrainer(Trainer):
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
-        self.model = accelerator.prepare(model)
         accelerate_mode = self.config.get("accelerate_mode")
         if accelerate_mode in ["GPU_DEEPSPEED"]:
             lr = lr_scheduler_config.get("learning_rate", 0.001)
@@ -146,14 +147,16 @@ class DefaultTrainer(Trainer):
             )
             dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=lr_scheduler)
             (
+                self.model,
                 self.optimizer,
                 self.train_dataloader,
                 self.eval_dataloader,
                 self.lr_scheduler,
             ) = accelerator.prepare(
-                dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
             )
         else:
+            self.model = accelerator.prepare(model)
             (
                 self.optimizer,
                 self.train_dataloader,
