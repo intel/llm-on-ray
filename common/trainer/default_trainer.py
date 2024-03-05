@@ -106,7 +106,6 @@ class DefaultTrainer(Trainer):
         return lr_scheduler
 
     def prepare(self, model, tokenizer, dataset, optimizer, accelerator):
-        logger.info("prepare")
         self._coordinate(accelerator)
 
         embedding_size = model.get_input_embeddings().weight.shape[0]
