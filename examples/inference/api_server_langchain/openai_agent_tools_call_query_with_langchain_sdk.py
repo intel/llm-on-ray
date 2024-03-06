@@ -81,7 +81,7 @@ def get_current_weather(location, unit):
         "location": location,
         "temperature": "78",
         "unit": unit,
-        "forecast": ["sunny", "with a chance of meatballs"],
+        "forecast": ["sunny", "with a chance of rain"],
     }
     return weather_info
 
@@ -126,3 +126,4 @@ llm = ChatOpenAI(
 agent = create_openai_tools_agent(tools=tools, llm=llm, prompt=prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 agent_executor.invoke({"input": "what is the weather today in Boston?"})
+agent_executor.invoke({"input": "tell me a short joke?"})

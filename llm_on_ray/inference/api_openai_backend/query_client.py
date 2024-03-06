@@ -48,7 +48,6 @@ class RouterQueryClient:
         else:
             raise HTTPException(404, f"Could not find model with id {model}")
 
-        prompt_content = prompt.prompt
         request_config = prompt.parameters
         temperature = request_config.get("temperature", 1.0)
         top_p = request_config.get("top_p", 1.0)
@@ -64,7 +63,7 @@ class RouterQueryClient:
             async_iterator=deploy_handle.options(stream=True)
             .openai_call.options(stream=True, use_new_handle_api=True)
             .remote(
-                prompt_content,
+                prompt.prompt,
                 gen_config,
                 streaming_response=streaming_reponse,
                 tools=prompt.tools,

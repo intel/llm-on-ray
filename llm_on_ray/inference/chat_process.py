@@ -112,6 +112,10 @@ class ChatModelLLama(ChatModel):
                     prompt += f"{content}\n"
             elif role == "assistant":
                 prompt += f"{content}\n"
+            elif role == "tool":
+                prompt += f"{content}\n"
+            elif role == "system":
+                prompt += f"### system:\n{content}\n"
             else:
                 prompt += f"### Unknown:\n{content}\n"
         if self.bot_id != "":

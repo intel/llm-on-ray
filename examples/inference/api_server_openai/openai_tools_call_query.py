@@ -74,17 +74,35 @@ tools = [
     }
 ]
 messages = [
-    {"role": "system", "content": "You are a helpful assistant"},
-    {"role": "user", "content": "What's the weather like in Boston today?"},
+    [
+        {"role": "user", "content": "You are a helpful assistant"},
+        {"role": "user", "content": "What's the weather like in Boston today?"},
+    ],
+    [
+        {"role": "user", "content": "You are a helpful assistant"},
+        {"role": "user", "content": "Tell me a short joke?"},
+    ],
 ]
+for message in messages:
+    print(f"User: {message[1]['content']}")
+    print("Assistant:", end=" ", flush=True)
+    chat_completion = client.chat.completions.create(
+        model=args.model_name,
+        messages=message,
+        max_tokens=args.max_new_tokens,
+        tools=tools,
+        tool_choice="auto",
+        stream=args.streaming_response,
+    )
 
-chat_completion = client.chat.completions.create(
-    model=args.model_name,
-    messages=messages,
-    max_tokens=args.max_new_tokens,
-    tools=tools,
-    tool_choice="auto",
-    stream=args.streaming_response,
-)
-
-print(repr(chat_completion.choices[0].message.model_dump()))
+    if args.streaming_response:
+        for chunk in chat_completion:
+            content = chunk.choices[0].delta.content
+            if content is not None:
+                print(content, end="", flush=True)
+            tool_calls = chunk.choices[0].delta.tool_calls
+            if tool_calls is not None:
+                print(tool_calls, end="", flush=True)
+        print("")
+    else:
+        print(repr(chat_completion.choices[0].message.model_dump()))

@@ -164,20 +164,20 @@ class DeltaRole(BaseModel):
         return self.role
 
 
+class DeltaEOS(BaseModel):
+    class Config:
+        extra = "forbid"
+
+
 class DeltaContent(BaseModel):
     content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_calls: Optional[List[ToolCall]] = None
 
     def __str__(self):
         if self.tool_calls:
             return str(self.tool_calls)
         else:
             return str(self.dict())
-
-
-class DeltaEOS(BaseModel):
-    class Config:
-        extra = "forbid"
 
 
 class DeltaChoices(BaseModel):

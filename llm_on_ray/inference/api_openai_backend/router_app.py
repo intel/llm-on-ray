@@ -162,13 +162,15 @@ async def _chat_completions_wrapper(
                 finish_reason=None,
             )
         ]
-        yield "data: " + ChatCompletionResponse(
+        chunk = ChatCompletionResponse(
             id=completion_id,
             object="chat.completion.chunk",
             model=body.model,
             choices=choices,
             usage=None,
-        ).json() + "\n\n"
+        )
+        data = chunk.json()
+        yield f"data: {data}\n\n"
 
         all_results = []
         async for results in generator:
@@ -198,13 +200,16 @@ async def _chat_completions_wrapper(
                             finish_reason=None,
                         )
                     ]
-                    yield "data: " + ChatCompletionResponse(
+                    chunk = ChatCompletionResponse(
                         id=completion_id,
                         object="chat.completion.chunk",
                         model=body.model,
                         choices=choices,
                         usage=None,
-                    ).json() + "\n\n"
+                    )
+                    # data = chunk.json(exclude_unset=True, ensure_ascii=False)
+                    data = chunk.json()
+                    yield f"data: {data}\n\n"
             if had_error:
                 # Return early in case of an error
                 break
@@ -221,13 +226,15 @@ async def _chat_completions_wrapper(
                 if all_results
                 else None
             )
-            yield "data: " + ChatCompletionResponse(
+            chunk = ChatCompletionResponse(
                 id=completion_id,
                 object="chat.completion.result",
                 model=body.model,
                 choices=choices,
                 usage=usage,
-            ).json() + "\n\n"
+            )
+            data = chunk.json()
+            yield f"data: {data}\n\n"
         yield "data: [DONE]\n\n"
 
 
@@ -333,17 +340,13 @@ class Router:
         Returns:
             A response object with completions.
         """
-        tools = body.tools
-        tool_choice = body.tool_choice
-        # Doing this to remove them from sampling params
-        body.tools = None
-        body.tool_choice = None
-
         prompt = Prompt(
-            prompt=body.messages, parameters=dict(body), tools=tools, tool_choice=tool_choice
+            prompt=body.messages,
+            parameters=dict(body),
+            tools=body.tools,
+            tool_choice=body.tool_choice,
         )
         request_id = f"chatcmpl-{str(uuid.uuid4().hex)}"
-
         if body.stream:
             return StreamingResponse(
                 _chat_completions_wrapper(
