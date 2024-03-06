@@ -5,8 +5,6 @@ import argparse
 from typing import Any, Dict, Union, Optional
 
 import torch
-import accelerate
-from accelerate.utils import is_xpu_available
 
 import ray
 from ray.train.torch import TorchTrainer
@@ -15,7 +13,7 @@ from ray.air import RunConfig, FailureConfig
 
 from pydantic_yaml import parse_yaml_raw_as
 
-from accelerate import FullyShardedDataParallelPlugin, DeepSpeedPlugin
+from accelerate import DeepSpeedPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullOptimStateDictConfig,
     FullStateDictConfig,
@@ -26,6 +24,23 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import common
 from finetune.finetune_config import FinetuneConfig
+
+from importlib import util
+
+use_habana = False
+if util.find_spec("habana_frameworks") is not None:
+    from optimum.habana.accelerate import GaudiAccelerator as Accelerator
+    from optimum.habana.accelerate.utils import (
+        GaudiFullyShardedDataParallelPlugin as FullyShardedDataParallelPlugin,
+    )
+    from optimum.habana.utils import set_seed
+
+    use_habana = True
+else:
+    from accelerate import Accelerator, FullyShardedDataParallelPlugin
+    from accelerate.utils import set_seed, is_xpu_available
+
+    use_habana = False
 
 
 def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
@@ -62,6 +77,7 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
             "ACCELERATE_USE_XPU": "true",
             "ACCELERATE_USE_IPEX": "true",
             "ACCELERATE_USE_DEEPSPEED": "true",
+            "ACCELERATE_MIXED_PRECISION": mixed_precision,
         },
         "HPU_DDP": {
             "ACCELERATE_USE_CPU": "false",
@@ -73,6 +89,15 @@ def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any],
     if mode not in mode_env_vars:
         raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
     return mode_env_vars[mode]
+
+
+def get_device_environment_variable(device):
+    if device == "hpu":
+        return {
+            "HABANA_VISIBLE_DEVICES": "all",
+            "RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES": "true",
+        }
+    return {}
 
 
 def convert_dtype(dtype: str) -> Optional[torch.dtype]:
@@ -100,18 +125,16 @@ def train_func(config: Dict[str, Any]):
             ),
         )
         deepspeed_plugin = None
-
     elif accelerate_mode in ["GPU_DEEPSPEED"]:
         fsdp_plugin = None
         hf_ds_config = config["Training"]["deepspeed_config_file"]
         deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
-
     else:
         fsdp_plugin = None
         deepspeed_plugin = None
 
     output_dir = config["General"]["output_dir"]
-    accelerator = accelerate.Accelerator(
+    accelerator = Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
         fsdp_plugin=fsdp_plugin,
         deepspeed_plugin=deepspeed_plugin,
@@ -126,7 +149,7 @@ def train_func(config: Dict[str, Any]):
 
     seed = config["Training"].get("seed")
     if seed is not None:
-        accelerate.utils.set_seed(seed)
+        set_seed(seed)
 
     datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
         config={
@@ -156,6 +179,9 @@ def train_func(config: Dict[str, Any]):
             else None,
         }
     )
+
+    if use_habana:
+        model = model.to(dtype=model.config.torch_dtype, device=accelerator.device)
 
     optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(
         model,
@@ -249,6 +275,7 @@ def main(external_config=None):
     use_cpu = True if accelerate_mode.startswith("CPU") else False
     use_gpu = True if accelerate_mode.startswith("GPU") else False
     ccl_worker_count = 1 if use_cpu is True else num_training_workers
+    device = config["Training"]["device"].lower()
 
     if not ray.is_initialized():
         runtime_env = {
@@ -265,18 +292,24 @@ def main(external_config=None):
         accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
+        device_env_vars = get_device_environment_variable(device)
+        runtime_env["env_vars"].update(device_env_vars)
+
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        import intel_extension_for_pytorch as ipex
-
-        if "xpu" in ipex.__version__:
-            num_cpus = (
-                resources_per_worker["CPU"] * num_training_workers + 1
-            )  # additional 1 for head worker
-            ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
-        else:
+        if use_habana:
             ray.init(runtime_env=runtime_env)
+        else:
+            import intel_extension_for_pytorch as ipex
+
+            if "xpu" in ipex.__version__:
+                num_cpus = (
+                    resources_per_worker["CPU"] * num_training_workers + 1
+                )  # additional 1 for head worker
+                ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
+            else:
+                ray.init(runtime_env=runtime_env)
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
 
@@ -287,8 +320,7 @@ def main(external_config=None):
         placement_strategy="SPREAD",
     )
 
-    device = config["Training"]["device"].lower()
-    if device == "gpu" and is_xpu_available():
+    if not use_habana and device == "gpu" and is_xpu_available():
         device = "xpu"
 
     if config.get("torch_config", None) is None:
