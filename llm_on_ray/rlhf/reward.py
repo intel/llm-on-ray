@@ -10,7 +10,7 @@ from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
 from ray.air import RunConfig, FailureConfig
 
-import llm_on_ray.common as common
+from llm_on_ray import common
 
 
 def train_func(config: Dict[str, Any]):

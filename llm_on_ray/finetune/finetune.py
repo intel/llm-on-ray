@@ -21,7 +21,7 @@ from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullStateDictConfig,
 )
 
-import llm_on_ray.common as common
+from llm_on_ray import common
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
 

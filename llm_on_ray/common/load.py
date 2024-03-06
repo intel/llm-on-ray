@@ -1,7 +1,7 @@
 import sys
 from typing import Any, Dict
 
-from llm_on_ray.common.logging import logger
+from llm_on_ray.common import logger
 from llm_on_ray.common import agentenv, dataset, initializer, model, optimizer, tokenizer, trainer
 
 

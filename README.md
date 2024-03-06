@@ -37,7 +37,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
-#### 1. Clone the repository and install dependencies.
+#### 1. Clone the repository, install llm-on-ray and its dependencies.
 Software requirement: Git and Conda
 ```bash
 git clone https://github.com/intel/llm-on-ray.git

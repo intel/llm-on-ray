@@ -7,10 +7,10 @@ from ray.rllib.algorithms.callbacks import DefaultCallbacks, make_multi_callback
 from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
 from ray.rllib.algorithms.ppo import PPOConfig
 
+from llm_on_ray import common
 from llm_on_ray.rlhf.rl_algo.ppo.ppo_rlhf import PPORLHF
 from llm_on_ray.rlhf.rl_algo.ppo.rlhf_ppo_module import RLHFPPOTorchRLModule
 from llm_on_ray.rlhf.rl_algo.ppo.rlhf_ppo_torch_learner import RLHFPPOTorchLearner
-import llm_on_ray.common as common
 from llm_on_ray.common.agentenv.rlhf_env import RLHFEnv
 
 
