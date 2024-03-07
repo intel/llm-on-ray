@@ -1,4 +1,4 @@
-name: llm-on-ray nightly
+name: Nightly
 
 on:
   schedule:

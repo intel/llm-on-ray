@@ -1,4 +1,4 @@
-name: Finetune on Intel GPU
+name: Finetune-GPU
 
 on:
   workflow_call:

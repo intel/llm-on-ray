@@ -1,4 +1,4 @@
-name: llm-on-ray on merge
+name: Merge
 
 on:
   push:
