@@ -70,12 +70,18 @@ bigdl-cpu = [
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container
-package-dir = {"inference" = "inference", "finetune" = "finetune"}
+package-dir = {"llm_on_ray" = "llm_on_ray"}
 include-package-data = true
 
 [project.urls]
 Repository = "https://github.com/intel/llm-on-ray.git"
 Issues = "https://github.com/intel/llm-on-ray.git/issues"
+
+[project.scripts]
+llm_on_ray-finetune = "llm_on_ray.finetune.finetune:main"
+llm_on_ray-serve = "llm_on_ray.inference.serve:main"
+llm_on_ray-pretrain = "llm_on_ray.pretrain.pretrain:main"
+llm_on_ray-megatron_deepspeed_pretrain = "llm_on_ray.pretrain.megatron_deepspeed_pretrain:main"
 
 [tool.black]
 line-length = 100
