@@ -18,6 +18,8 @@ import requests
 import time
 import os
 import sys
+import shutil
+import tempfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from inference.inference_config import all_models, ModelDescription, Prompt
@@ -46,6 +48,8 @@ from pyrecdp.primitives.operations import (
     DocumentIngestion,
     YoutubeLoader,
     RAGTextFix,
+    JsonlReader,
+    ParquetReader,
 )
 from pyrecdp.primitives.document.reader import _default_file_readers
 from pyrecdp.core.cache_utils import RECDP_MODELS_CACHE
@@ -426,6 +430,12 @@ class ChatBotUI:
         splitter_chunk_size,
         cpus_per_worker,
     ):
+        tmp_dir = tempfile.mkdtemp(f"ray_rag_{time.strftime('%Y%m%d%H%M%S')}")
+
+        def cp_files_to_tmp(files):
+            for file in files:
+                shutil.copy(file, os.path.join(tmp_dir, os.path.basename(file)))
+
         if upload_type == "Youtube":
             input_texts = input_texts.split(";")
             target_urls = [url.strip() for url in input_texts if url != ""]
@@ -435,6 +445,9 @@ class ChatBotUI:
             target_urls = [url.strip() for url in input_texts if url != ""]
             loader = UrlLoader(urls=target_urls, max_depth=int(depth))
         else:
+            files_folder = []
+            jsonl_folder = []
+            parquet_folder = []
             if input_type == "local":
                 input_texts = input_texts.split(";")
                 target_folders = [folder.strip() for folder in input_texts if folder != ""]
@@ -442,15 +455,41 @@ class ChatBotUI:
                 for folder in target_folders:
                     files = os.listdir(folder)
                     info_str = info_str + " ".join(files) + " "
-
+                    for file in files:
+                        if file.endswith("jsonl"):
+                            jsonl_folder.append(os.path.join(folder, file))
+                        elif file.endswith("parquet"):
+                            parquet_folder.append(os.path.join(folder, file))
+                        else:
+                            files_folder.append(os.path.join(folder, file))
                 gr.Info(info_str)
-                loader = DirectoryLoader(input_dir=target_folders)
+
+                if bool(jsonl_folder):
+                    cp_files_to_tmp(jsonl_folder)
+                    loader = JsonlReader(tmp_dir)
+                elif bool(parquet_folder):
+                    cp_files_to_tmp(parquet_folder)
+                    loader = ParquetReader(tmp_dir)
+                elif bool(files_folder):
+                    loader = DirectoryLoader(input_files=files_folder)
+
             else:
-                files_folder = []
                 if upload_files:
                     for _, file in enumerate(upload_files):
-                        files_folder.append(file.name)
-                    loader = DirectoryLoader(input_files=files_folder)
+                        if file.name.endswith("jsonl"):
+                            jsonl_folder.append(file.name)
+                        elif file.name.endswith("parquet"):
+                            parquet_folder.append(file.name)
+                        else:
+                            files_folder.append(file.name)
+                    if bool(jsonl_folder):
+                        cp_files_to_tmp(jsonl_folder)
+                        loader = JsonlReader(tmp_dir)
+                    elif bool(parquet_folder):
+                        cp_files_to_tmp(parquet_folder)
+                        loader = ParquetReader(tmp_dir)
+                    elif bool(files_folder):
+                        loader = DirectoryLoader(input_files=files_folder)
                 else:
                     raise gr.Warning("Can't get any uploaded files.")
 
@@ -500,6 +539,7 @@ class ChatBotUI:
         )
         pipeline.add_operations(ops)
         pipeline.execute()
+        shutil.rmtree(tmp_dir)
         return db_dir
 
     def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
@@ -1285,6 +1325,7 @@ class ChatBotUI:
                             label="Local file path",
                             placeholder="Support types: "
                             + " ".join(recdp_support_suffix)
+                            + ", .jsonl, .parquet"
                             + ". Support multiple absolute paths, separated by ';'",
                             visible=True,
                             scale=2,
@@ -1293,11 +1334,13 @@ class ChatBotUI:
                         data_files = gr.File(
                             label="Upload Files",
                             file_count="multiple",
-                            file_types=recdp_support_suffix,
+                            file_types=recdp_support_suffix + [".jsonl", ".parquet"],
                             elem_classes="file_height",
                             scale=3,
                             visible=False,
-                            info="Support types: " + ", ".join(recdp_support_suffix),
+                            info="Support types: "
+                            + ", ".join(recdp_support_suffix)
+                            + ", .jsonl, .parquet",
                         )
 
                     with gr.Row():
