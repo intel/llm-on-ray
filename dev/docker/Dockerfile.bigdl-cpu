@@ -27,6 +27,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
 
+# Create llm_on_ray package_dir to bypass the following pip install -e command
 RUN mkdir ./llm_on_ray
 
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
