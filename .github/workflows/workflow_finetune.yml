@@ -184,5 +184,3 @@ jobs:
           cid=$(docker ps -q --filter "name=finetune")
           if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
 
-      - name: Test Summary
-        run: echo "to be continued"
