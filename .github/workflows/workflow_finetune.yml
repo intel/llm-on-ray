@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   inference:
-    name: finetune test
+    name: finetune
     strategy:
       matrix:
         model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]

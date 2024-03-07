@@ -1,17 +1,35 @@
-name: tests
+name: Tests
 
 on:
-  workflow_call
+  workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
 
 jobs:
-  build:
-    
+  bare-test:
+
+    name: bare-test
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
+
+        exclude:
+          - { isPR: true }
+
+        include:
+          - {python-version: "3.9"}
+          - {python-version: "3.10"}
+          - {python-version: "3.11"}
+
     runs-on: ubuntu-latest
-        
     defaults:
       run:
         shell: bash
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,17 +37,100 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: ${{matrix.python-version}}
           architecture: 'x64'
 
       - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
+        run: |
+          python -c "import sys; print(sys.version)"
 
-      - name: Install dependencies
+      - name: Install dependencies for tests
         run: |
           python -m pip install --upgrade pip
+          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+          # Dynamic link oneCCL and Intel MPI libraries
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
+          # Additional libraries required for pytest
           pip install -r ./tests/requirements.txt
+
+      - name: Start Ray Cluster
+        run: |
+          ray start --head
 
       - name: Start tests
         run: |
-          bash -c "./tests/run-tests.sh"
+          ./tests/run-tests.sh
+
+  docker-test:
+
+    name: docker-test
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
+
+        exclude:
+          - { isPR: true }
+
+        include:
+          - {python-version: "3.9"}
+          - {python-version: "3.10"}
+          - {python-version: "3.11"}
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Determine Target
+        id: "target"
+        run: |
+          target="inference"
+          echo "target is ${target}"
+          echo "target=$target" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image
+        run: |
+          DF_SUFFIX=".cpu_and_deepspeed_test"
+          TARGET=${{steps.target.outputs.target}}
+          docker build ./ --build-arg CACHEBUST=1 --build-arg python_v=${{matrix.python-version}} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+          docker image prune -f
+
+      - name: Start Docker Container
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker ps -a
+          docker run -tid -v ${{ github.workspace }}:/root/llm-on-ray --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+
+      - name: Install Dependencies for Tests
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
+
+      - name: Start Ray Cluster
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+
+      - name: Run Tests
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
+
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
