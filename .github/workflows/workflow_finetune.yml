@@ -113,7 +113,7 @@ jobs:
           EOF
           )
           docker exec "finetune" python -c "$CMD"
-          docker exec "finetune" bash -c "llm_on_ray-finetune  --config_file llm_on_ray/finetune/finetune.yaml"
+          docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 
       - name: Run PEFT-LoRA Test
         run: |
