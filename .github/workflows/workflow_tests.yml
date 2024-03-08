@@ -81,7 +81,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          DF_SUFFIX=".tests_cpu_and_deepspeed_test"
+          DF_SUFFIX=".tests_cpu_and_deepspeed"
           TARGET=${{steps.target.outputs.target}}
           PYTHON_V=${{matrix.python-version}}
           source docker.sh
