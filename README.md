@@ -5,7 +5,7 @@ LLM-on-Ray is a comprehensive solution designed to empower users in building, cu
 
 LLM-on-Ray harnesses the power of Ray, an industry-leading framework for distributed computing, to scale your AI workloads efficiently. This integration ensures robust fault tolerance and cluster resource management, making your LLM projects more resilient and scalable.
 
-LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[Deepspeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more. 
+LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[Deepspeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more.
 
 ## Solution Technical Overview
 LLM-on-Ray's modular workflow structure is designed to comprehensively cater to the various stages of LLM development, from pretraining and finetuning to serving. These workflows are intuitive, highly configurable, and tailored to meet the specific needs of each phase in the LLM lifecycle:
@@ -37,19 +37,22 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
-#### 1. Clone the repository and install dependencies.
+#### 1. Clone the repository, install llm-on-ray and its dependencies.
 Software requirement: Git and Conda
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
 conda create -n llm-on-ray python=3.9
 conda activate llm-on-ray
-pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
-# Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 
 #### 2. Start Ray
+__[Optional]__ If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked in every node before Ray starts:
+```bash
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
+```
+
 Start Ray locally using the following command. To launch a Ray cluster, please follow the [setup](docs/setup.md) document.
 ```bash
 ray start --head
@@ -59,14 +62,14 @@ ray start --head
 Use the following command to finetune a model using an example dataset and default configurations. The finetuned model will be stored in `/tmp/llm-ray/output` by default. To customize the base model, dataset and configurations, please see the [finetuning document](#finetune):
 
 ```bash
-python finetune/finetune.py --config_file finetune/finetune.yaml
+llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml
 ```
 
 ### Serving
 Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2 as an example, but more model configuration examples can be found in the [inference/models](inference/models) directory:
 
 ```bash
-python inference/serve.py --config_file inference/models/gpt2.yaml
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
@@ -86,13 +89,13 @@ python examples/inference/api_server_openai/query_http_requests.py
 
 # using OpenAI SDK
 # please install openai in current env by running: pip install openai>=1.0
-export OPENAI_API_BASE=http://localhost:8000/v1
+export OPENAI_BASE_URL=http://localhost:8000/v1
 export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python inference/serve.py --config_file inference/models/gpt2.yaml --simple
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
@@ -117,7 +120,7 @@ The following are detailed guidelines for pretraining, finetuning and serving LL
 ### Web UI
 * [Finetune and Deploy LLMs through Web UI](docs/web_ui.md)
 
-## Disclaimer 
-To the extent that any public datasets are referenced by Intel or accessed using tools or code on this site those datasets are provided by the third party indicated as the data source. Intel does not create the data, or datasets, and does not warrant their accuracy or quality. By accessing the public dataset(s), or using a model trained on those datasets, you agree to the terms associated with those datasets and that your use complies with the applicable license. 
- 
+## Disclaimer
+To the extent that any public datasets are referenced by Intel or accessed using tools or code on this site those datasets are provided by the third party indicated as the data source. Intel does not create the data, or datasets, and does not warrant their accuracy or quality. By accessing the public dataset(s), or using a model trained on those datasets, you agree to the terms associated with those datasets and that your use complies with the applicable license.
+
 Intel expressly disclaims the accuracy, adequacy, or completeness of any public datasets, and is not liable for any errors, omissions, or defects in the data, or for any reliance on the data.  Intel is not liable for any liability or damages relating to your use of public datasets.
