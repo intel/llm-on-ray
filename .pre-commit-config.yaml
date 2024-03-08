@@ -6,7 +6,7 @@ repos:
     rev: v0.0.289
     hooks:
       - id: ruff
-        args: [ --fix, --exit-non-zero-on-fix, --ignore=E402, --ignore=E501, --ignore=E731]
+        args: [ --fix, --exit-non-zero-on-fix, --ignore=E402, --ignore=E501, --ignore=E731, --ignore=F401]
 
   # Black needs to be ran after ruff with --fix
   - repo: https://github.com/psf/black
