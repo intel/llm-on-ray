@@ -12,7 +12,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 
     os.path.join(current_path, "../../inference/serve.py")
 
-    cmd_serve = ["llm_on_ray_serve", "--config_file", config_path]
+    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
