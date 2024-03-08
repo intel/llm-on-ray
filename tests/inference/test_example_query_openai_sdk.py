@@ -20,9 +20,9 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
     )
 
-    serve_path = os.path.join(current_path, "../../inference/serve.py")
+    os.path.join(current_path, "../../inference/serve.py")
 
-    cmd_serve = ["python", serve_path, "--config_file", config_path]
+    cmd_serve = ["llm_on_ray_serve", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
@@ -53,6 +53,9 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         cmd_openai.extend(["--top_p", str(top_p)])
 
     result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print(result_openai)
 
     # Ensure there are no errors in the OpenAI API query script execution
     assert "Error" not in result_openai.stderr

@@ -57,7 +57,7 @@ jobs:
         run: |
           ray start --head
 
-      - name: Start tests
+      - name: Run Tests
         run: |
           ./tests/run-tests.sh
 

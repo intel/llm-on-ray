@@ -10,9 +10,9 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
     )
 
-    serve_path = os.path.join(current_path, "../../inference/serve.py")
+    os.path.join(current_path, "../../inference/serve.py")
 
-    cmd_serve = ["python", serve_path, "--config_file", config_path]
+    cmd_serve = ["llm_on_ray_serve", "--config_file", config_path]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
@@ -43,6 +43,9 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         cmd_http.extend(["--top_p", str(top_p)])
 
     result_http = subprocess.run(cmd_http, capture_output=True, text=True)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print(result_http)
 
     # Ensure there are no errors in the http query script execution
     assert "Error" not in result_http.stderr
