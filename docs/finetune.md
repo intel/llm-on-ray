@@ -27,7 +27,7 @@ An example dataset can be accessed at `examples/data/sample_finetune_data.jsonl
 
 ## Configure Finetuning Parameters
 
-We provide an example configuration file ([CPU version](../finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
+We provide an example configuration file ([CPU version](../llm_on_ray/finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
 
 For CPU,  please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to CPU_DDP.
 ```
