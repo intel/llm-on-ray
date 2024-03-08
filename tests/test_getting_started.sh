@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 # Step 1: Python environment
 # Check Python version is or later than 3.9

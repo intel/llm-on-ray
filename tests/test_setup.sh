@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 # Usage: ./test_setup [CPU, GPU, Gaudi] [Deepspeed]
 
