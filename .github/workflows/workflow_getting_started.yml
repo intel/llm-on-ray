@@ -71,25 +71,12 @@ jobs:
         id: "target"
         run: |
           target="inference"
-          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            target="${target}_bigdl_cpu"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            target="${target}_vllm"
-          fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
-          if [[ ${{ matrix.model }} == "mpt-7b-bigdl" ]]; then
-            DF_SUFFIX=".bigdl-cpu"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            DF_SUFFIX=".vllm"
-          elif [[ ${{ matrix.model }} == "gpt-j-6b" ]]; then
-            DF_SUFFIX=".cpu_and_deepspeed.pip_non_editable"
-          else
-            DF_SUFFIX=".cpu_and_deepspeed"
-          fi
+          DF_SUFFIX=".cpu_and_deepspeed"
           TARGET=${{steps.target.outputs.target}}
           docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
           docker image prune -f
