@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from utils import (
+from inference.utils import (
     get_deployment_actor_options,
     StoppingCriteriaSub,
     max_input_len,

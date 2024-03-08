@@ -17,4 +17,4 @@ version_greater_equal "${gcc_version}" 12.3.0 || { echo "GNU C++ Compiler 12.3.0
 
 # Install from source
 MAX_JOBS=8 pip install -v git+https://github.com/bigPYJ1151/vllm@PR_Branch \
-    -f https://download.pytorch.org/whl/torch_stable.html
+    --extra-index-url https://download.pytorch.org/whl/cpu
