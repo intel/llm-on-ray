@@ -40,7 +40,7 @@ jobs:
           pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
           # Dynamic link oneCCL and Intel MPI libraries
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
-          # Additional libraries required for pytest
+          # Additional libraries required  for pytest
           pip install -r ./tests/requirements.txt
           
       - name: Start Ray Cluster
