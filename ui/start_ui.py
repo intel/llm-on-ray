@@ -17,7 +17,6 @@
 import requests
 import time
 import os
-import subprocess
 import sys
 import subprocess
 
