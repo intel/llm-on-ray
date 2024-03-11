@@ -1,4 +1,4 @@
-name: Finetune on Intel GPU
+name: Finetune-GPU
 
 on:
   workflow_call:
@@ -8,17 +8,17 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://proxy-chain.intel.com:911'
+        default: 'http://10.24.221.149:911'
       https_proxy:
         type: string
-        default: 'http://proxy-chain.intel.com:911'
+        default: 'http://10.24.221.149:911'
 
 jobs:
-  finetune:
-    name: finetune on gpu test
+  finetune-gpu:
+    name: finetune-gpu
     strategy:
       matrix:
-        model: [ pythia-6.9b, gpt-j-6b ]
+        model: [ meta-llama/Llama-2-7b-chat-hf ]
     runs-on: self-hosted
 
     defaults:
@@ -38,9 +38,8 @@ jobs:
 
       - name: Running task on Intel GPU
         run: |
-          rm ~/borealis-runner/llm-on-ray.tar.gz -f
-          tar zcf ~/borealis-runner/llm-on-ray.tar.gz -C ~/actions-runner/_work/llm-on-ray .
-          cd ~/borealis-runner/
-          python3 finetune_on_pvc.py --base_model "${{ matrix.model }}"
-      - name: Test Summary
-        run: echo "to be continued"
+          rm /home/ci/borealis-runner/llm-on-ray.tar.gz -f
+          tar zcf /home/ci/borealis-runner/llm-on-ray.tar.gz -C /home/ci/actions-runner/_work/llm-on-ray .
+          cd /home/ci/borealis-runner/
+          python3 finetune_on_pvc.py --need_create_conda_env true --base_models "${{ matrix.model }}"
+

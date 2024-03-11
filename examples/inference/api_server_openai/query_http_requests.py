@@ -35,7 +35,7 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
     "--temperature", default=None, help="The value used to modulate the next token probabilities"
@@ -45,7 +45,11 @@ parser.add_argument(
     default=None,
     help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation",
 )
-
+parser.add_argument(
+    "--input_text",
+    default="Tell me a long story with many words.",
+    help="question to ask model",
+)
 args = parser.parse_args()
 
 s = requests.Session()
@@ -55,7 +59,7 @@ body = {
     "model": args.model_name,
     "messages": [
         {"role": "assistant", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a long story with many words."},
+        {"role": "user", "content": args.input_text},
     ],
     "stream": args.streaming_response,
     "max_tokens": args.max_new_tokens,
@@ -64,20 +68,24 @@ body = {
 }
 
 proxies = {"http": None, "https": None}
-response = s.post(url, json=body, proxies=proxies)  # type: ignore
+response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
 for chunk in response.iter_lines(decode_unicode=True):
-    if chunk is not None:
-        if args.streaming_response:
-            # Get data from reponse chunk
-            chunk_data = chunk.split("data: ")[1]
-            if chunk_data != "[DONE]":
-                # Get message choices from data
-                choices = json.loads(chunk_data)["choices"]
-                # Pick content from first choice
-                content = choices[0]["delta"].get("content", "")
+    try:
+        if chunk is not None and chunk != "":
+            if args.streaming_response:
+                # Get data from reponse chunk
+                chunk_data = chunk.split("data: ")[1]
+                if chunk_data != "[DONE]":
+                    # Get message choices from data
+                    choices = json.loads(chunk_data)["choices"]
+                    # Pick content from first choice
+                    content = choices[0]["delta"].get("content", "")
+                    print(content, end="", flush=True)
+            else:
+                choices = json.loads(chunk)["choices"]
+                content = choices[0]["message"].get("content", "")
                 print(content, end="", flush=True)
-        else:
-            choices = json.loads(chunk)["choices"]
-            content = choices[0]["message"].get("content", "")
-            print(content, end="", flush=True)
-print("")
+    except Exception as e:
+        print("chunk content: ", chunk)
+        raise e
+print()

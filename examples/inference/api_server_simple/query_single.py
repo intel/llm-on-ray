@@ -34,7 +34,7 @@ parser.add_argument(
     help="Whether to enable streaming response.",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate."
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate."
 )
 parser.add_argument(
     "--temperature",
@@ -75,8 +75,9 @@ outputs = requests.post(
     json=sample_input,
     stream=args.streaming_response,
 )
+
+outputs.raise_for_status()
 if args.streaming_response:
-    outputs.raise_for_status()
     for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
         print(output, end="", flush=True)
     print()

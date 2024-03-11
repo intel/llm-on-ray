@@ -21,30 +21,39 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 * Gaudi: Gaudi2
 
 ### Software Requirements
-- Python 3.9
+- Git
+- Conda
 
 ## Setup
 
 #### 1. Prerequisites
 For Intel GPU, ensure the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html) is installed.
 
+For Gaudi, ensure the [SynapseAI SW stack and container runtime](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html?highlight=installer#run-using-containers) is installed.
+
 #### 2. Clone the repository and install dependencies.
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
+conda create -n llm-on-ray python=3.9
+conda activate llm-on-ray
 ```
 For CPU:
 ```bash
-pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 For GPU:
 ```bash
-pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
+pip install .[gpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
+```
+If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked in every node before Ray starts:
+```bash
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
 For Gaudi:
 
-Please use the [Dockerfile](../inference/habana/Dockerfile) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
+Please use the [Dockerfile](../dev/docker/Dockerfile.habana) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
 
 ```bash
 docker build \
@@ -59,14 +68,10 @@ docker build \
 After the image is built successfully, start a container:
 
 ```bash
-docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-habana-demo" llm-ray-habana:latest 
+docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-habana-demo" llm-ray-habana:latest
 ```
 
 #### 3. Launch Ray cluster
-If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI libraries should be dynamically linked in every node before Ray starts:
-```bash
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
-```
 Start the Ray head node using the following command.
 ```bash
 ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashboard-port=8265

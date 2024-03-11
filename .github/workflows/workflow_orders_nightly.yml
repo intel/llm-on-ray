@@ -1,4 +1,4 @@
-name: llm-ray inference & finetune nightly
+name: Nightly
 
 on:
   schedule:
@@ -16,5 +16,7 @@ jobs:
     with:
       ci_type: nightly
 
-  call-finetune-on-intel-gpu:
-    uses: ./.github/workflows/workflow_finetune_gpu.yml
+  # call-finetune-on-intel-gpu:
+  #  uses: ./.github/workflows/workflow_finetune_gpu.yml
+  #  with:
+  #    ci_type: nightly

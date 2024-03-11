@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   lint:
-    name: lint check
+    name: lint
     runs-on: ubuntu-latest
 
     defaults:

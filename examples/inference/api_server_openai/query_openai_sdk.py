@@ -14,8 +14,9 @@
 # limitations under the License.
 #
 
-import openai
 import argparse
+from openai import OpenAI
+import os
 
 parser = argparse.ArgumentParser(
     description="Example script to query with openai sdk", add_help=True
@@ -28,7 +29,7 @@ parser.add_argument(
     help="Whether to enable streaming response",
 )
 parser.add_argument(
-    "--max_new_tokens", default=None, help="The maximum numbers of tokens to generate"
+    "--max_new_tokens", default=128, help="The maximum numbers of tokens to generate"
 )
 parser.add_argument(
     "--temperature", default=None, help="The value used to modulate the next token probabilities"
@@ -41,20 +42,59 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# List all models.
-models = openai.Model.list()
-print(models)
+if "OPENAI_API_KEY" in os.environ:
+    openai_api_key = os.environ["OPENAI_API_KEY"]
+else:
+    openai_api_key = "not_needed"
 
-# Note: not all arguments are currently supported and will be ignored by the backend.
-chat_completion = openai.ChatCompletion.create(
-    model=args.model_name,
-    messages=[
-        {"role": "assistant", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a long story with many words."},
-    ],
-    stream=args.streaming_response,
-    max_tokens=args.max_new_tokens,
-    temperature=args.temperature,
-    top_p=args.top_p,
-)
-print(chat_completion)
+if "OPENAI_BASE_URL" in os.environ:
+    openai_base_url = os.environ["OPENAI_BASE_URL"]
+elif openai_api_key == "not_needed":
+    openai_base_url = "http://localhost:8000/v1"
+else:
+    openai_base_url = "https://api.openai.com/v1"
+
+client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
+
+
+def stream_chat():
+    for chunk in client.chat.completions.create(
+        model=args.model_name,
+        messages=[{"role": "user", "content": "What is better sorting algorithm than quick sort?"}],
+        stream=True,
+        max_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        top_p=args.top_p,
+    ):
+        content = chunk.choices[0].delta.content
+        if content is not None:
+            yield content
+
+
+def chunk_chat():
+    output = client.chat.completions.create(
+        model=args.model_name,
+        messages=[
+            {"role": "user", "content": "What is better sorting algorithm than quick sort?"},
+        ],
+        stream=False,
+        max_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        top_p=args.top_p,
+    )
+    for chunk in [output]:
+        try:
+            content = chunk.choices[0].message.content
+            if content is not None:
+                yield content
+        except Exception:
+            print(chunk)
+
+
+if args.streaming_response:
+    for i in stream_chat():
+        print(i, end="", flush=True)
+else:
+    for i in chunk_chat():
+        print(i, end="", flush=True)
+print("")
