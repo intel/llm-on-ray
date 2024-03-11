@@ -8,3 +8,9 @@ WORKDIR /root/llm-on-ray
 
 RUN pip install -e . && \
     pip install --upgrade-strategy eager optimum[habana]
+
+# Optinal. Comment out if you are not using UI
+COPY ./dev/scripts/install-ui.sh /tmp
+
+RUN sh /tmp/install-ui.sh
+
