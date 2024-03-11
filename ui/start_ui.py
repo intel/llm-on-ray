@@ -754,9 +754,17 @@ class ChatBotUI:
         self.finetune_status = False
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
-    def deploy_func(self, model_name: str, replica_num: int, cpus_per_worker_deploy: int):
+    def deploy_func(
+        self,
+        model_name: str,
+        replica_num: int,
+        cpus_per_worker_deploy: int,
+        hpus_per_worker_deploy: int,
+    ):
         self.shutdown_deploy()
-        if cpus_per_worker_deploy * replica_num > int(ray.available_resources()["CPU"]):
+        if cpus_per_worker_deploy * replica_num > int(
+            ray.available_resources()["CPU"]
+        ) or hpus_per_worker_deploy * replica_num > int(ray.available_resources()["HPU"]):
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
@@ -778,22 +786,24 @@ class ChatBotUI:
             self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
-        finetuned_deploy.device = "cpu"
-        finetuned_deploy.ipex.precision = "bf16"
+        if hpus_per_worker_deploy > 0:
+            finetuned_deploy.device = "hpu"
+            finetuned_deploy.hpus_per_worker = hpus_per_worker_deploy
+        else:
+            finetuned_deploy.device = "cpu"
+            finetuned_deploy.ipex.precision = "bf16"
         finetuned_deploy.cpus_per_worker = cpus_per_worker_deploy
+        ray_actor_options = {
+            "num_cpus": cpus_per_worker_deploy,
+            "resources": {"HPU": 0 if finetuned_deploy.deepspeed else hpus_per_worker_deploy},
+        }
         # transformers 4.35 is needed for neural-chat-7b-v3-1, will be fixed later
         if "neural-chat" in model_name:
-            pip_env = "transformers==4.35.0"
+            ray_actor_options["runtime_env"] = {"pip": "transformers==4.35.0"}
         elif "fuyu-8b" in model_name:
-            pip_env = "transformers==4.37.2"
-        else:
-            pip_env = "transformers==4.31.0"
+            pass
         deployment = PredictorDeployment.options(  # type: ignore
-            num_replicas=replica_num,
-            ray_actor_options={
-                "num_cpus": cpus_per_worker_deploy,
-                "runtime_env": {"pip": [pip_env]},
-            },
+            num_replicas=replica_num, ray_actor_options=ray_actor_options
         ).bind(finetuned_deploy)
         serve.run(
             deployment,
