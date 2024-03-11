@@ -18,6 +18,9 @@ COPY ./dev/scripts/install-ui.sh /tmp
 
 RUN /tmp/install-ui.sh
 
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    service ssh restart
+
 ENV no_proxy=localhost,127.0.0.1
 
 # Required by deepspeed demo
