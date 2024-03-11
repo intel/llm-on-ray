@@ -39,7 +39,14 @@ latency_tracking: List[Tuple[Optional[str], Optional[str], int, int, float, List
 
 
 def sample_requests_ShareGPT(
-    dataset_path: str, num_requests: int, tokenizer: PreTrainedTokenizer
+    dataset_path: str,
+    num_requests: int,
+    tokenizer: PreTrainedTokenizer,
+    min_input_tokens_len: int,
+    max_input_tokens_len: int,
+    min_output_tokens_len: int,
+    max_output_tokens_len: int,
+    max_length: int,
 ) -> List[Tuple[str, int, int]]:
     """
     Sample requests from a dataset of ShareGPT format.
@@ -78,11 +85,17 @@ def sample_requests_ShareGPT(
     filtered_dataset: List[Tuple[str, int, int]] = []
     for prompt, prompt_token_ids, output_len in tokenized_dataset:
         prompt_len = len(prompt_token_ids)
-        if prompt_len < 4 or output_len < 4:
-            # Prune too short sequences.
+        # Prune too short sequences.
+        if (min_input_tokens_len is not None and prompt_len < min_input_tokens_len) or (
+            min_output_tokens_len is not None and output_len < min_output_tokens_len
+        ):
             continue
-        if prompt_len > 1024 or prompt_len + output_len > 2048:
-            # Prune too long sequences.
+        # Prune too long sequences.
+        if (max_input_tokens_len is not None and prompt_len > max_input_tokens_len) or (
+            max_output_tokens_len is not None and output_len > max_output_tokens_len
+        ):
+            continue
+        if max_length is not None and prompt_len + output_len > max_length:
             continue
         filtered_dataset.append((prompt, prompt_len, output_len))
 
@@ -350,7 +363,16 @@ def main(args: argparse.Namespace):
     )
 
     if args.dataset_format == "ShareGPT":
-        input_requests = sample_requests_ShareGPT(args.dataset, args.num_prompts, tokenizer)
+        input_requests = sample_requests_ShareGPT(
+            args.dataset,
+            args.num_prompts,
+            tokenizer,
+            args.min_input_tokens_len,
+            args.max_input_tokens_len,
+            args.min_output_tokens_len,
+            args.max_output_tokens_len,
+            args.max_length,
+        )
     elif args.dataset_format == "IPEX":
         input_requests = sample_requests_IPEX(
             args.dataset,
@@ -431,10 +453,14 @@ def main(args: argparse.Namespace):
 
     if args.track_token_latency and latency_tracking:
         avg_first_token_latency = np.mean(
-            [latencies[0] for _, _, _, _, _, latencies in latency_tracking]
+            [latencies[0] for _, _, _, _, _, latencies in latency_tracking if latencies != []]
         )
         avg_next_token_latency = np.mean(
-            [np.mean(latencies[1:]) for _, _, _, _, _, latencies in latency_tracking]
+            [
+                np.mean(latencies[1:])
+                for _, _, _, _, _, latencies in latency_tracking
+                if latencies[1:] != []
+            ]
         )
 
         print(f"Average latency for First Tokens: {avg_first_token_latency:.3f} s")
@@ -491,13 +517,13 @@ if __name__ == "__main__":
         description="Benchmark the online serving latency and throughput."
     )
     parser.add_argument(
-        "--model_endpoint_base",
+        "--model-endpoint-base",
         default="http://127.0.0.1:8000",
         type=str,
         help="Model endpoint base url. Default is http://127.0.0.1:8000",
     )
     parser.add_argument(
-        "--model_name",
+        "--model-name",
         type=str,
         required=True,
         help="Model name used to extract tokenizer from configuration file.",
@@ -515,6 +541,36 @@ if __name__ == "__main__":
         default="32",
         type=str,
         help="Input tokens length, used when --dataset-format=IPEX. Default is 32.",
+    )
+    parser.add_argument(
+        "--min-input-tokens-len",
+        default=4,
+        type=int,
+        help="Limit the minimum length of input tokens, used when --dataset-format=ShareGPT.",
+    )
+    parser.add_argument(
+        "--max-input-tokens-len",
+        default=1024,
+        type=int,
+        help="Limit the maximum length of input tokens, used when --dataset-format=ShareGPT.",
+    )
+    parser.add_argument(
+        "--min-output-tokens-len",
+        default=4,
+        type=int,
+        help="Limit the minimum length of output tokens, used when --dataset-format=ShareGPT.",
+    )
+    parser.add_argument(
+        "--max-output-tokens-len",
+        default=None,
+        type=int,
+        help="Limit the minimum length of output tokens, used when --dataset-format=ShareGPT.",
+    )
+    parser.add_argument(
+        "--max-length",
+        default=2048,
+        type=int,
+        help="Limit the maximum length including input and output tokens, used when --dataset-format=ShareGPT.",
     )
     parser.add_argument(
         "--model-type",
