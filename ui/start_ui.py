@@ -531,7 +531,8 @@ class ChatBotUI:
 
     def update_model_attr_for_finetune(self, model_name, config):
         if "llama-2" in model_name:
-            config["General"]["output_dir"] = "./output"
+            config["General"]["output_dir"] = "/tmp/llm-on-ray/output"
+            config["General"]["checkpoint_dir"] = None
             config["General"]["gpt_base_model"] = False
             config["General"]["config"] = {"trust_remote_code": False, "use_auth_token": None}
             config["General"]["lora_config"] = {
