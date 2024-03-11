@@ -1,14 +1,14 @@
 import pytest
 import torch
 
-from inference.utils import (
+from llm_on_ray.inference.utils import (
     get_deployment_actor_options,
     StoppingCriteriaSub,
     max_input_len,
     get_torch_dtype,
     is_cpu_without_ipex,
 )
-from inference_config import InferenceConfig, DEVICE_CPU
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
 
 
 # Mock the InferenceConfig for testing
