@@ -1,4 +1,4 @@
-name: llm-ray inference & finetune
+name: PR
 
 on:
   pull_request:
@@ -18,21 +18,21 @@ on:
 
 jobs:
 
-  call-lint:
+  Lint:
     uses: ./.github/workflows/workflow_lint.yml
 
-  call-tests:
-    needs: call-lint
+  Tests:
+    needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
   call-getting-started:
     needs: [call-lint, call-tests]
     uses: ./.github/workflows/workflow_getting_started.yml
 
-  call-inference:
-    needs: call-lint
+  Inference:
+    needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
 
-  call-finetune:
-    needs: call-lint
+  Finetune:
+    needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml

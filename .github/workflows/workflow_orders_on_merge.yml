@@ -1,4 +1,4 @@
-name: llm-ray inference & finetune
+name: Merge
 
 on:
   push:
@@ -20,18 +20,18 @@ jobs:
   call-lint:
     uses: ./.github/workflows/workflow_lint.yml
 
-  call-tests:
+  call-getting-started:
+    needs: call-lint
+    uses: ./.github/workflows/workflow_getting_started.yml
+
+  Tests:
     needs: call-lint
     uses: ./.github/workflows/workflow_tests.yml
 
-  call-getting-started:
-    needs: [call-lint, call-tests]
-    uses: ./.github/workflows/workflow_getting_started.yml
-
-  call-inference:
+  Inference:
     needs: call-lint
     uses: ./.github/workflows/workflow_inference.yml
 
-  call-finetune:
+  Finetune:
     needs: call-lint
     uses: ./.github/workflows/workflow_finetune.yml
