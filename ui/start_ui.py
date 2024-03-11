@@ -17,6 +17,7 @@
 import requests
 import time
 import os
+import subprocess
 import sys
 import subprocess
 
@@ -139,6 +140,7 @@ class ChatBotUI:
         self.user_name = node_user_name
         self.conda_env_name = conda_env_name
         self.master_ip_port = master_ip_port
+        self.container_mode = container_mode
         self.ray_nodes = ray.nodes()
         self.ssh_connect = [None] * (len(self.ray_nodes) + 1)
         self.ip_port = "http://127.0.0.1:8000"
@@ -838,11 +840,7 @@ class ChatBotUI:
     def get_ray_cluster(self):
         command = "ray status"
         out, _ = self.exec_command(-1, command, ray=True)
-        # print(f"out is {out}")
-        try:
-            out_words = [word for word in out.split("\n") if "CPU" in word][0]
-        except Exception:
-            raise ValueError("Can't connect Ray cluster info")
+        out_words = [word for word in out.split("\n") if "CPU" in word][0]
         cpu_info = out_words.split(" ")[1].split("/")
         total_core = int(float(cpu_info[1]))
         used_core = int(float(cpu_info[0]))
@@ -1154,6 +1152,15 @@ class ChatBotUI:
                         interactive=True,
                         label="Gpus per Worker",
                         info="the number of gpu used for every worker.",
+                    )
+                    hpus_per_worker_deploy = gr.Slider(
+                        0,
+                        8,
+                        0,
+                        step=1,
+                        interactive=True,
+                        label="Hpus per Worker",
+                        info="the number of hpu used for every worker.",
                     )
 
                 with gr.Row():
@@ -1713,7 +1720,7 @@ class ChatBotUI:
             )
             deploy_event = deploy_btn.click(
                 self.deploy_func,
-                [all_model_dropdown, replica_num, cpus_per_worker_deploy],
+                [all_model_dropdown, replica_num, cpus_per_worker_deploy, hpus_per_worker_deploy],
                 [
                     deployed_model_endpoint,
                     model_endpoint,
