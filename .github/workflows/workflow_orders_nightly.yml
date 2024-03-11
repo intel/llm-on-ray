@@ -1,4 +1,4 @@
-name: llm-ray inference & finetune nightly
+name: Nightly
 
 on:
   schedule:
