@@ -528,6 +528,19 @@ class ChatBotUI:
                 break
             yield res[1]
 
+    def update_model_attr_for_finetune(self, model_name, config):
+        if "llama-2" in model_name:
+            config["General"]["output_dir"] = "./output"
+            config["General"]["gpt_base_model"] = False
+            config["General"]["config"] = {"trust_remote_code": False, "use_auth_token": None}
+            config["General"]["lora_config"] = {
+                "task_type": "CAUSAL_LM",
+                "r": 8,
+                "lora_alpha": 32,
+                "lora_dropout": 0.1,
+                "target_modules": ["q_proj", "v_proj"],
+            }
+
     def finetune(
         self,
         model_name,
@@ -601,6 +614,18 @@ class ChatBotUI:
                 new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
             else:
                 new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
+            if int(hpus_per_worker_ftn) > 0 and "HPU" in ray_resources:
+                new_ray_init_config["runtime_env"]["env_vars"].update(
+                    {
+                        "ACCELERATE_USE_CPU": "false",
+                        "ACCELERATE_USE_XPU": "false",
+                        "ACCELERATE_USE_IPEX": "false",
+                        "ACCELERATE_MIXED_PRECISION": "bf16",
+                        "HABANA_VISIBLE_DEVICES": "all",
+                        "RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES": "true",
+                    }
+                )
+                del new_ray_init_config["runtime_env"]["pip"]
             last_gpt_base_model = gpt_base_model
             finetune_config["Training"]["num_training_workers"] = int(worker_num)
             finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
@@ -608,11 +633,6 @@ class ChatBotUI:
             ray.init(**new_ray_init_config)
             exist_worker = worker_num
             exist_cpus_per_worker_ftn = cpus_per_worker_ftn
-
-        if hpus_per_worker_ftn > 0 and "HPU" in ray_resources:
-            finetune_config["Training"]["device"] = "HPU"
-            finetune_config["Training"]["resources_per_worker"]["HPU"] = int(hpus_per_worker_ftn)
-            finetune_config["Training"]["accelerate_mode"] = "HPU_DDP"
 
         finetune_config["Dataset"]["train_file"] = dataset
         finetune_config["General"]["base_model"] = origin_model_path
@@ -625,6 +645,16 @@ class ChatBotUI:
         finetune_config["Training"]["learning_rate"] = lr
         if max_train_step != 0:
             finetune_config["Training"]["max_train_steps"] = max_train_step
+
+        if int(hpus_per_worker_ftn) > 0 and "HPU" in ray_resources:
+            finetune_config["General"]["enable_gradient_checkpointing"] = False
+            finetune_config["Training"]["device"] = "HPU"
+            finetune_config["Training"]["resources_per_worker"]["HPU"] = int(hpus_per_worker_ftn)
+            finetune_config["Training"]["accelerate_mode"] = "HPU_DDP"
+            finetune_config["Training"]["mixed_precision"] = "bf16"
+            finetune_config["Training"]["gradient_accumulation_steps"] = 1
+            finetune_config["Training"]["logging_steps"] = 1
+            self.update_model_attr_for_finetune(model_name, finetune_config)
 
         from finetune.finetune import main
 
