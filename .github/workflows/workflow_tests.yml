@@ -50,6 +50,9 @@ jobs:
       - name: Run Tests
         run: |
           ./tests/run-tests.sh
+
+      - name: Run Test for Getting Started
+        run: |
           ./tests/test_getting_started.sh
 
   docker-test:

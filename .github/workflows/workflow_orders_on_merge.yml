@@ -17,21 +17,17 @@ on:
       - 'tests/**'
 
 jobs:
-  call-lint:
+  Lint:
     uses: ./.github/workflows/workflow_lint.yml
 
-  call-getting-started:
-    needs: call-lint
-    uses: ./.github/workflows/workflow_getting_started.yml
-
   Tests:
-    needs: call-lint
+    needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
   Inference:
-    needs: call-lint
+    needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
 
   Finetune:
-    needs: call-lint
+    needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml
