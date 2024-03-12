@@ -111,7 +111,7 @@ def main(argv=None):
         type=int,
         help="The number of replicas used to respond to HTTP requests.",
     )
-    parser.add_argument("--cpus_per_worker", default="24", type=int, help="CPUs per worker.")
+    parser.add_argument("--cpus_per_worker", default="3", type=int, help="CPUs per worker.")
     parser.add_argument(
         "--gpus_per_worker",
         default=0,
