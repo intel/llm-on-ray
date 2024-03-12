@@ -25,10 +25,6 @@ jobs:
     needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
-  call-getting-started:
-    needs: [Lint, Tests]
-    uses: ./.github/workflows/workflow_getting_started.yml
-
   Inference:
     needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
