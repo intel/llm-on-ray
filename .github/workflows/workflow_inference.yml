@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   inference:
-    name: inference test
+    name: inference
     strategy:
       matrix:
         model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-bigdl, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm ]
@@ -68,7 +68,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV 
+        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Determine Target
         id: "target"
