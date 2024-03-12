@@ -1,4 +1,4 @@
-name: llm-ray inference & finetune
+name: PR
 
 on:
   pull_request:
@@ -7,28 +7,28 @@ on:
     paths:
       - '.github/**'
       - 'docker/**'
-      - 'common/**'
       - 'dev/docker/**'
-      - 'finetune/**'
-      - 'inference/**'
-      - 'rlhf/**'
+      - 'llm_on_ray/common/**'
+      - 'llm_on_ray/finetune/**'
+      - 'llm_on_ray/inference/**'
+      - 'llm_on_ray/rlhf/**'
       - 'tools/**'
       - 'pyproject.toml'
       - 'tests/**'
 
 jobs:
 
-  call-lint:
+  Lint:
     uses: ./.github/workflows/workflow_lint.yml
 
-  call-tests:
-    needs: call-lint
+  Tests:
+    needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
-  call-inference:
-    needs: call-lint
+  Inference:
+    needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
 
-  call-finetune:
-    needs: call-lint
+  Finetune:
+    needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml

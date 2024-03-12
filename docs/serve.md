@@ -7,7 +7,7 @@ Please follow [setup.md](setup.md) to setup the environment first.
 
 
 ## Configure Serving Parameters
-We provide preconfigured yaml files in [inference/models](../inference/models) for popular open source models. You can customize a few configurations such as the resource used for serving. 
+We provide preconfigured yaml files in [inference/models](../llm_on_ray/inference/models) for popular open source models. You can customize a few configurations such as the resource used for serving. 
 
 To deploy on CPU, please make sure `device` is set to CPU and `cpus_per_worker` is set to a correct number.
 ```
@@ -30,22 +30,22 @@ LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP
 We support three methods to specify the models to be served, and they have the following priorities.
 1. Use inference configuration file if config_file is set.
 ```
-python inference/serve.py --config_file inference/models/gpt2.yaml
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 2. Use relevant configuration parameters if model_id_or_path is set.
 ```
-python inference/serve.py --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix ...]
+llm_on_ray-serve --model_id_or_path gpt2 [--tokenizer_id_or_path gpt2 --port 8000 --route_prefix ...]
 ```
 3. If --config_file and --model_id_or_path are both None, it will serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
 ```
-python inference/serve.py --models gpt2 gpt-j-6b
+llm_on_ray-serve --models gpt2 gpt-j-6b
 ```
 ### OpenAI-compatible API
 To deploy your model, execute the following command with the model's configuration file. This will create an OpenAI-compatible API ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)) for serving.
 ```bash
-python inference/serve.py --config_file <path to the conf file>
+llm_on_ray-serve --config_file <path to the conf file>
 ```
-To deploy and serve multiple models concurrently, place all models' configuration files under `inference/models` and directly run `python inference/serve.py` without passing any conf file.
+To deploy and serve multiple models concurrently, place all models' configuration files under `llm_on_ray/inference/models` and directly run `llm_on_ray-serve` without passing any conf file.
 
 After deploying the model, you can access and test it in many ways:
 ```bash
@@ -64,14 +64,14 @@ python examples/inference/api_server_openai/query_http_requests.py
 
 # using OpenAI SDK
 # please install openai in current env by running: pip install openai>=1.0
-export OPENAI_API_BASE=http://localhost:8000/v1
+export OPENAI_BASE_URL=http://localhost:8000/v1
 export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 ### Serving Model to a Simple Endpoint
 This will create a simple endpoint for serving according to the `port` and `route_prefix` parameters in conf file, for example: http://127.0.0.1:8000/gpt2.
 ```bash
-python inference/serve.py --config_file <path to the conf file> --simple
+llm_on_ray-serve --config_file <path to the conf file> --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash

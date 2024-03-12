@@ -24,7 +24,6 @@ dependencies = [
     "ray>=2.9",
     "typing>=3.7.4.3",
     "tabulate",
-    "fastapi<=0.108.0",
     "ray[tune]",
     "ray[serve]",
     "gymnasium",
@@ -43,7 +42,7 @@ cpu = [
     "transformers>=4.35.0",
     "intel_extension_for_pytorch==2.1.0+cpu",
     "torch==2.1.0+cpu",
-    "oneccl_bind_pt==2.1.0"
+    "oneccl_bind_pt==2.1.0+cpu"
 ]
 
 gpu = [
@@ -52,7 +51,8 @@ gpu = [
     "torchvision==0.16.0a0",
     "intel_extension_for_pytorch==2.1.10+xpu",
     "oneccl_bind_pt==2.1.100+xpu",
-    "dpctl==0.15.0"
+    "dpctl==0.15.0",
+    "deepspeed==0.13.1"
 ]
 
 deepspeed = [
@@ -64,18 +64,24 @@ deepspeed = [
 ]
 
 bigdl-cpu = [
-    "bigdl-llm[all]"
+    "bigdl-llm[all]==2.5.0b20240222"
 ]
 
 
 [tool.setuptools]
 # with MANIFEST.in, the configs below work in both baremetal and container
-package-dir = {"inference" = "inference", "finetune" = "finetune"}
+package-dir = {"llm_on_ray" = "llm_on_ray"}
 include-package-data = true
 
 [project.urls]
 Repository = "https://github.com/intel/llm-on-ray.git"
 Issues = "https://github.com/intel/llm-on-ray.git/issues"
+
+[project.scripts]
+llm_on_ray-finetune = "llm_on_ray.finetune.finetune:main"
+llm_on_ray-serve = "llm_on_ray.inference.serve:main"
+llm_on_ray-pretrain = "llm_on_ray.pretrain.pretrain:main"
+llm_on_ray-megatron_deepspeed_pretrain = "llm_on_ray.pretrain.megatron_deepspeed_pretrain:main"
 
 [tool.black]
 line-length = 100

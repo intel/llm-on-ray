@@ -1,0 +1,35 @@
+port: 8000
+name: null
+route_prefix: null
+num_replicas: 1
+cpus_per_worker: 24
+gpus_per_worker: 0
+hpus_per_worker: 0
+deepspeed: false
+workers_per_group: 2
+device: CPU
+ipex:
+  enabled: true
+  precision: bf16
+model_description:
+  model_id_or_path: null
+  bigdl:: false
+  tokenizer_name_or_path: null
+  chat_processor: null
+  gpt_base_model: false
+  quantized_model_id_or_path: null
+  quantization_type: null
+  peft_model_id_or_path: null
+  peft_type: null
+  use_hpu_graphs: true
+  prompt:
+    intro: ''
+    human_id: ''
+    bot_id: ''
+    stop_words: []
+  config:
+    trust_remote_code: false
+    use_auth_token: null
+    load_in_4bit: false
+  bigdl_config:
+    load_in_low_bit: ''
