@@ -108,7 +108,7 @@ class InferenceConfig(BaseModel):
     name: str = "default"
     route_prefix: Union[str, None] = None
     num_replicas: int = 1
-    cpus_per_worker: int = 24
+    cpus_per_worker: int = 3
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
     deepspeed: bool = False
