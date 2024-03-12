@@ -56,11 +56,11 @@ jobs:
     name: docker-test
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9", 3.10, "3.11"]
 
     runs-on: ubuntu-latest
     env:
-      SHELL: /bin/bash -eo pipefail
+      SHELL: /usr/bin/bash -eo pipefail
     defaults:
       run:
         shell: bash
