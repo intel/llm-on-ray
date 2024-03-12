@@ -16,12 +16,12 @@ pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https:/
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 
-# Start Ray
-ray start --head
+# Start Ray (already started in CI)
+#ray start --head
 
 # Step 2: Serving
 # take gpt2 for example
-python ../inference/serve.py --config_file inference/models/gpt2.yaml
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 
 # Three ways to access OpenAI API
 # 1.Using curl
@@ -37,14 +37,9 @@ curl $ENDPOINT_URL/chat/completions \
 # 2.Using requests library
 python examples/inference/api_server_openai/query_http_requests.py
 
-# 3.Using OpenAI SDK
-export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=$your_openai_api_key
-python examples/inference/api_server_openai/query_openai_sdk.py
-
-# 4.Using serve.py and query_single.py
+# 3.Using serve.py and query_single.py
 # Deploy models by serve.py
-python inference/serve.py --config_file inference/models/gpt2.yaml --simple
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 
 # Access models by query_single.py
 python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
