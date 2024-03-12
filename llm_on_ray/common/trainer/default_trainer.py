@@ -6,7 +6,6 @@ from pathlib import Path
 
 import torch
 import transformers
-from accelerate.utils import DummyOptim, DummyScheduler
 
 from ray.train import report, Checkpoint
 
@@ -140,6 +139,8 @@ class DefaultTrainer(Trainer):
         if accelerate_mode in ["GPU_DEEPSPEED"]:
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
+            from accelerate.utils import DummyOptim, DummyScheduler
+
             dummy_optimizer = DummyOptim(
                 params=model.parameters(), lr=lr, weight_decay=weight_decay
             )
