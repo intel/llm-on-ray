@@ -77,7 +77,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         for model_name in ["gpt2"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
-        for temperature in [None, 0.8]
+        for temperature in [0.0, None, 0.8]
         for top_p in [None, 0.7]
     ],
 )
