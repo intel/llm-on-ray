@@ -43,9 +43,13 @@ curl $ENDPOINT_URL/chat/completions \
 echo "Using requests library to access model"
 python examples/inference/api_server_openai/query_http_requests.py
 
-# 3.Using serve.py and query_single.py
+# 3.Using OpenAI SDK
+echo "Using OpenAI SDK to access model"
+export OPENAI_BASE_URL=http://localhost:8000/v1
+export OPENAI_API_KEY="not_a_real_key"
+python examples/inference/api_server_openai/query_openai_sdk.py --model_name gpt2 
+
+# 4.Using serve.py and query_single.py
 # Access models by query_single.py
-echo "List /v1/models/"
-python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/v1/models/
 echo "Using query_single.py to access model"
 python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/v1/models/gpt2
