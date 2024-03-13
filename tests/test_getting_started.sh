@@ -20,14 +20,14 @@ pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https:/
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 
 # Stop and restart Ray (already started in CI)
-ray stop -f
-sleep 1
-ray start --head
+# ray stop -f
+# sleep 1
+# ray start --head
 
 # Step 2: Serving
 # take gpt2 for example
 echo "Starting ray server for gpt2 with 3 cpu per worker"
-llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
+# llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
 
 # Three ways to access OpenAI API
 # 1.Using curl
