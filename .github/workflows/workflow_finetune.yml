@@ -132,6 +132,8 @@ jobs:
               }
               if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
                   result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              elif "${{ matrix.model }}" == "google/gemma-2b":
+                  result['General']['lora_config']['target_modules'] = ["k_proj", "v_proj"]
               else:
                   result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
