@@ -51,10 +51,6 @@ jobs:
         run: |
           ./tests/run-tests.sh
 
-      - name: Run Test for Getting Started
-        run: |
-          ./tests/test_getting_started.sh
-
   docker-test:
 
     name: docker-test
@@ -111,7 +107,12 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
-           
+
+      - name: Run Test for Getting Started
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./tests/test_getting_started.sh"
+
       - name: Stop Container
         if: success() || failure()
         run: |
