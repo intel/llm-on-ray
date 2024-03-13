@@ -47,4 +47,4 @@ python examples/inference/api_server_openai/query_http_requests.py
 echo "Using query_single.py to access model"
 
 # Access models by query_single.py
-python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://0.0.0.0:8000/gpt2
