@@ -7,7 +7,7 @@ Please follow [setup.md](setup.md) to setup the environment first.
 
 
 ## Configure Serving Parameters
-We provide preconfigured yaml files in [inference/models](../inference/models) for popular open source models. You can customize a few configurations such as the resource used for serving. 
+We provide preconfigured yaml files in [inference/models](../llm_on_ray/inference/models) for popular open source models. You can customize a few configurations such as the resource used for serving. 
 
 To deploy on CPU, please make sure `device` is set to CPU and `cpus_per_worker` is set to a correct number.
 ```
