@@ -19,8 +19,10 @@ pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https:/
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 
-# Start Ray (already started in CI)
-#ray start --head
+# Stop and restart Ray (already started in CI)
+ray stop -f
+sleep 1
+ray start --head
 
 # Step 2: Serving
 # take gpt2 for example
