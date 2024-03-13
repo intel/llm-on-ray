@@ -44,7 +44,8 @@ echo "Using requests library to access model"
 python examples/inference/api_server_openai/query_http_requests.py
 
 # 3.Using serve.py and query_single.py
-echo "Using query_single.py to access model"
-
 # Access models by query_single.py
-python examples/inference/api_server_simple/query_single.py --model_endpoint http://0.0.0.0:8000/gpt2
+echo "List /v1/models/"
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/v1/models/
+echo "Using query_single.py to access model"
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/v1/models/gpt2
