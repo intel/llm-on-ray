@@ -55,7 +55,7 @@ jobs:
         run: |
           ./tests/test_setup.sh CPU
 
-bare-test:
+  bare-test:
 
     name: bare-test
     strategy:
