@@ -99,7 +99,7 @@ jobs:
                   result['General']["gpt_base_model"] = True
               else:
                   result['General']["gpt_base_model"] = False
-              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf":
+              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf" or "${{ matrix.model }}" == "google/gemma-2b":
                   result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
               else:
                   result['General']["config"]["use_auth_token"] = None
