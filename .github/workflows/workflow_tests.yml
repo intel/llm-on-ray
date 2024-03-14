@@ -6,6 +6,7 @@ on:
       ci_type:
         type: string
         default: 'pr'
+
 jobs:
   bare-test:
 

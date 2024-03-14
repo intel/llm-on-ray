@@ -18,23 +18,6 @@ import pytest
 # simple_array = [True, False]
 # keep_serve_termimal_array = [True, False]
 
-# Temp Config matrix
-config_file_array = ["inference/models/gpt2.yaml"]
-model_id_or_path_array = ["gpt2"]
-models_array = ["gpt2"]
-port_array = [8000]
-route_prefix_array = [None]
-cpus_per_worker_array = [24]
-gpus_per_worker_array = [0]
-hpus_per_worker_array = [0]
-deepspeed_array = [False]
-workers_per_group_array = [None]
-ipex_array = [False]
-device_array = ["cpu"]
-serve_local_only_array = [False]
-simple_array = [False]
-keep_serve_termimal_array = [False]
-
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
@@ -57,21 +40,21 @@ keep_serve_termimal_array = [False]
             simple,
             keep_serve_termimal,
         )
-        for config_file in config_file_array
-        for model_id_or_path in model_id_or_path_array
-        for models in models_array
-        for port in port_array
-        for route_prefix in route_prefix_array
-        for cpus_per_worker in cpus_per_worker_array
-        for gpus_per_worker in gpus_per_worker_array
-        for hpus_per_worker in hpus_per_worker_array
-        for deepspeed in deepspeed_array
-        for workers_per_group in workers_per_group_array
-        for ipex in ipex_array
-        for device in device_array
-        for serve_local_only in serve_local_only_array
-        for simple in simple_array
-        for keep_serve_termimal in keep_serve_termimal_array
+        for config_file in ["inference/models/gpt2.yaml"]
+        for model_id_or_path in ["gpt2"]
+        for models in ["gpt2"]
+        for port in [8000]
+        for route_prefix in [None]
+        for cpus_per_worker in [24]
+        for gpus_per_worker in [0]
+        for hpus_per_worker in [0]
+        for deepspeed in [False]
+        for workers_per_group in [None]
+        for ipex in [False]
+        for device in ["cpu"]
+        for serve_local_only in [False]
+        for simple in [False]
+        for keep_serve_termimal in [False]
     ],
 )
 def test_script(
@@ -137,3 +120,5 @@ def test_script(
 
     # TODO: Find a better way to assert the result, like checking processes etc.
     assert "Error" not in result_serve.stderr
+    print("Asserted no erros in the result log, which is:")
+    print(result_serve.stderr)
