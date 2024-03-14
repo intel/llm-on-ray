@@ -86,7 +86,7 @@ class TransformerPredictor(Predictor):
                     ipex._C.disable_jit_linear_repack()
                 except Exception:
                     pass
-                model = ipex.optimize_transformers(
+                model = ipex.llm.optimize(
                     model.eval(),
                     dtype=torch.bfloat16
                     if infer_conf.ipex.precision == PRECISION_BF16
