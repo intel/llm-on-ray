@@ -10,35 +10,26 @@ import pytest
 # top_p_array = [0.6, None]
 # top_k_array = [5, None]
 
-# Temp Config matrix
-models_array = ["gpt2"]
-model_endpoint_array = ["http://127.0.0.1:8000"]
-streaming_response_array = [False]
-max_new_tokens_array = [10]
-temperature_array = [0.7]
-top_p_array = [0.6]
-top_k_array = [5]
-
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
     "models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k",
     [
         (models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k)
-        for models in models_array
-        for model_endpoint in model_endpoint_array
-        for streaming_response in streaming_response_array
-        for max_new_tokens in max_new_tokens_array
-        for temperature in temperature_array
-        for top_p in top_p_array
-        for top_k in top_k_array
+        for models in ["gpt2"]
+        for model_endpoint in ["http://127.0.0.1:8000"]
+        for streaming_response in [False]
+        for max_new_tokens in [10]
+        for temperature in [0.7]
+        for top_p in [0.6]
+        for top_k in [5]
     ],
 )
 def test_script(
     models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
     # Validate model endpoint and get port
-    tmp_list = model_endpoint_array[0].split(":")
+    tmp_list = ["http://127.0.0.1:8000"][0].split(":")
     assert len(tmp_list) == 3, "Invalid URL, model endpoint should be like http://127.0.0.1:8000"
 
     port = int(tmp_list[2])
