@@ -34,7 +34,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1, google/gemma-2b]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -99,7 +99,7 @@ jobs:
                   result['General']["gpt_base_model"] = True
               else:
                   result['General']["gpt_base_model"] = False
-              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf" or "${{ matrix.model }}" == "google/gemma-2b":
+              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf":
                   result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
               else:
                   result['General']["config"]["use_auth_token"] = None
