@@ -24,7 +24,7 @@ source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_
 # take gpt2 for example
 echo "Step 2: Serving"
 echo "Starting ray server for gpt2 with 3 cpu per worker"
-llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
+llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --simple --cpus_per_worker 3 
 
 # Step 3: access OpenAI API
 # 1.Using curl

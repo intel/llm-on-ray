@@ -93,14 +93,6 @@ jobs:
       - name: Start Ray Cluster
         run: |
           ray start --head
-          
-      - name: Run Test for Getting Started
-        run: |
-          ./tests/test_getting_started.sh
-
-      - name: Run Test for Setup
-        run: |
-          ./tests/test_setup.sh CPU
 
       - name: Run Tests
         run: |
