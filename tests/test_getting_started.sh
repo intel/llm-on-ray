@@ -3,6 +3,7 @@ set -eo pipefail
 
 # Step 1: Python environment
 # Check Python version is or later than 3.9
+echo "Step 1: Python environment"
 echo "Checking Python version which should be equal or later than 3.9"
 if ! python -c 'import sys; assert sys.version_info >= (3,9)' > /dev/null; then
     exit "Python should be 3.9 or later!"
@@ -26,12 +27,14 @@ source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_
 
 # Step 2: Serving
 # take gpt2 for example
+echo "Step 2: Serving"
 echo "Starting ray server for gpt2 with 3 cpu per worker"
 # llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
 
-# Three ways to access OpenAI API
+# Step 3: access OpenAI API
 # 1.Using curl
-echo "Using curl to access model"
+echo "Step 3: access OpenAI API"
+echo "Way 1: Using curl to access model"
 export ENDPOINT_URL=http://localhost:8000/v1
 curl $ENDPOINT_URL/chat/completions \
     -H "Content-Type: application/json" \
@@ -42,11 +45,11 @@ curl $ENDPOINT_URL/chat/completions \
     }'
 
 # 2.Using requests library
-echo "Using requests library to access model"
+echo "Way 2: Using requests library to access model"
 python examples/inference/api_server_openai/query_http_requests.py
 
 # 3.Using OpenAI SDK
-echo "Using OpenAI SDK to access model"
+echo "Way 3: Using OpenAI SDK to access model"
 export OPENAI_BASE_URL=http://localhost:8000/v1
 export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py --model_name gpt2 
@@ -54,5 +57,5 @@ python examples/inference/api_server_openai/query_openai_sdk.py --model_name gpt
 # 4.Using serve.py and query_single.py
 # Access models by query_single.py
 # TODO: some bugs in query_single.py, enable it after fixed by follow-up PRs.
-echo "Using query_single.py to access model"
+# echo "Way 4: Using query_single.py to access model"
 # python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/gpt2
