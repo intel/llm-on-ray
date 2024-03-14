@@ -7,6 +7,7 @@ on:
         type: string
         default: 'pr'
 
+jobs:
   setup-test:
 
     name: setup-test
@@ -54,8 +55,7 @@ on:
         run: |
           ./tests/test_setup.sh CPU
 
-jobs:
-  bare-test:
+bare-test:
 
     name: bare-test
     strategy:
