@@ -20,16 +20,14 @@ pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https:/
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
 
-# Stop and restart Ray (already started in CI)
-# ray stop -f
-# sleep 1
-# ray start --head
+# Start Ray
+ray start --head
 
 # Step 2: Serving
 # take gpt2 for example
 echo "Step 2: Serving"
 echo "Starting ray server for gpt2 with 3 cpu per worker"
-# llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
+llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --keep_serve_terminal --simple --cpus_per_worker 3 
 
 # Step 3: access OpenAI API
 # 1.Using curl
@@ -58,4 +56,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py --model_name gpt
 # Access models by query_single.py
 # TODO: some bugs in query_single.py, enable it after fixed by follow-up PRs.
 # echo "Way 4: Using query_single.py to access model"
-# python examples/inference/api_server_simple/query_single.py --model_endpoint http://localhost:8000/gpt2
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://0.0.0.0:8000/gpt2
+
+# Stop Ray
+ray stop -f
