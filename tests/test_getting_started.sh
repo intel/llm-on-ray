@@ -54,4 +54,4 @@ python examples/inference/api_server_openai/query_openai_sdk.py --model_name gpt
 # 4.Using serve.py and query_single.py
 # Access models by query_single.py
 echo "Using query_single.py to access model"
-python examples/inference/api_server_simple/query_single.py --model_endpoint http://0.0.0.0:8000/gpt2
+python examples/inference/api_server_simple/query_single.py --model_endpoint http://172.17.0.2:8000/gpt2
