@@ -88,5 +88,6 @@ def test_script(api_base, model_name, streaming_response, max_new_tokens, temper
         repo_id="meta-llama/Llama-2-7b-chat-hf",
         local_dir="./hg_cache/meta-llama/Llama-2-7b-chat-hf",
         local_dir_use_symlinks=False,
+        token="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",
     )
     script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)

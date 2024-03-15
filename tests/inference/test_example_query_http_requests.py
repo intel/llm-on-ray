@@ -74,9 +74,4 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
 def test_script(model_name, streaming_response, max_new_tokens, temperature, top_p):
     from huggingface_hub import snapshot_download
 
-    snapshot_download(
-        repo_id="meta-llama/Llama-2-7b-chat-hf",
-        local_dir="./hg_cache/meta-llama/Llama-2-7b-chat-hf",
-        local_dir_use_symlinks=False,
-    )
     script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p)
