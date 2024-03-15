@@ -43,10 +43,6 @@ jobs:
           # Additional libraries required  for pytest
           pip install -r ./tests/requirements.txt
 
-      - name: Start Ray Cluster
-        run: |
-          ray start --head
-          
       - name: Run Test for Getting Started
         run: |
           ./tests/test_getting_started.sh
