@@ -34,6 +34,9 @@ def script_with_args(
     # Ensure there are no errors in the serve script execution
     assert "Error" not in result_serve.stderr
 
+    # Returncode should be 0 when there is no exception
+    assert result_serve.returncode == 0
+
     example_openai_path = os.path.join(
         current_path, "../../examples/inference/api_server_simple/query_single.py"
     )
@@ -60,20 +63,20 @@ def script_with_args(
     if top_k is not None:
         cmd_openai.extend(["--top_k", str(top_k)])
 
-    result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
+    result_query_single = subprocess.run(cmd_openai, capture_output=True, text=True)
 
     # Print the output of subprocess.run for checking if output is expected
-    print(result_openai)
+    print(result_query_single)
 
     # Ensure there are no errors in the OpenAI API query script execution
-    assert "Error" not in result_openai.stderr
+    assert "Error" not in result_query_single.stderr
 
-    assert isinstance(result_openai.stdout, str)
-
-    assert len(result_openai.stdout) > 0
+    # Returncode should be 0 when there is no exception
+    assert result_query_single.returncode == 0
 
 
 # Parametrize the test function with different combinations of parameters
+# TODO: more models and combinations will be added and tested.
 @pytest.mark.parametrize(
     "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
     [
