@@ -40,7 +40,7 @@ def script_with_args(
         "python",
         example_query_single_path,
         "--model_endpoint",
-        base_url + "/" + model_name,
+        base_url + model_name,
     ]
 
     if streaming_response:
@@ -76,7 +76,7 @@ def script_with_args(
     "base_url,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
     [
         (base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
-        for base_url in ["http://localhost:8000/v1"]
+        for base_url in ["http://localhost:8000/"]
         for model_name in ["gpt2"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
