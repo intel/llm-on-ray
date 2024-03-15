@@ -74,7 +74,7 @@ def test_script(
     simple,
     keep_serve_termimal,
 ):
-    cmd_serve = ["python", "../inference/serve.py"]
+    cmd_serve = ["python", "../llm_on_ray/inference/serve.py"]
     if config_file is not None:
         cmd_serve.append("--config_file")
         cmd_serve.append(str(config_file))
