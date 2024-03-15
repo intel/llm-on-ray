@@ -77,14 +77,14 @@ def script_with_args(
 @pytest.mark.parametrize(
     "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p",
     [
-        (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)
+        (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
         for api_base in ["http://localhost:8000/v1"]
         for model_name in ["gpt2"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
         for temperature in [None, 0.8]
         for top_p in [None, 0.7]
-        for top_p in [None, 5]
+        for top_k in [None, 5]
     ],
 )
 def test_script(
