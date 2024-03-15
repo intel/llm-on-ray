@@ -9,13 +9,8 @@ os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
 
 
 def script_with_args(
-    api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+    base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
-    # Other OpenAI SDK tests
-    if api_base != "http://localhost:8000/v1":
-        os.environ["OPENAI_API_BASE"] = api_base
-        os.environ["OPENAI_BASE_URL"] = api_base
-
     current_path = os.path.dirname(os.path.abspath(__file__))
 
     config_path = os.path.join(
@@ -37,15 +32,15 @@ def script_with_args(
     # Returncode should be 0 when there is no exception
     assert result_serve.returncode == 0
 
-    example_openai_path = os.path.join(
+    example_query_single_path = os.path.join(
         current_path, "../../examples/inference/api_server_simple/query_single.py"
     )
 
     cmd_openai = [
         "python",
-        example_openai_path,
-        "--model_name",
-        model_name,
+        example_query_single_path,
+        "--model_endpoint",
+        base_url + "/" + model_name,
     ]
 
     if streaming_response:
@@ -78,10 +73,10 @@ def script_with_args(
 # Parametrize the test function with different combinations of parameters
 # TODO: more models and combinations will be added and tested.
 @pytest.mark.parametrize(
-    "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
+    "base_url,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
     [
-        (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
-        for api_base in ["http://localhost:8000/v1"]
+        (base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
+        for base_url in ["http://localhost:8000/v1"]
         for model_name in ["gpt2"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
@@ -91,8 +86,8 @@ def script_with_args(
     ],
 )
 def test_script(
-    api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+    base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
     script_with_args(
-        api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+        base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
     )
