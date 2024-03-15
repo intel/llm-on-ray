@@ -34,7 +34,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1, mistralai/Mixtral-8x7B-Instruct-v0.1 ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -44,6 +44,7 @@ jobs:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
           - { model: "mistralai/Mistral-7B-v0.1"}
+          - { model: "mistralai/Mixtral-8x7B-Instruct-v0.1"}
 
     runs-on: self-hosted
 
@@ -132,6 +133,8 @@ jobs:
               }
               if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
                   result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              elif "${{ matrix.model }}" == "mistralai/Mixtral-8x7B-Instruct-v0.1":
+                  result['General']['lora_config']['target_modules'] = ["k_proj", "v_proj"]
               else:
                   result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
