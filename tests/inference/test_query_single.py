@@ -1,69 +1,95 @@
 import subprocess
 import pytest
+import os
 
-# Config matrix
-# models_array = ["gpt2", "gpt2 gpt-j-6b", "gpt2 bloom-560m", "falcon-7b"]
-# model_endpoint_array = ["http://127.0.0.1:8000", None]
-# streaming_response_array = [True, False]
-# max_new_tokens_array = [10, None]
-# temperature_array = [0.7, None]
-# top_p_array = [0.6, None]
-# top_k_array = [5, None]
+os.environ["no_proxy"] = "localhost,127.0.0.1"
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
+os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
+
+
+def script_with_args(
+    api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+):
+    # Other OpenAI SDK tests
+    if api_base != "http://localhost:8000/v1":
+        os.environ["OPENAI_API_BASE"] = api_base
+        os.environ["OPENAI_BASE_URL"] = api_base
+
+    current_path = os.path.dirname(os.path.abspath(__file__))
+
+    config_path = os.path.join(
+        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    )
+
+    os.path.join(current_path, "../../inference/serve.py")
+
+    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
+
+    result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print(result_serve)
+
+    # Ensure there are no errors in the serve script execution
+    assert "Error" not in result_serve.stderr
+
+    example_openai_path = os.path.join(
+        current_path, "../../examples/inference/api_server_simple/query_single.py"
+    )
+
+    cmd_openai = [
+        "python",
+        example_openai_path,
+        "--model_name",
+        model_name,
+    ]
+
+    if streaming_response:
+        cmd_openai.append("--streaming_response")
+
+    if max_new_tokens is not None:
+        cmd_openai.extend(["--max_new_tokens", str(max_new_tokens)])
+
+    if temperature is not None:
+        cmd_openai.extend(["--temperature", str(temperature)])
+
+    if top_p is not None:
+        cmd_openai.extend(["--top_p", str(top_p)])
+
+    if top_k is not None:
+        cmd_openai.extend(["--top_k", str(top_k)])
+
+    result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print(result_openai)
+
+    # Ensure there are no errors in the OpenAI API query script execution
+    assert "Error" not in result_openai.stderr
+
+    assert isinstance(result_openai.stdout, str)
+
+    assert len(result_openai.stdout) > 0
 
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
-    "models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k",
+    "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p",
     [
-        (models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k)
-        for models in ["gpt2"]
-        for model_endpoint in ["http://127.0.0.1:8000"]
-        for streaming_response in [False]
-        for max_new_tokens in [10]
-        for temperature in [0.7]
-        for top_p in [0.6]
-        for top_k in [5]
+        (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)
+        for api_base in ["http://localhost:8000/v1"]
+        for model_name in ["gpt2"]
+        for streaming_response in [False, True]
+        for max_new_tokens in [None, 128]
+        for temperature in [None, 0.8]
+        for top_p in [None, 0.7]
+        for top_p in [None, 5]
     ],
 )
 def test_script(
-    models, model_endpoint, streaming_response, max_new_tokens, temperature, top_p, top_k
+    api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
-    # Validate model endpoint and get port
-    tmp_list = ["http://127.0.0.1:8000"][0].split(":")
-    assert len(tmp_list) == 3, "Invalid URL, model endpoint should be like http://127.0.0.1:8000"
-
-    port = int(tmp_list[2])
-    assert port > 0 and port < 65535, "Invalid Port, it should be 0~65535"
-
-    # Run serve.py to activate all models
-    cmd_serve = [
-        "python",
-        "../llm_on_ray/inference/serve.py",
-        "--models " + str(models),
-        "--port " + str(port),
-        "--simple",
-    ]
-
-    if streaming_response:
-        cmd_serve.append("--streaming_response")
-    if max_new_tokens is not None:
-        cmd_serve.append("--max_new_tokens " + str(max_new_tokens))
-    if temperature is not None:
-        cmd_serve.append("--temperature " + str(temperature))
-    if top_p is not None:
-        cmd_serve.append("--top_p " + str(top_p))
-    if top_k is not None:
-        cmd_serve.append("--top_k " + str(top_k))
-
-    for it in models.split(" "):
-        model = it.strip()
-        assert len(model) > 0, "Invalid empty model."
-        if model_endpoint is not None:
-            cmd_serve.append("--model_endpoint " + model_endpoint + "/" + model)
-        else:
-            cmd_serve.append("--model_endpoint " + "http://127.0.0.1:8000" + "/" + model)
-        result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
-        assert "Error" not in result_serve.stderr
-        assert result_serve == 0
-        print("Asserted no erros in the result log, which is:")
-        print(result_serve.stderr)
+    script_with_args(
+        api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+    )
