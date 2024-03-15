@@ -42,7 +42,7 @@ jobs:
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
           # Additional libraries required  for pytest
           pip install -r ./tests/requirements.txt
-          
+
       - name: Start Ray Cluster
         run: |
           ray start --head
@@ -66,8 +66,8 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      
+        uses: actions/checkout@v4
+
       - name: Determine Target
         id: "target"
         run: |
@@ -107,7 +107,7 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
-           
+
       - name: Stop Container
         if: success() || failure()
         run: |
