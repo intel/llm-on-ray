@@ -40,7 +40,7 @@ import pytest
             simple,
             keep_serve_termimal,
         )
-        for config_file in [".github/workflows/config/gpt2-ci.yaml"]
+        for config_file in ["../.github/workflows/config/gpt2-ci.yaml"]
         for model_id_or_path in ["gpt2"]
         for models in ["gpt2"]
         for port in [8000]
