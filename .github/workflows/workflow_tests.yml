@@ -45,7 +45,7 @@ jobs:
 
       - name: Run Test for Setup
         run: |
-          ./tests/test_setup.sh CPU
+          ./tests/test_setup.sh CPU false
 
   getting-started-test:
 
