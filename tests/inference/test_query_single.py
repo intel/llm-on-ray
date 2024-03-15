@@ -38,7 +38,7 @@ def test_script(
     # Run serve.py to activate all models
     cmd_serve = [
         "python",
-        "../inference/serve.py",
+        "../llm_on_ray/inference/serve.py",
         "--models " + str(models),
         "--port " + str(port),
         "--simple",
