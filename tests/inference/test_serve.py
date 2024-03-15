@@ -120,5 +120,6 @@ def test_script(
 
     # TODO: Find a better way to assert the result, like checking processes etc.
     assert "Error" not in result_serve.stderr
+    assert result_serve == 0
     print("Asserted no erros in the result log, which is:")
     print(result_serve.stderr)
