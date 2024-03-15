@@ -30,7 +30,7 @@ llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml --simple --
 # 1.Using curl
 echo "Step 3: access OpenAI API"
 echo "Way 1: Using curl to access model"
-export ENDPOINT_URL=http://localhost:8000/v1
+export ENDPOINT_URL=http://0.0.0.0:8000/v1
 curl $ENDPOINT_URL/chat/completions \
     -H "Content-Type: application/json" \
     -d '{
