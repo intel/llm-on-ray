@@ -75,7 +75,7 @@ def script_with_args(
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
-    "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p",
+    "api_base,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
     [
         (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
         for api_base in ["http://localhost:8000/v1"]
