@@ -142,7 +142,7 @@ class PredictionWorker(TorchDistributedWorker):
                 ipex._C.disable_jit_linear_repack()
             except Exception:
                 pass
-            pipe.model = ipex.optimize_transformers(
+            pipe.model = ipex.llm.optimize(
                 pipe.model.eval(),
                 dtype=torch.bfloat16
                 if self.infer_conf.ipex.precision == PRECISION_BF16
