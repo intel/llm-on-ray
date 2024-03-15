@@ -62,7 +62,8 @@ def test_script(
             cmd_serve.append("--model_endpoint " + model_endpoint + "/" + model)
         else:
             cmd_serve.append("--model_endpoint " + "http://127.0.0.1:8000" + "/" + model)
-        subprocess.run(cmd_serve, capture_output=True, text=True)
-        # TODO: Find a better way to assert the result, like checking processes etc.
-        # print(result_serve.stderr)
-        # assert "Error" not in result_serve.stderr
+        result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+        assert "Error" not in result_serve.stderr
+        assert result_serve == 0
+        print("Asserted no erros in the result log, which is:")
+        print(result_serve.stderr)
