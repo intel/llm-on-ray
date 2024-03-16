@@ -18,7 +18,7 @@ echo "Installing dependencies"
 pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
 
 # Dynamic link oneCCL and Intel MPI libraries
-source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)")/env/setvars.sh
+source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 
 # Step 2: Start ray cluster
 ray start --head
