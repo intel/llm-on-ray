@@ -121,5 +121,5 @@ def test_script(
     # TODO: Find a better way to assert the result, like checking processes etc.
     assert "Error" not in result_serve.stderr
     assert result_serve.returncode == 0
-    print("Asserted no erros in the result log, which is:")
+    print("Output of stderr:")
     print(result_serve.stderr)
