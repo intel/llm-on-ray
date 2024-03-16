@@ -118,7 +118,6 @@ def test_script(
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
-    # TODO: Find a better way to assert the result, like checking processes etc.
     assert "Error" not in result_serve.stderr
     assert result_serve.returncode == 0
     print("Output of stderr:")
