@@ -21,7 +21,7 @@ def script_with_args(
 
     cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
 
-    cmd_serve.append("--simple")
+    # cmd_serve.append("--simple")
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
