@@ -17,13 +17,16 @@ def script_with_args(
         current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
     )
 
-    os.path.join(current_path, "../../inference/serve.py")
-
     cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
 
-    # cmd_serve.append("--simple")
+    cmd_serve.append("--simple")
+
+    print("SSSSSS:test:cmd_serve:")
+    print(cmd_serve)
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+
+    print("SSSSSS:test2:result_serve:")
 
     # Print the output of subprocess.run for checking if output is expected
     print(result_serve)
