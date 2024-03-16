@@ -19,7 +19,9 @@ def script_with_args(
 
     os.path.join(current_path, "../../inference/serve.py")
 
-    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path, "--simple"]
+    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
+
+    cmd_serve.append("--simple")
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
