@@ -57,6 +57,6 @@ ray start --head --node-ip-address 127.0.0.1 --dashboard-host='0.0.0.0' --dashbo
 # Start worker node
 ray start --address='127.0.0.1:6379'
 
-# Step4: Check if it is installed correctly
+# Step 4: Check if it is installed correctly
 llm_on_ray-serve --help
 llm_on_ray-finetune --help
