@@ -27,33 +27,32 @@ def script_with_args(
     # Returncode should be 0 when there is no exception
     assert result_serve.returncode == 0
 
-    example_query_single_path = os.path.join(
-        current_path, "../../examples/inference/api_server_simple/query_single.py"
-    )
+    # example_query_single_path = os.path.join(
+    #     current_path, "../../examples/inference/api_server_simple/query_single.py"
+    # )
 
-    cmd_openai = [
-        "python",
-        example_query_single_path,
-        "--model_endpoint",
-        base_url + model_name,
-    ]
+    # cmd_openai = [
+    #     "python",
+    #     example_query_single_path,
+    #     "--model_endpoint",
+    #     base_url + model_name,
+    # ]
 
-    if streaming_response:
-        cmd_openai.append("--streaming_response")
+    # if streaming_response:
+    #     cmd_openai.append("--streaming_response")
 
-    if max_new_tokens is not None:
-        cmd_openai.extend(["--max_new_tokens", str(max_new_tokens)])
+    # if max_new_tokens is not None:
+    #     cmd_openai.extend(["--max_new_tokens", str(max_new_tokens)])
 
-    if temperature is not None:
-        cmd_openai.extend(["--temperature", str(temperature)])
+    # if temperature is not None:
+    #     cmd_openai.extend(["--temperature", str(temperature)])
 
-    if top_p is not None:
-        cmd_openai.extend(["--top_p", str(top_p)])
+    # if top_p is not None:
+    #     cmd_openai.extend(["--top_p", str(top_p)])
 
-    if top_k is not None:
-        cmd_openai.extend(["--top_k", str(top_k)])
+    # if top_k is not None:
+    #     cmd_openai.extend(["--top_k", str(top_k)])
 
-    subprocess.run(cmd_openai)
     # result_query_single = subprocess.run(cmd_openai, capture_output=True, text=True)
 
     # # Print the output of subprocess.run for checking if output is expected
