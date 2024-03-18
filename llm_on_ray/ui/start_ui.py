@@ -247,10 +247,10 @@ class ChatBotUI:
 
                 chunk_data = re.sub("^data: ", "", output)
                 if chunk_data != "[DONE]":
-                    # Get message choices from data
-                    choices = json.loads(chunk_data)["choices"]
-                    # Pick content from first choice
-                    output = choices[0]["delta"].get("content", "")
+                    decoded_output = json.loads(chunk_data)
+                    if "choices" in decoded_output:
+                        choices = decoded_output["choices"]
+                        output = choices[0]["delta"].get("content", "")
                 else:
                     output = ""
             yield output
@@ -504,7 +504,18 @@ class ChatBotUI:
         pipeline.execute()
         return db_dir
 
-    def send_all_bot(self, id, history, model_endpoint, Max_new_tokens, Temperature, Top_p, Top_k):
+    def send_all_bot(
+        self,
+        id,
+        history,
+        deployed_model_endpoint,
+        model_endpoint,
+        Max_new_tokens,
+        Temperature,
+        Top_p,
+        Top_k,
+        model_name,
+    ):
         id = int(id)
         self.bot_queue[id] = Queue()
         p = Process(
@@ -513,11 +524,12 @@ class ChatBotUI:
                 self.bot_queue[id],
                 id,
                 history,
-                model_endpoint,
+                model_endpoint if model_endpoint != "" else deployed_model_endpoint,
                 Max_new_tokens,
                 Temperature,
                 Top_p,
                 Top_k,
+                model_name,
             ),
         )
         p.start()
@@ -801,6 +813,9 @@ class ChatBotUI:
         cpu_command = "export TERM=xterm; echo $(top -n 1 -b | head -n 4 | tail -n 2)"
         _, cpu_stdout, _ = self.ssh_connect[index].exec_command(cpu_command)
         cpu_out = cpu_stdout.read().decode("utf-8")
+        cpu_out = cpu_out.rstrip("\n").split("\n")[
+            -1
+        ]  # Bug fix when ssh got system info before actual output
         cpu_out_words = cpu_out.split(" ")
         cpu_value = 100 - float(cpu_out_words[7])
         memory_command = "export TERM=xterm; echo $(free -m)"
@@ -1601,10 +1616,12 @@ class ChatBotUI:
                         ids[i],
                         chatbots[i],
                         deployed_model_endpoint,
+                        model_endpoint,
                         max_new_tokens,
                         Temperature,
                         Top_p,
                         Top_k,
+                        model_name,
                     ],
                     chatbots[i],
                 )
