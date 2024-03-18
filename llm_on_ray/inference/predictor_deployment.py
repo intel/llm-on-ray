@@ -22,7 +22,7 @@ from ray import serve
 from queue import Empty
 import torch
 from transformers import TextIteratorStreamer
-from typing import List, Union, Dict, Any
+from typing import List, Tuple, Union, Dict, Any
 from starlette.requests import Request
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
@@ -98,6 +98,11 @@ class PredictorDeployment:
 
     # Handle streaming, only support single prompt
     async def handle_streaming(self, prompt: str, config: Dict[str, Any]) -> StreamingResponse:
+        if isinstance(prompt, list):
+            return JSONResponse(
+                status_code=400,
+                content="Streaming response is not supported when multiple prompts are provided.",
+            )
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompt, self.streamer, **config)
             return StreamingResponse(
@@ -120,22 +125,87 @@ class PredictorDeployment:
                 self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
-    @serve.batch(max_batch_size=4)
-    async def handle_dynamic_batch(self, prompts: List[str]):
-        logger.info(f"Handling dynamic batch (size={len(prompts)}) ...")
-        return await self.predictor.generate_async(prompts, **self.batch_config)
+    # Handle non-streaming, support single and multiple prompts
+    async def handle_non_streaming(self, json_request: Dict[str, Any]) -> Union[JSONResponse, str]:
+        # already checked text is not emptpy
+        text = json_request["text"]
+        config = json_request["config"] if "config" in json_request else {}
+        if not isinstance(text, list) and not isinstance(text, str):
+            return JSONResponse(
+                status_code=400,
+                content="Invalid prompt format from the request.",
+            )
 
-    async def handle_static_batch(self, prompts: List[str]):
+        # return prompt or list of prompts preprocessed
+        prompts = self.preprocess_prompts(
+            text, return_list=self.use_vllm or self.process_tool is not None
+        )
+
+        # Use vllm for continuous batching
+        if self.use_vllm:
+            return await self.predictor.generate_async(prompts, **config)
+        else:
+            # static batching
+            if isinstance(prompts, list):
+                return await self.handle_static_batch(prompts, **config)
+            # dynamic batching
+            return await self.handle_dynamic_batch(prompts)
+
+        return JSONResponse(status_code=400, content="Error when handling non-streaming request.")
+
+    # TODO: get max_batch_size from the serve config
+    @serve.batch(max_batch_size=4)
+    async def handle_dynamic_batch(self, json_requests: List[Dict[str, Any]]):
+        logger.info(f"Handling dynamic batch (size={len(json_requests)}) ...")
+
+        # batch prompts that configs are the same and also save request index
+        batched_prompts: Dict[str, Tuple[List[str], List[int]]] = {}
+        for i, json_request in enumerate(json_requests):
+            prompt = json_request["text"]
+            config = json_request["config"] if "config" in json_request else {}
+            key = str(config)
+            batched_prompts[key] = batched_prompts.get(str(config), ([], []))
+            batched_prompts[key][0].append(prompt)
+            batched_prompts[key][1].append(i)
+
+        print(batched_prompts)
+
+        # return results of each batch and fill in final results according to the request indices
+        results = [None] * len(json_requests)
+        for key, (prompts, indices) in batched_prompts.items():
+            config = eval(key)
+            batch_results = await self.predictor.generate_async(prompts, **config)
+            for index, result in zip(indices, batch_results):
+                results[index] = result
+        return results
+
+    async def handle_static_batch(self, prompts: List[str], **config: Dict[str, Any]):
         logger.info(f"Handling static batch (size={len(prompts)}) ...")
         # Still use dynamic batching for vllm
         if self.use_vllm:
-            return await self.predictor.generate_async(prompts, **self.batch_config)
+            return await self.predictor.generate_async(prompts, **config)
         else:
-            return self.predictor.generate(prompts, **self.batch_config)
+            return self.predictor.generate(prompts, **config)
 
     def preprocess_prompts(
         self, text: Union[str, List[str]], return_list=True
     ) -> Union[str, List[str], None]:
+        """
+        Preprocesses the prompts for non-streaming inference.
+
+        Args:
+            text (Union[str, List[str]]): The input text or list of texts to be preprocessed.
+            return_list (bool, optional): Whether to return the preprocessed prompts as a list. Defaults to True.
+
+        Returns:
+            Union[str, List[str], None]: The preprocessed prompts.
+            If the input `text` is a list, the preprocessed prompt is always returned as a list except it's processed by
+                process tool and return_list is False.
+            If the input `text` is a str,
+                If `return_list` is True, a list of preprocessed prompts is returned.
+                If `return_list` is False, a single preprocessed prompt is returned as a string.
+
+        """
         if isinstance(text, list):
             prompts = []
             prompt_format = get_prompt_format(text)
@@ -155,36 +225,28 @@ class PredictorDeployment:
         return None
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
-        json_request: Dict[str, Any] = await http_request.json()
-        text = json_request["text"]
+        try:
+            json_request: Dict[str, Any] = await http_request.json()
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content="Invalid JSON format from http request.",
+            )
+
+        streaming_response = json_request["stream"] if "stream" in json_request else False
+        text = json_request["text"] if "text" in json_request else ""
+        if text == "":
+            return JSONResponse(
+                status_code=400,
+                content="Empty prompt is not supported.",
+            )
         config = json_request["config"] if "config" in json_request else {}
-        streaming_response = json_request["stream"]
 
         # Handle streaming response
         if streaming_response:
-            if isinstance(text, list):
-                return JSONResponse(
-                    status_code=400,
-                    content="Streaming response is not supported when multiple prompts are provided.",
-                )
-            else:
-                return await self.handle_streaming(text, config)
+            return await self.handle_streaming(text, config)
 
-        if not isinstance(text, list) and not isinstance(text, str):
-            return JSONResponse(
-                status_code=400,
-                content="Invalid prompt format.",
-            )
-
-        prompts = self.preprocess_prompts(text, return_list=self.use_vllm)
-        if self.use_vllm:
-            return await self.predictor.generate_async(prompts, **config)
-        else:
-            # Dynamic batching, one request contains one prompt, server will batch multiple requests
-            # TODO: config should be the same accross requests in a batch
-            self.batch_config = config
-            # input text directly, batching will form List[str]
-            return await self.handle_dynamic_batch(text)
+        return await self.handle_non_streaming(json_request)
 
     async def openai_call(self, prompt, config, streaming_response=True):
         prompts = []
