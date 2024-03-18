@@ -18,7 +18,7 @@ deepspeed=false
 case $(echo $1 | tr 'a-z' 'A-Z') in
     "CPU")
         hardware=1
-        pip install .[cpu] -f https://developer.intel.com/ipex-whl-stable-cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
         ;;
     "GPU")
         pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
