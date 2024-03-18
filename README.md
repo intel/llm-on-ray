@@ -5,14 +5,14 @@ LLM-on-Ray is a comprehensive solution designed to empower users in building, cu
 
 LLM-on-Ray harnesses the power of Ray, an industry-leading framework for distributed computing, to scale your AI workloads efficiently. This integration ensures robust fault tolerance and cluster resource management, making your LLM projects more resilient and scalable.
 
-LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[Deepspeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more.
+LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[DeepSpeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more.
 
 ## Solution Technical Overview
 LLM-on-Ray's modular workflow structure is designed to comprehensively cater to the various stages of LLM development, from pretraining and finetuning to serving. These workflows are intuitive, highly configurable, and tailored to meet the specific needs of each phase in the LLM lifecycle:
 
 * **Pretraining Workflow**: Provides the infrastructure to build LLMs from scratch.
     * **Data Preparation**: Includes a suite of tools for preparing your training data which facilitate tasks like the removal of Personally Identifiable Information (PII), data deduplication (Dedup), and other preprocessing needs, making the data safe and efficient for training.
-    * **Megatron-Deepspeed Integration**: Leverages the power of Megatron-Deepspeed to enable advanced capabilities such as pipeline parallelism, tensor parallelism, data parallelism, and Zero Redundancy Optimizer (ZeRO). This integration facilitates efficient and scalable model training from the ground up.
+    * **Megatron-DeepSpeed Integration**: Leverages the power of Megatron-DeepSpeed to enable advanced capabilities such as pipeline parallelism, tensor parallelism, data parallelism, and Zero Redundancy Optimizer (ZeRO). This integration facilitates efficient and scalable model training from the ground up.
     * **Robust Fault Tolerance**: Offers automatic fault tolerance powered by Ray. This ensures high availability, reliability, and optimal performance for large scale pretraining.
 
 
@@ -114,7 +114,7 @@ The following are detailed guidelines for pretraining, finetuning and serving LL
 
 ### Serving
 * [Deploy and Serve LLMs on Intel CPU/GPU/Gaudi](docs/serve.md)
-* [Deploy and Serve LLMs with Deepspeed](docs/serve_deepspeed.md)
+* [Deploy and Serve LLMs with DeepSpeed](docs/serve_deepspeed.md)
 * [Deploy and Serve LLMs with BigDL-LLM](docs/serve_bigdl.md)
 
 ### Web UI
