@@ -53,7 +53,8 @@ def script_with_args(
     if top_k is not None:
         cmd_openai.extend(["--top_k", str(top_k)])
 
-    subprocess.run(cmd_openai, capture_output=True, text=True)
+    subprocess.run(cmd_openai)
+    # result_query_single = subprocess.run(cmd_openai, capture_output=True, text=True)
 
     # # Print the output of subprocess.run for checking if output is expected
     # print(result_query_single)
