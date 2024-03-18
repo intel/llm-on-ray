@@ -26,7 +26,7 @@ ray start --head
 # Step 3: Serving
 # take gpt2 for example
 echo "Step 3: Serving"
-echo "Starting ray server for gpt2 with 3 cpu per worker"
+echo "Starting ray server for gpt2 with 1 cpu per worker"
 llm_on_ray-serve --config_file .github/workflows/config/gpt2-ci.yaml
 
 # Step 4: Access OpenAI API
