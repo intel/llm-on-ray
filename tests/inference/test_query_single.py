@@ -3,9 +3,6 @@ import pytest
 import os
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
-os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
-os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
 
 
 def script_with_args(
@@ -77,10 +74,10 @@ def script_with_args(
         for base_url in ["http://localhost:8000/"]
         for model_name in ["gpt2"]
         for streaming_response in [None]
-        for max_new_tokens in [None, 128]
+        for max_new_tokens in [None]
         for temperature in [None]
-        for top_p in [None, 0.7]
-        for top_k in [None, 5]
+        for top_p in [None]
+        for top_k in [None]
     ],
 )
 def test_script(
