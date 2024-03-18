@@ -8,18 +8,18 @@ os.environ["no_proxy"] = "localhost,127.0.0.1"
 def script_with_args(
     base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
-    os.path.dirname(os.path.abspath(__file__))
+    current_path = os.path.dirname(os.path.abspath(__file__))
 
-    # config_path = os.path.join(
-    #     current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
-    # )
+    config_path = os.path.join(
+        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
+    )
 
-    # cmd_serve = ["llm_on_ray-serve", "--config_file", config_path, "--simple"]
+    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path, "--simple"]
 
-    # result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+    result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
-    # # Print the output of subprocess.run for checking if output is expected
-    # print(result_serve)
+    # Print the output of subprocess.run for checking if output is expected
+    print(result_serve)
 
     # # Ensure there are no errors in the serve script execution
     # assert "Error" not in result_serve.stderr
