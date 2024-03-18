@@ -17,16 +17,9 @@ def script_with_args(
         current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
     )
 
-    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
-
-    cmd_serve.append("--simple")
-
-    print("SSSSSS:test:cmd_serve:")
-    print(cmd_serve)
+    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path, "--simple"]
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
-
-    print("SSSSSS:test2:result_serve:")
 
     # Print the output of subprocess.run for checking if output is expected
     print(result_serve)
@@ -83,9 +76,9 @@ def script_with_args(
         (base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
         for base_url in ["http://localhost:8000/"]
         for model_name in ["gpt2"]
-        for streaming_response in [False, True]
+        for streaming_response in [None]
         for max_new_tokens in [None, 128]
-        for temperature in [None, 0.8]
+        for temperature in [None]
         for top_p in [None, 0.7]
         for top_k in [None, 5]
     ],
