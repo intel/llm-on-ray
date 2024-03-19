@@ -138,8 +138,9 @@ class PredictorDeployment:
 
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(
-            text, return_list=self.use_vllm or self.process_tool is not None
+            text, return_list=(self.use_vllm or (self.process_tool is not None))
         )
+        logger.info(prompts)
 
         # Use vllm for continuous batching
         if self.use_vllm:
@@ -149,7 +150,7 @@ class PredictorDeployment:
             if isinstance(prompts, list):
                 return await self.handle_static_batch(prompts, **config)
             # dynamic batching
-            return await self.handle_dynamic_batch(prompts)
+            return await self.handle_dynamic_batch(json_request)
 
         return JSONResponse(status_code=400, content="Error when handling non-streaming request.")
 
@@ -168,20 +169,21 @@ class PredictorDeployment:
             batched_prompts[key][0].append(prompt)
             batched_prompts[key][1].append(i)
 
-        print(batched_prompts)
+        logger.debug("Batched prompts: ", batched_prompts)
 
         # return results of each batch and fill in final results according to the request indices
         results = [None] * len(json_requests)
         for key, (prompts, indices) in batched_prompts.items():
             config = eval(key)
-            batch_results = await self.predictor.generate_async(prompts, **config)
+            # use transformers predictor for batch generation
+            batch_results = self.predictor.generate(prompts, **config)
             for index, result in zip(indices, batch_results):
                 results[index] = result
         return results
 
     async def handle_static_batch(self, prompts: List[str], **config: Dict[str, Any]):
         logger.info(f"Handling static batch (size={len(prompts)}) ...")
-        # Still use dynamic batching for vllm
+        # Use vllm predictor for batch generation
         if self.use_vllm:
             return await self.predictor.generate_async(prompts, **config)
         else:
@@ -220,7 +222,7 @@ class PredictorDeployment:
                 prompts.extend(text)
                 return prompts
         else:
-            return [text] if return_list else text
+            return text
 
         return None
 
