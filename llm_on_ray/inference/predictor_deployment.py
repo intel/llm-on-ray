@@ -137,10 +137,7 @@ class PredictorDeployment:
             )
 
         # return prompt or list of prompts preprocessed
-        prompts = self.preprocess_prompts(
-            text, return_list=(self.use_vllm or (self.process_tool is not None))
-        )
-        logger.info(prompts)
+        prompts = self.preprocess_prompts(text)
 
         # Use vllm for continuous batching
         if self.use_vllm:
@@ -189,24 +186,15 @@ class PredictorDeployment:
         else:
             return self.predictor.generate(prompts, **config)
 
-    def preprocess_prompts(
-        self, text: Union[str, List[str]], return_list=True
-    ) -> Union[str, List[str], None]:
+    def preprocess_prompts(self, text: Union[str, List[str]]) -> Union[str, List[str], None]:
         """
         Preprocesses the prompts for non-streaming inference.
 
         Args:
             text (Union[str, List[str]]): The input text or list of texts to be preprocessed.
-            return_list (bool, optional): Whether to return the preprocessed prompts as a list. Defaults to True.
 
         Returns:
             Union[str, List[str], None]: The preprocessed prompts.
-            If the input `text` is a list, the preprocessed prompt is always returned as a list except it's processed by
-                process tool and return_list is False.
-            If the input `text` is a str,
-                If `return_list` is True, a list of preprocessed prompts is returned.
-                If `return_list` is False, a single preprocessed prompt is returned as a string.
-
         """
         if isinstance(text, list):
             prompts = []
@@ -214,7 +202,7 @@ class PredictorDeployment:
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
                     prompt = self.process_tool.get_prompt(text)
-                    return [prompt] if return_list else prompt
+                    return [prompt] if self.use_vllm else prompt
                 else:
                     prompts.extend(text)
                     return prompts
@@ -222,7 +210,7 @@ class PredictorDeployment:
                 prompts.extend(text)
                 return prompts
         else:
-            return text
+            return [text] if self.use_vllm else text
 
         return None
 

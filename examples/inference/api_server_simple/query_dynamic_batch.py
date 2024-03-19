@@ -82,9 +82,10 @@ prompts = [
     "My best talent is",
 ]
 
-config2 = {"max_new_tokens": 64}
+config1 = {"max_new_tokens": 20}
+config2 = {"max_new_tokens": 10}
 
-configs = [config2] * 2 + [config] * (len(prompts) - 2)
+configs = [config1] * 5 + [config2] * (len(prompts) - 5)
 
 
 async def send_all_query(endpoint, prompts, configs):
