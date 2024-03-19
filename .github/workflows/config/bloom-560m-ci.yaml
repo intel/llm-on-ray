@@ -1,0 +1,21 @@
+port: 8000
+name: bloom-560m
+route_prefix: /bloom-560m
+num_replicas: 1
+cpus_per_worker: 1
+gpus_per_worker: 0
+deepspeed: false
+workers_per_group: 2
+device: CPU
+ipex:
+  enabled: true
+  precision: bf16
+model_description:  
+  model_id_or_path: bigscience/bloom-560m
+  tokenizer_name_or_path: bigscience/bloom-560m
+  chat_processor: ChatModelGptJ
+  prompt:
+    intro: ''
+    human_id: ''
+    bot_id: ''
+    stop_words: []

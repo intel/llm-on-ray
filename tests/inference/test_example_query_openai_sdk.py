@@ -26,10 +26,17 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 
-    # Print the output of subprocess.run for checking if output is expected
-    print(result_serve)
-
     # Ensure there are no errors in the serve script execution
+    try:
+        assert result_serve.returncode == 0, print(
+            "\n" + "Serve error stderr message: " + "\n", result_serve.stderr
+        )
+    except AssertionError:
+        print("\n" + "Serve error stdout message: " + "\n", result_serve.stdout)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print("\n" + "Serve message: " + "\n", result_serve.stdout)
+
     assert "Error" not in result_serve.stderr
 
     example_openai_path = os.path.join(
@@ -57,10 +64,15 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
 
     result_openai = subprocess.run(cmd_openai, capture_output=True, text=True)
 
-    # Print the output of subprocess.run for checking if output is expected
-    print(result_openai)
-
     # Ensure there are no errors in the OpenAI API query script execution
+    try:
+        assert result_openai.returncode == 0, print(result_serve.stderr)
+    except AssertionError:
+        print(result_openai.stdout)
+
+    # Print the output of subprocess.run for checking if output is expected
+    print("\n" + "Model in Http output message: " + "\n", result_openai.stdout)
+
     assert "Error" not in result_openai.stderr
 
     assert isinstance(result_openai.stdout, str)
@@ -74,7 +86,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
     [
         (api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)
         for api_base in ["http://localhost:8000/v1"]
-        for model_name in ["gpt2"]
+        for model_name in ["gpt2", "bloom-560m", "opt-125m"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
         for temperature in [0.0, None, 0.8]
@@ -82,12 +94,4 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
     ],
 )
 def test_script(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
-    from huggingface_hub import snapshot_download
-
-    snapshot_download(
-        repo_id="meta-llama/Llama-2-7b-chat-hf",
-        local_dir="./hg_cache/meta-llama/Llama-2-7b-chat-hf",
-        local_dir_use_symlinks=False,
-        token="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",
-    )
     script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)
