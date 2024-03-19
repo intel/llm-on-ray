@@ -157,11 +157,10 @@ def main(argv=None):
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.
         serve_run(deployments, model_list)
-        # else:
-        # provide OpenAI compatible api to run LLM models
-        # all models are served under the same URL and then accessed
-        # through model_id, so it needs to pass in a unified URL.
 
+    # provide OpenAI compatible api to run LLM models
+    # all models are served under the same URL and then accessed
+    # through model_id, so it needs to pass in a unified URL.
     host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
     rp = args.route_prefix if args.route_prefix else ""
     route_prefix = "/{}".format(rp)
