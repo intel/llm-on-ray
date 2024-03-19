@@ -70,6 +70,13 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
+        if args.model_id_or_path is None and args.config_file is None:
+            if "mistral-7b-v0.1" in args.models:
+               ray_actor_options["runtime_env"]["pip"] = ["transformers==4.35.0"]
+        else:
+            if "mistral-7b-v0.1.yaml" in args.config_file:
+                ray_actor_options["runtime_env"]["pip"] = ["transformers==4.35.0"]
+
         deployments[model_id] = PredictorDeployment.options(
             num_replicas=infer_conf.num_replicas, ray_actor_options=ray_actor_options
         ).bind(infer_conf)
