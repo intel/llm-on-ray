@@ -21,10 +21,13 @@ jobs:
     uses: ./.github/workflows/workflow_lint.yml
 
   Tests:
+    needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
   Inference:
+    needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
 
   Finetune:
+    needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml
