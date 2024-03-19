@@ -71,7 +71,7 @@ def script_with_args(api_base, model_name, streaming_response, max_new_tokens, t
         print(result_openai.stdout)
 
     # Print the output of subprocess.run for checking if output is expected
-    print("\n" + "Model in Http output message: " + "\n", result_openai.stdout)
+    print("\n" + "Model in Openai output message: " + "\n", result_openai.stdout)
 
     assert "Error" not in result_openai.stderr
 
