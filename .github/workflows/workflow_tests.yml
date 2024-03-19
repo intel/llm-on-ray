@@ -8,6 +8,84 @@ on:
         default: 'pr'
 
 jobs:
+  setup-test:
+
+    name: setup-test
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{matrix.python-version}}
+          architecture: 'x64'
+
+      - name: Display Python version
+        run: |
+          python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies for tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+          # Dynamic link oneCCL and Intel MPI libraries
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
+          # Additional libraries required for pytest
+          pip install -r ./tests/requirements.txt
+
+      - name: Run Test for Setup
+        run: |
+          ./tests/test_setup.sh CPU false
+
+  getting-started-test:
+
+    name: getting-started-test
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{matrix.python-version}}
+          architecture: 'x64'
+
+      - name: Display Python version
+        run: |
+          python -c "import sys; print(sys.version)"
+
+      - name: Install dependencies for tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+          # Dynamic link oneCCL and Intel MPI libraries
+          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
+          # Additional libraries required for pytest
+          pip install -r ./tests/requirements.txt
+
+      - name: Run Test for Getting Started
+        run: |
+          ./tests/test_getting_started.sh
+
   bare-test:
 
     name: bare-test
@@ -16,6 +94,10 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     runs-on: ubuntu-latest
+
+    env:
+      SHELL: bash -eo pipefail
+      
     defaults:
       run:
         shell: bash
@@ -59,6 +141,9 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     runs-on: ubuntu-latest
+
+    env:
+      SHELL: bash -eo pipefail
 
     defaults:
       run:
