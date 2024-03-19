@@ -74,7 +74,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
     "model_name,streaming_response,max_new_tokens,temperature,top_p",
     [
         (model_name, streaming_response, max_new_tokens, temperature, top_p)
-        for model_name in ["gpt2", "bloom-560m", "opt-125m"]
+        for model_name in ["bloom-560m", "opt-125m", "gpt2"]
         for streaming_response in [False, True]
         for max_new_tokens in [None, 128]
         for temperature in [None, 0.8]
