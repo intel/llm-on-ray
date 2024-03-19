@@ -161,7 +161,8 @@ class PredictorDeployment:
         for i, json_request in enumerate(json_requests):
             prompt = json_request["text"]
             config = json_request["config"] if "config" in json_request else {}
-            key = str(config)
+            # sort the config by key to ensure the key is unique
+            key = str(sorted(config))
             batched_prompts[key] = batched_prompts.get(str(config), ([], []))
             batched_prompts[key][0].append(prompt)
             batched_prompts[key][1].append(i)
