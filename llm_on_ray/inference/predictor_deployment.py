@@ -268,11 +268,11 @@ class PredictorDeployment:
                 generate_result = (await self.predictor.generate_async(prompts, **config))[0]
                 generate_text = generate_result.text
             elif self.is_mllm:
-                generate_result = self.predictor.generate(images, prompts, **config)
-                generate_text = generate_result.text[0]
+                generate_result = self.predictor.generate(images, prompts, **config)[0]
+                generate_text = generate_result.text
             else:
-                generate_result = self.predictor.generate(prompts, **config)
-                generate_text = generate_result.text[0]
+                generate_result = self.predictor.generate(prompts, **config)[0]
+                generate_text = generate_result.text
             model_response = ModelResponse(
                 generated_text=generate_text,
                 num_input_tokens=generate_result.input_length,
