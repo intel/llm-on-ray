@@ -146,7 +146,7 @@ jobs:
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
