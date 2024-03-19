@@ -29,6 +29,7 @@ jobs:
       env:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
+        SHELL: bash -eo pipefail
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
