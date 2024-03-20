@@ -27,7 +27,7 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
 from llm_on_ray.inference.inference_config import InferenceConfig
-from llm_on_ray.inference.api_openai_backend.openai_protocol import ModelResponse
+from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage, ModelResponse
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
 from llm_on_ray.inference.logger import get_logger
 
@@ -60,6 +60,9 @@ class PredictorDeployment:
         self.use_deepspeed = infer_conf.deepspeed
         self.use_vllm = infer_conf.vllm.enabled
         self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
+
+        self.use_batching = True
+        self.use_openai = True
 
         if self.use_deepspeed:
             from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
@@ -97,91 +100,124 @@ class PredictorDeployment:
                 await asyncio.sleep(0.001)
 
     # Handle streaming, only support single prompt
-    async def handle_streaming(self, prompt: str, config: Dict[str, Any]) -> StreamingResponse:
+    async def handle_streaming(self, prompt: str, config: Dict[str, Any]):
         if isinstance(prompt, list):
-            return JSONResponse(
+            yield JSONResponse(
                 status_code=400,
                 content="Streaming response is not supported when multiple prompts are provided.",
             )
         if self.use_deepspeed:
             self.predictor.streaming_generate(prompt, self.streamer, **config)
-            return StreamingResponse(
-                self.consume_streamer(), status_code=200, media_type="text/plain"
-            )
+            if not self.use_openai:
+                yield StreamingResponse(
+                    self.consume_streamer(), status_code=200, media_type="text/plain"
+                )
+            else:
+                async for output in self.consume_streamer_async(self.streamer):
+                    model_response = ModelResponse(
+                        generated_text=output,
+                        num_input_tokens=self.predictor.input_length,
+                        num_input_tokens_batch=self.predictor.input_length,
+                        num_generated_tokens=1,
+                        preprocessing_time=0,
+                    )
+                    yield model_response
         elif self.use_vllm:
             results_generator = await self.predictor.streaming_generate_async(prompt, **config)
-            return StreamingResponse(
-                self.predictor.stream_results(results_generator),
-                status_code=200,
-                media_type="text/plain",
-            )
+            if not self.use_openai:
+                yield StreamingResponse(
+                    self.predictor.stream_results(results_generator),
+                    status_code=200,
+                    media_type="text/plain",
+                )
+            else:
+                async for output in self.predictor.stream_results(results_generator):
+                    model_response = ModelResponse(
+                        generated_text=output,
+                        num_input_tokens=self.predictor.input_length,
+                        num_input_tokens_batch=self.predictor.input_length,
+                        num_generated_tokens=1,
+                        preprocessing_time=0,
+                    )
+                    yield model_response
         else:
             streamer = self.predictor.get_streamer()
             self.loop.run_in_executor(
                 None,
                 functools.partial(self.predictor.streaming_generate, prompt, streamer, **config),
             )
-            return StreamingResponse(
-                self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
-            )
+            if not self.use_openai:
+                yield StreamingResponse(
+                    self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
+                )
+            else:
+                async for output in self.consume_streamer_async(streamer):
+                    model_response = ModelResponse(
+                        generated_text=output,
+                        num_input_tokens=self.predictor.input_length,
+                        num_input_tokens_batch=self.predictor.input_length,
+                        num_generated_tokens=1,
+                        preprocessing_time=0,
+                    )
+                    yield model_response
 
-    async def handle_streaming_openai(
-        self, text: List[str], images: List[str], config: Dict[str, Any]
-    ) -> AsyncGenerator[ModelResponse, None]:
-        if self.is_mllm:
-            prompts, images = self.preprocess_prompts_openai(text)
-        else:
-            prompts = self.preprocess_prompts(text)
+    # async def handle_streaming_openai(
+    #     self, text: List[str], images: List[str], config: Dict[str, Any]
+    # ) -> AsyncGenerator[ModelResponse, None]:
+    #     if self.is_mllm:
+    #         prompts, images = self.preprocess_prompts_openai(text)
+    #     else:
+    #         prompts = self.preprocess_prompts(text)
 
-        if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
-            response_handle = self.consume_streamer_async(self.streamer)
-        elif self.use_vllm:
-            prompt = prompts[0]
-            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
-            response_handle = self.predictor.stream_results(results_generator)
-        elif self.is_mllm:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(
-                    self.predictor.streaming_generate, images, prompts, streamer, **config
-                ),
-            )
-            response_handle = self.consume_streamer_async(streamer)
-        else:
-            streamer = self.predictor.get_streamer()
-            self.loop.run_in_executor(
-                None,
-                functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
-            )
-            response_handle = self.consume_streamer_async(streamer)
-        input_length = self.predictor.input_length
-        async for output in response_handle:
-            if not input_length:
-                input_length = self.predictor.input_length
-            model_response = ModelResponse(
-                generated_text=output,
-                num_input_tokens=input_length,
-                num_input_tokens_batch=input_length,
-                num_generated_tokens=1,
-                preprocessing_time=0,
-            )
-            yield model_response
+    #     if self.use_deepspeed:
+    #         self.predictor.streaming_generate(prompts, self.streamer, **config)
+    #         response_handle = self.consume_streamer_async(self.streamer)
+    #     elif self.use_vllm:
+    #         prompt = prompts[0]
+    #         results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+    #         response_handle = self.predictor.stream_results(results_generator)
+    #     elif self.is_mllm:
+    #         streamer = self.predictor.get_streamer()
+    #         self.loop.run_in_executor(
+    #             None,
+    #             functools.partial(
+    #                 self.predictor.streaming_generate, images, prompts, streamer, **config
+    #             ),
+    #         )
+    #         response_handle = self.consume_streamer_async(streamer)
+    #     else:
+    #         streamer = self.predictor.get_streamer()
+    #         self.loop.run_in_executor(
+    #             None,
+    #             functools.partial(self.predictor.streaming_generate, prompts, streamer, **config),
+    #         )
+    #         response_handle = self.consume_streamer_async(streamer)
+    #     input_length = self.predictor.input_length
+    #     async for output in response_handle:
+    #         if not input_length:
+    #             input_length = self.predictor.input_length
+    #         model_response = ModelResponse(
+    #             generated_text=output,
+    #             num_input_tokens=input_length,
+    #             num_input_tokens_batch=input_length,
+    #             num_generated_tokens=1,
+    #             preprocessing_time=0,
+    #         )
+    #         yield model_response
 
     # Handle non-streaming, support single and multiple prompts
-    async def handle_non_streaming(self, json_request: Dict[str, Any]) -> Union[JSONResponse, str]:
+    async def handle_non_streaming(self, prompts, config) -> Union[JSONResponse, str]:
         # already checked text is not emptpy
-        text = json_request["text"]
-        config = json_request["config"] if "config" in json_request else {}
-        if not isinstance(text, list) and not isinstance(text, str):
-            return JSONResponse(
-                status_code=400,
-                content="Invalid prompt format from the request.",
-            )
+        # text = json_request["text"]
+        # config = json_request["config"] if "config" in json_request else {}
+        # if not isinstance(text, list) and not isinstance(text, str):
+        #     return JSONResponse(
+        #         status_code=400,
+        #         content="Invalid prompt format from the request.",
+        #     )
 
-        # return prompt or list of prompts preprocessed
-        prompts = self.preprocess_prompts(text)
+        # # return prompt or list of prompts preprocessed
+        # prompts = self.preprocess_prompts(text)
 
         # Use vllm for continuous batching
         if self.use_vllm:
@@ -191,100 +227,122 @@ class PredictorDeployment:
             if isinstance(prompts, list):
                 return await self.handle_static_batch(prompts, **config)
             # dynamic batching
-            return await self.handle_dynamic_batch(json_request)
+            return await self.handle_dynamic_batch((prompts, config))
 
         return JSONResponse(status_code=400, content="Error when handling non-streaming request.")
 
     # TODO: get max_batch_size from the serve config
     @serve.batch(max_batch_size=4)
-    async def handle_dynamic_batch(self, json_requests: List[Dict[str, Any]]):
-        logger.info(f"Handling dynamic batch (size={len(json_requests)}) ...")
+    async def handle_dynamic_batch(self, requests):
+        logger.info(f"Handling dynamic batch (size={len(requests)}) ...")
 
         # batch prompts that configs are the same and also save request index
-        batched_prompts: Dict[str, Tuple[List[str], List[int]]] = {}
-        for i, json_request in enumerate(json_requests):
-            prompt = json_request["text"]
-            config = json_request["config"] if "config" in json_request else {}
-            # sort the config by key to ensure the key is unique
-            key = str(sorted(config))
+        batched_prompts: Dict[str, Tuple[Union[str, List[str]], List[int]]] = {}
+        for i, request in enumerate(requests):
+            prompt = request[0]
+            config = request[1]
+            # sort the config by key and convert to str to ensure the key is unique
+            key = str(dict(sorted(config.items())))
             batched_prompts[key] = batched_prompts.get(str(config), ([], []))
             batched_prompts[key][0].append(prompt)
             batched_prompts[key][1].append(i)
 
-        print("Batched prompts: ", batched_prompts)
+        logger.debug("Batched prompts: ", batched_prompts)
 
         # return results of each batch and fill in final results according to the request indices
-        results = [None] * len(json_requests)
+        results = [None] * len(requests)
         for key, (prompts, indices) in batched_prompts.items():
-            config = eval(key)
+            config = dict(eval(key))
             # use transformers predictor for batch generation
             batch_results = self.predictor.generate(prompts, **config)
             for index, result in zip(indices, batch_results):
                 results[index] = result
-        return results
+        if not self.use_openai:
+            return results
+        else:
+            return [
+                ModelResponse(
+                    generated_text=result,
+                    num_input_tokens=self.predictor.input_length,
+                    num_input_tokens_batch=self.predictor.input_length,
+                    num_generated_tokens=result.generate_length,
+                    preprocessing_time=0,
+                )
+                for result in results
+            ]
 
     async def handle_static_batch(self, prompts: List[str], **config: Dict[str, Any]):
         logger.info(f"Handling static batch (size={len(prompts)}) ...")
         # Use vllm predictor for batch generation
         if self.use_vllm:
-            return await self.predictor.generate_async(prompts, **config)
+            results = await self.predictor.generate_async(prompts, **config)
+            if not self.use_openai:
+                return results
+            else:
+                # TODO: Output responses for a batch
+                ModelResponse(
+                    generated_text=results[0].text,
+                    num_input_tokens=results[0].input_length,
+                    num_input_tokens_batch=results[0].input_length,
+                    num_generated_tokens=results[0].generate_length,
+                    preprocessing_time=0,
+                )
         else:
-            return self.predictor.generate(prompts, **config)
+            # TODO: Output responses for a batch
+            results = self.predictor.generate(prompts, **config)
+            if not self.use_openai:
+                return results
+            else:
+                return ModelResponse(
+                    generated_text=results[0].text,
+                    num_input_tokens=results[0].input_length,
+                    num_input_tokens_batch=results[0].input_length,
+                    num_generated_tokens=results[0].generate_length,
+                    preprocessing_time=0,
+                )
 
-    def preprocess_prompts(self, text: Union[str, List[str]]) -> Union[str, List[str], None]:
+    def preprocess_prompts(self, input: Union[str, List[str]]):
         """
-        Preprocesses the prompts for non-streaming inference.
+        Preprocesses the input prompts.
 
         Args:
-            text (Union[str, List[str]]): The input text or list of texts to be preprocessed.
+            input (Union[str, List[str]]): The input prompt(s) to be preprocessed.
 
         Returns:
-            Union[str, List[str], None]: The preprocessed prompts.
+            Union[str, Tuple[List[str], List[str]]]: The preprocessed prompt(s).
+
+        Raises:
+            HTTPException: If the input prompt format is invalid or not supported.
         """
-        if isinstance(text, list):
-            prompts = []
-            prompt_format = get_prompt_format(text)
-            if prompt_format == PromptFormat.CHAT_FORMAT:
-                if self.process_tool is not None:
-                    prompt = self.process_tool.get_prompt(text)
-                    return [prompt] if self.use_vllm else prompt
-                else:
-                    prompts.extend(text)
-                    return prompts
-            elif prompt_format == PromptFormat.PROMPTS_FORMAT:
-                prompts.extend(text)
-                return prompts
-        else:
-            return [text] if self.use_vllm else text
-
-        return None
-
-    def preprocess_prompts_openai(self, text: Union[str, List[str]]):
-        if isinstance(text, list):
+        if isinstance(input, str):
+            return input
+        elif isinstance(input, list):
             prompts = []
             images = []
-            prompt_format = get_prompt_format(text)
+            prompt_format = get_prompt_format(input)
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 if self.process_tool is not None:
                     if self.is_mllm:
-                        prompt, image = self.process_tool.get_prompt(text)
-                        prompts.append(prompt)
+                        input, image = self.process_tool.get_prompt(input)
+                        prompts.append(input)
                         images.extend(image)
                         return prompts, images
                     else:
-                        prompt = self.process_tool.get_prompt(text)
-                        prompts.append(prompt)
+                        input = self.process_tool.get_prompt(input)
+                        prompts.append(input)
                 else:
-                    prompts.extend(text)
+                    prompts.extend(input)
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
-                prompts.extend(text)
+                prompts.extend(input)
+            else:
+                raise HTTPException(400, "Invalid prompt format.")
             return prompts
         else:
-            return [text] if self.use_vllm else text
-
-        return None
+            raise HTTPException(400, "Invalid prompt format.")
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
+        self.use_openai = False
+
         try:
             json_request: Dict[str, Any] = await http_request.json()
         except ValueError:
@@ -294,80 +352,35 @@ class PredictorDeployment:
             )
 
         streaming_response = json_request["stream"] if "stream" in json_request else False
-        text = json_request["text"] if "text" in json_request else ""
-        if text == "":
+        input = json_request["text"] if "text" in json_request else ""
+        if input == "":
             return JSONResponse(
                 status_code=400,
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
 
+        # return prompt or list of prompts preprocessed
+        prompts = self.preprocess_prompts(input)
+
         # Handle streaming response
         if streaming_response:
-            return await self.handle_streaming(text, config)
+            async for result in self.handle_streaming(prompts, config):
+                return result
 
-        return await self.handle_non_streaming(json_request)
+        return await self.handle_non_streaming(prompts, config)
 
-    async def openai_call(self, text, config, streaming_response=True):
+    async def openai_call(
+        self, input: Union[str, List[ChatMessage]], config: Dict, streaming_response=True
+    ):
+        self.use_openai = True
+
+        # return prompt or list of prompts preprocessed
+        prompts = self.preprocess_prompts(input)
+
         # Handle streaming response
         if streaming_response:
-            yield await self.handle_streaming_openai(text, config)
+            async for result in self.handle_streaming(prompts, config):
+                yield result
         else:
-            # Handle non-streaming response
-            json_request = {"text": text, "config": config}
-            print(json_request)
-            result = await self.handle_non_streaming(json_request)
-            model_response = ModelResponse(
-                generated_text=result.text,
-                num_input_tokens=result.input_length,
-                num_input_tokens_batch=result.input_length,
-                num_generated_tokens=result.generate_length,
-                preprocessing_time=0,
-            )
-            yield model_response
-
-        # model_response = ModelResponse(
-        #         generated_text=generate_result.text,
-        #         num_input_tokens=generate_result.input_length,
-        #         num_input_tokens_batch=generate_result.input_length,
-        #         num_generated_tokens=generate_result.generate_length,
-        #         preprocessing_time=0,
-        #     )
-        # yield model_response
-
-        # prompts = []
-        # images = []
-        # if isinstance(prompt, list):
-        #     prompt_format = get_prompt_format(prompt)
-        #     if prompt_format == PromptFormat.CHAT_FORMAT:
-        #         if self.process_tool is not None:
-        #             if self.is_mllm:
-        #                 prompt, image = self.process_tool.get_prompt(prompt)
-        #                 prompts.append(prompt)
-        #                 images.extend(image)
-        #             else:
-        #                 prompt = self.process_tool.get_prompt(prompt)
-        #                 prompts.append(prompt)
-        #         else:
-        #             prompts.extend(prompt)
-        #     elif prompt_format == PromptFormat.PROMPTS_FORMAT:
-        #         yield HTTPException(
-        #             400, "Mulitple prompts are not supported when using openai compatible api."
-        #         )
-        #     else:
-        #         yield HTTPException(400, "Invalid prompt format.")
-        # else:
-        #     prompts.append(prompt)
-
-        # if not streaming_response:
-        #     if self.use_vllm:
-        #         generate_result = (await self.predictor.generate_async(prompts, **config))[0]
-        #         generate_text = generate_result.text
-        #     elif self.is_mllm:
-        #         generate_result = self.predictor.generate(images, prompts, **config)[0]
-        #         generate_text = generate_result.text
-        #     else:
-        #         generate_result = self.predictor.generate(prompts, **config)[0]
-        #         generate_text = generate_result.text
-
-        # else:
+            yield await self.handle_non_streaming(prompts, config)
