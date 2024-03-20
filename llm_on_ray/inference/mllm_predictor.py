@@ -38,6 +38,7 @@ class MllmPredictor(Predictor):
                 from habana_frameworks.torch.hpu import (
                     wrap_in_hpu_graph,
                 )  # pylint: disable=E0401
+
                 model = wrap_in_hpu_graph(model)
             else:
                 print("Warning: use_hpu_graphs is set to False. This will hurt the performance.")
