@@ -13,7 +13,7 @@ class HuggingFaceModelForCausalLM(Model):
         model = transformers.AutoModelForCausalLM.from_pretrained(
             name, torch_dtype=model_dtype, **model_config
         )
-        
+
         lora_config = config.get("lora_config", None)
         if lora_config:
             peft_config = LoraConfig(**lora_config)
