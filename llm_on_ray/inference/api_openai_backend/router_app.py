@@ -374,37 +374,23 @@ class Router:
                         msg = ChatMessage(role="assistant", tool_calls=results.tool_calls)
                         # deleting this fields so that they don't appear in the response
                         del msg.tool_call_id
-                        usage = UsageInfo.from_response(results.dict())
-
-                        return ChatCompletionResponse(
-                            id=request_id,
-                            object="chat.completion",
-                            model=body.model,
-                            choices=[
-                                ChatCompletionResponseChoice(
-                                    message=msg, index=0, finish_reason=results.finish_reason
-                                )
-                            ],
-                            usage=usage,
-                        )
                     else:
-                        usage = UsageInfo.from_response(results.dict())
+                        msg = ChatMessage(role="assistant", content=results.generated_text or "")
 
-                        return ChatCompletionResponse(
-                            id=request_id,
-                            object="chat.completion",
-                            model=body.model,
-                            choices=[
-                                ChatCompletionResponseChoice(
-                                    index=0,
-                                    message=ChatMessage(
-                                        role="assistant", content=results.generated_text or ""
-                                    ),
-                                    finish_reason=results.finish_reason,
-                                )
-                            ],
-                            usage=usage,
-                        )
+                    usage = UsageInfo.from_response(results.dict())
+                    return ChatCompletionResponse(
+                        id=request_id,
+                        object="chat.completion",
+                        model=body.model,
+                        choices=[
+                            ChatCompletionResponseChoice(
+                                index=0,
+                                message=msg,
+                                finish_reason=results.finish_reason,
+                            )
+                        ],
+                        usage=usage,
+                    )
 
     @router_app.get("/v1/health_check")
     async def health_check(self) -> bool:
