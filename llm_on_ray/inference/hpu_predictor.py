@@ -34,10 +34,6 @@
 import os
 import tempfile
 import ray
-from inference.torch_dist import (
-    TorchDistributedWorker,
-    init_torch_dist_process_group,
-)
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.util.placement_group import (
     placement_group,
@@ -48,17 +44,21 @@ from optimum.habana.checkpoint_utils import (
     model_on_meta,
     write_checkpoints_json,
 )
-from predictor import Predictor
-from inference.inference_config import (
-    InferenceConfig,
-    GenerateResult,
-)
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     AutoConfig,
     TextIteratorStreamer,
 )
+from llm_on_ray.inference.torch_dist import (
+    TorchDistributedWorker,
+    init_torch_dist_process_group,
+)
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    GenerateResult,
+)
+from llm_on_ray.inference.predictor import Predictor
 
 
 class HPUPredictor(Predictor):
