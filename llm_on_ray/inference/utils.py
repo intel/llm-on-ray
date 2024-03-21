@@ -14,9 +14,10 @@
 # limitations under the License.
 #
 
-from transformers import StoppingCriteria
+from transformers import StoppingCriteria, TextStreamer
+from ray.util.queue import Queue
 import torch
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
@@ -50,6 +51,35 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         # TODO add xpu
         pass
     return ray_actor_options
+
+
+class RayTextIteratorStreamer(TextStreamer):
+    def __init__(
+        self,
+        tokenizer,
+        skip_prompt: bool = False,
+        timeout: Optional[float] = None,
+        **decode_kwargs,
+    ):
+        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+        self.text_queue = Queue()
+        self.stop_signal = None
+        self.timeout = timeout
+
+    def on_finalized_text(self, text: str, stream_end: bool = False):
+        self.text_queue.put(text, timeout=self.timeout)
+        if stream_end:
+            self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        value = self.text_queue.get(timeout=self.timeout)
+        if value == self.stop_signal:
+            raise StopIteration()
+        else:
+            return value
 
 
 class StoppingCriteriaSub(StoppingCriteria):
