@@ -225,7 +225,7 @@ class PredictorDeployment:
         else:
             return [
                 ModelResponse(
-                    generated_text=result,
+                    generated_text=result.text,
                     num_input_tokens=self.predictor.input_length,
                     num_input_tokens_batch=self.predictor.input_length,
                     num_generated_tokens=result.generate_length,
