@@ -260,7 +260,7 @@ class DeepSpeedPredictor(Predictor):
         )
 
     def get_streamer(self):
-        from utils import RayTextIteratorStreamer
+        from llm_on_ray.inference.utils import RayTextIteratorStreamer
 
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 

@@ -233,7 +233,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.tokenizer = load_tokenizer(self.model, model_desc.tokenizer_name_or_path)
 
     def get_streamer(self):
-        from inference.utils import RayTextIteratorStreamer
+        from llm_on_ray.inference.utils import RayTextIteratorStreamer
 
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
