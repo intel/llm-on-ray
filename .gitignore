@@ -1,3 +1,6 @@
 __pycache__
 **.ipynb
 debug/
+*.json
+*.txt
+*.egg-info
