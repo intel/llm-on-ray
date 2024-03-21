@@ -64,6 +64,8 @@ class ChatModel:
 
     def get_prompt(self, messages):
         """Generate response based on messages."""
+        print("ChatModel get_prompt")
+        print("messages")
         prompt = self.prepare_prompt(messages)
         return prompt
 
@@ -101,6 +103,8 @@ class ChatModelLLama(ChatModel):
 
     def prepare_prompt(self, messages: list):
         """Prepare prompt from history messages."""
+        print("ChatModelLLama prepare_prompt")
+        print(messages)
         prompt = self.intro
         for msg in messages:
             msg = dict(msg)
@@ -175,6 +179,34 @@ class ChatModelwithImage(ChatModel):
             prompt += f"{self.bot_id}:\n"
         return prompt, images
 
+
+class ChatModelGemma(ChatModel):
+    def __init__(self, intro, human_id, bot_id, stop_words):
+        super().__init__(intro, human_id, bot_id, stop_words)
+
+    def prepare_prompt(self, messages: list):
+        """Prepare prompt from history messages."""
+        print("ChatModelGemma prepare_prompt")
+        print(messages)
+        prompt = self.intro
+        for msg in messages:
+            msg = dict(msg)
+            role, content = msg["role"], msg["content"]
+            if role == "user":
+                if self.human_id != "":
+                    prompt += f"{self.human_id} {content}\n"
+                else:
+                    prompt += f"{content}\n"
+            elif role == "assistant":
+                if self.bot_id != "":
+                    prompt += f"{self.bot_id} {content}\n"
+                else:
+                    prompt += f"{content}\n"
+            else:
+                prompt += f"### Unknown:\n{content}\n"
+        if self.bot_id != "":
+            prompt += f"{self.bot_id}:\n"
+        return prompt
 
 if __name__ == "__main__":
     process_tool = ChatModelGptJ(
