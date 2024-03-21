@@ -65,7 +65,9 @@ class HPUPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig):
         super().__init__(infer_conf)
 
+        model_desc = infer_conf.model_description
         self.use_lazy_mode = True
+        self.use_hpu_graphs = model_desc.use_hpu_graphs
         # TODO add torch_compile, i.e. hpu specific configs. including quant
         # if args.torch_compile and model.config.model_type == "llama":
         #     self.use_lazy_mode = False
@@ -92,7 +94,6 @@ class HPUPredictor(Predictor):
             adapt_transformers_to_gaudi()
             # Not using DeepSpeed, load model locally
             self.device = torch.device("hpu")
-            model_desc = infer_conf.model_description
             model = AutoModelForCausalLM.from_pretrained(
                 model_desc.model_id_or_path,
                 # TODO expose torch_dtype in model_config
@@ -100,7 +101,6 @@ class HPUPredictor(Predictor):
                 # torch_dtype=model_dtype,
             )
             self.model = model.eval().to(self.device)
-            self.use_hpu_graphs = model_desc.use_hpu_graphs
             if self.use_hpu_graphs:
                 from habana_frameworks.torch.hpu import (
                     wrap_in_hpu_graph,
