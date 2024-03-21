@@ -17,12 +17,6 @@ class TransformerPredictor(Predictor):
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        if self.device.type == "hpu":
-            from optimum.habana.transformers.modeling_utils import (
-                adapt_transformers_to_gaudi,
-            )
-
-            adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
         torch_dtype = get_torch_dtype(infer_conf, hf_config)
         if model_desc.bigdl:
@@ -64,49 +58,27 @@ class TransformerPredictor(Predictor):
             model = model.merge_and_unload()
 
         model = model.eval().to(self.device)
-        if self.device.type == "hpu":
-            self.use_hpu_graphs = model_desc.use_hpu_graphs
-            if self.use_hpu_graphs:
-                from habana_frameworks.torch.hpu import (
-                    wrap_in_hpu_graph,
-                )  # pylint: disable=E0401
+        # to channels last
+        model = model.to(memory_format=torch.channels_last)
+        # to ipex
+        if infer_conf.ipex.enabled:
+            import intel_extension_for_pytorch as ipex
 
-                model = wrap_in_hpu_graph(model)
-            else:
-                print("Warning: use_hpu_graphs is set to False. This will hurt the performance.")
-        else:
-            # to channels last
-            model = model.to(memory_format=torch.channels_last)
-            # to ipex
-            if infer_conf.ipex.enabled:
-                import intel_extension_for_pytorch as ipex
-
-                torch._C._jit_set_texpr_fuser_enabled(False)
-                try:
-                    ipex._C.disable_jit_linear_repack()
-                except Exception:
-                    pass
-                model = ipex.llm.optimize(
-                    model.eval(),
-                    dtype=torch.bfloat16
-                    if infer_conf.ipex.precision == PRECISION_BF16
-                    else torch.float32,
-                    inplace=True,
-                )
+            torch._C._jit_set_texpr_fuser_enabled(False)
+            try:
+                ipex._C.disable_jit_linear_repack()
+            except Exception:
+                pass
+            model = ipex.llm.optimize(
+                model.eval(),
+                dtype=torch.bfloat16
+                if infer_conf.ipex.precision == PRECISION_BF16
+                else torch.float32,
+                inplace=True,
+            )
         self.model = model
 
-    def _process_config(self, config):
-        if self.device.type == "hpu":
-            if "max_new_tokens" not in config:
-                # hpu requires setting max_new_tokens
-                config["max_new_tokens"] = 256
-            if self.use_hpu_graphs:
-                config["hpu_graphs"] = True
-                # lazy mode should be True when using hpu graphs
-                config["lazy_mode"] = True
-
     def streaming_generate(self, prompt, streamer, **config):
-        self._process_config(config)
         input_ids, _ = self.tokenize_inputs(prompt)
         self.model.generate(
             input_ids,
@@ -116,7 +88,6 @@ class TransformerPredictor(Predictor):
         )
 
     def generate(self, prompt, **config):
-        self._process_config(config)
         input_ids, input_length = self.tokenize_inputs(prompt)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config

@@ -3,7 +3,7 @@ import torch
 import deepspeed
 
 from transformers import AutoModelForCausalLM, AutoConfig
-from torch_dist import (
+from llm_on_ray.inference.torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
     shutdown_torch_dist_process_group,

@@ -58,11 +58,14 @@ class PredictorDeployment:
         self.use_vllm = infer_conf.vllm.enabled
         self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
 
-        if self.use_deepspeed:
+        if infer_conf.device == "hpu":
+            from llm_on_ray.inference.hpu_predictor import HPUPredictor
+
+            self.predictor = HPUPredictor(infer_conf)
+        elif self.use_deepspeed:
             from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from llm_on_ray.inference.vllm_predictor import VllmPredictor
 
@@ -126,7 +129,8 @@ class PredictorDeployment:
                 return self.predictor.generate(prompts, **config)
 
         if self.use_deepspeed:
-            self.predictor.streaming_generate(prompts, self.streamer, **config)
+            streamer = self.predictor.get_streamer()
+            self.predictor.streaming_generate(prompts, streamer, **config)
             return StreamingResponse(
                 self.consume_streamer(), status_code=200, media_type="text/plain"
             )
