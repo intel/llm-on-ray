@@ -103,8 +103,6 @@ class ChatModelLLama(ChatModel):
 
     def prepare_prompt(self, messages: list):
         """Prepare prompt from history messages."""
-        print("ChatModelLLama prepare_prompt")
-        print(messages)
         prompt = self.intro
         for msg in messages:
             msg = dict(msg)
@@ -186,8 +184,6 @@ class ChatModelGemma(ChatModel):
 
     def prepare_prompt(self, messages: list):
         """Prepare prompt from history messages."""
-        print("ChatModelGemma prepare_prompt")
-        print(messages)
         prompt = self.intro
         for msg in messages:
             msg = dict(msg)
@@ -207,6 +203,7 @@ class ChatModelGemma(ChatModel):
         if self.bot_id != "":
             prompt += f"{self.bot_id}:\n"
         return prompt
+
 
 if __name__ == "__main__":
     process_tool = ChatModelGptJ(
