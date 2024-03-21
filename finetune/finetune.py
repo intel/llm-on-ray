@@ -115,37 +115,8 @@ def train_func(config: Dict[str, Any]):
         os.chdir(cwd)
 
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
-
-    accelerate_mode = config["Training"]["accelerate_mode"]
-    if accelerate_mode in ["GPU_FSDP"]:
-        fsdp_plugin = FullyShardedDataParallelPlugin(
-            state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
-            optim_state_dict_config=FullOptimStateDictConfig(
-                offload_to_cpu=False, rank0_only=False
-            ),
-        )
-        deepspeed_plugin = None
-    elif accelerate_mode in ["GPU_DEEPSPEED"]:
-        fsdp_plugin = None
-        hf_ds_config = config["Training"]["deepspeed_config_file"]
-        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
-    else:
-        fsdp_plugin = None
-        deepspeed_plugin = None
-
-    output_dir = config["General"]["output_dir"]
-    accelerator = Accelerator(
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        fsdp_plugin=fsdp_plugin,
-        deepspeed_plugin=deepspeed_plugin,
-    )
-    epochs = config["Training"]["epochs"]
     base_model = config["General"]["base_model"]
     dataset_file = config["Dataset"]["train_file"]
-
-    common.logger.info(
-        f"accelerator generate finish, accelerator device type = {accelerator.device}"
-    )
 
     seed = config["Training"].get("seed")
     if seed is not None:
@@ -181,7 +152,7 @@ def train_func(config: Dict[str, Any]):
     )
 
     if use_habana:
-        model = model.to(dtype=model.config.torch_dtype, device=accelerator.device)
+        model = model.to(dtype=model.config.torch_dtype, device=torch.device("hpu"))
 
     optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(
         model,
@@ -189,6 +160,36 @@ def train_func(config: Dict[str, Any]):
             "name": config["Training"]["optimizer"],
             "config": {"lr": config["Training"]["learning_rate"]},
         },
+    )
+
+    accelerate_mode = config["Training"]["accelerate_mode"]
+    if accelerate_mode in ["GPU_FSDP"]:
+        fsdp_plugin = FullyShardedDataParallelPlugin(
+            state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
+            optim_state_dict_config=FullOptimStateDictConfig(
+                offload_to_cpu=False, rank0_only=False
+            ),
+        )
+        deepspeed_plugin = None
+    elif accelerate_mode in ["GPU_DEEPSPEED"]:
+        fsdp_plugin = None
+        hf_ds_config = config["Training"]["deepspeed_config_file"]
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
+    else:
+        fsdp_plugin = None
+        deepspeed_plugin = None
+
+    output_dir = config["General"]["output_dir"]
+    accelerator = Accelerator(
+        device_placement=False,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        fsdp_plugin=fsdp_plugin,
+        deepspeed_plugin=deepspeed_plugin,
+    )
+    epochs = config["Training"]["epochs"]
+
+    common.logger.info(
+        f"accelerator generate finish, accelerator device type = {accelerator.device}"
     )
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
@@ -203,6 +204,7 @@ def train_func(config: Dict[str, Any]):
                 "per_device_train_batch_size": config["Training"]["batch_size"],
                 "per_device_eval_batch_size": config["Training"]["batch_size"],
                 "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
+                "group": True,
                 "shuffle": True,
             },
             "lr_scheduler": {
@@ -265,6 +267,7 @@ def main(external_config=None):
         config = external_config
 
     config["cwd"] = os.getcwd()
+
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 

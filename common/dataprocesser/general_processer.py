@@ -87,7 +87,7 @@ class GeneralProcesser(DataProcesser):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size", 1)
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 1)
         group = self.config.get("group", False)
-        self.config.get("shuffle", False)
+        shuffle = self.config.get("shuffle", False)
         tokenizer.pad_token = tokenizer.eos_token
 
         if isinstance(dataset, datasets.Dataset):
@@ -97,7 +97,6 @@ class GeneralProcesser(DataProcesser):
             column_names = dataset["train"].column_names
 
         if column_names and TEXT_COLUMN_NAME not in column_names:
-
             def prompt(rec):
                 instruction = rec["instruction"]
                 response = rec["response"]
@@ -123,7 +122,7 @@ class GeneralProcesser(DataProcesser):
             )
             column_names += [TEXT_COLUMN_NAME]
 
-        max_length = self.config.get("max_length", 1024)
+        max_length = self.config.get("max_length", 512)
 
         def tokenize_function(examples):
             return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
@@ -136,7 +135,7 @@ class GeneralProcesser(DataProcesser):
         )
 
         if group:
-            block_size = self.config.get("block_size", 1024)
+            block_size = self.config.get("block_size", 512)
 
             def group_texts(examples):
                 # Concatenate all texts.
@@ -160,8 +159,13 @@ class GeneralProcesser(DataProcesser):
                 load_from_cache_file=False,
                 desc=f"Grouping texts in chunks of {block_size}",
             )
-            default_data_collator = transformers.default_data_collator
-
+            # default_data_collator = transformers.default_data_collator
+            default_data_collator = DataCollatorForCompletionOnlyLM(
+                tokenizer=tokenizer,
+                mlm=False,
+                return_tensors="pt",
+                pad_to_multiple_of=8,
+            )
         else:
             default_data_collator = DataCollatorForCompletionOnlyLM(
                 tokenizer=tokenizer,
@@ -171,19 +175,25 @@ class GeneralProcesser(DataProcesser):
             )
 
         train_dataset = tokenized_datasets["train"]
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            shuffle=True,
-            collate_fn=default_data_collator,
-            batch_size=per_device_train_batch_size,
-        )
+        train_dataloader_params = {
+            "shuffle": shuffle,
+            "collate_fn": default_data_collator,
+            "batch_size": per_device_train_batch_size,
+            "pin_memory": True,
+            "pin_memory_device": "hpu",
+        }
+        item = next(iter(train_dataset))
+        ssss = tokenizer.decode(item["input_ids"])
+        print(f"GeneralProcesser.prepare, train_dataloader_params = {train_dataloader_params}, ssss = {ssss}, items = {next(iter(train_dataset))}")
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, **train_dataloader_params)
 
         eval_dataloader = None
         if "validation" in tokenized_datasets:
             eval_dataset = tokenized_datasets["validation"]
-            eval_dataloader = torch.utils.data.DataLoader(
-                eval_dataset,
-                collate_fn=default_data_collator,
-                batch_size=per_device_eval_batch_size,
-            )
+            eval_dataloader_params = {
+                "collate_fn": default_data_collator,
+                "batch_size": per_device_eval_batch_size,
+            }
+            print(f"GeneralProcesser.prepare, eval_dataloader_params = {eval_dataloader_params}")
+            eval_dataloader = torch.utils.data.DataLoader(eval_dataset, **eval_dataloader_params)
         return train_dataloader, eval_dataloader

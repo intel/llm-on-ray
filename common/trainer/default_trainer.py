@@ -155,6 +155,10 @@ class DefaultTrainer(Trainer):
             ) = accelerator.prepare(
                 model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
             )
+        # elif accelerate_mode in ["HPU_DDP"]:
+        #     self.train_dataloader, self.eval_dataloader = accelerator.prepare(train_dataloader, eval_dataloader)
+        #     self.model, self.optimizer = accelerator.prepare(model, optimizer)
+        #     self.lr_scheduler = lr_scheduler
         else:
             self.model = accelerator.prepare(model)
             (
@@ -163,6 +167,13 @@ class DefaultTrainer(Trainer):
                 self.eval_dataloader,
                 self.lr_scheduler,
             ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
+
+        import habana_frameworks.torch.core as htcore
+        from habana_frameworks.torch.utils.internal import is_lazy
+
+        hpu_mode = os.getenv("PT_HPU_LAZY_MODE", None)
+        logger.info(f">>>>>>>>>>>>>>>>>>>> hpu_mode = {hpu_mode}, is_lazy = {is_lazy()}")
+        self.htcore = htcore
 
         checkpoint = self.config.get("checkpoint")
         if checkpoint is not None:
@@ -180,21 +191,46 @@ class DefaultTrainer(Trainer):
             total_steps = len(self.train_dataloader)
             logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
             for step, batch in enumerate(self.train_dataloader):
+                tt = time.time()
                 with self.accelerator.accumulate(self.model):
+                    self.model.train()
+                    batch = batch.to(device=self.accelerator.device)
+                    # info = ""
+                    # for k,v in batch.items():
+                    #     info += f"{k}:{v.shape}, "
+                    # logger.info(f"type(batch) = {type(batch)}, batch = {batch.keys()}, batch info = {info}")
                     outputs = self.model(**batch)
+                    # tm = f"{time.time() - tt:.6f}"
+                    # tx = time.time()
                     loss = outputs.loss
                     self.accelerator.backward(loss)
+                    # tb = f"{time.time() - tx:.6f}"
+                t0 = f"{time.time() - tt:.6f}"
+                # tt = time.time()
+
+                if True:
+                    self.htcore.mark_step()
                     self.optimizer.step()
+                    self.htcore.mark_step()
+                    # t1 = f"{time.time() - tt:.6f}"
+                    # tt = time.time()
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
+                        # t2 = f"{time.time() - tt:.6f}"
+                        # tt = time.time()
+                        self.htcore.mark_step()
                     self.optimizer.zero_grad()
+                    # t3 = f"{time.time() - tt:.6f}"
+                    # tt = time.time()
+                    # self.htcore.mark_step()
 
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
                         epochs = (step + idx * total_steps) / (num_train_epochs * total_steps)
                         logger.info(
-                            f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
+                            # f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}\ttm = {tm}\ttb = {tb}\tt0 = {t0}\tt1 = {t1}\tt2 = {t2}\tt3 = {t3}"
+                            f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}\tt0 = {t0}"
                         )
                         report(
                             {
