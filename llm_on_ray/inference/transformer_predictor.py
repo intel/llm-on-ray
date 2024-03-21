@@ -1,3 +1,4 @@
+from typing import List, Union
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig, TextIteratorStreamer
 from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
@@ -115,20 +116,34 @@ class TransformerPredictor(Predictor):
             **config,
         )
 
-    def generate(self, prompt, **config):
+    def generate(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[GenerateResult, List[GenerateResult], None]:
         self._process_config(config)
-        input_ids, input_length = self.tokenize_inputs(prompt)
+        input_ids, input_length = self.tokenize_inputs(prompts)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
+
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        if isinstance(prompt, list) and len(prompt) > 1:
-            return decode_result
-        return GenerateResult(
-            text=decode_result,
-            input_length=input_length,
-            generate_length=gen_tokens.size()[1] - input_length,
-        )
+
+        if isinstance(prompts, str):
+            return GenerateResult(
+                text=decode_result,
+                input_length=input_length,
+                generate_length=gen_tokens.size()[1] - input_length,
+            )
+        elif isinstance(prompts, List):
+            return [
+                GenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompts))
+            ]
+
+        return None
 
     def get_streamer(self):
         return TextIteratorStreamer(

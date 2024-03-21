@@ -78,7 +78,9 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
-    def generate(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
+    def generate(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[GenerateResult, List[GenerateResult], None]:
         pass
 
     async def generate_async(
