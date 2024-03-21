@@ -1,9 +1,36 @@
-"""This file is modeled after ray/python/ray/train/torch/config.py
-
-The logics are duplicated right now to allow maximum flexibility for
-setting up PyTorch DDP process groups outside the context of Ray Train.
-Eventually, these use cases should be consolidated.
-"""
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ===========================================================================
+#
+# This file is adapted from
+# https://github.com/ray-project/ray/blob/6eb1814eccfff8717d794c271adc1de2bf33284a/python/ray/air/util/torch_dist.py
+# Copyright 2023 Anyscale
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 from abc import ABC
 from collections import defaultdict
