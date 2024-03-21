@@ -7,7 +7,8 @@ WORKDIR /root/llm-on-ray
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
 
-RUN mkdir ./finetune && mkdir ./inference
+# create llm_on_ray package directory to bypass the following 'pip install -e' command
+RUN mkdir ./llm_on_ray
 
 RUN pip install -e . && \
     pip install --upgrade-strategy eager optimum[habana] && \
