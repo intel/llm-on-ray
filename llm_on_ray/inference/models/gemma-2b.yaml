@@ -20,6 +20,6 @@ model_description:
     {msg}<end_of_turn>'
     bot_id: '<bos><start_of_turn>model
     {msg}<end_of_turn>'
-    stop_words: ["<start_of_turn>model"]
+    stop_words: []
   config:
     use_auth_token: ' '
