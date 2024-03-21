@@ -1,6 +1,7 @@
 port: 8000
 name: llama-2-70b-chat-hf
 route_prefix: /llama-2-70b-chat-hf
+num_replicas: 1
 cpus_per_worker: 8
 hpus_per_worker: 1
 deepspeed: true
