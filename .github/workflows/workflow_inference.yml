@@ -192,7 +192,7 @@ jobs:
       - name: Run Agent tool Inference Test with REST API
         run: |
           TARGET=${{steps.target.outputs.target}}
-          if [[ ${{ matrix.model }} == "mistral-7b-v0.1" ]]; then
+          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --models ${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests_tool.py --model_name ${{ matrix.model }}"
           fi

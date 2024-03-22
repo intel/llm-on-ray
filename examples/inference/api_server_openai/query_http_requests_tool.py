@@ -76,10 +76,6 @@ messages = [
         {"role": "user", "content": "You are a helpful assistant"},
         {"role": "user", "content": "What's the weather like in Boston today?"},
     ],
-    [
-        {"role": "user", "content": "You are a helpful assistant"},
-        {"role": "user", "content": "Tell me a short joke?"},
-    ],
 ]
 
 proxies = {"http": None, "https": None}
@@ -100,6 +96,7 @@ for message in messages:
     }
 
     response = s.post(url, json=body, proxies=proxies, stream=args.streaming_response)  # type: ignore
+    output_tool_call = []
     for chunk in response.iter_lines(decode_unicode=True):
         try:
             if chunk is not None and chunk != "":
@@ -115,7 +112,8 @@ for message in messages:
                             print(content, end="", flush=True)
                         tool_calls = choices[0]["delta"].get("tool_calls", "")
                         if tool_calls is not None and tool_calls != "":
-                            print(tool_calls, end="", flush=True)
+                            print("tool_calls:", tool_calls, end="", flush=True)
+                            output_tool_call = tool_calls
                 else:
                     choices = json.loads(chunk)["choices"]
                     content = choices[0]["message"]["content"]
@@ -123,8 +121,10 @@ for message in messages:
                         print(content, end="", flush=True)
                     tool_calls = choices[0]["message"]["tool_calls"]
                     if tool_calls is not None:
-                        print(tool_calls, end="", flush=True)
+                        print("tool_calls:", tool_calls, end="", flush=True)
+                        output_tool_call = tool_calls
         except Exception as e:
             print("chunk content: ", chunk)
             raise e
+    assert output_tool_call[0]["function"]["name"] == "get_current_weather"
     print()
