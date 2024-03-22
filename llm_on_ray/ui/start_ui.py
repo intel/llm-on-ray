@@ -938,7 +938,7 @@ class ChatBotUI:
             node_ip = self.ray_nodes[index]["NodeName"]
             self.ssh_connect[index] = paramiko.SSHClient()
             self.ssh_connect[index].load_system_host_keys()
-            self.ssh_connect[index].set_missing_host_key_policy(paramiko.RejectPolicy())
+            self.ssh_connect[index].set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh_connect[index].connect(
                 hostname=node_ip, port=self.node_port, username=self.user_name
             )
@@ -947,7 +947,7 @@ class ChatBotUI:
             return
         self.ssh_connect[-1] = paramiko.SSHClient()
         self.ssh_connect[-1].load_system_host_keys()
-        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.RejectPolicy())
+        self.ssh_connect[-1].set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh_connect[-1].connect(
             hostname=self.ray_nodes[mark_alive]["NodeName"],
             port=self.node_port,
@@ -1121,7 +1121,7 @@ class ChatBotUI:
                         label="Gpus per Worker",
                         info="the number of gpu used for every worker.",
                     )
-                    gr.Slider(
+                    hpus_per_worker_deploy = gr.Slider(
                         0,
                         8,
                         0,
@@ -1691,7 +1691,7 @@ class ChatBotUI:
             )
             deploy_event = deploy_btn.click(
                 self.deploy_func,
-                [all_model_dropdown, replica_num, cpus_per_worker_deploy],
+                [all_model_dropdown, replica_num, cpus_per_worker_deploy, hpus_per_worker_deploy],
                 [
                     deployed_model_endpoint,
                     model_endpoint,
