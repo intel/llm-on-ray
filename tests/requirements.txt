@@ -1,3 +1,4 @@
 pytest
 openai
 async-timeout
+ray==2.9.0
