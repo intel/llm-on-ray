@@ -99,7 +99,7 @@ def test_script(api_base, model_name, streaming_response, max_new_tokens, temper
 
     # Check if this modelname has already executed start_serve
     if model_name not in executed_models:
-        start_serve(model_name)
+        start_serve(api_base, model_name)
         # Mark this modelname has already executed start_serve
         executed_models[model_name] = True
     script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p)
