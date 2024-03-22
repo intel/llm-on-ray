@@ -84,10 +84,11 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 class GeneralProcesser(DataProcesser):
     def prepare(self, tokenizer, dataset):
-        per_device_train_batch_size = self.config.get("per_device_train_batch_size", 1)
-        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 1)
-        group = self.config.get("group", False)
-        shuffle = self.config.get("shuffle", False)
+        per_device_train_batch_size = self.config.get("per_device_train_batch_size")
+        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
+        max_length = self.config.get("max_length")
+        group = self.config.get("group")
+        shuffle = self.config.get("shuffle")
         tokenizer.pad_token = tokenizer.eos_token
 
         if isinstance(dataset, datasets.Dataset):
@@ -122,8 +123,6 @@ class GeneralProcesser(DataProcesser):
                 desc="Prompt",
             )
             column_names += [TEXT_COLUMN_NAME]
-
-        max_length = self.config.get("max_length", 512)
 
         def tokenize_function(examples):
             return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
