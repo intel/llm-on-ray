@@ -159,7 +159,7 @@ jobs:
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
-          if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mixtral-8x7b-Instruct-v0.1|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
@@ -172,7 +172,7 @@ jobs:
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
-          if [[ ${{ matrix.model }} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mixtral-8x7b-Instruct-v0.1|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
