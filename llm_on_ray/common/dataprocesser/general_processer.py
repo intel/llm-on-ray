@@ -88,6 +88,7 @@ class GeneralProcesser(DataProcesser):
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
         max_length = self.config.get("max_length")
         group = self.config.get("group")
+        block_size = self.config.get("block_size")
         shuffle = self.config.get("shuffle")
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -135,7 +136,6 @@ class GeneralProcesser(DataProcesser):
         )
 
         if group:
-            block_size = self.config.get("block_size", 512)
 
             def group_texts(examples):
                 # Concatenate all texts.

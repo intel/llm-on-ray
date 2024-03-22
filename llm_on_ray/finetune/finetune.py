@@ -199,6 +199,7 @@ def train_func(config: Dict[str, Any]):
                 "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
                 "max_length": config["Dataset"].get("max_length", 512),
                 "group": config["Dataset"].get("group", True),
+                "block_size": config["Dataset"].get("block_size", 512),
                 "shuffle": config["Dataset"].get("shuffle", False),
             },
             "lr_scheduler": {

@@ -38,6 +38,7 @@ class Dataset(BaseModel):
     validation_split_percentage: int
     max_length: int = 512
     group: bool = True
+    block_size: int = 512
     shuffle: bool = False
 
 
