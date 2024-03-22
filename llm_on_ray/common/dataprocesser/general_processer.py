@@ -97,6 +97,7 @@ class GeneralProcesser(DataProcesser):
             column_names = dataset["train"].column_names
 
         if column_names and TEXT_COLUMN_NAME not in column_names:
+
             def prompt(rec):
                 instruction = rec["instruction"]
                 response = rec["response"]
