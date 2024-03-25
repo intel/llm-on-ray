@@ -26,3 +26,6 @@ jobs:
 
       - name: Run Lint
         run: ./format.sh -a
+
+      - name: Run License Check
+        run: ./.github/license/license-header.py files .github/license/*

@@ -194,6 +194,8 @@ def check_license_header(files, license_header, args):
         if content != "":
             print(filepath, end="\n")
 
+        assert content == ""
+
 
 def process_license_header(files, args):
     llm_on_ray_header_files_globs = []
