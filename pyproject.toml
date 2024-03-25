@@ -33,6 +33,7 @@ dependencies = [
     "scikit-image",
     "tabulate",
     "typer",
+    "async-timeout",
 
     # RLHF
     "dm-tree",
