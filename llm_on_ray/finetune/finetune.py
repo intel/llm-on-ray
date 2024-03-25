@@ -212,9 +212,7 @@ def train_func(config: Dict[str, Any]):
             },
             "checkpoint": {
                 "root_path": config["General"]["checkpoint_dir"],
-            }
-            if config["General"].get("checkpoint_dir")
-            else None,
+            },
         }
     )
 
