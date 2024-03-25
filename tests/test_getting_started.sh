@@ -11,6 +11,7 @@ fi
 
 # Clone repo
 echo "Cloning repo"
+cd /tmp
 git clone https://github.com/intel/llm-on-ray.git && cd llm-on-ray
 
 # Install dependencies

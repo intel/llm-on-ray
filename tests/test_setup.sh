@@ -9,8 +9,8 @@ if [ "$#" != 2 ]; then
 fi
 
 # Step 1: Clone and create conda environment
-git clone https://github.com/intel/llm-on-ray.git
-cd llm-on-ray
+cd /tmp
+git clone https://github.com/intel/llm-on-ray.git && cd llm-on-ray
 
 # Step 2: Check CPU, GPU or Gaudi and install dependencies
 hardware=0
