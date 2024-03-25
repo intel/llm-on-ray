@@ -1,27 +1,21 @@
 #!/bin/bash
 set -eo pipefail
 
-# Step 1: Python environment
 # Check Python version is or later than 3.9
-echo "Step 1: Python environment"
 echo "Checking Python version which should be equal or later than 3.9"
 if ! python -c 'import sys; assert sys.version_info >= (3,9)' > /dev/null; then
     exit "Python should be 3.9 or later!"
 fi
 
-# Clone repo
-echo "Cloning repo"
-cd /tmp
-git clone https://github.com/intel/llm-on-ray.git && cd llm-on-ray
+echo "Step 1: Clone the repository, install llm-on-ray and its dependencies."
+echo "Checkout already done in the workflow."
 
-# Install dependencies
-echo "Installing dependencies"
 pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 
-# Step 2: Start ray cluster
+echo "Step 2: Start ray cluster ..."
 ray start --head
 
 # Step 3: Serving
@@ -49,7 +43,7 @@ python examples/inference/api_server_openai/query_http_requests.py --model_name 
 
 # 3.Using OpenAI SDK
 echo "Method 3: Using OpenAI SDK to access model"
-pip install openai
+pip install openai>=1.0
 export no_proxy="localhost,127.0.0.1"
 export OPENAI_API_BASE="http://localhost:8000/v1"
 export OPENAI_BASE_URL="http://localhost:8000/v1"
