@@ -28,4 +28,4 @@ jobs:
         run: ./format.sh -a
 
       - name: Run License Check
-        run: ./.github/license/license-header.py files .github/license/*
+        run: python .github/license/license-header.py files .github/license/*
