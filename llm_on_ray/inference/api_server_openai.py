@@ -75,7 +75,6 @@ def openai_serve_run(deployments, host, route_prefix, port):
     serve.start(host=host, port=port)
     serve.run(
         router_app,
-        blocking=False,
         name="router",
         route_prefix=route_prefix,
     ).options(

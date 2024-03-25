@@ -34,6 +34,7 @@ dependencies = [
     "typing>=3.7.4.3",
     "scikit-image",
     "tabulate",
+    "typer",
 
     # RLHF
     "dm-tree",

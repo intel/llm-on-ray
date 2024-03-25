@@ -26,7 +26,6 @@ def serve_run(deployments, model_list):
         serve.start(host=infer_conf.host, port=infer_conf.port)
         serve.run(
             deployment,
-            blocking=False,
             name=infer_conf.name,
             route_prefix=infer_conf.route_prefix,
         )
