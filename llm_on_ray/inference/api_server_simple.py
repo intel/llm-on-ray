@@ -23,7 +23,7 @@ def serve_run(deployments, model_list):
         print("deploy model: ", model_id)
         deployment = deployments[model_id]
 
-        serve.start(host=infer_conf.host, port=infer_conf.port)
+        serve.start(http_options={"host": infer_conf.host, "port": infer_conf.port})
         serve.run(
             deployment,
             name=infer_conf.name,

@@ -19,11 +19,9 @@ classifiers = [
 ]
 dependencies = [
     # Base
-    "ray[serve,tune]>=2.9",
+    "ray[serve,tune]>=2.10",
     "torch>=2.2.0",
     "transformers>=4.35.0, <=4.35.2",
-
-    # "py-cpuinfo",
 
     # Training
     "accelerate",
