@@ -57,9 +57,9 @@ class EnableCCLBackend(_TorchBackend):
 
     def on_start(self, worker_group: WorkerGroup, backend_config: RayTorchConfig):
         libs_import = (
-            xpu_libs_import
-            if self.device is not None and self.device.startswith("xpu")
-            else hpu_libs_import
+            hpu_libs_import
+            if self.device is not None and self.device.startswith("hpu")
+            else xpu_libs_import
         )
         for i in range(len(worker_group)):
             worker_group.execute_single_async(i, libs_import)
