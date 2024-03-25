@@ -23,7 +23,7 @@ class TorchConfig(RayTorchConfig):
         return EnableCCLBackend
 
 
-def libs_import():
+def xpu_libs_import():
     """try to import IPEX and oneCCL."""
     try:
         import intel_extension_for_pytorch
@@ -39,6 +39,14 @@ def libs_import():
         raise ImportError("Please install torch-ccl") from ccl_not_exist
 
 
+def hpu_libs_import():
+    """try to import habana frameworkfs for torch"""
+    try:
+        import habana_frameworks.torch  # noqa: F401
+    except ImportError as habana_not_exist:
+        raise ImportError("Please install habana_frameworks") from habana_not_exist
+
+
 def _set_torch_distributed_env_vars(device):
     if device is not None:
         os.environ["ACCELERATE_TORCH_DEVICE"] = device
@@ -48,6 +56,11 @@ class EnableCCLBackend(_TorchBackend):
     device: Optional[str] = None
 
     def on_start(self, worker_group: WorkerGroup, backend_config: RayTorchConfig):
+        libs_import = (
+            hpu_libs_import
+            if self.device is not None and self.device.startswith("hpu")
+            else xpu_libs_import
+        )
         for i in range(len(worker_group)):
             worker_group.execute_single_async(i, libs_import)
         super().on_start(worker_group, backend_config)
