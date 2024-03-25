@@ -18,38 +18,29 @@ classifiers = [
     "Framework :: Ray"
 ]
 dependencies = [
-    # Base
+    "accelerate",
+    "datasets>=2.14.6",
+    "numpy",
     "ray>=2.10",
     "ray[serve,tune]>=2.10",
-    "torch>=2.2.0",
-    "transformers>=4.35.0, <=4.35.2",
-
-    # Training
-    "accelerate",
-    "tensorboard",
-    "einops",
-    "datasets>=2.14.6",
-    "gymnasium",
     "typing>=3.7.4.3",
-    "scikit-image",
     "tabulate",
-    "typer",
-    "async-timeout",
-
-    # RLHF
+    "gymnasium",
     "dm-tree",
-
-    # PEFT
+    "tensorboard",
+    "scikit-image",
+    "einops",
     "peft>=0.4.0",
     "deltatuner==1.1.9",
-
-    # Config
-    "pydantic-yaml",
+    "py-cpuinfo",
+    "pydantic-yaml"
 ]
 
 [project.optional-dependencies]
 cpu = [
+    "transformers>=4.35.0, <=4.35.2",
     "intel_extension_for_pytorch>=2.2.0",
+    "torch>=2.2.0",
     "oneccl_bind_pt>=2.2.0"
 ]
 
