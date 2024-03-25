@@ -49,6 +49,7 @@ python examples/inference/api_server_openai/query_http_requests.py --model_name 
 
 # 3.Using OpenAI SDK
 echo "Method 3: Using OpenAI SDK to access model"
+pip install openai
 export no_proxy="localhost,127.0.0.1"
 export OPENAI_API_BASE="http://localhost:8000/v1"
 export OPENAI_BASE_URL="http://localhost:8000/v1"
