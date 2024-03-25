@@ -25,7 +25,7 @@ class General(BaseModel):
     base_model: str
     gpt_base_model: bool
     output_dir: str
-    checkpoint_dir: str
+    checkpoint_dir: Optional[str]
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None

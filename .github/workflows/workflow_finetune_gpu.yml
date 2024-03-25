@@ -29,12 +29,13 @@ jobs:
       env:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
+        SHELL: bash -eo pipefail
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Running task on Intel GPU
         run: |

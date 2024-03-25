@@ -55,13 +55,14 @@ jobs:
       env:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
+        SHELL: bash -eo pipefail
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ${{ inputs.runner_config_path }}:/root/actions-runner-config
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Load environment variables
         run: cat /root/actions-runner-config/.env >> $GITHUB_ENV

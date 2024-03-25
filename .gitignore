@@ -1,6 +1,7 @@
+debug/
+build/lib/
+llm_on_ray.egg-info/
 __pycache__
 **.ipynb
-debug/
-
 *.json
 *.sh
