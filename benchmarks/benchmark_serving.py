@@ -186,7 +186,8 @@ def sample_requests_synthesis(
 async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
-) -> AsyncGenerator[Tuple[str, int, int], None]:
+    batch_size: int,
+) -> AsyncGenerator[List[Tuple[str, int, int]], None]:
     """
     Asynchronously generates requests based on the input_requests and request_rate.
 
@@ -201,7 +202,11 @@ async def get_request(
 
     """
     for request in input_requests:
-        yield request
+        batch = []
+        batch.append(request)
+        if len(batch) == batch_size:
+            yield batch
+            batch = []
 
         if request_rate == float("inf"):
             # If the request rate is infinity, then we don't need to wait.
@@ -212,12 +217,52 @@ async def get_request(
         await asyncio.sleep(interval)
 
 
+def prepare_payload(
+    batch: List[Tuple[str, int, int]],
+    config: dict,
+    model_name: str,
+    track_token_latency: bool,
+    simple: bool,
+) -> dict:
+    prompt: Union[str, List[str]] = ""
+    if len(batch) == 1:
+        prompt, _, output_len = batch[0]
+    else:
+        prompt = [p for p, _, _ in batch]
+
+    # Use sample output_len if max_new_tokens not specified
+    temp_config = copy.deepcopy(config)
+    if "max_new_tokens" not in temp_config:
+        temp_config["max_new_tokens"] = output_len
+
+    pload = {}
+
+    if simple:
+        pload = {
+            "text": prompt,
+            "config": temp_config,
+            "stream": track_token_latency,
+        }
+    else:
+        pload = {
+            "model": model_name,
+            "messages": [
+                {"role": "user", "content": f"{prompt}"},  # type: ignore
+            ],
+            "stream": track_token_latency,
+            "max_tokens": temp_config["max_new_tokens"]  # type: ignore
+            if "max_new_tokens" in temp_config
+            else None,
+            "temperature": temp_config["temperature"] if "temperature" in temp_config else None,  # type: ignore
+            "top_p": temp_config["top_p"] if "top_p" in temp_config else None,  # type: ignore
+        }
+    return pload
+
+
 async def send_request(
     api_url: str,
     model_name: str,
-    prompt: str,
-    prompt_len: int,
-    output_len: int,
+    batch: List[Tuple[str, int, int]],
     config: dict,
     tokenizer: PreTrainedTokenizer,
     track_token_latency: bool = True,
@@ -240,29 +285,7 @@ async def send_request(
 
     headers = {"User-Agent": "Benchmark Client"}
 
-    # Use sample output_len if max_new_tokens not specified
-    temp_config = copy.deepcopy(config)
-    if "max_new_tokens" not in temp_config:
-        temp_config["max_new_tokens"] = output_len
-    if simple:
-        pload = {
-            "text": prompt,
-            "config": temp_config,
-            "stream": track_token_latency,
-        }
-    else:
-        pload = {
-            "model": model_name,
-            "messages": [
-                {"role": "user", "content": f"{prompt}"},
-            ],
-            "stream": track_token_latency,
-            "max_tokens": temp_config["max_new_tokens"]
-            if "max_new_tokens" in temp_config
-            else None,
-            "temperature": temp_config["temperature"] if "temperature" in temp_config else None,
-            "top_p": temp_config["top_p"] if "top_p" in temp_config else None,
-        }
+    pload = prepare_payload(batch, config, model_name, track_token_latency, simple)
 
     token_latencies_per_request: List[float] = []
 
@@ -307,8 +330,16 @@ async def send_request(
     request_end_time = time.perf_counter()
     request_latency = request_end_time - request_start_time
 
-    prompt_str = prompt if track_input_output else None
+    prompt_str = (
+        str([prompt for prompt, _, _ in batch] if len(batch) > 1 else batch[0][0])
+        if track_input_output
+        else None
+    )
+    prompt_len = sum([prompt_len for _, prompt_len, _ in batch])
     output_str = response_text if track_input_output else None
+
+    Tuple[Optional[str], Optional[str], Optional[int], int, float, List[float]]
+    Tuple[Optional[str], Optional[str], int, int, float, List[float]]
 
     if generate_len is not None:
         latency_tracking.append(
@@ -316,7 +347,7 @@ async def send_request(
                 prompt_str,
                 output_str,
                 prompt_len,
-                generate_len,
+                int(generate_len),
                 request_latency,
                 token_latencies_per_request,
             )
@@ -330,6 +361,7 @@ async def benchmark(
     request_rate: float,
     config: dict,
     tokenizer: PreTrainedTokenizer,
+    batch_size: int,
     track_token_latency: bool = False,
     track_input_output: bool = False,
     progress: bool = False,
@@ -351,13 +383,13 @@ async def benchmark(
     """
     tasks: List[asyncio.Task] = []
     progress_bar = tqdm(total=len(input_requests)) if progress else None
-    async for request in get_request(input_requests, request_rate):
+    async for request in get_request(input_requests, request_rate, batch_size):
         tasks.append(
             asyncio.create_task(
                 send_request(
                     api_url,
                     model_name,
-                    *request,
+                    request,
                     config,
                     tokenizer,
                     track_token_latency,
@@ -439,6 +471,10 @@ def main(args: argparse.Namespace):
     if args.top_k:
         config["top_k"] = float(args.top_k)
 
+    if args.batch_size > 1:
+        if not config["max_new_tokens"]:
+            raise ValueError("Please specify max_new_tokens for static batching")
+
     benchmark_start_time = time.perf_counter()
     asyncio.run(
         benchmark(
@@ -448,6 +484,7 @@ def main(args: argparse.Namespace):
             args.request_rate,
             config,
             tokenizer,
+            args.batch_size,
             args.track_token_latency,
             args.track_input_output,
             args.progress,
@@ -652,6 +689,12 @@ if __name__ == "__main__":
         type=int,
         default=1000,
         help="Number of prompts to process. Default is 1000.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1,
+        help="Batch size for sending requests. Default is 1.",
     )
     parser.add_argument(
         "--request-rate",
