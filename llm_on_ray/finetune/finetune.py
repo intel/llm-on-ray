@@ -137,13 +137,12 @@ def train_func(config: Dict[str, Any]):
         config={
             "name": base_model,
             "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
+            "device": torch.device(config["Training"]["device"].lower()),
             "config": config["General"]["config"],
             "enable_gradient_checkpointing": config["General"].get(
                 "enable_gradient_checkpointing", False
             ),
-            "lora_config": config["General"]["lora_config"]
-            if config["General"].get("lora_config")
-            else None,
+            "lora_config": config["General"].get("lora_config", None),
         }
     )
 
