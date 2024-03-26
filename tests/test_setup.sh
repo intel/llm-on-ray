@@ -8,9 +8,8 @@ if [ "$#" != 2 ]; then
     exit 1
 fi
 
-# Step 1: Clone and create conda environment
-git clone https://github.com/intel/llm-on-ray.git
-cd llm-on-ray
+# Step 1: Clone the repository, install llm-on-ray and its dependencies.
+echo "Checkout already done in the workflow."
 
 # Step 2: Check CPU, GPU or Gaudi and install dependencies
 hardware=0
