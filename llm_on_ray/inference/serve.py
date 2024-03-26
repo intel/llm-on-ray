@@ -70,7 +70,6 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-
         deployments[model_id] = PredictorDeployment.options(
             num_replicas=infer_conf.num_replicas, ray_actor_options=ray_actor_options
         ).bind(infer_conf)
