@@ -1774,7 +1774,8 @@ if __name__ == "__main__":
             "device": "cpu",
             "num_training_workers": 2,
             "resources_per_worker": {"CPU": 24},
-            "accelerate_mode": "CPU_DDP",
+            "accelerate_mode": "DDP",
+            "mixed_precision": "no",
         },
         "failure_config": {"max_failures": 5},
     }
@@ -1792,9 +1793,7 @@ if __name__ == "__main__":
         },
         "address": "auto",
     }
-    accelerate_env_vars = get_accelerate_environment_variable(
-        finetune_config["Training"]["accelerate_mode"], config=None
-    )
+    accelerate_env_vars = get_accelerate_environment_variable(finetune_config)
     ray_init_config["runtime_env"]["env_vars"].update(accelerate_env_vars)
     print("Start to init Ray connection")
     context = ray.init(**ray_init_config)

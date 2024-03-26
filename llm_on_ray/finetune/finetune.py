@@ -42,7 +42,7 @@ else:
 def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
     device = config["Training"]["device"]
     accelerate_mode = config["Training"]["accelerate_mode"]
-    mixed_precision = config["Training"]["mixed_precision"] if config else "no"
+    mixed_precision = config["Training"]["mixed_precision"]
     device_accelerate_mode = device + "_" + accelerate_mode
     mode_env_vars = {
         "cpu_DDP": {
