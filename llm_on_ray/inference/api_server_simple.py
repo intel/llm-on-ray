@@ -22,10 +22,11 @@ def serve_run(deployments, model_list):
     for model_id, infer_conf in model_list.items():
         print("deploy model: ", model_id)
         deployment = deployments[model_id]
-
-        serve.start(http_options={"host": infer_conf.host, "port": infer_conf.port})
         serve.run(
             deployment,
+            _blocking=True,
+            host=infer_conf.host,
+            port=infer_conf.port,
             name=infer_conf.name,
             route_prefix=infer_conf.route_prefix,
         )
