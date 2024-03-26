@@ -23,6 +23,11 @@ The following are the parameters supported in the finetuning workflow.
 |validation_file|None|A json file containing the validation data.|
 |validation_split_percentage|5|The percentage of the train set used as validation set in case there's no validation split|
 |preprocessing_num_workers|None|The number of processes to use for the preprocessing.|
+|max_length|512|Padding sequential data to max length of a batch|
+|group|True|Whether to concatenate the sentence for more efficient training|
+|block_size|512|The block size of concatenated sentence|
+|shuffle|False|Whether shuffle the data at every epoch|
+
 
 ## Training Parameters
 |Configuration Name| Default|Meaning|
