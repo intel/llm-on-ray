@@ -73,7 +73,7 @@ class Training(BaseModel):
 
     @validator("accelerate_mode")
     def check_accelerate_mode(cls, v: str):
-        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "HPU_DDP", "GPU_DEEPSPEED"]
+        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "HPU_DDP", "GPU_DEEPSPEED", "HPU_DEEPSPEED"]
         if v not in modes:
             raise ValueError(f"accelerate_mode must be one of {modes}")
         return v
