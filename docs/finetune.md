@@ -65,7 +65,7 @@ The following models have been verified on Intel CPUs or GPUs.
 |llama/llama2|✅|✅|✅|
 |mistral|✅|✅|✅|
 |pythia|✅|✅||
-|gpt-j|✅|✅|✅|
+|gpt-j|✅|✅||
 |bloom|✅|✅||
 |opt|✅|✅||
 |mpt|✅|||

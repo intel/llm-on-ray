@@ -135,8 +135,9 @@ class DefaultTrainer(Trainer):
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
+        self.device = self.config.get("device")
         self.accelerate_mode = self.config.get("accelerate_mode")
-        if self.accelerate_mode in ["GPU_DEEPSPEED"]:
+        if self.device == "gpu" and self.accelerate_mode == "DEEPSPEED":
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
             from accelerate.utils import DummyOptim, DummyScheduler
@@ -163,7 +164,7 @@ class DefaultTrainer(Trainer):
                 self.lr_scheduler,
             ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
-        if self.accelerate_mode in ["HPU_DDP"]:
+        if self.device == "hpu" and self.accelerate_mode == "DDP":
             import habana_frameworks.torch.core as htcore
             from habana_frameworks.torch.utils.internal import is_lazy
 

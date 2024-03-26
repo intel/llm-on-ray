@@ -1771,7 +1771,7 @@ if __name__ == "__main__":
             "optimizer": "AdamW",
             "lr_scheduler": "linear",
             "weight_decay": 0.0,
-            "device": "CPU",
+            "device": "cpu",
             "num_training_workers": 2,
             "resources_per_worker": {"CPU": 24},
             "accelerate_mode": "CPU_DDP",
