@@ -214,6 +214,7 @@ async def get_request(
 
 async def send_request(
     api_url: str,
+    model_name: str,
     prompt: str,
     prompt_len: int,
     output_len: int,
@@ -222,6 +223,7 @@ async def send_request(
     track_token_latency: bool = True,
     track_input_output: bool = False,
     progress_bar: tqdm = None,
+    simple: bool = False,
 ) -> None:
     """
     Sends a request to the specified API URL with the given prompt and configuration.
@@ -242,12 +244,25 @@ async def send_request(
     temp_config = copy.deepcopy(config)
     if "max_new_tokens" not in temp_config:
         temp_config["max_new_tokens"] = output_len
-
-    pload = {
-        "text": prompt,
-        "config": temp_config,
-        "stream": track_token_latency,
-    }
+    if simple:
+        pload = {
+            "text": prompt,
+            "config": temp_config,
+            "stream": track_token_latency,
+        }
+    else:
+        pload = {
+            "model": model_name,
+            "messages": [
+                {"role": "user", "content": f"{prompt}"},
+            ],
+            "stream": track_token_latency,
+            "max_tokens": temp_config["max_new_tokens"]
+            if "max_new_tokens" in temp_config
+            else None,
+            "temperature": temp_config["temperature"] if "temperature" in temp_config else None,
+            "top_p": temp_config["top_p"] if "top_p" in temp_config else None,
+        }
 
     token_latencies_per_request: List[float] = []
 
@@ -270,8 +285,21 @@ async def send_request(
                 print("Token Latencies:", token_latencies_per_request)
                 # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
-            response_text = b"".join(chunks).decode("utf-8")
-            generate_len = len(tokenizer.encode(response_text))
+            if simple:
+                response_text = b"".join(chunks).decode("utf-8")
+                generate_len = json.loads(response_text)[0]["generate_length"]
+            else:
+                if args.track_token_latency:
+                    response_content = chunks[-2].decode("utf-8")
+                    response_content = json.loads(response_content.split("data: ")[1])
+                    generate_len = response_content["usage"]["completion_tokens"]
+                    response_text = b"".join(chunks).decode("utf-8")
+                else:
+                    response_text = b"".join(chunks).decode("utf-8")
+                    try:
+                        generate_len = json.loads(response_text)["usage"]["completion_tokens"]
+                    except Exception:
+                        generate_len = None
             if progress_bar:
                 progress_bar.update()
             break
@@ -282,20 +310,22 @@ async def send_request(
     prompt_str = prompt if track_input_output else None
     output_str = response_text if track_input_output else None
 
-    latency_tracking.append(
-        (
-            prompt_str,
-            output_str,
-            prompt_len,
-            generate_len,
-            request_latency,
-            token_latencies_per_request,
+    if generate_len is not None:
+        latency_tracking.append(
+            (
+                prompt_str,
+                output_str,
+                prompt_len,
+                generate_len,
+                request_latency,
+                token_latencies_per_request,
+            )
         )
-    )
 
 
 async def benchmark(
     api_url: str,
+    model_name: str,
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
     config: dict,
@@ -303,6 +333,7 @@ async def benchmark(
     track_token_latency: bool = False,
     track_input_output: bool = False,
     progress: bool = False,
+    simple: bool = False,
 ) -> None:
     """
     Benchmark the API by sending multiple requests asynchronously.
@@ -325,12 +356,14 @@ async def benchmark(
             asyncio.create_task(
                 send_request(
                     api_url,
+                    model_name,
                     *request,
                     config,
                     tokenizer,
                     track_token_latency,
                     track_input_output,
                     progress_bar,
+                    simple,
                 )
             )
         )
@@ -354,7 +387,10 @@ def main(args: argparse.Namespace):
     np.random.seed(args.seed)
 
     route_prefix = all_models[args.model_name].route_prefix
-    api_url = args.model_endpoint_base + route_prefix
+    if args.simple:
+        api_url = args.model_endpoint_base + route_prefix
+    else:
+        api_url = args.model_endpoint_base + "/v1/chat/completions"
 
     tokenizer_name_or_path = all_models[args.model_name].model_description.tokenizer_name_or_path
 
@@ -407,6 +443,7 @@ def main(args: argparse.Namespace):
     asyncio.run(
         benchmark(
             api_url,
+            args.model_name,
             input_requests,
             args.request_rate,
             config,
@@ -414,6 +451,7 @@ def main(args: argparse.Namespace):
             args.track_token_latency,
             args.track_input_output,
             args.progress,
+            args.simple,
         )
     )
 
@@ -668,6 +706,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--results-dir", default=None, help="The directory to output the benchmark results."
+    )
+    parser.add_argument(
+        "--simple",
+        action="store_true",
+        help="Whether to request OpenAI-compatible API for specific model or simple endpoint.",
     )
     args = parser.parse_args()
     main(args)
