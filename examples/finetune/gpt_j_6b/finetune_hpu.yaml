@@ -27,7 +27,7 @@ Training:
   mixed_precision: bf16
   device: HPU
   num_training_workers: 2
-  accelerate_mode: HPU_DDP
+  accelerate_mode: DDP
   resources_per_worker:
     CPU: 1
     HPU: 1
