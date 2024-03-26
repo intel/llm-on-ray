@@ -27,7 +27,7 @@ An example dataset can be accessed at `examples/data/sample_finetune_data.jsonl
 
 ## Configure Finetuning Parameters
 
-We provide an example configuration file ([CPU version](../llm_on_ray/finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
+We provide an example configuration file ([CPU version](../llm_on_ray/finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml), [HPU version](../examples/finetune/gpt_j_6b/finetune_hpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
 
 For CPU,  please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to CPU_DDP.
 ```
@@ -46,21 +46,30 @@ Training:
     GPU: 1
   accelerate_mode: GPU_DDP
 ```
+For HPU, set `device` to HPU, set HPU number in `resources_per_worker` and set `accelerate_mode` to HPU_DDP or HPU_DEEPSPEED.
+```
+Training:
+  device: HPU
+  resources_per_worker:
+    CPU: 1
+    HPU: 1
+  accelerate_mode: HPU_DDP
+```
 Please see [finetune_parameters.md](finetune_parameters.md) for details of the parameters.
 
 
 ### Validated Models
 The following models have been verified on Intel CPUs or GPUs.
-|Model|CPU|GPU|
-|---|---|---|
-|llama/llama2|✅|✅|
-|mistral|✅|✅|
-|pythia|✅|✅|
-|gpt-j|✅|✅|
-|bloom|✅|✅|
-|opt|✅|✅|
-|mpt|✅||
-|gpt2|✅|✅|
+|Model|CPU|GPU|HPU|
+|---|---|---|---|
+|llama/llama2|✅|✅|✅|
+|mistral|✅|✅||✅|
+|pythia|✅|✅||
+|gpt-j|✅|✅|✅|
+|bloom|✅|✅||
+|opt|✅|✅||
+|mpt|✅|||
+|gpt2|✅|✅||
 
 ## Finetune the model
 To finetune your model, execute the following command. The finetuned model will be saved in /tmp/llm-ray/output by default.
