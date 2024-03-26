@@ -69,8 +69,9 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune
-          docker image prune -f
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest 
+          yes | docker container prune 
+          yes | docker image prune -f
 
       - name: Start Docker Container
         run: |
