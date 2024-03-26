@@ -338,9 +338,6 @@ async def send_request(
     prompt_len = sum([prompt_len for _, prompt_len, _ in batch])
     output_str = response_text if track_input_output else None
 
-    Tuple[Optional[str], Optional[str], Optional[int], int, float, List[float]]
-    Tuple[Optional[str], Optional[str], int, int, float, List[float]]
-
     if generate_len is not None:
         latency_tracking.append(
             (
