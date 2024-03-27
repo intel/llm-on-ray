@@ -28,4 +28,6 @@ class HuggingFaceModelForCausalLM(Model):
             model.gradient_checkpointing_enable()
             model.config.use_cache = False
 
+        model.to(dtype=model_dtype, device=config.get("device"))
+
         return model

@@ -27,7 +27,7 @@ def update_finetune_config(config_file, base_model):
         config["Training"]["device"] = "GPU"
         config["Training"]["resources_per_worker"]["CPU"] = 1
         config["Training"]["resources_per_worker"]["GPU"] = 1
-        config["Training"]["accelerate_mode"] = "GPU_DDP"
+        config["Training"]["accelerate_mode"] = "DDP"
         config["Training"]["logging_steps"] = 1
 
     with open(config_file, "w") as f:
