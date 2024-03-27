@@ -99,7 +99,7 @@ python benchmarks/benchmark_serving.py \
     --num-prompts 10
 ```
 
-## Performance
+### Performance
 You can run these command to reproduce the results of deploying 2 replicas on Intel(R) Xeon(R) Platinum 8480L 1 socket.
 1. Start ray cluster
 ```cmd
@@ -121,12 +121,12 @@ numactl -N 1 -m 1 python benchmarks/benchmark_serving.py --model-endpoint-base h
 ```
 5. Results
 ```cmd
-   Total time: 1132.641 s
-   Prompt Length (Min/Med/Max): 4 / 95 / 1024
-   Request Throughput (QPS): 0.883 requests/s
-   Input Token Throughput: 205.797 tokens/s
-   output Token Throughput: 216.418 tokens/s
-   Average latency per Request: 524.764 s
+Total time: 1132.641 s
+Prompt Length (Min/Med/Max): 4 / 95 / 1024
+Request Throughput (QPS): 0.883 requests/s
+Input Token Throughput: 205.797 tokens/s
+output Token Throughput: 216.418 tokens/s
+Average latency per Request: 524.764 s
 Average latency per Token: 8.211 s
 ```
 
