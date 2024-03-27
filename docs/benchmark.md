@@ -99,6 +99,37 @@ python benchmarks/benchmark_serving.py \
     --num-prompts 10
 ```
 
+## Performance
+You can run these command to reproduce the results of deploying 2 replicas on Intel(R) Xeon(R) Platinum 8480L 1 socket.
+1. Start ray cluster
+```cmd
+numactl -N 0 -m 0 -C 49-55 ray start --head --num-cpus 0
+numactl -N 0 -m 0 -C 0-47 ray start --address=$HEAD_NODE_IP:PORT --num-cpus 48
+```
+2. Modify parameters in model config file
+```
+num_replicas: 2
+cpus_per_worker: 24
+```
+3. Deploy server
+```cmd
+OMP_NUM_THREAD=24 numactl -N 0 -m 0 -C 0-47 python -u inference/serve.py --config_file inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml --keep_serve_terminal --ray_max_concurrent_queries 1000 --vllm_max_num_seqs 256 --simple
+```
+4. Send requests
+```cmd
+numactl -N 1 -m 1 python benchmarks/benchmark_serving.py --model-endpoint-base http://127.0.0.1:8000 --model-name llama-2-7b-chat-hf --dataset ./dataset/ShareGPT_V3_unfiltered_cleaned_split.json --num-prompts 1000 --dataset-format ShareGPT --simple
+```
+5. Results
+```cmd
+   Total time: 1132.641 s
+   Prompt Length (Min/Med/Max): 4 / 95 / 1024
+   Request Throughput (QPS): 0.883 requests/s
+   Input Token Throughput: 205.797 tokens/s
+   output Token Throughput: 216.418 tokens/s
+   Average latency per Request: 524.764 s
+Average latency per Token: 8.211 s
+```
+
 ## Arguments
 
 Run the following commands to get argument details of the the script:
