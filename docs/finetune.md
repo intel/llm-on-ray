@@ -59,7 +59,7 @@ Please see [finetune_parameters.md](finetune_parameters.md) for details of the p
 
 
 ### Validated Models
-The following models have been verified on Intel CPUs or GPUs.
+The following models have been verified on Intel CPUs or GPUs, and Habana Gaudi devices.
 |Model|CPU|GPU|HPU|
 |---|---|---|---|
 |llama/llama2|✅|✅|✅|
@@ -69,7 +69,7 @@ The following models have been verified on Intel CPUs or GPUs.
 |bloom|✅|✅||
 |opt|✅|✅||
 |mpt|✅|||
-|gpt2|✅|✅||
+|gpt2|✅|✅|
 
 ## Finetune the model
 To finetune your model, execute the following command. The finetuned model will be saved in /tmp/llm-ray/output by default.
