@@ -203,6 +203,19 @@ class ChatModelGemma(ChatModel):
         return prompt
 
 
+class ChatModelNoFormat(ChatModel):
+    def __init__(self, intro, human_id, bot_id, stop_words):
+        super().__init__(intro, human_id, bot_id, stop_words)
+
+    def prepare_prompt(self, messages: list):
+        """Prepare prompt from history messages."""
+        prompt = ""
+        for msg in messages:
+            msg = dict(msg)
+            prompt += msg["content"]
+        return prompt
+
+
 if __name__ == "__main__":
     process_tool = ChatModelGptJ(
         "", "### Instruction", "### Response", stop_words=["##", "### Instruction"]

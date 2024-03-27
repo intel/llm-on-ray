@@ -34,7 +34,7 @@ from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, C
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
@@ -70,7 +70,7 @@ class PredictorDeployment:
         elif self.use_vllm:
             from llm_on_ray.inference.vllm_predictor import VllmPredictor
 
-            self.predictor = VllmPredictor(infer_conf)
+            self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         elif self.is_mllm:
             from llm_on_ray.inference.mllm_predictor import MllmPredictor
 
