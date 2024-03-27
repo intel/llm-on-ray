@@ -31,7 +31,7 @@ import aiohttp
 import numpy as np
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
-from inference.inference_config import all_models
+from llm_on_ray.inference.inference_config import all_models
 import copy
 
 # (prompt str, output str, prompt len, output len, request latency, latencies list)
@@ -287,7 +287,14 @@ async def send_request(
             # Decode the response
             if simple:
                 response_text = b"".join(chunks).decode("utf-8")
-                generate_len = json.loads(response_text)[0]["generate_length"]
+                if args.track_token_latency:
+                    generate_len = len(tokenizer.encode(response_text))
+                else:
+                    response_content = json.loads(response_text)
+                    if isinstance(response_content, list):
+                        generate_len = response_content[0]["generate_length"]
+                    else:
+                        generate_len = response_content["generate_length"]
             else:
                 if args.track_token_latency:
                     response_content = chunks[-2].decode("utf-8")
