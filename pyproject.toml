@@ -34,7 +34,8 @@ dependencies = [
     "peft>=0.4.0",
     "deltatuner==1.1.9",
     "py-cpuinfo",
-    "pydantic-yaml"
+    "pydantic-yaml",
+    "async-timeout"
 ]
 
 [project.optional-dependencies]

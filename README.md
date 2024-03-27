@@ -88,7 +88,7 @@ curl $ENDPOINT_URL/chat/completions \
 python examples/inference/api_server_openai/query_http_requests.py
 
 # using OpenAI SDK
-# please install openai in current env by running: pip install openai>=1.0
+pip install openai>=1.0
 export OPENAI_BASE_URL=http://localhost:8000/v1
 export OPENAI_API_KEY="not_a_real_key"
 python examples/inference/api_server_openai/query_openai_sdk.py
