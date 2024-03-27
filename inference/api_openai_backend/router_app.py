@@ -67,7 +67,7 @@ from .openai_protocol import (
 logger = get_logger(__name__)
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
-TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600))
+TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600000000000000))
 
 
 def init() -> FastAPI:

@@ -33,7 +33,7 @@ from inference.utils import get_prompt_format, PromptFormat
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
@@ -65,7 +65,7 @@ class PredictorDeployment:
         elif self.use_vllm:
             from vllm_predictor import VllmPredictor
 
-            self.predictor = VllmPredictor(infer_conf)
+            self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         else:
             from transformer_predictor import TransformerPredictor
 

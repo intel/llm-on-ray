@@ -71,8 +71,10 @@ def get_deployed_models(args):
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
         deployments[model_id] = PredictorDeployment.options(
-            num_replicas=infer_conf.num_replicas, ray_actor_options=ray_actor_options
-        ).bind(infer_conf)
+            num_replicas=infer_conf.num_replicas,
+            ray_actor_options=ray_actor_options,
+            max_concurrent_queries=args.ray_max_concurrent_queries,
+        ).bind(infer_conf, args.vllm_max_num_seqs)
     return deployments, model_list
 
 
@@ -148,6 +150,12 @@ def main(argv=None):
         action="store_true",
         help="Whether to keep serve terminal.",
     )
+    parser.add_argument(
+        "--ray_max_concurrent_queries", required=True, type=int, help="The batch size in Ray."
+    )
+    parser.add_argument(
+        "--vllm_max_num_seqs", required=True, type=int, help="The batch size in VLLM."
+    )
 
     args = parser.parse_args(argv)
 
@@ -164,7 +172,9 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else ""
         route_prefix = "/{}".format(rp)
-        openai_serve_run(deployments, host, route_prefix, args.port)
+        openai_serve_run(
+            deployments, host, route_prefix, args.port, args.ray_max_concurrent_queries
+        )
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
