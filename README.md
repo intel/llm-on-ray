@@ -5,14 +5,14 @@ LLM-on-Ray is a comprehensive solution designed to empower users in building, cu
 
 LLM-on-Ray harnesses the power of Ray, an industry-leading framework for distributed computing, to scale your AI workloads efficiently. This integration ensures robust fault tolerance and cluster resource management, making your LLM projects more resilient and scalable.
 
-LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[Deepspeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more.
+LLM-on-Ray is built to operate across various hardware setups, including Intel CPU, Intel GPU and Intel Gaudi2. It incorporates several industry and Intel optimizations to maximize performance, including [vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Intel Extension for PyTorch](https://github.com/intel/intel-extension-for-pytorch)/[DeepSpeed](https://github.com/intel/intel-extension-for-deepspeed), [BigDL-LLM](https://github.com/intel-analytics/BigDL), [RecDP-LLM](https://github.com/intel/e2eAIOK/tree/main/RecDP/pyrecdp/LLM), [NeuralChat](https://huggingface.co/Intel/neural-chat-7b-v3-1) and more.
 
 ## Solution Technical Overview
 LLM-on-Ray's modular workflow structure is designed to comprehensively cater to the various stages of LLM development, from pretraining and finetuning to serving. These workflows are intuitive, highly configurable, and tailored to meet the specific needs of each phase in the LLM lifecycle:
 
 * **Pretraining Workflow**: Provides the infrastructure to build LLMs from scratch.
     * **Data Preparation**: Includes a suite of tools for preparing your training data which facilitate tasks like the removal of Personally Identifiable Information (PII), data deduplication (Dedup), and other preprocessing needs, making the data safe and efficient for training.
-    * **Megatron-Deepspeed Integration**: Leverages the power of Megatron-Deepspeed to enable advanced capabilities such as pipeline parallelism, tensor parallelism, data parallelism, and Zero Redundancy Optimizer (ZeRO). This integration facilitates efficient and scalable model training from the ground up.
+    * **Megatron-DeepSpeed Integration**: Leverages the power of Megatron-DeepSpeed to enable advanced capabilities such as pipeline parallelism, tensor parallelism, data parallelism, and Zero Redundancy Optimizer (ZeRO). This integration facilitates efficient and scalable model training from the ground up.
     * **Robust Fault Tolerance**: Offers automatic fault tolerance powered by Ray. This ensures high availability, reliability, and optimal performance for large scale pretraining.
 
 
@@ -37,7 +37,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
-#### 1. Clone the repository and install dependencies.
+#### 1. Clone the repository, install llm-on-ray and its dependencies.
 Software requirement: Git and Conda
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
@@ -62,14 +62,14 @@ ray start --head
 Use the following command to finetune a model using an example dataset and default configurations. The finetuned model will be stored in `/tmp/llm-ray/output` by default. To customize the base model, dataset and configurations, please see the [finetuning document](#finetune):
 
 ```bash
-python finetune/finetune.py --config_file finetune/finetune.yaml
+llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml
 ```
 
 ### Serving
 Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2 as an example, but more model configuration examples can be found in the [inference/models](inference/models) directory:
 
 ```bash
-python inference/serve.py --config_file inference/models/gpt2.yaml
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
@@ -95,7 +95,7 @@ python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 Or you can serve specific model to a simple endpoint according to the `port` and `route_prefix` parameters in configuration file,
 ```bash
-python inference/serve.py --config_file inference/models/gpt2.yaml --simple
+llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 ```
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
@@ -114,7 +114,7 @@ The following are detailed guidelines for pretraining, finetuning and serving LL
 
 ### Serving
 * [Deploy and Serve LLMs on Intel CPU/GPU/Gaudi](docs/serve.md)
-* [Deploy and Serve LLMs with Deepspeed](docs/serve_deepspeed.md)
+* [Deploy and Serve LLMs with DeepSpeed](docs/serve_deepspeed.md)
 * [Deploy and Serve LLMs with BigDL-LLM](docs/serve_bigdl.md)
 
 ### Web UI

@@ -1,0 +1,21 @@
+port: 8000
+name: gpt2
+route_prefix: /gpt2
+cpus_per_worker: 1
+gpus_per_worker: 0
+deepspeed: false
+workers_per_group: 2
+device: CPU
+ipex:
+  enabled: true
+  precision: bf16
+model_description:
+  model_id_or_path: gpt2
+  tokenizer_name_or_path: gpt2
+  chat_processor: ChatModelGptJ
+  gpt_base_model: true
+  prompt:
+    intro: ''
+    human_id: ''
+    bot_id: ''
+    stop_words: []
