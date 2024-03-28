@@ -73,7 +73,7 @@ def get_deployed_models(args):
         deployments[model_id] = PredictorDeployment.options(
             num_replicas=infer_conf.num_replicas,
             ray_actor_options=ray_actor_options,
-            max_concurrent_queries=args.ray_max_concurrent_queries,
+            max_concurrent_queries=args.max_concurrent_queries,
         ).bind(infer_conf, args.vllm_max_num_seqs)
     return deployments, model_list
 
@@ -175,9 +175,7 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else ""
         route_prefix = "/{}".format(rp)
-        openai_serve_run(
-            deployments, host, route_prefix, args.port, args.ray_max_concurrent_queries
-        )
+        openai_serve_run(deployments, host, route_prefix, args.port, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
