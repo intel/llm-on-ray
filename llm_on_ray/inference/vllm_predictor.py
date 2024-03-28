@@ -53,7 +53,6 @@ class VllmPredictor(Predictor):
         # In order to align with vllm test parameters
         config["ignore_eos"] = True
         sampling_params = SamplingParams(**config)
-        # print("sampling_params: ", sampling_params)
         if isinstance(prompts, str):
             request_id = random_uuid()
             results_generator = self.engine.generate(prompts, sampling_params, request_id)

@@ -151,10 +151,13 @@ def main(argv=None):
         help="Whether to keep serve terminal.",
     )
     parser.add_argument(
-        "--ray_max_concurrent_queries", required=True, type=int, help="The batch size in Ray."
+        "--max_concurrent_queries",
+        default=100,
+        type=int,
+        help="The max concurrent requests ray serve can process.",
     )
     parser.add_argument(
-        "--vllm_max_num_seqs", required=True, type=int, help="The batch size in VLLM."
+        "--vllm_max_num_seqs", default=256, type=int, help="The batch size in VLLM."
     )
 
     args = parser.parse_args(argv)
