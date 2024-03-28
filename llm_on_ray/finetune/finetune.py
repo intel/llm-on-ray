@@ -39,52 +39,78 @@ else:
     use_habana = False
 
 
-def get_accelerate_environment_variable(mode: str, config: Union[Dict[str, Any], None]) -> dict:
-    mixed_precision = config["Training"]["mixed_precision"] if config else "no"
+def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
+    device = config["Training"]["device"]
+    accelerate_mode = config["Training"]["accelerate_mode"]
+    mixed_precision = config["Training"]["mixed_precision"]
     mode_env_vars = {
-        "CPU_DDP": {
-            "ACCELERATE_USE_CPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "cpu": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            }
         },
-        "GPU_DDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "gpu": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "FSDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_USE_FSDP": "true",
+                "FSDP_SHARDING_STRATEGY": "1",
+                "FSDP_OFFLOAD_PARAMS": "false",
+                "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
+                "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
+                "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
+                "FSDP_FORWARD_PREFETCH": "false",
+                "FSDP_USE_ORIG_PARAMS": "false",
+                "FSDP_SYNC_MODULE_STATES": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "DEEPSPEED": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_USE_DEEPSPEED": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
         },
-        "GPU_FSDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_USE_FSDP": "true",
-            "FSDP_SHARDING_STRATEGY": "1",
-            "FSDP_OFFLOAD_PARAMS": "false",
-            "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
-            "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
-            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
-            "FSDP_FORWARD_PREFETCH": "false",
-            "FSDP_USE_ORIG_PARAMS": "false",
-            "FSDP_SYNC_MODULE_STATES": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
-        },
-        "GPU_DEEPSPEED": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_USE_DEEPSPEED": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
-        },
-        "HPU_DDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "false",
-            "ACCELERATE_USE_IPEX": "false",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "hpu:": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "false",
+                "ACCELERATE_USE_IPEX": "false",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "DEEPSPEED": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "false",
+                "ACCELERATE_USE_IPEX": "false",
+                "ACCELERATE_USE_DEEPSPEED": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
         },
     }
-    if mode not in mode_env_vars:
-        raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
-    return mode_env_vars[mode]
+    if device not in mode_env_vars or accelerate_mode not in mode_env_vars[device]:
+        supported_mode_info = ""
+        for k in mode_env_vars.keys():
+            supported_mode_info += k + ":["
+            for m in mode_env_vars[k]:
+                supported_mode_info += m + ","
+            supported_mode_info = supported_mode_info[:-1]
+            supported_mode_info += "],"
+        supported_mode_info = supported_mode_info[:-1]
+
+        raise ValueError(
+            f"device {device} and accelerate mode {accelerate_mode} not supported. supported device and accelerate mode is {supported_mode_info}"
+        )
+    return mode_env_vars[device][accelerate_mode]
 
 
 def get_device_environment_variable(device):
@@ -137,13 +163,12 @@ def train_func(config: Dict[str, Any]):
         config={
             "name": base_model,
             "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
+            "device": torch.device(config["Training"]["device"]),
             "config": config["General"]["config"],
             "enable_gradient_checkpointing": config["General"].get(
                 "enable_gradient_checkpointing", False
             ),
-            "lora_config": config["General"]["lora_config"]
-            if config["General"].get("lora_config")
-            else None,
+            "lora_config": config["General"].get("lora_config", None),
         }
     )
 
@@ -156,7 +181,7 @@ def train_func(config: Dict[str, Any]):
     )
 
     accelerate_mode = config["Training"]["accelerate_mode"]
-    if accelerate_mode in ["GPU_FSDP"]:
+    if accelerate_mode == "FSDP":
         fsdp_plugin = FullyShardedDataParallelPlugin(
             state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
             optim_state_dict_config=FullOptimStateDictConfig(
@@ -164,7 +189,7 @@ def train_func(config: Dict[str, Any]):
             ),
         )
         deepspeed_plugin = None
-    elif accelerate_mode in ["GPU_DEEPSPEED"]:
+    elif accelerate_mode == "DEEPSPEED":
         fsdp_plugin = None
         hf_ds_config = config["Training"]["deepspeed_config_file"]
         deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
@@ -187,6 +212,7 @@ def train_func(config: Dict[str, Any]):
 
     trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
         config={
+            "device": config["Training"]["device"],
             "accelerate_mode": config["Training"]["accelerate_mode"],
             "num_train_epochs": epochs,
             "max_train_step": config["Training"].get("max_train_steps", None),
@@ -264,14 +290,15 @@ def main(external_config=None):
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
-    accelerate_mode = config["Training"].get("accelerate_mode")
-    if accelerate_mode is None:
-        accelerate_mode = "CPU_DDP"
+    if config["Training"].get("accelerate_mode", None) is None:
+        config["Training"][
+            "accelerate_mode"
+        ] = "DDP"  # will use DDP to accelerate if no method specified
 
-    use_cpu = True if accelerate_mode.startswith("CPU") else False
-    use_gpu = True if accelerate_mode.startswith("GPU") else False
-    ccl_worker_count = 1 if use_cpu is True else num_training_workers
-    device = config["Training"]["device"].lower()
+    ccl_worker_count = 1
+    device = config["Training"]["device"]
+    if device != "cpu":
+        ccl_worker_count = num_training_workers
 
     if not ray.is_initialized():
         runtime_env = {
@@ -285,7 +312,7 @@ def main(external_config=None):
                 "FI_PROVIDER": "tcp",
             }
         }
-        accelerate_env_vars = get_accelerate_environment_variable(accelerate_mode, config)
+        accelerate_env_vars = get_accelerate_environment_variable(config)
         runtime_env["env_vars"].update(accelerate_env_vars)
 
         device_env_vars = get_device_environment_variable(device)
@@ -308,7 +335,7 @@ def main(external_config=None):
                 ray.init(runtime_env=runtime_env)
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
-
+    use_gpu = True if device == "gpu" else False
     scaling_config = ScalingConfig(
         num_workers=num_training_workers,
         use_gpu=use_gpu,
@@ -321,7 +348,7 @@ def main(external_config=None):
 
     if config.get("torch_config", None) is None:
         backend = None
-        if device == "cpu" or device == "xpu":
+        if device == "cpu" or device == "xpu" or device == "gpu":
             backend = "ccl"
         elif device == "hpu":
             backend = "hccl"

@@ -1,6 +1,6 @@
 General:
-  base_model: google/gemma-2b
-  gpt_base_model: false
+  base_model: EleutherAI/gpt-j-6b
+  gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
   config:
@@ -11,26 +11,25 @@ General:
     r: 8
     lora_alpha: 32
     lora_dropout: 0.1
-    target_modules:
-      - q_proj
-      - v_proj
   enable_gradient_checkpointing: false
 Dataset:
-  train_file: examples/data/sample_finetune_data_small.jsonl
+  train_file: examples/data/sample_finetune_data.jsonl
+  group: true
   validation_file: null
   validation_split_percentage: 5
 Training:
   optimizer: AdamW
-  batch_size: 2
+  batch_size: 4
   epochs: 3
   learning_rate: 1.0e-05
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
-  device: CPU
+  device: HPU
   num_training_workers: 2
-  resources_per_worker:
-    CPU: 32
   accelerate_mode: DDP
+  resources_per_worker:
+    CPU: 1
+    HPU: 1
   gradient_accumulation_steps: 1
   logging_steps: 10
