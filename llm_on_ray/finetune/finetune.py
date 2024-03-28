@@ -43,51 +43,74 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
     device = config["Training"]["device"]
     accelerate_mode = config["Training"]["accelerate_mode"]
     mixed_precision = config["Training"]["mixed_precision"]
-    device_accelerate_mode = device + "_" + accelerate_mode
     mode_env_vars = {
-        "cpu_DDP": {
-            "ACCELERATE_USE_CPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "cpu": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            }
         },
-        "gpu_DDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "gpu": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "FSDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_USE_FSDP": "true",
+                "FSDP_SHARDING_STRATEGY": "1",
+                "FSDP_OFFLOAD_PARAMS": "false",
+                "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
+                "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
+                "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
+                "FSDP_FORWARD_PREFETCH": "false",
+                "FSDP_USE_ORIG_PARAMS": "false",
+                "FSDP_SYNC_MODULE_STATES": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "DEEPSPEED": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "true",
+                "ACCELERATE_USE_IPEX": "true",
+                "ACCELERATE_USE_DEEPSPEED": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
         },
-        "gpu_FSDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_USE_FSDP": "true",
-            "FSDP_SHARDING_STRATEGY": "1",
-            "FSDP_OFFLOAD_PARAMS": "false",
-            "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
-            "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
-            "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
-            "FSDP_FORWARD_PREFETCH": "false",
-            "FSDP_USE_ORIG_PARAMS": "false",
-            "FSDP_SYNC_MODULE_STATES": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
-        },
-        "gpu_DEEPSPEED": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "true",
-            "ACCELERATE_USE_IPEX": "true",
-            "ACCELERATE_USE_DEEPSPEED": "true",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
-        },
-        "hpu_DDP": {
-            "ACCELERATE_USE_CPU": "false",
-            "ACCELERATE_USE_XPU": "false",
-            "ACCELERATE_USE_IPEX": "false",
-            "ACCELERATE_MIXED_PRECISION": mixed_precision,
+        "hpu:": {
+            "DDP": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "false",
+                "ACCELERATE_USE_IPEX": "false",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
+            "DEEPSPEED": {
+                "ACCELERATE_USE_CPU": "false",
+                "ACCELERATE_USE_XPU": "false",
+                "ACCELERATE_USE_IPEX": "false",
+                "ACCELERATE_USE_DEEPSPEED": "true",
+                "ACCELERATE_MIXED_PRECISION": mixed_precision,
+            },
         },
     }
-    if device_accelerate_mode not in mode_env_vars:
-        raise ValueError(f"accelerate mode must be one of {list(mode_env_vars.keys())}")
-    return mode_env_vars[device_accelerate_mode]
+    if device not in mode_env_vars or accelerate_mode not in mode_env_vars[device]:
+        supported_mode_info = ""
+        for k in mode_env_vars.keys():
+            supported_mode_info += k + ":["
+            for m in mode_env_vars[k]:
+                supported_mode_info += m + ","
+            supported_mode_info = supported_mode_info[:-1]
+            supported_mode_info += "],"
+        supported_mode_info = supported_mode_info[:-1]
+
+        raise ValueError(
+            f"device {device} and accelerate mode {accelerate_mode} not supported. supported device and accelerate mode is {supported_mode_info}"
+        )
+    return mode_env_vars[device][accelerate_mode]
 
 
 def get_device_environment_variable(device):
