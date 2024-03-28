@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import ray
 import sys
 from pydantic_yaml import parse_yaml_raw_as
@@ -98,41 +97,6 @@ def main(argv=None):
         type=str,
         help=f"Only used when config_file and model_id_or_path are both None, valid values can be any items in {list(all_models.keys())}.",
     )
-    parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
-    parser.add_argument(
-        "--route_prefix",
-        default=None,
-        type=str,
-        help="The route prefix for HTTP requests.",
-    )
-    parser.add_argument(
-        "--num_replicas",
-        default=1,
-        type=int,
-        help="The number of replicas used to respond to HTTP requests.",
-    )
-    parser.add_argument("--cpus_per_worker", default="24", type=int, help="CPUs per worker.")
-    parser.add_argument(
-        "--gpus_per_worker",
-        default=0,
-        type=float,
-        help="GPUs per worker, used when --device is cuda.",
-    )
-    parser.add_argument(
-        "--hpus_per_worker",
-        default=0,
-        type=float,
-        help="HPUs per worker, used when --device is hpu.",
-    )
-    parser.add_argument("--deepspeed", action="store_true", help="Enable deepspeed inference.")
-    parser.add_argument(
-        "--workers_per_group",
-        default="2",
-        type=int,
-        help="Workers per group, used with --deepspeed.",
-    )
-    parser.add_argument("--ipex", action="store_true", help="Enable ipex optimization.")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda.")
     parser.add_argument(
         "--serve_local_only",
         action="store_true",
