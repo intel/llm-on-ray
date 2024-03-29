@@ -1,6 +1,6 @@
 port: 8000
-name: sqlcoder
-route_prefix: /sqlcoder
+name: sqlcoder-7b-2
+route_prefix: /sqlcoder-7b-2
 cpus_per_worker: 22
 gpus_per_worker: 0
 deepspeed: false
