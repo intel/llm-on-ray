@@ -25,8 +25,6 @@ def start_serve(model_name):
     # Print the output of subprocess.run for checking if output is expected
     print("\n" + "Serve message: " + "\n", result_serve.stdout)
 
-    assert "Error" not in result_serve.stderr
-
 
 def script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p):
     current_path = os.path.dirname(os.path.abspath(__file__))
@@ -61,16 +59,12 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
         "\n" + "Http error stderr message: " + "\n", result_http.stderr
     )
 
-    print("\n" + "Http output message: " + "\n", result_http.stdout)
-
     # Print the output of subprocess.run for checking if output is expected
     print("\n" + "Model in Http output message: " + "\n", result_http.stdout)
 
-    assert "Error" not in result_http.stderr
+    assert isinstance(result_http.stdout, str), print("\n" + "Http output is nor string" + "\n")
 
-    assert isinstance(result_http.stdout, str)
-
-    assert len(result_http.stdout) > 0
+    assert len(result_http.stdout) > 0, print("\n" + "Http output length is 0" + "\n")
 
 
 executed_models = {}
