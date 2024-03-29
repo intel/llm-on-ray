@@ -17,7 +17,7 @@ ACCELERATE_STRATEGY_DEEPSPEED = "DEEPSPEED"
 
 class GeneralConfig(BaseModel):
     trust_remote_code: bool
-    use_auth_token: Optional[str]
+    token: Optional[str]
 
 
 class LoraConfig(BaseModel):

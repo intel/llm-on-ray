@@ -13,7 +13,7 @@ from ray.air import ScalingConfig
 from typing import List
 import os
 from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
@@ -35,15 +35,14 @@ class DSPipeline:
             model_desc.model_id_or_path,
             torchscript=True,
             trust_remote_code=model_config.trust_remote_code,
-            use_auth_token=infer_conf.model_description.config.use_auth_token,
+            token=infer_conf.model_description.config.token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_desc.model_id_or_path,
             config=hf_config,
-            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
             **model_config.dict(),
         )
@@ -54,7 +53,7 @@ class DSPipeline:
             self.model = PeftModel.from_pretrained(
                 self.model,
                 model_desc.peft_model_id_or_path,
-                use_auth_token=infer_conf.model_description.config.use_auth_token,
+                token=infer_conf.model_description.config.token,
             )
             if model_desc.peft_type == "deltatuner":
                 from deltatuner import DeltaTunerModel

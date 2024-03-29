@@ -5,7 +5,7 @@ General:
   checkpoint_dir: /tmp/llm-ray/checkpoint
   config:
     trust_remote_code: true
-    use_auth_token: null
+    token: null
   lora_config:
     task_type: CAUSAL_LM
     r: 8

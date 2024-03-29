@@ -19,7 +19,7 @@ from ray.util.queue import Queue
 import torch
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
-from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_HPU
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
@@ -114,22 +114,26 @@ def max_input_len(input_text_length):
         return 4096
 
 
-def get_torch_dtype(infer_conf: InferenceConfig, hf_config) -> torch.dtype:
+def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
     """
-    return torch default dtype, a.k.a float32, if it's cpu only inference without
-    ipex because bfloat16 is too slow and float16 is not supported in CPU
+    Decide torch dtype based on user config and model config.
+    This function modifies `torch_dtype` in infer_conf.model_description.config.
     """
-    if hf_config is None or is_cpu_without_ipex(infer_conf):
-        return torch.get_default_dtype()
-    if hasattr(hf_config, "torch_dtype"):
-        t = hf_config.torch_dtype
-        if t:
-            return t
-    if hasattr(hf_config, "__getitem__"):
-        t = hf_config["torch_dtype"]
-        if t:
-            return t
-    return torch.get_default_dtype()
+    torch_dtype = infer_conf.model_description.config.torch_dtype
+    if torch_dtype:
+        # respect user config
+        pass
+    elif infer_conf.device == DEVICE_HPU:
+        # if using deepspeed, we should use bfloat16
+        # TODO if quantization is enabled, we should use bfloat16
+        if infer_conf.deepspeed:
+            torch_dtype = torch.bfloat16
+    elif hf_config is None or is_cpu_without_ipex(infer_conf):
+        torch_dtype = torch.get_default_dtype()
+    elif hasattr(hf_config, "torch_dtype") and hf_config.torch_dtype:
+        torch_dtype = hf_config.torch_dtype
+    elif hasattr(hf_config, "__getitem__") and hf_config["torch_dtype"]:
+        torch_dtype = hf_config["torch_dtype"]
 
 
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:

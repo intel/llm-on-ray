@@ -5,7 +5,7 @@ from llm_on_ray.inference.utils import (
     get_deployment_actor_options,
     StoppingCriteriaSub,
     max_input_len,
-    get_torch_dtype,
+    decide_torch_dtype,
     is_cpu_without_ipex,
 )
 from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
@@ -57,10 +57,10 @@ def test_max_input_len():
 # Add more tests for edge cases
 
 
-def test_get_torch_dtype_cpu_without_ipex(mock_infer_conf):
-    hf_config = None
-    dtype = get_torch_dtype(mock_infer_conf, hf_config)
-    assert dtype == torch.get_default_dtype()
+def test_decide_torch_dtype_cpu_without_ipex(mock_infer_conf):
+    decide_torch_dtype(mock_infer_conf)
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.get_default_dtype()
+    mock_infer_conf.model_description.config.torch_dtype = None
 
 
 # Add more tests for different configurations and hf_config values
