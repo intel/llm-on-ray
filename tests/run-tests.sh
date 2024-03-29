@@ -5,5 +5,5 @@ cd $(dirname $0)
 
 # Run pytest with the test file
 pytest -vv --capture=tee-sys --show-capture=all ./inference
-
+pytest -vv --capture=tee-sys --show-capture=all ./openai
 echo "Pytest finished running tests."
