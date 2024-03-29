@@ -45,7 +45,6 @@ jobs:
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
           - { model: "mistralai/Mistral-7B-v0.1"}
           - { model: "google/gemma-2b"}
-          - { model: "defog/sqlcoder-7b-2"}
 
     runs-on: self-hosted
 
