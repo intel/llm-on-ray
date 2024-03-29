@@ -135,8 +135,8 @@ class DefaultTrainer(Trainer):
         # self.model, self.optimizer, self.lr_scheduler, ..., are prepared with 2 steps
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
-        accelerate_mode = self.config.get("accelerate_mode")
-        if accelerate_mode in ["GPU_DEEPSPEED"]:
+        self.accelerate_mode = self.config.get("accelerate_mode")
+        if self.accelerate_mode == "DEEPSPEED":
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
             from accelerate.utils import DummyOptim, DummyScheduler
@@ -163,6 +163,15 @@ class DefaultTrainer(Trainer):
                 self.lr_scheduler,
             ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
+        self.device = self.config.get("device")
+        if self.device == "hpu":
+            import habana_frameworks.torch.core as htcore
+            from habana_frameworks.torch.utils.internal import is_lazy
+
+            self.htcore = htcore
+        else:
+            self.htcore = None
+
         checkpoint = self.config.get("checkpoint")
         if checkpoint is not None:
             self.recovery(checkpoint)
@@ -180,12 +189,20 @@ class DefaultTrainer(Trainer):
             logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
+                    self.model.train()
+                    batch = batch.to(device=self.accelerator.device)
                     outputs = self.model(**batch)
                     loss = outputs.loss
                     self.accelerator.backward(loss)
+                    if self.htcore is not None:
+                        self.htcore.mark_step()
                     self.optimizer.step()
+                    if self.htcore is not None:
+                        self.htcore.mark_step()
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
+                        if self.htcore is not None:
+                            self.htcore.mark_step()
                     self.optimizer.zero_grad()
 
                     if step % logging_steps == 0:
