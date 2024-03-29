@@ -119,6 +119,9 @@ def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
     Decide torch dtype based on user config and model config.
     This function modifies `torch_dtype` in infer_conf.model_description.config.
     """
+    if not hasattr(infer_conf.model_description.config, "torch_dtype"):
+        infer_conf.model_description.config.torch_dtype = None
+
     torch_dtype = infer_conf.model_description.config.torch_dtype
     if torch_dtype:
         # respect user config
