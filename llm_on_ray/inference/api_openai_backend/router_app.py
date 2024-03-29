@@ -68,7 +68,7 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
 logger = get_logger(__name__)
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
-TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 600))
+TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 1800))
 
 
 def init() -> FastAPI:
