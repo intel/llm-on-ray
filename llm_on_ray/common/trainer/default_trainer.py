@@ -235,6 +235,7 @@ class DefaultTrainer(Trainer):
                 start = time.time()
                 losses = []
                 for step, batch in enumerate(self.eval_dataloader):
+                    batch = batch.to(device=self.accelerator.device)
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
