@@ -160,6 +160,11 @@ def main(argv=None):
         "--vllm_max_num_seqs", default=256, type=int, help="The batch size in VLLM."
     )
 
+    # Print help if no arguments were provided
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = parser.parse_args(argv)
 
     ray.init(address="auto")
