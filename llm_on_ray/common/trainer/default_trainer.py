@@ -208,7 +208,7 @@ class DefaultTrainer(Trainer):
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
-                        epochs = (step + idx * total_steps) / (num_train_epochs * total_steps)
+                        epochs = idx + step / total_steps
                         logger.info(
                             f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
@@ -255,7 +255,7 @@ class DefaultTrainer(Trainer):
                     eval_loss = float("inf")
                     perplexity = float("inf")
                 logger.info(
-                    f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
+                    f"eval epoch:{idx}\tloss:{eval_loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}"
                 )
 
             if checkpoint is not None:

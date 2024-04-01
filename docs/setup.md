@@ -23,6 +23,7 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 ### Software Requirements
 - Git
 - Conda
+- Docker
 
 ## Setup
 
@@ -38,11 +39,11 @@ cd llm-on-ray
 conda create -n llm-on-ray python=3.9
 conda activate llm-on-ray
 ```
-For CPU:
+##### For CPU:
 ```bash
 pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
-For GPU:
+##### For GPU:
 ```bash
 pip install .[gpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 ```
@@ -51,7 +52,7 @@ If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI lib
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
-For Gaudi:
+##### For Gaudi:
 
 Please use the [Dockerfile](../dev/docker/Dockerfile.habana) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
 

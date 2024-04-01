@@ -81,7 +81,7 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
                 "ACCELERATE_MIXED_PRECISION": mixed_precision,
             },
         },
-        "hpu:": {
+        "hpu": {
             "DDP": {
                 "ACCELERATE_USE_CPU": "false",
                 "ACCELERATE_USE_XPU": "false",
