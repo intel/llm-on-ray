@@ -74,3 +74,6 @@ def test_is_cpu_without_ipex(mock_infer_conf):
 
 
 # Add more tests for different configurations
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__])

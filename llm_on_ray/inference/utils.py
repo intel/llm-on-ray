@@ -122,21 +122,20 @@ def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
     if not hasattr(infer_conf.model_description.config, "torch_dtype"):
         infer_conf.model_description.config.torch_dtype = None
 
-    torch_dtype = infer_conf.model_description.config.torch_dtype
-    if torch_dtype:
+    if infer_conf.model_description.config.torch_dtype:
         # respect user config
         pass
     elif infer_conf.device == DEVICE_HPU:
         # if using deepspeed, we should use bfloat16
         # TODO if quantization is enabled, we should use bfloat16
         if infer_conf.deepspeed:
-            torch_dtype = torch.bfloat16
+            infer_conf.model_description.config.torch_dtype = torch.bfloat16
     elif hf_config is None or is_cpu_without_ipex(infer_conf):
-        torch_dtype = torch.get_default_dtype()
+        infer_conf.model_description.config.torch_dtype = torch.get_default_dtype()
     elif hasattr(hf_config, "torch_dtype") and hf_config.torch_dtype:
-        torch_dtype = hf_config.torch_dtype
+        infer_conf.model_description.config.torch_dtype = hf_config.torch_dtype
     elif hasattr(hf_config, "__getitem__") and hf_config["torch_dtype"]:
-        torch_dtype = hf_config["torch_dtype"]
+        infer_conf.model_description.config.torch_dtype = hf_config["torch_dtype"]
 
 
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
