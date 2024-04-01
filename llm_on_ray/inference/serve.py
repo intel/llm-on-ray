@@ -149,6 +149,11 @@ def main(argv=None):
         help="Whether to keep serve terminal.",
     )
 
+    # Print help if no arguments were provided
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = parser.parse_args(argv)
 
     ray.init(address="auto")

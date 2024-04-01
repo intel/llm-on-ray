@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import sys
 from typing import Any, Dict, Union, Optional
 
 import torch
@@ -245,6 +246,12 @@ def get_finetune_config():
         default=None,
         help="The name of the dataset to use (via the datasets library).",
     )
+
+    # Print help if no arguments were provided
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = parser.parse_args()
     config_file = args.config_file
 
