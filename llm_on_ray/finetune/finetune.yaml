@@ -1,5 +1,6 @@
 General:
   base_model: EleutherAI/gpt-j-6b
+  is_base_model: false
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   save_strategy: no
@@ -12,6 +13,7 @@ General:
     lora_alpha: 32
     lora_dropout: 0.1
   enable_gradient_checkpointing: false
+  custom_chat_template: null
 Dataset:
   train_file: examples/data/sample_finetune_data_small.jsonl
   group: true

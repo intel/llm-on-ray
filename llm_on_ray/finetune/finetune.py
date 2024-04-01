@@ -230,6 +230,9 @@ def train_func(config: Dict[str, Any]):
             "group": config["Dataset"].get("group", True),
             "block_size": config["Dataset"].get("block_size", 512),
             "shuffle": config["Dataset"].get("shuffle", False),
+            "name": tokenizer_name,
+            "config": config["General"]["config"],
+            "custom_chat_template": config["General"]["custom_chat_template"],
         }
     )
     tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
