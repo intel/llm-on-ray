@@ -177,6 +177,7 @@ def train_func(config: Dict[str, Any]):
         config={
             "name": tokenizer_name,
             "config": config["General"]["config"],
+            "custom_chat_template": config["General"]["custom_chat_template"],
         }
     )
 

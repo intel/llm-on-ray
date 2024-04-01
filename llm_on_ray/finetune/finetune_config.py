@@ -17,7 +17,6 @@
 from pydantic import BaseModel, validator
 from typing import Optional, List
 
-
 PRECISION_BF16 = "bf16"
 PRECISION_FP16 = "fp16"
 PRECISION_NO = "no"
@@ -60,6 +59,14 @@ class General(BaseModel):
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
+    custom_chat_template: Optional[str] = None
+    default_chat_template: str = (
+        "{{'### Below is an instruction that describes a task. "
+        "Write a response that appropriately completes the request. \n'}}"
+        "{% for message in messages %}{{'### Instruction: ' + message['instruction'] "
+        "+ ' Input:' + message['context'] + ' ### Response:' + message['response'] "
+        "+ '### End \n'}}{% endfor %}"
+    )
 
 
 class Dataset(BaseModel):
