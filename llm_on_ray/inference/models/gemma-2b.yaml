@@ -22,4 +22,4 @@ model_description:
     {msg}<end_of_turn>'
     stop_words: []
   config:
-    token: ' '
+    use_auth_token: ' '

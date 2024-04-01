@@ -19,4 +19,4 @@ model_description:
     bot_id: ''
     stop_words: []
   config:
-    token: ''
+    use_auth_token: ''

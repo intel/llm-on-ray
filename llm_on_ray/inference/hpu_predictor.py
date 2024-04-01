@@ -251,7 +251,10 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
 
             checkpoints_json = tempfile.NamedTemporaryFile(suffix=".json", mode="+w")
             write_checkpoints_json(
-                model_desc.model_id_or_path, self.local_rank, checkpoints_json, token=""
+                model_desc.model_id_or_path,
+                self.local_rank,
+                checkpoints_json,
+                token=model_config.use_auth_token,
             )
         else:
             with deepspeed.OnDevice(dtype=model_dtype, device="cpu"):

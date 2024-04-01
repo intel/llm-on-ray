@@ -21,7 +21,7 @@ class Prompt(BaseModel):
 
 class ModelConfig(BaseModel):
     trust_remote_code: bool = False
-    token: Union[str, None] = None
+    use_auth_token: Union[str, None] = None
     load_in_4bit: bool = False
     torch_dtype: Union[str, None] = None
     revision: Union[str, None] = None
