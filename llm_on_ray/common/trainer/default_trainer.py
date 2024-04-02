@@ -33,6 +33,7 @@ from llm_on_ray.common.logging import logger
 class DefaultTrainer(Trainer):
     def __init__(self, config):
         self.model = None
+        self.tokenizer = None
         self.config = config
         dataprocesser_config = config.get("dataprocesser")
         dataprocesser_type = dataprocesser_config.get("type")
@@ -121,7 +122,7 @@ class DefaultTrainer(Trainer):
 
     def prepare(self, model, tokenizer, dataset, optimizer, accelerator):
         self._coordinate(accelerator)
-
+        self.tokenizer = tokenizer
         embedding_size = model.get_input_embeddings().weight.shape[0]
         logger.info(f"model embedding size: {embedding_size}")
         if len(tokenizer) > embedding_size:
@@ -284,6 +285,11 @@ class DefaultTrainer(Trainer):
             logger.info(f"start save model to {output}")
             unwrapped_model = self.accelerator.unwrap_model(self.model)
             unwrapped_model.save_pretrained(
+                output,
+                is_main_process=self.accelerator.is_main_process,
+                save_function=self.accelerator.save,
+            )
+            self.tokenizer.save_pretrained(
                 output,
                 is_main_process=self.accelerator.is_main_process,
                 save_function=self.accelerator.save,
