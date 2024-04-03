@@ -33,4 +33,4 @@ jobs:
           pip install regex
 
       - name: Run License Check
-        run: python .github/license/license-header.py files .github/license/*
+        run: python .github/license/license-header.py --files */*.py */*/*.py */*/*/*.py */*/*/*/*.py

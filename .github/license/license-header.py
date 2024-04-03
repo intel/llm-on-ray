@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 import argparse
 from collections import OrderedDict
@@ -54,7 +55,7 @@ def parse_args():
         dest="inplace",
         help="edit file inplace",
     )
-    parser.add_argument("files", metavar="FILES", nargs="+", help="files to process")
+    parser.add_argument("--files", metavar="FILES", nargs="+", help="files to process")
     return parser.parse_args()
 
 
@@ -144,14 +145,14 @@ def check_license_header(files, license_header, args):
             # Look for a fuzzy match in the first 60 chars
             found = regex.search(
                 "(?be)(%s){e<=%d}" % (regex.escape(header_comment[0:60]), 6),
-                content[0 : 80 + args.extra],
+                content[0 : 60 + args.extra],
             )
             if found:
                 fuzzy = regex.compile(
                     "(?be)(%s){e<=%d}" % (regex.escape(header_comment), args.editdist)
                 )
 
-                # If the first 80 chars match - try harder for the rest of the header
+                # If the first 60 chars match - try harder for the rest of the header
                 found = fuzzy.search(content[0 : len(header_comment) + args.extra], found.start())
                 if found:
                     start = found.start()
