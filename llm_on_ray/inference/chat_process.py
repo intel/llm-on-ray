@@ -176,6 +176,46 @@ class ChatModelwithImage(ChatModel):
         return prompt, images
 
 
+class ChatModelGemma(ChatModel):
+    def __init__(self, intro, human_id, bot_id, stop_words):
+        super().__init__(intro, human_id, bot_id, stop_words)
+
+    def prepare_prompt(self, messages: list):
+        """Prepare prompt from history messages."""
+        prompt = self.intro
+        for msg in messages:
+            msg = dict(msg)
+            role, content = msg["role"], msg["content"]
+            if role == "user":
+                if self.human_id != "":
+                    prompt += f"{self.human_id} {content}\n"
+                else:
+                    prompt += f"{content}\n"
+            elif role == "assistant":
+                if self.bot_id != "":
+                    prompt += f"{self.bot_id} {content}\n"
+                else:
+                    prompt += f"{content}\n"
+            else:
+                prompt += f"### Unknown:\n{content}\n"
+        if self.bot_id != "":
+            prompt += f"{self.bot_id}:\n"
+        return prompt
+
+
+class ChatModelNoFormat(ChatModel):
+    def __init__(self, intro, human_id, bot_id, stop_words):
+        super().__init__(intro, human_id, bot_id, stop_words)
+
+    def prepare_prompt(self, messages: list):
+        """Prepare prompt from history messages."""
+        prompt = ""
+        for msg in messages:
+            msg = dict(msg)
+            prompt += msg["content"]
+        return prompt
+
+
 if __name__ == "__main__":
     process_tool = ChatModelGptJ(
         "", "### Instruction", "### Response", stop_words=["##", "### Instruction"]

@@ -26,7 +26,7 @@ Training:
   mixed_precision: bf16
   device: GPU
   num_training_workers: 2
-  accelerate_mode: GPU_DDP
+  accelerate_mode: DDP
   resources_per_worker:
     CPU: 1
     GPU: 1

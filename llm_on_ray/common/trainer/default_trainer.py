@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import os
 import math
 import time
@@ -136,7 +152,7 @@ class DefaultTrainer(Trainer):
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
         self.accelerate_mode = self.config.get("accelerate_mode")
-        if self.accelerate_mode in ["GPU_DEEPSPEED"]:
+        if self.accelerate_mode == "DEEPSPEED":
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
             from accelerate.utils import DummyOptim, DummyScheduler
@@ -163,7 +179,8 @@ class DefaultTrainer(Trainer):
                 self.lr_scheduler,
             ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
-        if self.accelerate_mode in ["HPU_DDP"]:
+        self.device = self.config.get("device")
+        if self.device == "hpu":
             import habana_frameworks.torch.core as htcore
             from habana_frameworks.torch.utils.internal import is_lazy
 
