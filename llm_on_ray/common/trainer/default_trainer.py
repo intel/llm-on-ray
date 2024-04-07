@@ -185,8 +185,8 @@ class DefaultTrainer(Trainer):
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             self.model.train()
             start = time.time()
-            total_steps = len(self.train_dataloader)
-            logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
+            steps_per_epoch = len(self.train_dataloader)
+            logger.info(f"Start training epoch {idx}, steps_per_epoch {steps_per_epoch}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     self.model.train()
@@ -208,7 +208,7 @@ class DefaultTrainer(Trainer):
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
-                        epochs = idx + step / total_steps
+                        epochs = idx + step / steps_per_epoch
                         logger.info(
                             f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
@@ -219,9 +219,9 @@ class DefaultTrainer(Trainer):
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
-                                "total_steps": min(max_train_step, total_steps)
+                                "steps_per_epoch": min(max_train_step, steps_per_epoch)
                                 if max_train_step
-                                else total_steps,
+                                else steps_per_epoch,
                             }
                         )
                         start = time.time()
