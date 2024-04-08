@@ -232,7 +232,6 @@ def train_func(config: Dict[str, Any]):
             "shuffle": config["Dataset"].get("shuffle", False),
             "name": tokenizer_name,
             "config": config["General"]["config"],
-            "custom_chat_template": config["General"]["custom_chat_template"],
         }
     )
     tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
@@ -284,6 +283,50 @@ def train_func(config: Dict[str, Any]):
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
+    trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
+        config={
+            "device": config["Training"]["device"],
+            "accelerate_mode": config["Training"]["accelerate_mode"],
+            "num_train_epochs": epochs,
+            "max_train_steps": config["Training"].get("max_train_steps", None),
+            "logging_steps": config["Training"].get("logging_steps", 1),
+            "output": output_dir,
+            "dataprocesser": {
+                "type": "GeneralProcesser",
+                "per_device_train_batch_size": config["Training"]["batch_size"],
+                "per_device_eval_batch_size": config["Training"]["batch_size"],
+                "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
+                "max_length": config["Dataset"].get("max_length", 512),
+                "group": config["Dataset"].get("group", True),
+                "block_size": config["Dataset"].get("block_size", 512),
+                "shuffle": config["Dataset"].get("shuffle", False),
+                "is_base_model": config["General"]["is_base_model"],
+                "custom_chat_template": config["General"]["custom_chat_template"],
+                "default_chat_template": config["General"]["default_chat_template"],
+                "model_default_chat_template": config["General"]["model_default_chat_template"],
+            },
+            "lr_scheduler": {
+                "enable": True,
+                "max_train_steps": None,
+                "lr_scheduler_type": config["Training"]["lr_scheduler"],
+                "num_warmup_steps": 0,
+                "learning_rate": config["Training"]["learning_rate"],
+                "weight_decay": config["Training"]["weight_decay"],
+            },
+            "checkpoint": {
+                "root_path": config["General"].get("checkpoint_dir", None),
+            },
+        }
+    )
+
+    try:
+        common.logger.info("trainer prepare start")
+        model.training = True
+        trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
+    except Exception as e:
+        common.logger.critical(e, exc_info=True)
+        exit(1)
+    common.logger.info("trainer prepare finish")
 
         common.logger.info("train start")
         trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
