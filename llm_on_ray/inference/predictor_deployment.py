@@ -29,11 +29,12 @@ from fastapi import HTTPException
 from llm_on_ray.inference.inference_config import InferenceConfig
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ModelResponse
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
+from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, ChatPromptCapture
 
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
@@ -69,7 +70,7 @@ class PredictorDeployment:
         elif self.use_vllm:
             from llm_on_ray.inference.vllm_predictor import VllmPredictor
 
-            self.predictor = VllmPredictor(infer_conf)
+            self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         elif self.is_mllm:
             from llm_on_ray.inference.mllm_predictor import MllmPredictor
 
@@ -155,9 +156,25 @@ class PredictorDeployment:
                 self.consume_streamer_async(streamer), status_code=200, media_type="text/plain"
             )
 
-    async def openai_call(self, prompt, config, streaming_response=True):
+    async def openai_call(
+        self, prompt, config, streaming_response=True, tools=None, tool_choice=None
+    ):
         prompts = []
         images = []
+        tool_call_list = None
+        openai_tools_prompter: OpenAIToolsPrompter = (
+            OpenAIToolsPrompter() if tools is not None else None
+        )
+        tools_capture_texts = None
+        if openai_tools_prompter is not None:
+            prompt = openai_tools_prompter.inject_prompt(prompt, tools, tool_choice)
+            tools_capture_texts = ChatPromptCapture()
+            for m in prompt:
+                if m.tool_calls is not None:
+                    m.content = openai_tools_prompter.content_from_assistant(m)
+                elif m.tool_call_id is not None:
+                    m.content = openai_tools_prompter.content_from_tool(m)
+
         if isinstance(prompt, list):
             prompt_format = get_prompt_format(prompt)
             if prompt_format == PromptFormat.CHAT_FORMAT:
@@ -169,8 +186,6 @@ class PredictorDeployment:
                     else:
                         prompt = self.process_tool.get_prompt(prompt)
                         prompts.append(prompt)
-                else:
-                    prompts.extend(prompt)
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
                 yield HTTPException(
                     400, "Mulitple prompts are not supported when using openai compatible api."
@@ -190,8 +205,13 @@ class PredictorDeployment:
             else:
                 generate_result = self.predictor.generate(prompts, **config)
                 generate_text = generate_result.text[0]
+            if tools_capture_texts is not None:
+                generate_text, tool_call_list = tools_capture_texts.process_full_output(
+                    generate_text, openai_tools_prompter, prompts
+                )
             model_response = ModelResponse(
                 generated_text=generate_text,
+                tool_calls=tool_call_list,
                 num_input_tokens=generate_result.input_length,
                 num_input_tokens_batch=generate_result.input_length,
                 num_generated_tokens=generate_result.generate_length,
@@ -230,10 +250,15 @@ class PredictorDeployment:
                 response_handle = self.consume_streamer_async(streamer)
             input_length = self.predictor.input_length
             async for output in response_handle:
+                if tools_capture_texts is not None:
+                    output, tool_call_list = tools_capture_texts.process_stream_output(
+                        output, openai_tools_prompter
+                    )
                 if not input_length:
                     input_length = self.predictor.input_length
                 model_response = ModelResponse(
                     generated_text=output,
+                    tool_calls=tool_call_list,
                     num_input_tokens=input_length,
                     num_input_tokens_batch=input_length,
                     num_generated_tokens=1,

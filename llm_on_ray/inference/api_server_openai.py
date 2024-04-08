@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+#
 # ===========================================================================
 #
 # This file is adapted from
@@ -32,13 +33,12 @@
 # limitations under the License.
 #
 
-import os
 from ray import serve
 from llm_on_ray.inference.api_openai_backend.query_client import RouterQueryClient
 from llm_on_ray.inference.api_openai_backend.router_app import Router, router_app
 
 
-def router_application(deployments):
+def router_application(deployments, max_concurrent_queries):
     """Create a Router Deployment.
 
     Router Deployment will point to a Serve Deployment for each specified base model,
@@ -48,29 +48,14 @@ def router_application(deployments):
 
     RouterDeployment = serve.deployment(
         route_prefix="/",
-        autoscaling_config={
-            "min_replicas": int(os.environ.get("ROUTER_MIN_REPLICAS", 2)),
-            "initial_replicas": int(os.environ.get("ROUTER_INITIAL_REPLICAS", 2)),
-            "max_replicas": int(os.environ.get("ROUTER_MAX_REPLICAS", 16)),
-            "target_num_ongoing_requests_per_replica": int(
-                os.environ.get("ROUTER_TARGET_NUM_ONGOING_REQUESTS_PER_REPLICA", 200)
-            ),
-        },
-        max_concurrent_queries=1000,  # Maximum backlog for a single replica
+        max_concurrent_queries=max_concurrent_queries,  # Maximum backlog for a single replica
     )(serve.ingress(router_app)(Router))
 
-    return RouterDeployment.options(
-        autoscaling_config={
-            "min_replicas": 1,
-            "initial_replicas": 1,
-            "max_replicas": 1,
-            "target_num_ongoing_requests_per_replica": 1,
-        }
-    ).bind(merged_client)
+    return RouterDeployment.bind(merged_client)
 
 
-def openai_serve_run(deployments, host, route_prefix, port):
-    router_app = router_application(deployments)
+def openai_serve_run(deployments, host, route_prefix, port, max_concurrent_queries):
+    router_app = router_application(deployments, max_concurrent_queries)
 
     serve.start(http_options={"host": host, "port": port})
     serve.run(
