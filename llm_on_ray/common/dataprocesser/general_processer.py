@@ -23,8 +23,52 @@ import transformers
 
 from llm_on_ray.common.dataprocesser import DataProcesser
 
+INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+INSTRUCTION_KEY = "### Instruction:"
+INPUT_KEY = "Input:"
 RESPONSE_KEY = "### Response:"
+END_KEY = "### End"
 RESPONSE_KEY_NL = f"{RESPONSE_KEY}\n"
+
+PROMPT_NO_INPUT_FORMAT = """{intro}
+
+{instruction_key}
+{instruction}
+
+{response_key}
+{response}
+
+{end_key}""".format(
+    intro=INTRO_BLURB,
+    instruction_key=INSTRUCTION_KEY,
+    instruction="{instruction}",
+    response_key=RESPONSE_KEY,
+    response="{response}",
+    end_key=END_KEY,
+)
+
+PROMPT_WITH_INPUT_FORMAT = """{intro}
+
+{instruction_key}
+{instruction}
+
+{input_key}
+{input}
+
+{response_key}
+{response}
+
+{end_key}""".format(
+    intro=INTRO_BLURB,
+    instruction_key=INSTRUCTION_KEY,
+    instruction="{instruction}",
+    input_key=INPUT_KEY,
+    input="{input}",
+    response_key=RESPONSE_KEY,
+    response="{response}",
+    end_key=END_KEY,
+)
+TEXT_COLUMN_NAME = "text"
 
 
 class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeling):
@@ -71,6 +115,23 @@ class GeneralProcesser(DataProcesser):
             column_names = dataset["train"].column_names
 
         def tokenize_function(examples):
+            if self.config.get("gpt_base_model"):
+                instruction = examples["instruction"]
+                response = examples["response"]
+                context = examples.get("context")
+                if not instruction:
+                    raise ValueError(f"Expected an instruction in: {examples}")
+                if not response:
+                    raise ValueError(f"Expected a response in: {examples}")
+                if context:
+                    examples["text"] = PROMPT_WITH_INPUT_FORMAT.format(
+                        instruction=instruction, response=response, input=context
+                    )
+                else:
+                    examples["text"] = PROMPT_NO_INPUT_FORMAT.format(
+                        instruction=instruction, response=response
+                    )
+                return tokenizer(examples["text"], max_length=max_length, truncation=True)
             if self.config.get("is_base_model"):
                 if custom_chat_template:
                     tokenizer.chat_template = custom_chat_template
