@@ -15,6 +15,11 @@ echo Current GNU C++ Compiler version: $gcc_version
 echo
 version_greater_equal "${gcc_version}" 12.3.0 || { echo "GNU C++ Compiler 12.3.0 or above is required!"; exit 1; }
 
+# Refer to https://docs.vllm.ai/en/latest/getting_started/cpu-installation.html
 # Install from source
-MAX_JOBS=8 pip install -v git+https://github.com/bigPYJ1151/vllm@PR_Branch \
-    --extra-index-url https://download.pytorch.org/whl/cpu
+cd /tmp
+git clone https://github.com/vllm-project/vllm.git
+cd vllm
+git checkout v0.4.0.post1
+pip install -v -r requirements-cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
+VLLM_TARGET_DEVICE=cpu python setup.py install
