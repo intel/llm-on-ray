@@ -58,6 +58,8 @@ class GeneralProcesser(DataProcesser):
     def tokenize_dataset(self, tokenizer, dataset):
         max_length = self.config.get("max_length")
         custom_chat_template = self.config.get("custom_chat_template")
+        model_default_chat_template = self.config.get("model_default_chat_template")
+
         group = self.config.get("group")
         block_size = self.config.get("block_size")
         tokenizer.pad_token = tokenizer.eos_token
@@ -71,25 +73,44 @@ class GeneralProcesser(DataProcesser):
         def tokenize_function(examples):
             if self.config.get("is_base_model"):
                 if custom_chat_template:
-                     new_tokenizer = tokenizer.apply_chat_template(
+                    tokenizer.chat_template = custom_chat_template
+                    new_tokenizer = tokenizer.apply_chat_template(
                         examples,
-                        chat_template=custom_chat_template,
-                        tokenize=True,
+                        tokenize=False,
                         max_length=max_length,
                     )
                 else:
+                    tokenizer.chat_template = self.config.get("default_chat_template")
                     new_tokenizer = tokenizer.apply_chat_template(
                         examples,
-                        chat_template=self.config.get("default_chat_template"),
-                        tokenize=True,
+                        tokenize=False,
                         max_length=max_length,
                     )
             else:
-                new_tokenizer = tokenizer.apply_chat_template(
-                    examples, tokenize=False, max_length=max_length
-                )
-            print(new_tokenizer)
-            print(new_tokenizer.default_chat_template)
+                if model_default_chat_template:
+                    tokenizer.chat_template = model_default_chat_template
+                    new_tokenizer = tokenizer.apply_chat_template(
+                        examples,
+                        tokenize=False,
+                        max_length=max_length,
+                    )
+                else:
+                    new_messages = [
+                        {
+                            "role": "user",
+                            "content": "instruction: "
+                            + examples["instruction"]
+                            + " context: "
+                            + examples["context"],
+                        },
+                        {"role": "assistant", "content": "response: " + examples["response"]},
+                    ]
+
+                    new_tokenizer = tokenizer.apply_chat_template(
+                        new_messages,
+                        tokenize=False,
+                        max_length=max_length,
+                    )
             return new_tokenizer
 
         tokenized_datasets = dataset.map(
