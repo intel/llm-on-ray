@@ -61,12 +61,13 @@ class General(BaseModel):
     enable_gradient_checkpointing: bool = False
     custom_chat_template: Optional[str] = None
     default_chat_template: str = (
-        "{{'### Below is an instruction that describes a task. "
-        "Write a response that appropriately completes the request. \n'}}"
-        "{% for message in messages %}{{'### Instruction: ' + message['instruction'] "
-        "+ ' Input:' + message['context'] + ' ### Response:' + message['response'] "
-        "+ '### End \n'}}{% endfor %}"
+        "{{'### Below is an instruction that describes a task."
+        "Write a response that appropriately completes the request. '}}"
+        "{{'### Instruction: ' + messages['instruction'] "
+        "+ ' Input:' + messages['context'] + ' ### Response:' + messages['response'] "
+        "+ '### End \n'}}"
     )
+    model_default_chat_template: Optional[str] = None
 
 
 class Dataset(BaseModel):
