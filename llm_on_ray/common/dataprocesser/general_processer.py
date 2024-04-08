@@ -131,7 +131,7 @@ class GeneralProcesser(DataProcesser):
                     new_message = PROMPT_NO_INPUT_FORMAT.format(
                         instruction=instruction, response=response
                     )
-                return tokenizer.tokenize(new_message, max_length=max_length)
+                return tokenizer(new_message, max_length=max_length)
             else:
                 if self.config.get("is_base_model"):
                     if custom_chat_template:
@@ -173,7 +173,7 @@ class GeneralProcesser(DataProcesser):
                             tokenize=False,
                             max_length=max_length,
                         )
-                return new_tokenizer
+                return tokenizer(new_tokenizer, max_length=max_length)
 
         tokenized_datasets = dataset.map(
             tokenize_function,
