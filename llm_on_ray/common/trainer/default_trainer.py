@@ -228,7 +228,7 @@ class DefaultTrainer(Trainer):
                             }
                         )
                         start = time.time()
-                completed_steps += step
+                completed_steps += 1
                 if max_train_steps is not None and completed_steps >= max_train_steps:
                     break
 
