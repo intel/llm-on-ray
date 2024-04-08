@@ -65,6 +65,7 @@ class Training(BaseModel):
     optimizer: str
     batch_size: int
     epochs: int
+    max_train_steps: Optional[int] = None
     learning_rate: float
     lr_scheduler: str
     weight_decay: float

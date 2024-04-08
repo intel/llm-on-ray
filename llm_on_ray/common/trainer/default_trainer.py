@@ -180,12 +180,12 @@ class DefaultTrainer(Trainer):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         logging_steps = self.config.get("logging_steps", 1)
-        max_train_step = self.config.get("max_train_step")
-        max_eval_step = self.config.get("max_eval_step")
+        max_train_steps = self.config.get("max_train_steps")
+        steps_per_epoch = len(self.train_dataloader)
+        completed_steps = self.starting_epoch * steps_per_epoch
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             self.model.train()
             start = time.time()
-            steps_per_epoch = len(self.train_dataloader)
             logger.info(f"Start training epoch {idx}, steps_per_epoch {steps_per_epoch}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
@@ -219,15 +219,18 @@ class DefaultTrainer(Trainer):
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
-                                "steps_per_epoch": min(max_train_step, steps_per_epoch)
-                                if max_train_step
-                                else steps_per_epoch,
+                                "completed_steps": completed_steps,
+                                "total_steps": min(
+                                    max_train_steps, steps_per_epoch * num_train_epochs
+                                )
+                                if max_train_steps
+                                else steps_per_epoch * num_train_epochs,
                             }
                         )
                         start = time.time()
-                if max_train_step is not None:
-                    if step >= max_train_step - 1:
-                        break
+                completed_steps += step
+                if max_train_steps is not None and completed_steps >= max_train_steps:
+                    break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -244,9 +247,6 @@ class DefaultTrainer(Trainer):
                             loss.repeat(batch["input_ids"].shape[0])
                         )
                     )
-                    if max_eval_step is not None:
-                        if step >= max_eval_step:
-                            break
 
                 losses = torch.cat(losses)
                 try:
