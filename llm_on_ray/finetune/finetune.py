@@ -248,6 +248,7 @@ def train_func(config: Dict[str, Any]):
                 "group": config["Dataset"].get("group", True),
                 "block_size": config["Dataset"].get("block_size", 512),
                 "shuffle": config["Dataset"].get("shuffle", False),
+                "gpt_base_model": config["General"].get("gpt_base_model", False),
                 "is_base_model": config["General"]["is_base_model"],
                 "custom_chat_template": config["General"]["custom_chat_template"],
                 "default_chat_template": config["General"]["default_chat_template"],
