@@ -44,7 +44,7 @@ from typing import Callable, List
 import ray
 from ray.actor import ActorHandle
 from ray.train._internal.utils import get_address_and_port
-from ray.air._internal.torch_utils import get_device
+from ray.air._internal.torch_utils import get_devices
 from ray._private.accelerators.hpu import HPU_PACKAGE_AVAILABLE
 
 if HPU_PACKAGE_AVAILABLE:
@@ -212,7 +212,7 @@ def _shutdown_torch_distributed():
         return
 
     # Clean up cuda memory.
-    devices = get_device()
+    devices = get_devices()
     for device in devices:
         with torch.cuda.device(device):
             torch.cuda.empty_cache()

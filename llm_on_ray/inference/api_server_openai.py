@@ -57,12 +57,11 @@ def router_application(deployments, max_concurrent_queries):
 def openai_serve_run(deployments, host, route_prefix, port, max_concurrent_queries):
     router_app = router_application(deployments, max_concurrent_queries)
 
+    serve.start(http_options={"host": host, "port": port})
     serve.run(
         router_app,
         name="router",
         route_prefix=route_prefix,
-        host=host,
-        _blocking=True,
     ).options(
         stream=True,
         use_new_handle_api=True,
