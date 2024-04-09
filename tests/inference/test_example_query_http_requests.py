@@ -83,7 +83,7 @@ def script_with_args(model_name, streaming_response, max_new_tokens, temperature
     assert len(result_http.stdout) > 0, print("\n" + "Http output length is 0" + "\n")
 
 
-executed_models = {}
+executed_models = []
 
 
 @pytest.mark.parametrize(
@@ -103,6 +103,6 @@ def test_script(model_name, streaming_response, max_new_tokens, temperature, top
     # Check if this modelname has already executed start_serve
     if model_name not in executed_models:
         start_serve(model_name)
-        # Mark this modelname has already executed start_serve
-        executed_models[model_name] = True
+        # Add this modelname for already executed start_serve
+        executed_models.append(model_name)
     script_with_args(model_name, streaming_response, max_new_tokens, temperature, top_p)
