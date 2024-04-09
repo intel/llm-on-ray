@@ -38,6 +38,8 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
+    if infer_conf.vllm.enabled:
+        runtime_env[_ray_env_key]["OMP_PROC_BIND"] = "true"
     # now PredictorDeployment itself is a worker, we should require resources for it
     ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
