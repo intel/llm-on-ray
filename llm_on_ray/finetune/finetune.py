@@ -98,7 +98,7 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
                 "ACCELERATE_MIXED_PRECISION": mixed_precision,
             },
         },
-        "hpu:": {
+        "hpu": {
             "DDP": {
                 "ACCELERATE_USE_CPU": "false",
                 "ACCELERATE_USE_XPU": "false",
@@ -232,7 +232,7 @@ def train_func(config: Dict[str, Any]):
             "device": config["Training"]["device"],
             "accelerate_mode": config["Training"]["accelerate_mode"],
             "num_train_epochs": epochs,
-            "max_train_step": config["Training"].get("max_train_steps", None),
+            "max_train_steps": config["Training"].get("max_train_steps", None),
             "logging_steps": config["Training"].get("logging_steps", 1),
             "output": output_dir,
             "dataprocesser": {
