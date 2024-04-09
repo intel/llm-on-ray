@@ -20,6 +20,5 @@ version_greater_equal "${gcc_version}" 12.3.0 || { echo "GNU C++ Compiler 12.3.0
 cd /tmp
 git clone https://github.com/vllm-project/vllm.git
 cd vllm
-git checkout v0.4.0.post1
 pip install -v -r requirements-cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
 VLLM_TARGET_DEVICE=cpu python setup.py install
