@@ -61,14 +61,22 @@ class General(BaseModel):
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
     custom_chat_template: Optional[str] = None
-    default_chat_template: str = (
-        "{{'### Below is an instruction that describes a task."
-        "Write a response that appropriately completes the request. '}}"
-        "{{'### Instruction: ' + messages['instruction'] "
-        "+ ' Input:' + messages['context'] + ' ### Response:' + messages['response'] "
-        "+ '### End \n'}}"
+    chat_template: Optional[str] = (
+        "{{ bos_token }}"
+        "{% if messages[0]['role'] == 'system' %}"
+        "{{ raise_exception('System role not supported') }}"
+        "{% endif %}"
+        "{% for message in messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'] + eos_token }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Response:'  + message['content'] + eos_token }}"
+        "{% endif %}{% endfor %}"
+        "{{'### End \n'}}"
     )
-    model_default_chat_template: Optional[str] = None
 
 
 class Dataset(BaseModel):

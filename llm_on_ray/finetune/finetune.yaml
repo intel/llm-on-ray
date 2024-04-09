@@ -1,6 +1,5 @@
 General:
   base_model: EleutherAI/gpt-j-6b
-  is_base_model: false
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   save_strategy: no
