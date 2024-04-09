@@ -155,7 +155,10 @@ def train_func(config: Dict[str, Any]):
 
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
     base_model = config["General"]["base_model"]
-    tokenizer_name = config["General"].get("tokenizer_name", base_model)
+    if config["General"].get("tokenizer_name") is not None:
+        tokenizer_name = config["General"].get("tokenizer_name")
+    else:
+        tokenizer_name = base_model
     dataset_file = config["Dataset"]["train_file"]
 
     seed = config["Training"].get("seed")
