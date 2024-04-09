@@ -38,7 +38,7 @@ class ToolsCallsTemplate:
         self.template.globals["TOOL_RESPONSE"] = ToolsCallsTemplateContext.TOOL_RESPONSE
 
     def get_func_call_token(self) -> str:
-        """Return the special use_auth_token used to find functions calls."""
+        """Return the special token used to find functions calls."""
         return self.template.render(CONTEXT=ToolsCallsTemplateContext.CALL_TOKEN)
 
     def render_toolcalls(self, tool_calls: List[ToolCall]):
