@@ -130,12 +130,12 @@ def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
         # TODO if quantization is enabled, we should use bfloat16
         if infer_conf.deepspeed:
             infer_conf.model_description.config.torch_dtype = torch.bfloat16
-    elif hf_config is None or is_cpu_without_ipex(infer_conf):
-        infer_conf.model_description.config.torch_dtype = torch.get_default_dtype()
     elif hasattr(hf_config, "torch_dtype") and hf_config.torch_dtype:
         infer_conf.model_description.config.torch_dtype = hf_config.torch_dtype
-    elif hasattr(hf_config, "__getitem__") and hf_config["torch_dtype"]:
+    elif hasattr(hf_config, "__getitem__") and "torch_dtype" in hf_config:
         infer_conf.model_description.config.torch_dtype = hf_config["torch_dtype"]
+    elif hf_config is None or is_cpu_without_ipex(infer_conf):
+        infer_conf.model_description.config.torch_dtype = torch.get_default_dtype()
 
 
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:
