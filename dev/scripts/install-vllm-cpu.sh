@@ -9,7 +9,7 @@ version_greater_equal()
 {
     printf '%s\n%s\n' "$2" "$1" | sort --check=quiet --version-sort
 }
-gcc_version=$(g++ -dumpversion)
+gcc_version=$(g++ --version | grep -o -E '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
 echo
 echo Current GNU C++ Compiler version: $gcc_version
 echo
