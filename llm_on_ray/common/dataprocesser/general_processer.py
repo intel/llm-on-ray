@@ -104,7 +104,6 @@ class GeneralProcesser(DataProcesser):
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
         max_length = self.config.get("max_length")
         custom_chat_template = self.config.get("custom_chat_template")
-        model_default_chat_template = self.config.get("model_default_chat_template")
 
         group = self.config.get("group")
         block_size = self.config.get("block_size")
@@ -136,46 +135,37 @@ class GeneralProcesser(DataProcesser):
                     )
                 return tokenizer(new_message, max_length=max_length)
             else:
-                if self.config.get("is_base_model"):
-                    if custom_chat_template:
-                        tokenizer.chat_template = custom_chat_template
-                        new_tokenizer = tokenizer.apply_chat_template(
-                            examples,
-                            tokenize=False,
-                            max_length=max_length,
-                        )
-                    else:
-                        tokenizer.chat_template = self.config.get("default_chat_template")
-                        new_tokenizer = tokenizer.apply_chat_template(
-                            examples,
-                            tokenize=False,
-                            max_length=max_length,
-                        )
+                new_messages = [
+                    {
+                        "role": "user",
+                        "content": INTRO_BLURB + "\n\n"
+                                   + "###Instruction:\n"
+                                   + examples["instruction"] + "\n\n"
+                                   + "###context:\n"
+                                   + examples["context"] + "\n\n",
+                    },
+                    {"role": "assistant", "content": examples["response"]},
+                ]
+                if custom_chat_template:
+                    tokenizer.chat_template = custom_chat_template
+                    new_tokenizer = tokenizer.apply_chat_template(
+                        new_messages,
+                        tokenize=False,
+                        max_length=max_length,
+                    )
+                elif tokenizer.chat_template is not None:
+                    new_tokenizer = tokenizer.apply_chat_template(
+                        new_messages,
+                        tokenize=False,
+                        max_length=max_length,
+                    )
                 else:
-                    if model_default_chat_template:
-                        tokenizer.chat_template = model_default_chat_template
-                        new_tokenizer = tokenizer.apply_chat_template(
-                            examples,
-                            tokenize=False,
-                            max_length=max_length,
-                        )
-                    else:
-                        new_messages = [
-                            {
-                                "role": "user",
-                                "content": "instruction: "
-                                + examples["instruction"]
-                                + " context: "
-                                + examples["context"],
-                            },
-                            {"role": "assistant", "content": "response: " + examples["response"]},
-                        ]
-
-                        new_tokenizer = tokenizer.apply_chat_template(
-                            new_messages,
-                            tokenize=False,
-                            max_length=max_length,
-                        )
+                    tokenizer.chat_template = self.config.get("chat_template")
+                    new_tokenizer = tokenizer.apply_chat_template(
+                        new_messages,
+                        tokenize=False,
+                        max_length=max_length,
+                    )
                 return tokenizer(new_tokenizer, max_length=max_length)
 
         tokenized_datasets = dataset.map(
@@ -197,7 +187,7 @@ class GeneralProcesser(DataProcesser):
                     total_length = (total_length // block_size) * block_size
                 # Split by chunks of max_len.
                 result = {
-                    k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                    k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
                     for k, t in concatenated_examples.items()
                 }
                 result["labels"] = result["input_ids"].copy()
