@@ -1,7 +1,6 @@
 General:
   base_model: mosaicml/mpt-7b
   tokenizer_name: EleutherAI/gpt-neox-20b
-  is_base_model: false
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   save_strategy: no
