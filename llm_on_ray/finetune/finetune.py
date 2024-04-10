@@ -362,7 +362,7 @@ def main(external_config=None):
 
             if "xpu" in ipex.__version__:
                 num_cpus = (
-                        resources_per_worker["CPU"] * num_training_workers + 1
+                    resources_per_worker["CPU"] * num_training_workers + 1
                 )  # additional 1 for head worker
                 ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
             else:
