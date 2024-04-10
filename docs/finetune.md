@@ -32,7 +32,7 @@ We provide an example configuration file ([CPU version](../llm_on_ray/finetune/f
 For CPU, please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to DDP.
 ```
 Training:
-  device: CPU
+  device: cpu
   resources_per_worker:
     CPU: 32
   accelerate_mode: DDP
@@ -40,7 +40,7 @@ Training:
 For GPU, please make sure you set `device` to GPU, set GPU number for `resources_per_worker` and set `accelerate_mode` to DDP or FSDP.
 ```
 Training:
-  device: GPU
+  device: gpu
   resources_per_worker:
     CPU: 1
     GPU: 1
@@ -49,7 +49,7 @@ Training:
 For HPU, set `device` to HPU, set HPU number in `resources_per_worker` and set `accelerate_mode` to DDP or DEEPSPEED.
 ```
 Training:
-  device: HPU
+  device: hpu
   resources_per_worker:
     CPU: 1
     HPU: 1
