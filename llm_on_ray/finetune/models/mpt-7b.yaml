@@ -1,5 +1,6 @@
 General:
-  base_model: mosaicml/mpt-7b-chat
+  base_model: mosaicml/mpt-7b
+  tokenizer_name: EleutherAI/gpt-neox-20b
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
