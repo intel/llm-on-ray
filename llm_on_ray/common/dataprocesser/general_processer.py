@@ -100,7 +100,6 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 class GeneralProcesser(DataProcesser):
     def tokenize_function(self, examples, tokenizer):
-        print(examples)
         if self.config.get("gpt_base_model"):
             instruction = examples["instruction"]
             response = examples["response"]
@@ -117,7 +116,7 @@ class GeneralProcesser(DataProcesser):
                 new_message = PROMPT_NO_INPUT_FORMAT.format(
                     instruction=instruction, response=response
                 )
-            return tokenizer(new_message, max_length=self.config.get("max_length"))
+            return tokenizer(new_message, add_special_tokens=False, max_length=self.config.get("max_length"))
         else:
             new_messages = [
                 {
@@ -129,32 +128,26 @@ class GeneralProcesser(DataProcesser):
                 },
                 {"role": "assistant", "content": examples["response"] + "\n\n"},
             ]
-            print(new_messages)
             if self.config.get("custom_chat_template") is not None:
-                print("custom_chat_template")
                 tokenizer.chat_template = self.config.get("custom_chat_template")
                 new_tokenizer = tokenizer.apply_chat_template(
                     new_messages,
                     tokenize=False,
-                    max_length=self.config.get("max_length"),
                 )
             elif tokenizer.chat_template is not None:
-                print("tokenizer.chat_template")
                 new_tokenizer = tokenizer.apply_chat_template(
                     new_messages,
                     tokenize=False,
-                    max_length=self.config.get("max_length"),
                 )
             else:
-                print("chat_template")
                 tokenizer.chat_template = self.config.get("chat_template")
                 new_tokenizer = tokenizer.apply_chat_template(
                     new_messages,
                     tokenize=False,
-                    max_length=self.config.get("max_length"),
                 )
-            tokenizer = tokenizer(new_tokenizer, max_length=self.config.get("max_length"))
-            print(tokenizer)
+            tokenizer = tokenizer(new_tokenizer,
+                                  add_special_tokens=False,
+                                  max_length=self.config.get("max_length"))
             return tokenizer
 
     def prepare(self, tokenizer, dataset):
