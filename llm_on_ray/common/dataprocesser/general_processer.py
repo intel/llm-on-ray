@@ -99,11 +99,67 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 
 class GeneralProcesser(DataProcesser):
+    def tokenize_function(self, examples, tokenizer):
+        print(examples)
+        if self.config.get("gpt_base_model"):
+            instruction = examples["instruction"]
+            response = examples["response"]
+            context = examples.get("context")
+            if not instruction:
+                raise ValueError(f"Expected an instruction in: {examples}")
+            if not response:
+                raise ValueError(f"Expected a response in: {examples}")
+            if context:
+                new_message = PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=instruction, response=response, input=context
+                )
+            else:
+                new_message = PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=instruction, response=response
+                )
+            return tokenizer(new_message, max_length=self.config.get("max_length"))
+        else:
+            new_messages = [
+                {
+                    "role": "user",
+                    "content": "###Instruction:\n"
+                            + examples["instruction"] + "\n\n"
+                            + "###context:\n"
+                            + examples["context"] + "\n\n",
+                },
+                {"role": "assistant", "content": examples["response"] + "\n\n"},
+            ]
+            print(new_messages)
+            if self.config.get("custom_chat_template") is not None:
+                print("custom_chat_template")
+                tokenizer.chat_template = self.config.get("custom_chat_template")
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                    max_length=self.config.get("max_length"),
+                )
+            elif tokenizer.chat_template is not None:
+                print("tokenizer.chat_template")
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                    max_length=self.config.get("max_length"),
+                )
+            else:
+                print("chat_template")
+                tokenizer.chat_template = self.config.get("chat_template")
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                    max_length=self.config.get("max_length"),
+                )
+            tokenizer = tokenizer(new_tokenizer, max_length=self.config.get("max_length"))
+            print(tokenizer)
+            return tokenizer
+
     def prepare(self, tokenizer, dataset):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size")
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
-        max_length = self.config.get("max_length")
-        custom_chat_template = self.config.get("custom_chat_template")
 
         group = self.config.get("group")
         block_size = self.config.get("block_size")
@@ -116,60 +172,8 @@ class GeneralProcesser(DataProcesser):
         if isinstance(dataset, datasets.DatasetDict):
             column_names = dataset["train"].column_names
 
-        def tokenize_function(examples):
-            if self.config.get("gpt_base_model"):
-                instruction = examples["instruction"]
-                response = examples["response"]
-                context = examples.get("context")
-                if not instruction:
-                    raise ValueError(f"Expected an instruction in: {examples}")
-                if not response:
-                    raise ValueError(f"Expected a response in: {examples}")
-                if context:
-                    new_message = PROMPT_WITH_INPUT_FORMAT.format(
-                        instruction=instruction, response=response, input=context
-                    )
-                else:
-                    new_message = PROMPT_NO_INPUT_FORMAT.format(
-                        instruction=instruction, response=response
-                    )
-                return tokenizer(new_message, max_length=max_length)
-            else:
-                new_messages = [
-                    {
-                        "role": "user",
-                        "content": INTRO_BLURB + "\n\n"
-                                   + "###Instruction:\n"
-                                   + examples["instruction"] + "\n\n"
-                                   + "###context:\n"
-                                   + examples["context"] + "\n\n",
-                    },
-                    {"role": "assistant", "content": examples["response"]},
-                ]
-                if custom_chat_template:
-                    tokenizer.chat_template = custom_chat_template
-                    new_tokenizer = tokenizer.apply_chat_template(
-                        new_messages,
-                        tokenize=False,
-                        max_length=max_length,
-                    )
-                elif tokenizer.chat_template is not None:
-                    new_tokenizer = tokenizer.apply_chat_template(
-                        new_messages,
-                        tokenize=False,
-                        max_length=max_length,
-                    )
-                else:
-                    tokenizer.chat_template = self.config.get("chat_template")
-                    new_tokenizer = tokenizer.apply_chat_template(
-                        new_messages,
-                        tokenize=False,
-                        max_length=max_length,
-                    )
-                return tokenizer(new_tokenizer, max_length=max_length)
-
         tokenized_datasets = dataset.map(
-            tokenize_function,
+            lambda examples: self.tokenize_function(examples, tokenizer),
             remove_columns=column_names,
             load_from_cache_file=False,
             desc="Tokenize dataset",

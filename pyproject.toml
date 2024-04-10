@@ -35,7 +35,8 @@ dependencies = [
     "py-cpuinfo",
     "pydantic-yaml",
     "async_timeout",
-    "typer"
+    "typer",
+    "jinja2>=3.0.0"
 ]
 
 [project.optional-dependencies]
