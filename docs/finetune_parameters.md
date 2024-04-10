@@ -16,8 +16,7 @@ The following are the parameters supported in the finetuning workflow.
 |lora_config|task_type: CAUSAL_LM<br>r: 8<br>lora_alpha: 32<br>lora_dropout: 0.1|Will be passed to the LoraConfig `__init__()` method, then it'll be used as config to build Peft model object.|
 |deltatuner_config|"algo": "lora"<br>"denas": True<br>"best_model_structure": "/path/to/best_structure_of_deltatuner_model"|Will be passed to the DeltaTunerArguments `__init__()` method, then it'll be used as config to build [Deltatuner model](https://github.com/intel/e2eAIOK/tree/main/e2eAIOK/deltatuner) object.|
 |enable_gradient_checkpointing|False|enable gradient checkpointing to save GPU memory, but will cost more compute runtime|
-|chat_template|"{{ bos_token }}{% if messages[0]['role'] == 'system' %}{{ raise_exception('System role not supported') }}{% endif %}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ '### Instruction: ' + message['content'] + eos_token }}{{ '### Response:'  + message['content'] + eos_token }}{% endif %}{% endfor %}{{'### End \n'}}"|LLM-on-Ray default chat default.|
-|custom_chat_template|None|User-defined chat template.|
+|chat_template|None|User-defined chat template.|
 
 
 ## Dataset Parameters
