@@ -59,8 +59,8 @@ class General(BaseModel):
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
-    custom_chat_template: Optional[str] = None
-    chat_template: Optional[str] = (
+    chat_template: Optional[str] = None
+    default_chat_template: str = (
         "{{ bos_token }}"
         "{% if messages[0]['role'] == 'system' %}"
         "{{ raise_exception('System role not supported') }}"

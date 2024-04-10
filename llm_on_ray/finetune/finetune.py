@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-#!/usr/bin/env python
+# !/usr/bin/env python
 
 import os
 import argparse
@@ -249,8 +249,8 @@ def train_func(config: Dict[str, Any]):
                 "block_size": config["Dataset"].get("block_size", 512),
                 "shuffle": config["Dataset"].get("shuffle", False),
                 "gpt_base_model": config["General"].get("gpt_base_model", False),
-                "custom_chat_template": config["General"]["custom_chat_template"],
                 "chat_template": config["General"]["chat_template"],
+                "default_chat_template": config["General"]["default_chat_template"],
             },
             "lr_scheduler": {
                 "enable": True,
@@ -358,7 +358,7 @@ def main(external_config=None):
 
             if "xpu" in ipex.__version__:
                 num_cpus = (
-                    resources_per_worker["CPU"] * num_training_workers + 1
+                        resources_per_worker["CPU"] * num_training_workers + 1
                 )  # additional 1 for head worker
                 ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
             else:

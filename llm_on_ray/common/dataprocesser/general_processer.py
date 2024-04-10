@@ -128,8 +128,8 @@ class GeneralProcesser(DataProcesser):
                 },
                 {"role": "assistant", "content": examples["response"] + "\n\n"},
             ]
-            if self.config.get("custom_chat_template") is not None:
-                tokenizer.chat_template = self.config.get("custom_chat_template")
+            if self.config.get("chat_template") is not None:
+                tokenizer.chat_template = self.config.get("chat_template")
                 new_tokenizer = tokenizer.apply_chat_template(
                     new_messages,
                     tokenize=False,
@@ -140,7 +140,7 @@ class GeneralProcesser(DataProcesser):
                     tokenize=False,
                 )
             else:
-                tokenizer.chat_template = self.config.get("chat_template")
+                tokenizer.chat_template = self.config.get("default_chat_template")
                 new_tokenizer = tokenizer.apply_chat_template(
                     new_messages,
                     tokenize=False,
