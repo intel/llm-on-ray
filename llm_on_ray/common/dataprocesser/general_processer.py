@@ -116,15 +116,19 @@ class GeneralProcesser(DataProcesser):
                 new_message = PROMPT_NO_INPUT_FORMAT.format(
                     instruction=instruction, response=response
                 )
-            return tokenizer(new_message, add_special_tokens=False, max_length=self.config.get("max_length"))
+            return tokenizer(
+                new_message, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
         else:
             new_messages = [
                 {
                     "role": "user",
                     "content": "###Instruction:\n"
-                            + examples["instruction"] + "\n\n"
-                            + "###context:\n"
-                            + examples["context"] + "\n\n",
+                    + examples["instruction"]
+                    + "\n\n"
+                    + "###context:\n"
+                    + examples["context"]
+                    + "\n\n",
                 },
                 {"role": "assistant", "content": examples["response"] + "\n\n"},
             ]
@@ -145,9 +149,9 @@ class GeneralProcesser(DataProcesser):
                     new_messages,
                     tokenize=False,
                 )
-            tokenizer = tokenizer(new_tokenizer,
-                                  add_special_tokens=False,
-                                  max_length=self.config.get("max_length"))
+            tokenizer = tokenizer(
+                new_tokenizer, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
             return tokenizer
 
     def prepare(self, tokenizer, dataset):
@@ -184,7 +188,7 @@ class GeneralProcesser(DataProcesser):
                     total_length = (total_length // block_size) * block_size
                 # Split by chunks of max_len.
                 result = {
-                    k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
+                    k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
                     for k, t in concatenated_examples.items()
                 }
                 result["labels"] = result["input_ids"].copy()
