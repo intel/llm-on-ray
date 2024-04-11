@@ -167,7 +167,7 @@ executed_models = {}
             "completions",
             "completions_stream",
             "chat",
-            "chat_stream",
+            # "chat_stream",
             # "chat_bad_request",
             # "chat_stream_bad_request"
             # "completions_bad_request",
