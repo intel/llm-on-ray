@@ -116,7 +116,7 @@ class OpenAIToolsPrompter:
     def content_from_tool(self, message: ChatMessage) -> str:
         return self.template.render_toolmessage(message)
 
-    def inject_prompt(self, request, tools, tool_choice):
+    def inject_prompt(self, request: List, tools, tool_choice):
         """Generate and inject the prompt for tools calls."""
         if tools is not None and self.call_token_str is not None and len(tools):
             select_tool_choice = (

@@ -181,6 +181,10 @@ class PredictorDeployment:
                 )
             else:
                 async for output in self.consume_streamer_async(streamer):
+                    if self.tools_capture_texts is not None:
+                        output, self.tool_call_list = self.tools_capture_texts.process_full_output(
+                            output, self.openai_tools_prompter, prompt
+                        )
                     model_response = ModelResponse(
                         generated_text=output,
                         num_input_tokens=self.predictor.input_length,
@@ -234,6 +238,10 @@ class PredictorDeployment:
         if not self.use_openai:
             return results
         else:
+            if self.tools_capture_texts is not None:
+                result.text, self.tool_call_list = self.tools_capture_texts.process_full_output(
+                    result.text, self.openai_tools_prompter, prompts
+                )
             return [
                 ModelResponse(
                     generated_text=result.text,
@@ -254,6 +262,13 @@ class PredictorDeployment:
                 return results
             else:
                 # TODO: Output responses for a batch in openai format
+                if self.tools_capture_texts is not None:
+                    (
+                        results[0].text,
+                        self.tool_call_list,
+                    ) = self.tools_capture_texts.process_full_output(
+                        results[0].text, self.openai_tools_prompter, prompts
+                    )
                 ModelResponse(
                     generated_text=results[0].text,
                     num_input_tokens=results[0].input_length,
@@ -275,12 +290,14 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
-    def preprocess_prompts(self, input: Union[str, List[str]]):
+    def preprocess_prompts(self, input: Union[str, List], tools=None, tool_choice=None):
         """
         Preprocesses the input prompts.
 
         Args:
             input (Union[str, List[str]]): The input prompt(s) to be preprocessed.
+            tools (List[str]): The list of tools to be used.
+            tool_choice: The choice of tool to be used.
 
         Returns:
             Union[str, List[str], Tuple[List[str], List[str]]]: The preprocessed prompt(s):
@@ -297,11 +314,27 @@ class PredictorDeployment:
         """
         if isinstance(input, str):
             return input
-        elif isinstance(input, list):
+        elif isinstance(input, List):
             prompts = []
             images = []
+
             prompt_format = get_prompt_format(input)
             if prompt_format == PromptFormat.CHAT_FORMAT:
+                # Process the input prompts with tools
+                self.tool_call_list = None
+                self.openai_tools_prompter: OpenAIToolsPrompter = (
+                    OpenAIToolsPrompter() if tools is not None else None
+                )
+                self.tools_capture_texts: ChatPromptCapture = None
+                if self.openai_tools_prompter is not None:
+                    input = self.openai_tools_prompter.inject_prompt(input, tools, tool_choice)
+                    self.tools_capture_texts = ChatPromptCapture()
+                    for m in input:
+                        if m.tool_calls is not None:  # type: ignore
+                            m.content = self.openai_tools_prompter.content_from_assistant(m)  # type: ignore
+                        elif m.tool_call_id is not None:  # type: ignore
+                            m.content = self.openai_tools_prompter.content_from_tool(m)  # type: ignore
+                # Process the input prompts with MLLM tool
                 if self.process_tool is not None:
                     if self.is_mllm:
                         input, image = self.process_tool.get_prompt(input)
@@ -352,12 +385,17 @@ class PredictorDeployment:
         return await self.handle_non_streaming(prompts, config)
 
     async def openai_call(
-        self, input: Union[str, List[ChatMessage]], config: Dict, streaming_response=True
+        self,
+        input: Union[str, List[ChatMessage]],
+        config: Dict,
+        streaming_response=True,
+        tools=None,
+        tool_choice=None,
     ):
         self.use_openai = True
 
         # return prompt or list of prompts preprocessed
-        prompts = self.preprocess_prompts(input)
+        prompts = self.preprocess_prompts(input, tools, tool_choice)
 
         # Handle streaming response
         if streaming_response:
