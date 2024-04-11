@@ -182,11 +182,12 @@ class PredictorDeployment:
             else:
                 async for output in self.consume_streamer_async(streamer):
                     if self.tools_capture_texts is not None:
-                        output, self.tool_call_list = self.tools_capture_texts.process_full_output(
+                        output, tool_call_list = self.tools_capture_texts.process_full_output(
                             output, self.openai_tools_prompter, prompt
                         )
                     model_response = ModelResponse(
                         generated_text=output,
+                        tool_calls=tool_call_list,
                         num_input_tokens=self.predictor.input_length,
                         num_input_tokens_batch=self.predictor.input_length,
                         num_generated_tokens=1,
@@ -238,20 +239,24 @@ class PredictorDeployment:
         if not self.use_openai:
             return results
         else:
-            if self.tools_capture_texts is not None:
-                result.text, self.tool_call_list = self.tools_capture_texts.process_full_output(
-                    result.text, self.openai_tools_prompter, prompts
+            responses = []
+            tool_call_list = None
+            for result in results:
+                if self.tools_capture_texts is not None:
+                    result.text, tool_call_list = self.tools_capture_texts.process_full_output(
+                        result.text, self.openai_tools_prompter, prompts
+                    )
+                responses.append(
+                    ModelResponse(
+                        generated_text=result.text,
+                        tool_calls=tool_call_list,
+                        num_input_tokens=self.predictor.input_length,
+                        num_input_tokens_batch=self.predictor.input_length,
+                        num_generated_tokens=result.generate_length,
+                        preprocessing_time=0,
+                    )
                 )
-            return [
-                ModelResponse(
-                    generated_text=result.text,
-                    num_input_tokens=self.predictor.input_length,
-                    num_input_tokens_batch=self.predictor.input_length,
-                    num_generated_tokens=result.generate_length,
-                    preprocessing_time=0,
-                )
-                for result in results
-            ]
+            return responses
 
     async def handle_static_batch(self, prompts: List[str], **config: Dict[str, Any]):
         logger.info(f"Handling static batch (size={len(prompts)}) ...")
@@ -263,14 +268,12 @@ class PredictorDeployment:
             else:
                 # TODO: Output responses for a batch in openai format
                 if self.tools_capture_texts is not None:
-                    (
-                        results[0].text,
-                        self.tool_call_list,
-                    ) = self.tools_capture_texts.process_full_output(
+                    results[0].text, tool_call_list = self.tools_capture_texts.process_full_output(
                         results[0].text, self.openai_tools_prompter, prompts
                     )
                 ModelResponse(
                     generated_text=results[0].text,
+                    tool_calls=tool_call_list,
                     num_input_tokens=results[0].input_length,
                     num_input_tokens_batch=results[0].input_length,
                     num_generated_tokens=results[0].generate_length,

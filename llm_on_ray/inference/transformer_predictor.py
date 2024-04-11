@@ -107,7 +107,6 @@ class TransformerPredictor(Predictor):
     def generate(
         self, prompts: Union[str, List[str]], **config
     ) -> Union[GenerateResult, List[GenerateResult], None]:
-        self._process_config(config)
         input_ids, input_length = self.tokenize_inputs(prompts)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
