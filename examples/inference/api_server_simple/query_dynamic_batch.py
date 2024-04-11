@@ -16,7 +16,6 @@
 
 import asyncio
 import aiohttp
-import requests
 import argparse
 from typing import Dict, Union
 
