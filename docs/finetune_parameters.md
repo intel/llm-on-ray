@@ -7,6 +7,7 @@ The following are the parameters supported in the finetuning workflow.
 |Configuration Name| Default|Meaning|
 |-|-|-|
 |base_model| EleutherAI/gpt-j-6b|Path to pretrained model or model identifier from huggingface.co/models|
+|tokenizer_name|None|Path to pretrained tokenizer from huggingface.co/models. If not provided, the tokenizer will be loaded from the `base_model`.|
 |gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model|
 |checkpoint_dir|/tmp/llm-ray/checkpoint|The directory to store checkpoint|
@@ -23,6 +24,11 @@ The following are the parameters supported in the finetuning workflow.
 |validation_file|None|A json file containing the validation data.|
 |validation_split_percentage|5|The percentage of the train set used as validation set in case there's no validation split|
 |preprocessing_num_workers|None|The number of processes to use for the preprocessing.|
+|max_length|512|Padding sequential data to max length of a batch|
+|group|True|Whether to concatenate the sentence for more efficient training|
+|block_size|512|The block size of concatenated sentence|
+|shuffle|False|Whether shuffle the data at every epoch|
+
 
 ## Training Parameters
 |Configuration Name| Default|Meaning|
@@ -33,12 +39,13 @@ The following are the parameters supported in the finetuning workflow.
 |learning_rate|1e-5|Initial learning rate to use.|
 |lr_scheduler|linear|The scheduler type to use, supported value: "linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"|
 |weight_decay|0.0|Weight decay is a regularization technique that adds an L2 norm of all model weights to the loss function while increasing the probability of improving the model generalization.|
-|mixed_precision|no|Whether or not to use mixed precision training. Choose from "no", "fp16", "bf16". Default is "no" if not set.
-|device|CPU|The device type used, can be "CPU", "GPU".|
+|mixed_precision|no|Whether or not to use mixed precision training. Choose from "no", "fp16", "bf16". Default is "no" if not set.|
+|device|CPU|The device type used, supported types are {"CPU", "GPU", "HPU"}, here "GPU" is Intel GPU, "HPU" is Habana Gaidu device.|
 |num_training_workers|2|The number of the training process.|
-|resources_per_worker|{"CPU": 32}|A dict to specify the resources for each worker. If `device` is "GPU", please set it like {"CPU": 32, "GPU": 1}.|
-|accelerate_mode|CPU_DDP|The accelerate mode for training model, available options are: "CPU_DDP", "GPU_DDP", "GPU_FSDP".|
+|resources_per_worker|{"CPU": 32}|A dict to specify the resources for each worker. If `device` is "GPU", please set it like {"CPU": 1, "GPU": 1}. If `device` is "HPU", please set it like {"CPU": 1, "HPU": 1}.|
+|accelerate_mode|DDP|The accelerate mode for training model, available options are: "DDP", "FSDP", "DEEPSPEED".|
 |max_train_steps|None|Total number of training steps to perform. If provided, overrides epochs.|
 |gradient_accumulation_steps|1|Number of updates steps to accumulate before performing a backward/update pass.|
 |seed|None|A seed for reproducible training.|
 |logging_steps|10|logging per steps|
+|deepspeed_config_file|None|The config file for deepspeed, the format must be json file.|

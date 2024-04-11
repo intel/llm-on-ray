@@ -23,6 +23,7 @@ Intel® 1st, 2nd, 3rd, and 4th Gen Xeon® Scalable Performance processor
 ### Software Requirements
 - Git
 - Conda
+- Docker
 
 ## Setup
 
@@ -38,11 +39,11 @@ cd llm-on-ray
 conda create -n llm-on-ray python=3.9
 conda activate llm-on-ray
 ```
-For CPU:
+##### For CPU:
 ```bash
 pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
-For GPU:
+##### For GPU:
 ```bash
 pip install .[gpu] --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
 ```
@@ -51,24 +52,32 @@ If DeepSpeed is enabled or doing distributed finetuing, oneCCL and Intel MPI lib
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 ```
 
-For Gaudi:
+##### For Gaudi:
 
 Please use the [Dockerfile](../dev/docker/Dockerfile.habana) to build the image. Alternatively, you can install the dependecies on a bare metal machine. In this case, please refer to [here](https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html#build-docker-bare).
 
 ```bash
+# Under dev/docker/
+cd ./dev/docker
 docker build \
-    -f ${dockerfile} ../../ \
-    -t llm-ray-habana:latest \
+    -f Dockerfile.habana ../../ \
+    -t llm-on-ray:habana \
     --network=host \
     --build-arg http_proxy=${http_proxy} \
     --build-arg https_proxy=${https_proxy} \
-    --build-arg no_proxy=${no_proxy} \
+    --build-arg no_proxy=${no_proxy}
 ```
 
 After the image is built successfully, start a container:
 
 ```bash
-docker run -it --runtime=habana -v ./llm-on-ray:/root/llm-ray --name="llm-ray-habana-demo" llm-ray-habana:latest
+# llm-on-ray mounting is necessary.
+# Please replace /path/to/llm-on-ray with your actual path to llm-on-ray.
+# Add -p HOST_PORT:8080 or --net host if using UI.
+# Add --cap-add sys_ptrace to enable py-spy in container if you need to debug.
+# Set HABANA_VISIBLE_DEVICES if multi-tenancy is needed, such as "-e HABANA_VISIBLE_DEVICES=0,1,2,3"
+# For multi-tenancy, refer to https://docs.habana.ai/en/latest/PyTorch/Reference/PT_Multiple_Tenants_on_HPU/Multiple_Dockers_each_with_Single_Workload.html
+docker run -it --runtime=habana --name="llm-ray-habana-demo" -v /path/to/llm-on-ray:/root/llm-on-ray -v /path/to/models:/models/in/container -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --ipc=host llm-on-ray:habana 
 ```
 
 #### 3. Launch Ray cluster

@@ -33,6 +33,7 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ModelResponse,
 )
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
+from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, ChatPromptCapture
 from llm_on_ray.inference.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,7 +41,7 @@ logger = get_logger(__name__)
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
@@ -68,15 +69,18 @@ class PredictorDeployment:
         # Used to determine if openai backend is used
         self.use_openai = False
 
-        if self.use_deepspeed:
+        if infer_conf.device == "hpu":
+            from llm_on_ray.inference.hpu_predictor import HPUPredictor
+
+            self.predictor = HPUPredictor(infer_conf)
+        elif self.use_deepspeed:
             from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
-            self.streamer = self.predictor.get_streamer()
         elif self.use_vllm:
             from llm_on_ray.inference.vllm_predictor import VllmPredictor
 
-            self.predictor = VllmPredictor(infer_conf)
+            self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         elif self.is_mllm:
             from llm_on_ray.inference.mllm_predictor import MllmPredictor
 
@@ -88,8 +92,8 @@ class PredictorDeployment:
 
         self.loop = asyncio.get_running_loop()
 
-    def consume_streamer(self):
-        for text in self.streamer:
+    def consume_streamer(self, streamer):
+        for text in streamer:
             yield text
 
     async def consume_streamer_async(self, streamer: TextIteratorStreamer):
@@ -125,13 +129,14 @@ class PredictorDeployment:
                     )
                 )
         if self.use_deepspeed:
-            self.predictor.streaming_generate(prompt, self.streamer, **config)
+            streamer = self.predictor.get_streamer()
+            self.predictor.streaming_generate(prompt, streamer, **config)
             if not self.use_openai:
                 yield StreamingResponse(
-                    self.consume_streamer(), status_code=200, media_type="text/plain"
+                    self.consume_streamer(streamer), status_code=200, media_type="text/plain"
                 )
             else:
-                async for output in self.consume_streamer_async(self.streamer):
+                async for output in self.consume_streamer_async(streamer):
                     model_response = ModelResponse(
                         generated_text=output,
                         num_input_tokens=self.predictor.input_length,

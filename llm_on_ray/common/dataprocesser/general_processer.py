@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from itertools import chain
 
 import numpy as np
@@ -84,10 +100,12 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 class GeneralProcesser(DataProcesser):
     def prepare(self, tokenizer, dataset):
-        per_device_train_batch_size = self.config.get("per_device_train_batch_size", 1)
-        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size", 1)
-        group = self.config.get("group", False)
-        self.config.get("shuffle", False)
+        per_device_train_batch_size = self.config.get("per_device_train_batch_size")
+        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
+        max_length = self.config.get("max_length")
+        group = self.config.get("group")
+        block_size = self.config.get("block_size")
+        shuffle = self.config.get("shuffle")
         tokenizer.pad_token = tokenizer.eos_token
 
         if isinstance(dataset, datasets.Dataset):
@@ -123,8 +141,6 @@ class GeneralProcesser(DataProcesser):
             )
             column_names += [TEXT_COLUMN_NAME]
 
-        max_length = self.config.get("max_length", 1024)
-
         def tokenize_function(examples):
             return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
 
@@ -136,7 +152,6 @@ class GeneralProcesser(DataProcesser):
         )
 
         if group:
-            block_size = self.config.get("block_size", 1024)
 
             def group_texts(examples):
                 # Concatenate all texts.
@@ -160,30 +175,30 @@ class GeneralProcesser(DataProcesser):
                 load_from_cache_file=False,
                 desc=f"Grouping texts in chunks of {block_size}",
             )
-            default_data_collator = transformers.default_data_collator
 
-        else:
-            default_data_collator = DataCollatorForCompletionOnlyLM(
-                tokenizer=tokenizer,
-                mlm=False,
-                return_tensors="pt",
-                pad_to_multiple_of=8,
-            )
+        data_collator = DataCollatorForCompletionOnlyLM(
+            tokenizer=tokenizer,
+            mlm=False,
+            return_tensors="pt",
+            pad_to_multiple_of=8,
+        )
 
         train_dataset = tokenized_datasets["train"]
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            shuffle=True,
-            collate_fn=default_data_collator,
-            batch_size=per_device_train_batch_size,
-        )
+        train_dataloader_params = {
+            "shuffle": shuffle,
+            "collate_fn": data_collator,
+            "batch_size": per_device_train_batch_size,
+            "pin_memory": True,
+        }
+        train_dataloader = torch.utils.data.DataLoader(train_dataset, **train_dataloader_params)
 
         eval_dataloader = None
         if "validation" in tokenized_datasets:
             eval_dataset = tokenized_datasets["validation"]
-            eval_dataloader = torch.utils.data.DataLoader(
-                eval_dataset,
-                collate_fn=default_data_collator,
-                batch_size=per_device_eval_batch_size,
-            )
+            eval_dataloader_params = {
+                "shuffle": shuffle,
+                "collate_fn": data_collator,
+                "batch_size": per_device_eval_batch_size,
+            }
+            eval_dataloader = torch.utils.data.DataLoader(eval_dataset, **eval_dataloader_params)
         return train_dataloader, eval_dataloader

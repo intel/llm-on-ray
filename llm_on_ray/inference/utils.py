@@ -14,9 +14,10 @@
 # limitations under the License.
 #
 
-from transformers import StoppingCriteria
+from transformers import StoppingCriteria, TextStreamer
+from ray.util.queue import Queue
 import torch
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
@@ -37,18 +38,50 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
+    if infer_conf.vllm.enabled:
+        runtime_env[_ray_env_key]["OMP_PROC_BIND"] = "true"
     # now PredictorDeployment itself is a worker, we should require resources for it
     ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
         ray_actor_options["num_cpus"] = infer_conf.cpus_per_worker
     elif infer_conf.device == "cuda":
         ray_actor_options["num_gpus"] = infer_conf.gpus_per_worker
-    elif infer_conf.device == "hpu":
+    elif infer_conf.device == "hpu" and not infer_conf.deepspeed:
+        # when using deepspeed on hpu, deployment actor does not need HPU
         ray_actor_options["resources"] = {"HPU": infer_conf.hpus_per_worker}
     else:
         # TODO add xpu
         pass
     return ray_actor_options
+
+
+class RayTextIteratorStreamer(TextStreamer):
+    def __init__(
+        self,
+        tokenizer,
+        skip_prompt: bool = False,
+        timeout: Optional[float] = None,
+        **decode_kwargs,
+    ):
+        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+        self.text_queue = Queue()
+        self.stop_signal = None
+        self.timeout = timeout
+
+    def on_finalized_text(self, text: str, stream_end: bool = False):
+        self.text_queue.put(text, timeout=self.timeout)
+        if stream_end:
+            self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        value = self.text_queue.get(timeout=self.timeout)
+        if value == self.stop_signal:
+            raise StopIteration()
+        else:
+            return value
 
 
 class StoppingCriteriaSub(StoppingCriteria):
