@@ -90,6 +90,7 @@ def test_decide_torch_dtype_hpu_with_deepspeed(mock_infer_conf):
 
 def test_decide_torch_dtype_with_hf_config_torch_dtype(mock_infer_conf):
     mock_infer_conf.device = DEVICE_CPU
+    mock_infer_conf.ipex.enabled = True
     hf_config = {"torch_dtype": torch.float16}
 
     decide_torch_dtype(mock_infer_conf, hf_config)
@@ -103,6 +104,7 @@ def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_c
             self.torch_dtype = torch.float16
 
     mock_infer_conf.device = DEVICE_CPU
+    mock_infer_conf.ipex.enabled = True
     hf_config = HFConfig()
 
     decide_torch_dtype(mock_infer_conf, hf_config)
@@ -112,6 +114,7 @@ def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_c
 
 def test_decide_torch_dtype_with_invalid_hf_config(mock_infer_conf):
     mock_infer_conf.device = DEVICE_CPU
+    mock_infer_conf.ipex.enabled = True
     hf_config = {}
 
     decide_torch_dtype(mock_infer_conf, hf_config)
