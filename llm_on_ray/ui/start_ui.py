@@ -739,7 +739,9 @@ class ChatBotUI:
         self.shutdown_deploy()
         if cpus_per_worker_deploy * replica_num > int(
             ray.available_resources()["CPU"]
-        ) or hpus_per_worker_deploy * replica_num > int(ray.available_resources()["HPU"]):
+        ) or hpus_per_worker_deploy * replica_num > int(
+            ray.available_resources()["HPU"] if "HPU" in ray.available_resources() else 0
+        ):
             raise gr.Error("Resources are not meeting the demand")
 
         print("Deploying model:" + model_name)
@@ -785,10 +787,9 @@ class ChatBotUI:
             num_replicas=replica_num,
             ray_actor_options=ray_actor_options,
         ).bind(finetuned_deploy)
+        serve.start(http_options={"host": finetuned_deploy.host, "port": finetuned_deploy.port})
         serve.run(
             deployment,
-            _blocking=True,
-            port=finetuned_deploy.port,
             name=finetuned_deploy.name,
             route_prefix=finetuned_deploy.route_prefix,
         )
@@ -1185,16 +1186,13 @@ class ChatBotUI:
                         label="chatbot",
                         elem_classes="disable_status",
                     )
-
+                    with gr.Accordion("Image", open=False, visible=True):
+                        image = gr.Image(type="pil")
+                    with gr.Row():
+                        model_endpoint = gr.Text(label="Model Endpoint", value=None, scale=1)
+                        model_name = gr.Text(label="Model Name", value=None, scale=1)
                     with gr.Row():
                         with gr.Column(scale=0.8):
-                            with gr.Accordion("image", open=False, visible=True):
-                                image = gr.Image(type="pil")
-                            with gr.Row():
-                                model_endpoint = gr.Text(
-                                    label="Model Endpoint", value=None, scale=1
-                                )
-                                model_name = gr.Text(label="Model Name", value=None, scale=1)
                             msg = gr.Textbox(
                                 show_label=False,
                                 container=False,

@@ -258,7 +258,7 @@ def train_func(config: Dict[str, Any]):
                 "weight_decay": config["Training"]["weight_decay"],
             },
             "checkpoint": {
-                "root_path": config["General"]["checkpoint_dir"],
+                "root_path": config["General"].get("checkpoint_dir", None),
             },
         }
     )
