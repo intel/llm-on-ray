@@ -436,21 +436,3 @@ class FinishReason(str, Enum):
         if finish_reason == "abort":
             return cls.CANCELLED
         return cls.STOP
-
-
-class BatchedModelResponse(ModelResponse):
-    # Same as ModelResponse, but persists the individual responses
-    # that were batched together to produce this response.
-
-    _individual_responses: Optional[List[ModelResponse]] = PrivateAttr(None)
-
-    @classmethod
-    def merge_stream(cls, *responses: "ModelResponse") -> "ModelResponse":
-        if len(responses) == 1:
-            return responses[0]
-        obj = super().merge_stream(*responses)
-        obj._individual_responses = list(responses)  # type: ignore
-        return obj
-
-    def unpack(self) -> Tuple["ModelResponse", ...]:
-        return tuple(self._individual_responses or [])
