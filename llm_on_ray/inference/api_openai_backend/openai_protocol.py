@@ -37,7 +37,7 @@
 
 from typing import Any, Dict, Literal, List, TypeVar, Optional, Tuple, Type, Union
 
-from pydantic import BaseModel, Field, root_validator, PrivateAttr
+from pydantic import BaseModel, Field, root_validator
 from enum import Enum
 import uuid
 import time
