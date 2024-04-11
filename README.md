@@ -116,7 +116,6 @@ The following are detailed guidelines for pretraining, finetuning and serving LL
 * [Deploy and Serve LLMs on Intel CPU/GPU/Gaudi](docs/serve.md)
 * [Deploy and Serve LLMs with Deepspeed](docs/serve_deepspeed.md)
 * [Deploy and Serve LLMs with BigDL-LLM](docs/serve_bigdl.md)
-* [Enable Continuous, Static and Dynamic Batching](docs/serve_batching.md)
 
 ### Web UI
 * [Finetune and Deploy LLMs through Web UI](docs/web_ui.md)

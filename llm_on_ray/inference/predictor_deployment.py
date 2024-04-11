@@ -105,8 +105,8 @@ class PredictorDeployment:
                 await asyncio.sleep(0.001)
 
     # Handle streaming, only support single prompt
-    async def handle_streaming(self, prompt: str, config: Dict[str, Any]):
-        if isinstance(prompt, list):
+    async def handle_streaming(self, prompt: Union[str, List[str]], config: Dict[str, Any]):
+        if isinstance(prompt, List):
             error_message = (
                 "Streaming response is not supported when multiple prompts are provided."
             )
@@ -206,7 +206,7 @@ class PredictorDeployment:
             config = request[1]
             # sort the config by key and convert to str to ensure the key is unique
             key = str(dict(sorted(config.items())))
-            batched_prompts[key] = batched_prompts.get(str(config), ([], []))
+            batched_prompts.setdefault(key, ([], []))
             batched_prompts[key][0].append(prompt)
             batched_prompts[key][1].append(i)
 

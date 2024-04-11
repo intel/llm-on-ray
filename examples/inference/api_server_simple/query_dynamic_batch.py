@@ -99,4 +99,4 @@ async def send_all_query(endpoint, prompts, configs):
         print("\nTotal responses:", len(responses))
 
 
-asyncio.run(send_all_query("http://127.0.0.1:8000/gpt2", prompts, configs))
+asyncio.run(send_all_query(args.model_endpoint, prompts, configs))
