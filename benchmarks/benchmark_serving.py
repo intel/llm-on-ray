@@ -325,9 +325,10 @@ async def send_request(
                         generate_len = json.loads(response_text)["usage"]["completion_tokens"]
                     except Exception:
                         generate_len = None
-            if vllm_engine and generate_len != temp_config["max_new_tokens"]:
+            expected_output_len = temp_config["max_new_tokens"]
+            if vllm_engine and generate_len != expected_output_len:
                 print(
-                    f"Warning: the actual generated length is {generate_len}, which is different from the expected output_len({output_len})."
+                    f"Warning: the actual generated length is {generate_len}, which is different from the expected output length({expected_output_len})."
                 )
             if progress_bar:
                 progress_bar.update()
