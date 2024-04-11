@@ -41,11 +41,16 @@ logger = get_logger(__name__)
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
+    _DEFAULT_MAX_BATCH_SIZE = 8
+
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs, max_batch_size):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
         prompt = infer_conf.model_description.prompt
+
+        self.handle_dynamic_batch.set_max_batch_size(max_batch_size)
+
         if chat_processor_name:
             try:
                 module = __import__("chat_process")
@@ -194,13 +199,14 @@ class PredictorDeployment:
             # static batching
             if isinstance(prompts, list):
                 return await self.handle_static_batch(prompts, **config)
+
             # dynamic batching
             return await self.handle_dynamic_batch((prompts, config))
 
         return JSONResponse(status_code=400, content="Error when handling non-streaming request.")
 
     # TODO: get max_batch_size from the serve config
-    @serve.batch(max_batch_size=4)
+    @serve.batch(max_batch_size=_DEFAULT_MAX_BATCH_SIZE)
     async def handle_dynamic_batch(self, requests):
         logger.info(f"Handling dynamic batch (size={len(requests)}) ...")
 
