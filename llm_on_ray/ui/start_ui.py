@@ -234,7 +234,7 @@ class ChatBotUI:
         proxies = {"http": None, "https": None}
         outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
         outputs.raise_for_status()
-        for output in outputs.iter_lines(chunk_size=None, decode_unicode=True):
+        for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
             # remove context
             if simple_api:
                 if prompt in output:
