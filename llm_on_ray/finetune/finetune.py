@@ -98,7 +98,7 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
                 "ACCELERATE_MIXED_PRECISION": mixed_precision,
             },
         },
-        "hpu:": {
+        "hpu": {
             "DDP": {
                 "ACCELERATE_USE_CPU": "false",
                 "ACCELERATE_USE_XPU": "false",
@@ -155,6 +155,10 @@ def train_func(config: Dict[str, Any]):
 
     gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
     base_model = config["General"]["base_model"]
+    if config["General"].get("tokenizer_name") is not None:
+        tokenizer_name = config["General"].get("tokenizer_name")
+    else:
+        tokenizer_name = base_model
     dataset_file = config["Dataset"]["train_file"]
 
     seed = config["Training"].get("seed")
@@ -171,7 +175,7 @@ def train_func(config: Dict[str, Any]):
 
     tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
         config={
-            "name": base_model,
+            "name": tokenizer_name,
             "config": config["General"]["config"],
         }
     )
@@ -232,7 +236,7 @@ def train_func(config: Dict[str, Any]):
             "device": config["Training"]["device"],
             "accelerate_mode": config["Training"]["accelerate_mode"],
             "num_train_epochs": epochs,
-            "max_train_step": config["Training"].get("max_train_steps", None),
+            "max_train_steps": config["Training"].get("max_train_steps", None),
             "logging_steps": config["Training"].get("logging_steps", 1),
             "output": output_dir,
             "dataprocesser": {
