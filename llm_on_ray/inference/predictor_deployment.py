@@ -42,8 +42,14 @@ logger = get_logger(__name__)
 @serve.deployment
 class PredictorDeployment:
     _DEFAULT_MAX_BATCH_SIZE = 8
+    _DEFAULT_MAX_NUM_SEQS = 256
 
-    def __init__(self, infer_conf: InferenceConfig, max_num_seqs, max_batch_size):
+    def __init__(
+        self,
+        infer_conf: InferenceConfig,
+        max_num_seqs=_DEFAULT_MAX_NUM_SEQS,
+        max_batch_size=_DEFAULT_MAX_BATCH_SIZE,
+    ):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor

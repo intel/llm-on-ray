@@ -29,12 +29,12 @@ from ray.air import ScalingConfig
 from typing import List, Union
 import os
 from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
     DEVICE_CPU,
-    DEVICE_XPU,
+    DEVICE_GPU,
     PRECISION_BF16,
 )
 
@@ -54,12 +54,11 @@ class DSPipeline:
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_desc.model_id_or_path,
             config=hf_config,
-            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
             **model_config.dict(),
         )
@@ -130,7 +129,7 @@ class PredictionWorker(TorchDistributedWorker):
 
         if self.infer_conf.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.infer_conf.device == DEVICE_XPU:
+        elif self.infer_conf.device == DEVICE_GPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True

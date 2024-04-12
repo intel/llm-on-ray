@@ -117,7 +117,7 @@ OMP_NUM_THREAD=24 numactl -N 0 -m 0 -C 0-47 python -u inference/serve.py --confi
 ```
 4. Send requests
 ```cmd
-numactl -N 1 -m 1 python benchmarks/benchmark_serving.py --model-endpoint-base http://127.0.0.1:8000 --model-name llama-2-7b-chat-hf --dataset ./dataset/ShareGPT_V3_unfiltered_cleaned_split.json --num-prompts 1000 --dataset-format ShareGPT --simple
+numactl -N 1 -m 1 python benchmarks/benchmark_serving.py --model-endpoint-base http://127.0.0.1:8000 --model-name llama-2-7b-chat-hf --dataset ./dataset/ShareGPT_V3_unfiltered_cleaned_split.json --num-prompts 1000 --dataset-format ShareGPT --vllm-engine --simple
 ```
 5. Results
 ```cmd

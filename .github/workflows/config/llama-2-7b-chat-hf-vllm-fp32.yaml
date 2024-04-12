@@ -9,7 +9,7 @@ vllm:
   enabled: true
   precision: fp32
 workers_per_group: 2
-device: "cpu"
+device: cpu
 ipex:
   enabled: false
   precision: bf16
