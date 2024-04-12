@@ -34,7 +34,7 @@ from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, C
 
 @serve.deployment
 class PredictorDeployment:
-    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs: int = 256):
         self.device = torch.device(infer_conf.device)
         self.process_tool = None
         chat_processor_name = infer_conf.model_description.chat_processor
