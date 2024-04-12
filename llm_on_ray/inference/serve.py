@@ -74,7 +74,7 @@ def get_deployed_models(args):
             num_replicas=infer_conf.num_replicas,
             ray_actor_options=ray_actor_options,
             max_concurrent_queries=args.max_concurrent_queries,
-        ).bind(infer_conf, args.vllm_max_num_seqs)
+        ).bind(infer_conf, args.vllm_max_num_seqs, args.max_batch_size)
     return deployments, model_list
 
 
@@ -156,8 +156,17 @@ def main(argv=None):
         type=int,
         help="The max concurrent requests ray serve can process.",
     )
+
+    # TODO: vllm_max_num_seqs and max_batch_size should be moved to InferenceConfig
     parser.add_argument(
-        "--vllm_max_num_seqs", default=256, type=int, help="The batch size in VLLM."
+        "--vllm_max_num_seqs",
+        default=256,
+        type=int,
+        help="The batch size for vLLM. Used when vLLM is enabled.",
+    )
+
+    parser.add_argument(
+        "--max_batch_size", default=8, type=int, help="The max batch size for dynamic batching."
     )
 
     # Print help if no arguments were provided
