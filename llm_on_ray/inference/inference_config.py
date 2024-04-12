@@ -24,7 +24,7 @@ PRECISION_FP32 = "fp32"
 
 DEVICE_CPU = "cpu"
 DEVICE_HPU = "hpu"
-DEVICE_XPU = "xpu"
+DEVICE_GPU = "gpu"
 DEVICE_CUDA = "cuda"
 
 
@@ -152,7 +152,7 @@ class InferenceConfig(BaseModel):
     @validator("device")
     def _check_device(cls, v: str):
         if v:
-            assert v.lower() in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
+            assert v.lower() in [DEVICE_CPU, DEVICE_GPU, DEVICE_CUDA, DEVICE_HPU]
         return v.lower()
 
     @validator("workers_per_group")

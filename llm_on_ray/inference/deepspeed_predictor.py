@@ -34,7 +34,7 @@ from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
     DEVICE_CPU,
-    DEVICE_XPU,
+    DEVICE_GPU,
     PRECISION_BF16,
 )
 
@@ -130,7 +130,7 @@ class PredictionWorker(TorchDistributedWorker):
 
         if self.infer_conf.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.infer_conf.device == DEVICE_XPU:
+        elif self.infer_conf.device == DEVICE_GPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True

@@ -134,7 +134,7 @@ def main(argv=None):
         help="Workers per group, used with --deepspeed.",
     )
     parser.add_argument("--ipex", action="store_true", help="Enable ipex optimization.")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda.")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, gpu, hpu or cuda.")
     parser.add_argument(
         "--serve_local_only",
         action="store_true",
