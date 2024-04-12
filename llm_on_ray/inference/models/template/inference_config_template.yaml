@@ -13,7 +13,7 @@ ipex:
   precision: bf16
 model_description:
   model_id_or_path: null
-  bigdl:: false
+  ipexllm:: false
   tokenizer_name_or_path: null
   chat_processor: null
   gpt_base_model: false
@@ -31,5 +31,5 @@ model_description:
     trust_remote_code: false
     use_auth_token: null
     load_in_4bit: false
-  bigdl_config:
+  ipexllm_config:
     load_in_low_bit: ''

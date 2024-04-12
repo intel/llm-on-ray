@@ -65,8 +65,8 @@ class Vllm(BaseModel):
         return v
 
 
-# for bigdl model
-class BigDLModelConfig(BaseModel):
+# for ipexllm model
+class IpexllmModelConfig(BaseModel):
     load_in_low_bit: str = ""
 
     @validator("load_in_low_bit")
@@ -98,8 +98,8 @@ class ModelDescription(BaseModel):
     peft_model_id_or_path: Union[str, None] = None
     peft_type: Union[str, None] = None
 
-    bigdl: bool = False
-    bigdl_config: BigDLModelConfig = BigDLModelConfig()
+    ipexllm: bool = False
+    ipexllm_config: IpexllmModelConfig = IpexllmModelConfig()
 
     # only effective when device is hpu
     use_hpu_graphs: bool = True

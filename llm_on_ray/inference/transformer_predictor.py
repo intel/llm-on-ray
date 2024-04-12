@@ -35,16 +35,16 @@ class TransformerPredictor(Predictor):
 
         # decide correct torch type for loading HF model
         decide_torch_dtype(infer_conf, hf_config)
-        if model_desc.bigdl:
-            from bigdl.llm.transformers import (
-                AutoModelForCausalLM as BigDLAutoModelForCLM,
+        if model_desc.ipexllm:
+            from ipex_llm.transformers import (
+                AutoModelForCausalLM as IpexllmAutoModelForCLM,
             )
 
             bmodel_config = {}
             bmodel_config.update(model_config.dict())
-            if model_desc.bigdl_config.load_in_low_bit:
-                bmodel_config.update(model_desc.bigdl_config.dict())
-            model = BigDLAutoModelForCLM.from_pretrained(
+            if model_desc.ipexllm_config.load_in_low_bit:
+                bmodel_config.update(model_desc.ipexllm_config.dict())
+            model = IpexllmAutoModelForCLM.from_pretrained(
                 model_desc.model_id_or_path,
                 config=hf_config,
                 low_cpu_mem_usage=True,
