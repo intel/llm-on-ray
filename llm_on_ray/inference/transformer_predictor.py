@@ -17,7 +17,7 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig, TextIteratorStreamer
 from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.predictor import Predictor
 
 
@@ -33,8 +33,8 @@ class TransformerPredictor(Predictor):
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import (
                 AutoModelForCausalLM as BigDLAutoModelForCLM,
@@ -46,7 +46,6 @@ class TransformerPredictor(Predictor):
                 bmodel_config.update(model_desc.bigdl_config.dict())
             model = BigDLAutoModelForCLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=torch_dtype,
                 config=hf_config,
                 low_cpu_mem_usage=True,
                 **bmodel_config,
@@ -54,7 +53,6 @@ class TransformerPredictor(Predictor):
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=torch_dtype,
                 config=hf_config,
                 low_cpu_mem_usage=True,
                 **model_config.dict(),
