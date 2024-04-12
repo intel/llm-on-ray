@@ -47,7 +47,7 @@ def rag_retrival(retriever, query):
 class Basic:
 
     def __init__(self):
-        self.openai_model = "sqlcoder"
+        self.openai_model = "sqlcoder-7b-2"
         self.history_messages = utils.enable_chat_history('basic_chat')
     
     def setup_chain(self):
@@ -55,7 +55,7 @@ class Basic:
         chain = ConversationChain(llm=llm, verbose=True)
         return chain
     
-    def setup_db_retriever(self, db=os.path.join(os.path.abspath(os.path.dirname(__file__)),'retriever.db'), emb_model_name="sqlcoder", top_k_table=1):
+    def setup_db_retriever(self, db=os.path.join(os.path.abspath(os.path.dirname(__file__)),'retriever.db'), emb_model_name="defog/sqlcoder-7b-2", top_k_table=1):
         embeddings = HuggingFaceEmbeddings(model_name = emb_model_name)
         db = FAISS.load_local(db, embeddings, allow_dangerous_deserialization=True)
         retriever = db.as_retriever(search_type='mmr', search_kwargs={'k': top_k_table, 'lambda_mult': 1})
