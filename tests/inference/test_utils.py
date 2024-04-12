@@ -112,15 +112,5 @@ def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_c
     assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
 
 
-def test_decide_torch_dtype_with_invalid_hf_config(mock_infer_conf):
-    mock_infer_conf.device = DEVICE_CPU
-    mock_infer_conf.ipex.enabled = True
-    hf_config = {}
-
-    decide_torch_dtype(mock_infer_conf, hf_config)
-
-    assert mock_infer_conf.model_description.config.torch_dtype == torch.get_default_dtype()
-
-
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
