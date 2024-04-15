@@ -88,21 +88,12 @@ def main(argv=None):
         type=str,
         help="Inference configuration file in YAML. If specified, all other arguments will be ignored.",
     )
-    parser.add_argument("--model_id_or_path", default=None, type=str, help="Model name or path.")
-    parser.add_argument(
-        "--tokenizer_id_or_path", default=None, type=str, help="Tokenizer name or path."
-    )
     parser.add_argument(
         "--models",
         nargs="*",
         default=["gpt2"],
         type=str,
         help=f"Only used when config_file and model_id_or_path are both None, valid values can be any items in {list(all_models.keys())}.",
-    )
-    parser.add_argument(
-        "--serve_local_only",
-        action="store_true",
-        help="Only support local access to url.",
     )
     parser.add_argument(
         "--simple",
