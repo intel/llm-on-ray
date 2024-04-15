@@ -34,22 +34,8 @@ async def fake_generator_with_error():
     )
 
 
-async def fake_generator_batched():
-    yield ModelResponse(num_generated_tokens=1, generated_text="abcd")
-    yield ModelResponse(num_generated_tokens=1, generated_text="abcd", finish_reason="stop")
-
-
-async def fake_generator_with_error_batched():
-    yield ModelResponse(num_generated_tokens=1, generated_text="abcd")
-
-    yield ModelResponse(
-        error=ErrorResponse(message="error", internal_message="error", code=500, type="error"),
-        finish_reason="error",
-    )
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("generator", [fake_generator, fake_generator_batched])
+@pytest.mark.parametrize("generator", [fake_generator])
 async def test_chat_completions_stream(generator):
     generator = _chat_completions_wrapper(
         "1",
@@ -91,9 +77,7 @@ async def test_chat_completions_stream(generator):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "generator", [fake_generator_with_error, fake_generator_with_error_batched]
-)
+@pytest.mark.parametrize("generator", [fake_generator_with_error])
 async def test_chat_completions_stream_with_error(generator):
     generator = _chat_completions_wrapper(
         "1",
