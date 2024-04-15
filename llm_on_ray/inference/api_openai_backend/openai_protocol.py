@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+#
 # ===========================================================================
 #
 # This file is adapted from
@@ -412,6 +413,7 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     tools: Optional[List[Tool]] = None
     tool_choice: Union[Literal["auto", "none"], ToolChoice] = "auto"
+    ignore_eos: bool = False  # used in vllm engine benchmark
 
 
 class FinishReason(str, Enum):

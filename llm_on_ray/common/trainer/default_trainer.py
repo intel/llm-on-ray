@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import os
 import math
 import time
@@ -136,7 +152,7 @@ class DefaultTrainer(Trainer):
         # because it is recommended way to prepare model and optimizer while using FSDP.
         # https://huggingface.co/docs/accelerate/usage_guides/fsdp#a-few-caveats-to-be-aware-of
         self.accelerate_mode = self.config.get("accelerate_mode")
-        if self.accelerate_mode in ["GPU_DEEPSPEED"]:
+        if self.accelerate_mode == "DEEPSPEED":
             lr = lr_scheduler_config.get("learning_rate", 0.001)
             weight_decay = lr_scheduler_config.get("weight_decay", 0)
             from accelerate.utils import DummyOptim, DummyScheduler
@@ -163,7 +179,8 @@ class DefaultTrainer(Trainer):
                 self.lr_scheduler,
             ) = accelerator.prepare(optimizer, train_dataloader, eval_dataloader, lr_scheduler)
 
-        if self.accelerate_mode in ["HPU_DDP"]:
+        self.device = self.config.get("device")
+        if self.device == "hpu":
             import habana_frameworks.torch.core as htcore
             from habana_frameworks.torch.utils.internal import is_lazy
 
@@ -179,13 +196,13 @@ class DefaultTrainer(Trainer):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         logging_steps = self.config.get("logging_steps", 1)
-        max_train_step = self.config.get("max_train_step")
-        max_eval_step = self.config.get("max_eval_step")
+        max_train_steps = self.config.get("max_train_steps")
+        steps_per_epoch = len(self.train_dataloader)
+        completed_steps = self.starting_epoch * steps_per_epoch
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             self.model.train()
             start = time.time()
-            total_steps = len(self.train_dataloader)
-            logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
+            logger.info(f"Start training epoch {idx}, steps_per_epoch {steps_per_epoch}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     self.model.train()
@@ -207,7 +224,7 @@ class DefaultTrainer(Trainer):
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
-                        epochs = (step + idx * total_steps) / (num_train_epochs * total_steps)
+                        epochs = idx + step / steps_per_epoch
                         logger.info(
                             f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
@@ -218,15 +235,18 @@ class DefaultTrainer(Trainer):
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
-                                "total_steps": min(max_train_step, total_steps)
-                                if max_train_step
-                                else total_steps,
+                                "completed_steps": completed_steps,
+                                "total_steps": min(
+                                    max_train_steps, steps_per_epoch * num_train_epochs
+                                )
+                                if max_train_steps
+                                else steps_per_epoch * num_train_epochs,
                             }
                         )
                         start = time.time()
-                if max_train_step is not None:
-                    if step >= max_train_step - 1:
-                        break
+                completed_steps += 1
+                if max_train_steps is not None and completed_steps >= max_train_steps:
+                    break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -234,6 +254,7 @@ class DefaultTrainer(Trainer):
                 start = time.time()
                 losses = []
                 for step, batch in enumerate(self.eval_dataloader):
+                    batch = batch.to(device=self.accelerator.device)
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
@@ -242,9 +263,6 @@ class DefaultTrainer(Trainer):
                             loss.repeat(batch["input_ids"].shape[0])
                         )
                     )
-                    if max_eval_step is not None:
-                        if step >= max_eval_step:
-                            break
 
                 losses = torch.cat(losses)
                 try:
@@ -254,7 +272,7 @@ class DefaultTrainer(Trainer):
                     eval_loss = float("inf")
                     perplexity = float("inf")
                 logger.info(
-                    f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
+                    f"eval epoch:{idx}\tloss:{eval_loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}"
                 )
 
             if checkpoint is not None:

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+#
 # ===========================================================================
 #
 # This file is adapted from
@@ -55,6 +56,8 @@ class RouterQueryClient:
         gen_config = {"max_new_tokens": max_new_tokens, "temperature": temperature, "top_p": top_p}
         if temperature != 1.0 or top_p != 1.0:
             gen_config.update({"do_sample": True})
+        if request_config.get("ignore_eos", False):
+            gen_config.update({"ignore_eos": True})
 
         async for x in handle_request(
             model=model,

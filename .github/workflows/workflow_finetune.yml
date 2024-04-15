@@ -34,7 +34,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b-chat, huggyllama/llama-7b, mistralai/Mistral-7B-v0.1 ]
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, meta-llama/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -44,6 +44,7 @@ jobs:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "meta-llama/Llama-2-7b-chat-hf"}
           - { model: "mistralai/Mistral-7B-v0.1"}
+          - { model: "google/gemma-2b"}
 
     runs-on: self-hosted
 
@@ -69,7 +70,8 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest && yes | docker container prune && yes
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest 
+          docker container prune -f
           docker image prune -f
 
       - name: Start Docker Container
@@ -90,7 +92,7 @@ jobs:
           with open(conf_path, encoding="utf-8") as reader:
               result = yaml.load(reader, Loader=yaml.FullLoader)
               result['General']['base_model'] = "${{ matrix.model }}"
-              if "${{ matrix.model }}" == "mosaicml/mpt-7b-chat":
+              if "${{ matrix.model }}" == "mosaicml/mpt-7b":
                   result['General']['config']['trust_remote_code'] = True
               else:
                   result['General']['config']['trust_remote_code'] = False
@@ -98,7 +100,7 @@ jobs:
                   result['General']["gpt_base_model"] = True
               else:
                   result['General']["gpt_base_model"] = False
-              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf":
+              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf" or "${{ matrix.model }}" == "google/gemma-2b":
                   result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
               else:
                   result['General']["config"]["use_auth_token"] = None
@@ -132,6 +134,8 @@ jobs:
               }
               if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
                   result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
+              elif "${{ matrix.model }}" == "google/gemma-2b":
+                  result['General']['lora_config']['target_modules'] = ["k_proj", "v_proj"]
               else:
                   result['General']['lora_config']['target_modules'] = None
           with open(conf_path, 'w') as output:
@@ -143,7 +147,7 @@ jobs:
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b-chat|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1)$ ]]; then
+          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
             echo ${{ matrix.model }} is not supported!
           else
             docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"

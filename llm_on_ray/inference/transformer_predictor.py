@@ -1,7 +1,24 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+from typing import List, Union
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig, TextIteratorStreamer
 from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.predictor import Predictor
 
 
@@ -17,8 +34,8 @@ class TransformerPredictor(Predictor):
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         if model_desc.bigdl:
             from bigdl.llm.transformers import (
                 AutoModelForCausalLM as BigDLAutoModelForCLM,
@@ -30,7 +47,6 @@ class TransformerPredictor(Predictor):
                 bmodel_config.update(model_desc.bigdl_config.dict())
             model = BigDLAutoModelForCLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=torch_dtype,
                 config=hf_config,
                 low_cpu_mem_usage=True,
                 **bmodel_config,
@@ -38,7 +54,6 @@ class TransformerPredictor(Predictor):
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_desc.model_id_or_path,
-                torch_dtype=torch_dtype,
                 config=hf_config,
                 low_cpu_mem_usage=True,
                 **model_config.dict(),
@@ -87,19 +102,33 @@ class TransformerPredictor(Predictor):
             **config,
         )
 
-    def generate(self, prompt, **config):
-        input_ids, input_length = self.tokenize_inputs(prompt)
+    def generate(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[GenerateResult, List[GenerateResult], None]:
+        input_ids, input_length = self.tokenize_inputs(prompts)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
+
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        if isinstance(prompt, list) and len(prompt) > 1:
-            return decode_result
-        return GenerateResult(
-            text=decode_result,
-            input_length=input_length,
-            generate_length=gen_tokens.size()[1] - input_length,
-        )
+
+        if isinstance(prompts, str):
+            return GenerateResult(
+                text=decode_result,
+                input_length=input_length,
+                generate_length=gen_tokens.size()[1] - input_length,
+            )
+        elif isinstance(prompts, List):
+            return [
+                GenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompts))
+            ]
+
+        return None
 
     def get_streamer(self):
         return TextIteratorStreamer(

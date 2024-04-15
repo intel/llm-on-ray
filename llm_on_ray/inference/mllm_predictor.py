@@ -1,7 +1,23 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import torch
 from transformers import TextIteratorStreamer
 from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from llm_on_ray.inference.utils import get_torch_dtype, module_import
+from llm_on_ray.inference.utils import decide_torch_dtype, module_import
 from llm_on_ray.inference.predictor import Predictor
 
 
@@ -17,13 +33,12 @@ class MllmPredictor(Predictor):
 
             adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, None)
+        decide_torch_dtype(infer_conf)
 
         model_loader_name = infer_conf.model_description.model_loader
         input_processor_name = infer_conf.model_description.input_processor
         model = module_import("transformers", model_loader_name).from_pretrained(
             model_desc.model_id_or_path,
-            torch_dtype=torch_dtype,
             **model_desc.config.dict(),
         )
         processor = module_import("transformers", input_processor_name).from_pretrained(

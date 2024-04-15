@@ -27,39 +27,48 @@ An example dataset can be accessed at `examples/data/sample_finetune_data.jsonl
 
 ## Configure Finetuning Parameters
 
-We provide an example configuration file ([CPU version](../llm_on_ray/finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
+We provide an example configuration file ([CPU version](../llm_on_ray/finetune/finetune.yaml), [GPU version](../examples/finetune/gpt_j_6b/finetune_intel_gpu.yaml), [HPU version](../examples/finetune/gpt_j_6b/finetune_hpu.yaml)) for finetuning LLMs. You can customize a few configruaitons such as the base model, the train file and the number of training workers, etc.
 
-For CPU,  please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to CPU_DDP.
+For CPU, please make sure you set `device` to CPU, set CPU number for `resources_per_worker` and set `accelerate_mode` to DDP.
 ```
 Training:
-  device: CPU
+  device: cpu
   resources_per_worker:
     CPU: 32
-  accelerate_mode: CPU_DDP
+  accelerate_mode: DDP
 ```
-For GPU, please make sure you set `device` to GPU, set GPU number for `resources_per_worker` and set `accelerate_mode` to GPU_DDP or GPU_FSDP.
+For GPU, please make sure you set `device` to GPU, set GPU number for `resources_per_worker` and set `accelerate_mode` to DDP or FSDP.
 ```
 Training:
-  device: GPU
+  device: gpu
   resources_per_worker:
     CPU: 1
     GPU: 1
-  accelerate_mode: GPU_DDP
+  accelerate_mode: DDP
+```
+For HPU, set `device` to HPU, set HPU number in `resources_per_worker` and set `accelerate_mode` to DDP or DEEPSPEED.
+```
+Training:
+  device: hpu
+  resources_per_worker:
+    CPU: 1
+    HPU: 1
+  accelerate_mode: DDP
 ```
 Please see [finetune_parameters.md](finetune_parameters.md) for details of the parameters.
 
 
 ### Validated Models
-The following models have been verified on Intel CPUs or GPUs.
-|Model|CPU|GPU|
-|---|---|---|
-|llama/llama2|✅|✅|
-|mistral|✅|✅|
-|pythia|✅|✅|
-|gpt-j|✅|✅|
-|bloom|✅|✅|
-|opt|✅|✅|
-|mpt|✅||
+The following models have been verified on Intel CPUs or GPUs, and Habana Gaudi devices.
+|Model|CPU|GPU|HPU|
+|---|---|---|---|
+|llama/llama2|✅|✅|✅|
+|mistral|✅|✅|✅|
+|pythia|✅|✅||
+|gpt-j|✅|✅||
+|bloom|✅|✅||
+|opt|✅|✅||
+|mpt|✅|||
 |gpt2|✅|✅|
 
 ## Finetune the model

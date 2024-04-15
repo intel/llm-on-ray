@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import asyncio
 from typing import AsyncGenerator, List, Union
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -9,7 +25,7 @@ from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResul
 
 
 class VllmPredictor(Predictor):
-    def __init__(self, infer_conf: InferenceConfig):
+    def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         super().__init__(infer_conf)
 
         model_desc = infer_conf.model_description
@@ -21,6 +37,9 @@ class VllmPredictor(Predictor):
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
             dtype=dtype,
+            disable_log_requests=True,
+            swap_space=40,
+            max_num_seqs=max_num_seqs,
         )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)

@@ -16,6 +16,10 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     runs-on: ubuntu-latest
+
+    env:
+      SHELL: bash -eo pipefail
+
     defaults:
       run:
         shell: bash
@@ -33,15 +37,6 @@ jobs:
       - name: Display Python version
         run: |
           python -c "import sys; print(sys.version)"
-
-      - name: Install dependencies for tests
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
-          # Dynamic link oneCCL and Intel MPI libraries
-          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
-          # Additional libraries required for pytest
-          pip install -r ./tests/requirements.txt
 
       - name: Run Test for Setup
         run: |
@@ -55,6 +50,10 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     runs-on: ubuntu-latest
+
+    env:
+      SHELL: bash -eo pipefail
+
     defaults:
       run:
         shell: bash
@@ -72,15 +71,6 @@ jobs:
       - name: Display Python version
         run: |
           python -c "import sys; print(sys.version)"
-
-      - name: Install dependencies for tests
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
-          # Dynamic link oneCCL and Intel MPI libraries
-          source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
-          # Additional libraries required for pytest
-          pip install -r ./tests/requirements.txt
 
       - name: Run Test for Getting Started
         run: |
@@ -97,7 +87,7 @@ jobs:
 
     env:
       SHELL: bash -eo pipefail
-      
+
     defaults:
       run:
         shell: bash
@@ -164,7 +154,8 @@ jobs:
         run: |
           DF_SUFFIX=".tests_cpu_and_deepspeed"
           TARGET=${{steps.target.outputs.target}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg python_v=${{matrix.python-version}} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+          docker build ./ --build-arg CACHEBUST=1 --build-arg python_v=${{matrix.python-version}} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
+          docker container prune -f 
           docker image prune -f
 
       - name: Start Docker Container
