@@ -4,7 +4,7 @@ route_prefix: /llama-2-7b-chat-hf
 num_replicas: 1
 cpus_per_worker: 8
 hpus_per_worker: 1
-device: "hpu"
+device: hpu
 model_description:
   model_id_or_path: meta-llama/Llama-2-7b-chat-hf
   tokenizer_name_or_path: meta-llama/Llama-2-7b-chat-hf

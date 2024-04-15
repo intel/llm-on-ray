@@ -7,6 +7,7 @@ The following are the parameters supported in the finetuning workflow.
 |Configuration Name| Default|Meaning|
 |-|-|-|
 |base_model| EleutherAI/gpt-j-6b|Path to pretrained model or model identifier from huggingface.co/models|
+|tokenizer_name|None|Path to pretrained tokenizer from huggingface.co/models. If not provided, the tokenizer will be loaded from the `base_model`.|
 |gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model|
 |checkpoint_dir|/tmp/llm-ray/checkpoint|The directory to store checkpoint|

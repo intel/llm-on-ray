@@ -52,6 +52,7 @@ class DeltatunerConfig(BaseModel):
 
 class General(BaseModel):
     base_model: str
+    tokenizer_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
     checkpoint_dir: Optional[str]
@@ -81,6 +82,7 @@ class Training(BaseModel):
     optimizer: str
     batch_size: int
     epochs: int
+    max_train_steps: Optional[int] = None
     learning_rate: float
     lr_scheduler: str
     weight_decay: float
