@@ -10,14 +10,16 @@ Here are a few examples of chatbot implementations using Langchain and Streamlit
 -  **Basic Chatbot** \
   Engage in interactive conversations with the LLM.
 
-- **Context aware chatbot** \
-  A chatbot that remembers previous conversations and provides responses accordingly.
+-  **SQL Chat with your database** \
+  Empower the chatbot with the ability to access custom SQL documents, enabling it to provide answers to user queries based on the referenced SQL database.
 
--  **Chatbot with Internet Access** \
-  An internet-enabled chatbot capable of answering user queries about recent events.
+### TODOs
 
--  **Chat with your documents** \
-  Empower the chatbot with the ability to access custom documents, enabling it to provide answers to user queries based on the referenced information.
+- **Chatbot with your code** \
+  Empower the chatbot with the ability to access custom code, enabling it to provide answers to user queries based on the referenced code.
+
+- **Multi modal chatbot** \
+  Combine text, voice, and image inputs to provide a more natural and engaging conversation experience.
 
 ## <img src="https://streamlit.io/images/brand/streamlit-mark-color.png" width="40" height="22"> Streamlit App
 Created a multi-page streamlit app containing all sample chatbot use cases. \
