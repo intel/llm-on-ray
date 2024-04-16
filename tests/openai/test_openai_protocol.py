@@ -188,6 +188,3 @@ def test_openai(model, test_func):
         # Mark this modelname has already executed start_serve
         executed_models[model] = True
     eval(test_func + "('" + model + "')")
-
-
-chat_stream("gpt2")
