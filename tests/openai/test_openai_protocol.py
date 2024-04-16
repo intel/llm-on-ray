@@ -128,7 +128,7 @@ def chat_stream(openai_testing_model):  # noqa: F811
     assert chat_completion.choices[0].delta == {} or hasattr(
         chat_completion.choices[0].delta, "content"
     )
-    print(chat_completion)
+    print(dir(chat_completion.choices[0]))
     assert chat_completion.choices[0].model_fields["finish_reason"]
     assert i > 4
 
@@ -188,3 +188,6 @@ def test_openai(model, test_func):
         # Mark this modelname has already executed start_serve
         executed_models[model] = True
     eval(test_func + "('" + model + "')")
+
+
+chat_stream("gpt2")
