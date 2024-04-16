@@ -35,9 +35,14 @@ def parse_args():
         help="extra characters past beginning of file to look for header",
     )
     parser.add_argument(
-        "--llm_on_ray_header_files",
-        default=".github/license/llm_on_ray_header_files.txt",
-        help="Files that should be only under intel copyright",
+        "--header_include_files",
+        default=".github/license/header_include_files.txt",
+        help="Files that should be checked",
+    )
+    parser.add_argument(
+        "--header_exclude_files",
+        default=".github/license/header_exclude_files.txt",
+        help="Files that should be excluded",
     )
     parser.add_argument(
         "--editdist", default=15, type=int, help="max edit distance between headers"
@@ -199,18 +204,33 @@ def check_license_header(files, license_header, args):
 
 
 def process_license_header(files, args):
-    llm_on_ray_header_files_globs = []
-    if args.llm_on_ray_header_files:
-        with open(args.llm_on_ray_header_files) as f:
-            llm_on_ray_header_files_globs.extend(line.strip() for line in f)
+    header_include_files_globs = []
+    if args.header_include_files:
+        with open(args.header_include_files) as f:
+            header_include_files_globs.extend(line.strip() for line in f)
 
-    llm_on_ray_header_files = []
+    header_exclude_files_globs = []
+    if args.header_exclude_files:
+        with open(args.header_exclude_files) as f:
+            header_exclude_files_globs.extend(line.strip() for line in f)
+
+    header_input_files = []
     for file in files:
-        if any([fnmatch.fnmatch(file, glob) for glob in llm_on_ray_header_files_globs]):
-            llm_on_ray_header_files.append(file)
+        if any([fnmatch.fnmatch(file, glob) for glob in header_include_files_globs]):
+            header_input_files.append(file)
+
+    header_exclude_files = []
+    for file in files:
+        if any([fnmatch.fnmatch(file, glob) for glob in header_exclude_files_globs]):
+            header_exclude_files.append(file)
+
+    header_include_files = []
+    for file in header_input_files:
+        if file not in header_exclude_files:
+            header_include_files.append(file)
 
     license_header_llm_on_ray = file_lines(args.header)
-    check_license_header(llm_on_ray_header_files, license_header_llm_on_ray, args)
+    check_license_header(header_include_files, license_header_llm_on_ray, args)
 
 
 fail = False
