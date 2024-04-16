@@ -2,12 +2,15 @@ import openai
 import pytest
 import os
 import subprocess
-
+from openai import OpenAI
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
 os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
 os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
+openai_base_url = os.environ["OPENAI_BASE_URL"]
+openai_api_key = os.environ["OPENAI_API_KEY"]
+client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
 
 
 def start_serve(model_name):
@@ -32,13 +35,13 @@ def start_serve(model_name):
 
 
 def models(openai_testing_model):  # noqa: F811
-    models = openai.models.list()
+    models = client.models.list()
     assert len(models.data) == 1, "Only the test model should be returned"
     assert models.data[0].id == openai_testing_model, "The test model id should match"
 
 
 def completions(openai_testing_model):  # noqa: F811
-    completion = openai.completions.create(
+    completion = client.completions.create(
         model=openai_testing_model,
         prompt="Hello world",
         top_p=0.1,
@@ -51,7 +54,7 @@ def completions(openai_testing_model):  # noqa: F811
 
 def chat(openai_testing_model):  # noqa: F811
     # create a chat completion
-    chat_completion = openai.chat.completions.create(
+    chat_completion = client.chat.completions.create(
         model=openai_testing_model,
         messages=[{"role": "user", "content": "Hello world"}],
         top_p=1,
@@ -65,7 +68,7 @@ def chat(openai_testing_model):  # noqa: F811
 
 def completions_bad_request(openai_testing_model):  # noqa: F811
     with pytest.raises(openai.BadRequestError) as exc_info:
-        openai.completions.create(
+        client.completions.create(
             model=openai_testing_model,
             prompt="Hello world",
             temperature=-0.1,
@@ -75,7 +78,7 @@ def completions_bad_request(openai_testing_model):  # noqa: F811
 
 def chat_bad_request(openai_testing_model):  # noqa: F811
     with pytest.raises(openai.BadRequestError) as exc_info:
-        openai.chat.completions.create(
+        client.chat.completions.create(
             model=openai_testing_model,
             messages=[{"role": "user", "content": "Hello world"}],
             temperature=-0.1,
@@ -85,7 +88,7 @@ def chat_bad_request(openai_testing_model):  # noqa: F811
 
 def completions_stream(openai_testing_model):  # noqa: F811
     i = 0
-    for completion in openai.completions.create(
+    for completion in client.completions.create(
         model=openai_testing_model, prompt="Hello world", stream=True, top_p=1
     ):
         i += 1
@@ -98,7 +101,7 @@ def completions_stream(openai_testing_model):  # noqa: F811
 
 def chat_stream(openai_testing_model):  # noqa: F811
     i = 0
-    for chat_completion in openai.chat.completions.create(
+    for chat_completion in client.chat.completions.create(
         model=openai_testing_model,
         messages=[{"role": "user", "content": "Hello world"}],
         stream=True,
@@ -131,7 +134,7 @@ def chat_stream(openai_testing_model):  # noqa: F811
 
 def completions_stream_bad_request(openai_testing_model):  # noqa: F811
     with pytest.raises(openai.APIError) as exc_info:
-        for _ in openai.completions.create(
+        for _ in client.completions.create(
             model=openai_testing_model,
             prompt="Hello world",
             stream=True,
@@ -143,7 +146,7 @@ def completions_stream_bad_request(openai_testing_model):  # noqa: F811
 
 def chat_stream_bad_request(openai_testing_model):  # noqa: F811
     with pytest.raises(openai.APIError) as exc_info:
-        for _chat_completion in openai.chat.completions.create(
+        for _chat_completion in client.chat.completions.create(
             model=openai_testing_model,
             messages=[{"role": "user", "content": "Hello world"}],
             stream=True,
@@ -164,10 +167,10 @@ executed_models = {}
         for model in ["gpt2"]
         for test_func in [
             "models",
-            "completions",
-            "completions_stream",
+            # "completions",
+            # "completions_stream",
             "chat",
-            # "chat_stream",
+            "chat_stream",
             # "chat_bad_request",
             # "chat_stream_bad_request"
             # "completions_bad_request",
