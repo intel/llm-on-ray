@@ -60,6 +60,7 @@ from llm_on_ray.inference.inference_config import (
     GenerateResult,
 )
 from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.utils import decide_torch_dtype
 
 
 class HPUPredictor(Predictor):
@@ -67,6 +68,9 @@ class HPUPredictor(Predictor):
         super().__init__(infer_conf)
 
         model_desc = infer_conf.model_description
+        model_config = model_desc.config
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf)
         self.use_lazy_mode = True
         self.use_hpu_graphs = model_desc.use_hpu_graphs
         # TODO add torch_compile, i.e. hpu specific configs. including quant
@@ -96,10 +100,7 @@ class HPUPredictor(Predictor):
             # Not using DeepSpeed, load model locally
             self.device = torch.device("hpu")
             model = AutoModelForCausalLM.from_pretrained(
-                model_desc.model_id_or_path,
-                # TODO expose torch_dtype in model_config
-                # **model_config
-                # torch_dtype=model_dtype,
+                model_desc.model_id_or_path, **model_config.dict()
             )
             self.model = model.eval().to(self.device)
             if self.use_hpu_graphs:
@@ -241,14 +242,8 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
     def load_model(self, model_desc, model_config):
         import deepspeed
 
-        # bf16 is used for deepspeed
-        model_dtype = torch.bfloat16
-
-        config = AutoConfig.from_pretrained(
-            model_desc.model_id_or_path,
-            torch_dtype=model_dtype,
-            trust_remote_code=model_config.trust_remote_code,
-        )
+        model_dtype = model_config.torch_dtype
+        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, **model_config.dict())
         load_to_meta = model_on_meta(config)
 
         if load_to_meta:
@@ -257,12 +252,15 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
 
             checkpoints_json = tempfile.NamedTemporaryFile(suffix=".json", mode="+w")
             write_checkpoints_json(
-                model_desc.model_id_or_path, self.local_rank, checkpoints_json, token=""
+                model_desc.model_id_or_path,
+                self.local_rank,
+                checkpoints_json,
+                token=model_config.use_auth_token,
             )
         else:
             with deepspeed.OnDevice(dtype=model_dtype, device="cpu"):
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_desc.model_id_or_path, torch_dtype=model_dtype, **model_config.dict()
+                    model_desc.model_id_or_path, **model_config.dict()
                 )
         model.eval()
 

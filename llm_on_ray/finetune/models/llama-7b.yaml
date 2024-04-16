@@ -1,5 +1,5 @@
 General:
-  base_model: meta-llama/Llama-2-7b
+  base_model: meta-llama/Llama-2-7b-hf
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   checkpoint_dir: /tmp/llm-ray/checkpoint
@@ -23,7 +23,7 @@ Training:
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
-  device: CPU
+  device: cpu
   num_training_workers: 2
   resources_per_worker:
     CPU: 32

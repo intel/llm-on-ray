@@ -196,13 +196,13 @@ class DefaultTrainer(Trainer):
         num_train_epochs = self.config.get("num_train_epochs", 1)
         checkpoint = self.config.get("checkpoint")
         logging_steps = self.config.get("logging_steps", 1)
-        max_train_step = self.config.get("max_train_step")
-        max_eval_step = self.config.get("max_eval_step")
+        max_train_steps = self.config.get("max_train_steps")
+        steps_per_epoch = len(self.train_dataloader)
+        completed_steps = self.starting_epoch * steps_per_epoch
         for idx in range(self.starting_epoch, num_train_epochs, 1):
             self.model.train()
             start = time.time()
-            total_steps = len(self.train_dataloader)
-            logger.info(f"Start training epoch {idx}, total_steps {total_steps}")
+            logger.info(f"Start training epoch {idx}, steps_per_epoch {steps_per_epoch}")
             for step, batch in enumerate(self.train_dataloader):
                 with self.accelerator.accumulate(self.model):
                     self.model.train()
@@ -224,7 +224,7 @@ class DefaultTrainer(Trainer):
                     if step % logging_steps == 0:
                         loss = loss.item()
                         ppl = math.exp(loss)
-                        epochs = (step + idx * total_steps) / (num_train_epochs * total_steps)
+                        epochs = idx + step / steps_per_epoch
                         logger.info(
                             f"train epoch:{epochs:.6f}\tloss:{loss:.6f}\tppl:{ppl:.6f}\ttime:{time.time()-start:.6f}"
                         )
@@ -235,15 +235,18 @@ class DefaultTrainer(Trainer):
                                 "train_epoch": idx,
                                 "total_epochs": num_train_epochs,
                                 "train_step": step,
-                                "total_steps": min(max_train_step, total_steps)
-                                if max_train_step
-                                else total_steps,
+                                "completed_steps": completed_steps,
+                                "total_steps": min(
+                                    max_train_steps, steps_per_epoch * num_train_epochs
+                                )
+                                if max_train_steps
+                                else steps_per_epoch * num_train_epochs,
                             }
                         )
                         start = time.time()
-                if max_train_step is not None:
-                    if step >= max_train_step - 1:
-                        break
+                completed_steps += 1
+                if max_train_steps is not None and completed_steps >= max_train_steps:
+                    break
 
             if self.eval_dataloader:
                 logger.info(f"start eval epoch {idx}")
@@ -251,6 +254,7 @@ class DefaultTrainer(Trainer):
                 start = time.time()
                 losses = []
                 for step, batch in enumerate(self.eval_dataloader):
+                    batch = batch.to(device=self.accelerator.device)
                     with torch.no_grad():
                         outputs = self.model(**batch)
                     loss = outputs.loss
@@ -259,9 +263,6 @@ class DefaultTrainer(Trainer):
                             loss.repeat(batch["input_ids"].shape[0])
                         )
                     )
-                    if max_eval_step is not None:
-                        if step >= max_eval_step:
-                            break
 
                 losses = torch.cat(losses)
                 try:
@@ -271,7 +272,7 @@ class DefaultTrainer(Trainer):
                     eval_loss = float("inf")
                     perplexity = float("inf")
                 logger.info(
-                    f"eval epoch:[{idx}/{num_train_epochs}]\tloss:[{eval_loss:.6f}]\tppl:[{perplexity:.6f}]\ttime:[{time.time()-start:.6f}]"
+                    f"eval epoch:{idx}\tloss:{eval_loss:.6f}\tppl:{perplexity:.6f}\ttime:{time.time()-start:.6f}"
                 )
 
             if checkpoint is not None:

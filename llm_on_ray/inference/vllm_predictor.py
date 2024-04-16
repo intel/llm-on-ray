@@ -66,8 +66,6 @@ class VllmPredictor(Predictor):
 
     async def generate_async(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
         config = self.update_vllm_config(**config)
-        # In order to align with vllm test parameters
-        config["ignore_eos"] = True
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
             request_id = random_uuid()

@@ -24,7 +24,7 @@ PRECISION_FP32 = "fp32"
 
 DEVICE_CPU = "cpu"
 DEVICE_HPU = "hpu"
-DEVICE_XPU = "xpu"
+DEVICE_GPU = "gpu"
 DEVICE_CUDA = "cuda"
 
 
@@ -39,6 +39,8 @@ class ModelConfig(BaseModel):
     trust_remote_code: bool = False
     use_auth_token: Union[str, None] = None
     load_in_4bit: bool = False
+    torch_dtype: Union[str, None] = None
+    revision: Union[str, None] = None
 
 
 class Ipex(BaseModel):
@@ -83,19 +85,24 @@ class GenerateResult(BaseModel):
 
 class ModelDescription(BaseModel):
     model_id_or_path: Union[str, None] = None
-    bigdl: bool = False
     tokenizer_name_or_path: Union[str, None] = None
+    config: ModelConfig = ModelConfig()
+    prompt: Prompt = Prompt()
     chat_processor: Union[str, None] = None
+
     gpt_base_model: bool = False
+
     quantized_model_id_or_path: Union[str, None] = None
     quantization_type: Union[str, None] = None
+
     peft_model_id_or_path: Union[str, None] = None
     peft_type: Union[str, None] = None
+
+    bigdl: bool = False
+    bigdl_config: BigDLModelConfig = BigDLModelConfig()
+
     # only effective when device is hpu
     use_hpu_graphs: bool = True
-    prompt: Prompt = Prompt()
-    config: ModelConfig = ModelConfig()
-    bigdl_config: BigDLModelConfig = BigDLModelConfig()
 
     # prevent warning of protected namespaces
     # DO NOT TOUCH
@@ -152,7 +159,7 @@ class InferenceConfig(BaseModel):
     @validator("device")
     def _check_device(cls, v: str):
         if v:
-            assert v.lower() in [DEVICE_CPU, DEVICE_XPU, DEVICE_CUDA, DEVICE_HPU]
+            assert v.lower() in [DEVICE_CPU, DEVICE_GPU, DEVICE_CUDA, DEVICE_HPU]
         return v.lower()
 
     @validator("workers_per_group")
