@@ -30,7 +30,7 @@ def get_deployed_models(args):
     2. Use relevant configuration parameters to generate `InferenceConfig` if model_id_or_path is set,
     3. Serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
     """
-    if args.model_id_or_path is None and args.config_file is None:
+    if args.config_file is None:
         if args.models:
             models = args.models
             all_models_name = list(all_models.keys())
