@@ -1,6 +1,3 @@
-import time
-
-import utils
 import streamlit as st
 
 from codegen.coder import (
@@ -9,11 +6,8 @@ from codegen.coder import (
     retrieve_reference,
     generate_keywords,
 )
-from streaming import StreamHandler
 
-# from langchain.chat_models import ChatOpenAI
 from langchain_community.chat_models import ChatOpenAI
-from langchain.chains import ConversationChain
 
 st.set_page_config(page_title="Gluten_Coder_Chatbot_V2", page_icon="💬")
 st.header("Gluten Coder Chatbot")
@@ -73,23 +67,18 @@ class Basic:
             openai_api_base="http://localhost:8000/v1",
             model_name="deepseek-coder-33b-instruct",
             openai_api_key="not_needed",
-            # max_tokens=2048,
-            streaming=False,
-        )
-        self.general_llm = ChatOpenAI(
-            openai_api_base="http://localhost:8000/v1",
-            model_name="mistral-7b-instruct-v0.2",
-            openai_api_key="not_needed",
-            # max_tokens=2048,
             streaming=False,
         )
 
+        self.general_llm = self.coder_llm
+        # self.general_llm = ChatOpenAI(
+        #     openai_api_base="http://localhost:8000/v1",
+        #     model_name="mistral-7b-instruct-v0.2",
+        #     openai_api_key="not_needed",
+        #     streaming=False,
+        # )
+
     def main(self):
-        # col_d, col_e, col_f = st.columns([1, 1, 1])
-        # mode_list = ['c_cpp', 'java', 'python', 'scala']
-        # language = col_d.selectbox("lang:", mode_list, index=mode_list.index("scala"))
-        # theme = col_e.selectbox("theme:", ["default", "light", "dark", "contrast"])
-        # shortcuts = col_f.selectbox("shortcuts:", ["emacs", "vim", "vscode", "sublime"], index=2)
         step = 1
 
         response_dict = code_editor(

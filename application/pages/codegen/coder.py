@@ -102,8 +102,7 @@ def generate_velox_udf(llm, cpp_code, rag_queries=example_related_queries, rag_t
 
 
 if __name__ == "__main__":
-    # openai_model = "deepseek-coder:33b-instruct"
-    openai_model = "qwen:32b-chat-v1.5-q8_0"
+    openai_model = "deepseek-coder:33b-instruct"
     from langchain_community.chat_models.openai import ChatOpenAI
 
     llm = ChatOpenAI(

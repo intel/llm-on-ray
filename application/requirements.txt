@@ -7,3 +7,4 @@ duckduckgo-search==3.8.3
 pypdf==3.17.0
 sentence-transformers==2.2.2
 docarray==0.32.1
+streamlit-code-editor
