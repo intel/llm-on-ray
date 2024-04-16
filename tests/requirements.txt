@@ -1,3 +1,4 @@
 pytest
 openai>1.0
 pytest-asyncio
+pydantic==2.7.0
