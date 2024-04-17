@@ -14,18 +14,14 @@
 # limitations under the License.
 #
 
-
-class Meta(type):
-    def __init__(cls, name, bases, namespace, **kwargs):
-        super().__init__(name, bases, namespace, **kwargs)
-        if not hasattr(cls, "registory"):
-            # this is the base class
-            cls.registory = {}
-        else:
-            # this is the subclass
-            cls.registory[name] = cls
+from langchain.callbacks.base import BaseCallbackHandler
 
 
-class DataProcesser(metaclass=Meta):
-    def __init__(self, config):
-        self.config = config
+class StreamHandler(BaseCallbackHandler):
+    def __init__(self, container, initial_text=""):
+        self.container = container
+        self.text = initial_text
+
+    def on_llm_new_token(self, token: str, **kwargs):
+        self.text += token
+        self.container.markdown(self.text)

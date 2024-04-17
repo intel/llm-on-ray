@@ -14,18 +14,15 @@
 # limitations under the License.
 #
 
+import streamlit as st
 
-class Meta(type):
-    def __init__(cls, name, bases, namespace, **kwargs):
-        super().__init__(name, bases, namespace, **kwargs)
-        if not hasattr(cls, "registory"):
-            # this is the base class
-            cls.registory = {}
-        else:
-            # this is the subclass
-            cls.registory[name] = cls
+st.set_page_config(page_title="Ref Apps build upon LLM Kit", page_icon="💬", layout="wide")
 
+st.header("Ref Apps build upon LLM Kit with Langchain and LlamaIndex")
+st.write(
+    """
+Ref Apps build upon LLM Kit with Langchain and LlamaIndex
 
-class DataProcesser(metaclass=Meta):
-    def __init__(self, config):
-        self.config = config
+To explore sample usage of each ref apps, please navigate to the corresponding app section.
+"""
+)
