@@ -46,23 +46,6 @@ def get_deployed_models(args):
             print("reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
                 infer_conf = parse_yaml_raw_as(InferenceConfig, f)
-        else:  # args.model_id_or_path should be set
-            print("reading from command line, " + args.model_id_or_path)
-            model_desc = ModelDescription()
-            model_desc.model_id_or_path = args.model_id_or_path
-            model_desc.tokenizer_name_or_path = (
-                args.tokenizer_id_or_path
-                if args.tokenizer_id_or_path is not None
-                else args.model_id_or_path
-            )
-            infer_conf = InferenceConfig(model_description=model_desc)
-            infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-            infer_conf.port = args.port
-            rp = args.route_prefix if args.route_prefix else ""
-            infer_conf.route_prefix = "/{}".format(rp)
-            infer_conf.num_replicas = args.num_replicas
-            infer_conf.name = rp
-            infer_conf.ipex.enabled = args.ipex
         model_list = {}
         model_list[infer_conf.name] = infer_conf
 
@@ -147,7 +130,7 @@ def main(argv=None):
         # all models are served under the same URL and then accessed
         # through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        openai_serve_run(deployments, host, "", args.port, args.max_concurrent_queries)
+        openai_serve_run(deployments, host, "", 8000, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
