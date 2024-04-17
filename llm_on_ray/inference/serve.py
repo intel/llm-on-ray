@@ -130,7 +130,7 @@ def main(argv=None):
         # all models are served under the same URL and then accessed
         # through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        openai_serve_run(deployments, host, "", 8000, args.max_concurrent_queries)
+        openai_serve_run(deployments, host, "/", 8000, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
