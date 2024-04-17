@@ -16,8 +16,8 @@
 
 from langchain.callbacks.base import BaseCallbackHandler
 
+
 class StreamHandler(BaseCallbackHandler):
-    
     def __init__(self, container, initial_text=""):
         self.container = container
         self.text = initial_text

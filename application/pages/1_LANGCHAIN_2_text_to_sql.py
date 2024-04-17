@@ -25,8 +25,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 st.set_page_config(page_title="SQL_Chatbot", page_icon="💬")
-st.header('SQL Chatbot')
-st.write('Allows users to interact with the LLM')
+st.header("SQL Chatbot")
+st.write("Allows users to interact with the LLM")
+
 
 def generate_prompt(question, schema):
     prompt = """### Instructions:
@@ -47,9 +48,12 @@ This query will run on a database whose schema is represented in this string:
 ### Response:
 Based on your instructions, here is the SQL query I have generated to answer the question `{question}`:
 ```sql
-""".format(question=question, schema=schema)
+""".format(
+        question=question, schema=schema
+    )
 
     return prompt
+
 
 def rag_retrival(retriever, query):
     matched_tables = []
@@ -60,33 +64,46 @@ def rag_retrival(retriever, query):
         matched_tables.append(page_content)
     return matched_tables
 
-class Basic:
 
+class Basic:
     def __init__(self):
         self.openai_model = "sqlcoder-7b-2"
-        self.history_messages = utils.enable_chat_history('basic_chat')
-    
+        self.history_messages = utils.enable_chat_history("basic_chat")
+
     def setup_chain(self):
-        llm = ChatOpenAI(openai_api_base = "http://localhost:8000/v1", model_name=self.openai_model, openai_api_key="not_needed", streaming=True, max_tokens=512)
+        llm = ChatOpenAI(
+            openai_api_base="http://localhost:8000/v1",
+            model_name=self.openai_model,
+            openai_api_key="not_needed",
+            streaming=True,
+            max_tokens=512,
+        )
         chain = ConversationChain(llm=llm, verbose=True)
         return chain
-    
-    def setup_db_retriever(self, db=os.path.join(os.path.abspath(os.path.dirname(__file__)),'retriever.db'), emb_model_name="defog/sqlcoder-7b-2", top_k_table=1):
-        embeddings = HuggingFaceEmbeddings(model_name = emb_model_name)
+
+    def setup_db_retriever(
+        self,
+        db=os.path.join(os.path.abspath(os.path.dirname(__file__)), "retriever.db"),
+        emb_model_name="defog/sqlcoder-7b-2",
+        top_k_table=1,
+    ):
+        embeddings = HuggingFaceEmbeddings(model_name=emb_model_name)
         db = FAISS.load_local(db, embeddings, allow_dangerous_deserialization=True)
-        retriever = db.as_retriever(search_type='mmr', search_kwargs={'k': top_k_table, 'lambda_mult': 1})
+        retriever = db.as_retriever(
+            search_type="mmr", search_kwargs={"k": top_k_table, "lambda_mult": 1}
+        )
         return retriever
-    
+
     def main(self):
         chain = self.setup_chain()
         db_retriever = self.setup_db_retriever()
-        for message in self.history_messages: # Display the prior chat messages
+        for message in self.history_messages:  # Display the prior chat messages
             with st.chat_message(message["role"]):
                 st.write(message["content"])
 
         if user_query := st.chat_input(placeholder="Ask me anything!"):
             self.history_messages.append({"role": "user", "content": user_query})
-            with st.chat_message('user'):
+            with st.chat_message("user"):
                 st.write(user_query)
 
             with st.chat_message("assistant"):
@@ -96,6 +113,7 @@ class Basic:
                     user_query = generate_prompt(user_query, schema)
                     response = chain.run(user_query, callbacks=[st_cb])
                     self.history_messages.append({"role": "assistant", "content": response})
+
 
 if __name__ == "__main__":
     obj = Basic()
