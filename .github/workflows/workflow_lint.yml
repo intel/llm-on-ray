@@ -26,3 +26,11 @@ jobs:
 
       - name: Run Lint
         run: ./format.sh -a
+
+      - name: Install dependencies for license check
+        run: |
+          python -m pip install --upgrade pip
+          pip install regex
+
+      - name: Run License Check
+        run: python .github/license/license-header.py --files */*.py */*/*.py */*/*/*.py */*/*/*/*.py
