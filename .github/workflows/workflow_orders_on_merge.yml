@@ -13,6 +13,7 @@ on:
       - 'llm_on_ray/inference/**'
       - 'llm_on_ray/rlhf/**'
       - 'tools/**'
+      - 'application/**'
       - 'pyproject.toml'
       - 'tests/**'
 
