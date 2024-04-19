@@ -112,6 +112,25 @@ class ModelDescription(BaseModel):
     input_processor: str = "AutoProcessor"
     model_loader: str = "AutoModel"
 
+    chat_model_with_image: bool = False
+    chat_template: Union[str, None] = None
+    default_chat_template: str = (
+        "{{ bos_token }}"
+        "{% if messages[0]['role'] == 'system' %}"
+        "{{ raise_exception('System role not supported') }}"
+        "{% endif %}"
+        "{% for message in messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'] + eos_token }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Response:'  + message['content'] + eos_token }}"
+        "{% endif %}{% endfor %}"
+        "{{'### End \n'}}"
+    )
+
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
         if v:

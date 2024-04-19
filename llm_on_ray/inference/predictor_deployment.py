@@ -51,31 +51,11 @@ class PredictorDeployment:
         max_batch_size=_DEFAULT_MAX_BATCH_SIZE,
     ):
         self.device = torch.device(infer_conf.device)
-        self.process_tool = None
-        chat_processor_name = infer_conf.model_description.chat_processor
-        prompt = infer_conf.model_description.prompt
 
         self.handle_dynamic_batch.set_max_batch_size(max_batch_size)
-
-        if chat_processor_name:
-            try:
-                module = __import__("chat_process")
-            except Exception:
-                sys.path.append(os.path.dirname(__file__))
-                module = __import__("chat_process")
-            chat_processor = getattr(module, chat_processor_name, None)
-            if chat_processor is None:
-                raise ValueError(
-                    infer_conf.name
-                    + " deployment failed. chat_processor("
-                    + chat_processor_name
-                    + ") does not exist."
-                )
-            self.process_tool = chat_processor(**prompt.dict())
-
         self.use_deepspeed = infer_conf.deepspeed
         self.use_vllm = infer_conf.vllm.enabled
-        self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
+        self.is_mllm = infer_conf.model_description.chat_model_with_image
 
         # Used to determine if openai backend is used
         self.use_openai = False
@@ -305,12 +285,12 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
-    def preprocess_prompts(self, input: Union[str, List], tools=None, tool_choice=None):
+    def preprocess_prompts(self, input: Union[str, list], tools=None, tool_choice=None):
         """
         Preprocesses the input prompts.
 
         Args:
-            input (Union[str, List[str]]): The input prompt(s) to be preprocessed.
+            input (Union[str, List[dict]]): The input prompt(s) to be preprocessed.
             tools (List[str]): The list of tools to be used.
             tool_choice: The choice of tool to be used.
 
@@ -327,12 +307,14 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
+
+        logger.info("preprocess_prompts")
+        logger.info(type(input))
+        logger.info(input)
+
         if isinstance(input, str):
             return input
-        elif isinstance(input, List):
-            prompts = []
-            images = []
-
+        elif isinstance(input, list):
             prompt_format = get_prompt_format(input)
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 # Process the input prompts with tools
@@ -349,27 +331,55 @@ class PredictorDeployment:
                             m.content = self.openai_tools_prompter.content_from_assistant(m)  # type: ignore
                         elif m.tool_call_id is not None:  # type: ignore
                             m.content = self.openai_tools_prompter.content_from_tool(m)  # type: ignore
-                # Process the input prompts with MLLM tool
-                if self.process_tool is not None:
-                    if self.is_mllm:
-                        input, image = self.process_tool.get_prompt(input)
-                        prompts.append(input)
-                        images.extend(image)
-                        return prompts, images
-                    else:
-                        prompt = self.process_tool.get_prompt(input)
-                        return prompt
+
+                if self.predictor.infer_conf.model_description.chat_template is not None:
+                    self.predictor.tokenizer.chat_template = self.predictor.infer_conf.model_description.chat_template
+                elif self.predictor.tokenizer.chat_template is None:
+                    self.predictor.tokenizer.chat_template = self.predictor.infer_conf.model_description.default_chat_template
+
+                if self.is_mllm:
+                    if isinstance(input, list):
+                        if isinstance(input, list) and input and isinstance(input[0], ChatMessage):
+                            messages = []
+                            for chat_message in input:
+                                message = {"role": chat_message.role, "content": chat_message.content}
+                                messages.append(message)
+                            texts, images = self._extract_messages(messages)
+                        elif isinstance(input, list) and input and isinstance(input[0], dict):
+                            texts, images = self._extract_messages(input)
+                        elif isinstance(input, list) and input and isinstance(input[0], list):
+                            texts, images = [self._extract_messages(p) for p in input]
+
+                        image = self._prepare_image(images)
+                        prompt = self.tokenize_inputs(texts)
+                        return prompt, image
                 else:
-                    prompts.extend(input)
+                    if isinstance(input, list) and input and isinstance(input[0], dict):
+                        prompt = self.predictor.tokenizer.apply_chat_template(input, tokenize=False)
+                    elif isinstance(input, list) and input and isinstance(input[0], list):
+                        prompt = [self.predictor.tokenizer.apply_chat_template(t, tokenize=False) for t in input]
+                    elif isinstance(input, list) and input and isinstance(input[0], ChatMessage):
+                        messages = []
+                        for chat_message in input:
+                            message = {"role": chat_message.role, "content": chat_message.content}
+                            messages.append(message)
+                        prompt = self.predictor.tokenizer.apply_chat_template(messages, tokenize=False)
+                    elif isinstance(input, list) and input and isinstance(input[0], str):
+                        prompt = input
+                    elif isinstance(input, str):
+                        prompt = input
+                    else:
+                        raise TypeError(f"Unsupported type {type(input)} for text. Expected dict or list of dicts.")
+                logger.info(prompt)
+                return prompt
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
-                prompts.extend(input)
-            else:
                 raise HTTPException(400, "Invalid prompt format.")
-            return prompts
+            return input
         else:
             raise HTTPException(400, "Invalid prompt format.")
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
+        logger.info("PredictorDeployment call")
         self.use_openai = False
 
         try:
@@ -379,7 +389,6 @@ class PredictorDeployment:
                 status_code=400,
                 content="Invalid JSON format from http request.",
             )
-
         streaming_response = json_request["stream"] if "stream" in json_request else False
         input = json_request["text"] if "text" in json_request else ""
         if input == "":
@@ -388,7 +397,7 @@ class PredictorDeployment:
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
-
+        logger.info(input)
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
 
@@ -418,3 +427,52 @@ class PredictorDeployment:
                 yield result
         else:
             yield await self.handle_non_streaming(prompts, config)
+
+
+    def _extract_messages(messages):
+        texts, images = [], []
+        for message in messages:
+            if message['role'] == 'user' and isinstance(message['content'], list):
+                texts.append({"role": "user", "content": message['content'][0]['text']})
+                images.append({"role": "user", "content": message['content'][1]['image_url']['url']})
+            else:
+                texts.append(message)
+        return texts, images
+
+    def _prepare_image(self, messages: Union[List[dict], List[List[dict]]]):
+        """Prepare image from history messages."""
+        from PIL import Image
+        import requests
+        from io import BytesIO
+        import base64
+        import re
+
+        # prepare images
+        images = []
+        if isinstance(messages[0], list):
+            for i in len(messages):
+                for msg in messages[i]:
+                    msg = dict(msg)
+                    role, content = msg["role"], msg["content"]
+                    if "url" not in content:
+                        continue
+                    is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
+                    if is_data:
+                        encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
+                        images[i].append(Image.open(BytesIO(base64.b64decode(encoded_str))))
+                    else:
+                        images[i].append(Image.open(requests.get(content["url"], stream=True).raw))
+        else:
+            for msg in messages:
+                msg = dict(msg)
+                role, content = msg["role"], msg["content"]
+                if "url" not in content:
+                    continue
+                is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
+                if is_data:
+                    encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
+                    images.append(Image.open(BytesIO(base64.b64decode(encoded_str))))
+                else:
+                    images.append(Image.open(requests.get(content["url"], stream=True).raw))
+
+        return images
