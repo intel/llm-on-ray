@@ -413,6 +413,7 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     tools: Optional[List[Tool]] = None
     tool_choice: Union[Literal["auto", "none"], ToolChoice] = "auto"
+    ignore_eos: bool = False  # used in vllm engine benchmark
 
 
 class FinishReason(str, Enum):
