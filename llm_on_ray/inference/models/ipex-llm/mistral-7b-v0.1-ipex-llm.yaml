@@ -1,7 +1,8 @@
 port: 8000
-name: mistral-7b-instruct-v0.2
-route_prefix: /mistral-7b-instruct-v0.2
-cpus_per_worker: 48
+name: mistral-7b-v0.1-ipex-llm
+route_prefix: /mistral-7b-v0.1-ipex-llm
+num_replicas: 1
+cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2
@@ -10,9 +11,9 @@ ipex:
   enabled: false
   precision: bf16
 model_description:
-  model_id_or_path: mistralai/Mistral-7B-Instruct-v0.2
-  ipexllm: false
-  tokenizer_name_or_path: mistralai/Mistral-7B-Instruct-v0.2
+  model_id_or_path: mistralai/Mistral-7B-v0.1
+  ipexllm: true
+  tokenizer_name_or_path: mistralai/Mistral-7B-v0.1
   chat_processor: ChatModelLLama
   prompt:
     intro: ''
@@ -21,3 +22,4 @@ model_description:
     stop_words: []
   config:
     trust_remote_code: true
+    load_in_4bit: true
