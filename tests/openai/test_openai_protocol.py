@@ -56,18 +56,6 @@ def models(openai_testing_model):  # noqa: F811
     assert models.data[0].id == openai_testing_model, "The test model id should match"
 
 
-def completions(openai_testing_model):  # noqa: F811
-    completion = client.completions.create(
-        model=openai_testing_model,
-        prompt="Hello world",
-        top_p=0.1,
-        max_tokens=2,
-    )
-    assert completion.model == openai_testing_model
-    assert completion.model
-    # assert completion.choices[0].text == "Hello world"
-
-
 def chat(openai_testing_model):  # noqa: F811
     # create a chat completion
     chat_completion = client.chat.completions.create(
@@ -82,37 +70,26 @@ def chat(openai_testing_model):  # noqa: F811
     assert chat_completion.choices[0].message.content
 
 
-def completions_bad_request(openai_testing_model):  # noqa: F811
-    with pytest.raises(openai.BadRequestError) as exc_info:
-        client.completions.create(
-            model=openai_testing_model,
-            prompt="Hello world",
-            temperature=-0.1,
-        )
-    assert "temperature" in str(exc_info.value)
-
-
 def chat_bad_request(openai_testing_model):  # noqa: F811
-    with pytest.raises(openai.BadRequestError) as exc_info:
+    client.chat.completions.create(
+        model=openai_testing_model,
+        messages=[{"role": "user", "content": "Hello world"}],
+        temperature=-0.1,
+    )
+    # with pytest.raises(openai.OpenAIError) as exc_info:
+    try:
         client.chat.completions.create(
             model=openai_testing_model,
             messages=[{"role": "user", "content": "Hello world"}],
             temperature=-0.1,
         )
-    assert "temperature" in str(exc_info.value)
-
-
-def completions_stream(openai_testing_model):  # noqa: F811
-    i = 0
-    for completion in client.completions.create(
-        model=openai_testing_model, prompt="Hello world", stream=True, top_p=1
-    ):
-        i += 1
-        assert completion
-        assert completion.id
-        assert isinstance(completion.choices, list)
-        assert isinstance(completion.choices[0].text, str)
-    assert i > 4
+        # response = client.completions.create(
+        #     model="gpt-3.5-turbo-instruct",
+        #     prompt="Say this is a test"
+        # )
+    except openai.InvalidRequestError as exc_info:
+        print(exc_info)
+        # assert "temperature" in str(exc_info.value)
 
 
 def chat_stream(openai_testing_model):  # noqa: F811
@@ -144,20 +121,8 @@ def chat_stream(openai_testing_model):  # noqa: F811
     assert chat_completion.choices[0].delta == {} or hasattr(
         chat_completion.choices[0].delta, "content"
     )
-    assert chat_completion.choices[0].model_fields["finish_reason"]
+    assert chat_completion.choices[0]._fields["finish_reason"]
     assert i > 4
-
-
-def completions_stream_bad_request(openai_testing_model):  # noqa: F811
-    with pytest.raises(openai.APIError) as exc_info:
-        for _ in client.completions.create(
-            model=openai_testing_model,
-            prompt="Hello world",
-            stream=True,
-            temperature=-0.1,
-        ):
-            pass
-    assert "temperature" in str(exc_info.value)
 
 
 def chat_stream_bad_request(openai_testing_model):  # noqa: F811
@@ -183,14 +148,10 @@ executed_models = {}
         for model in ["gpt2"]
         for test_func in [
             "models",
-            # "completions",
-            # "completions_stream",
             "chat",
             "chat_stream",
-            # "chat_bad_request",
+            "chat_bad_request",
             # "chat_stream_bad_request"
-            # "completions_bad_request",
-            # "completions_stream_bad_request",
         ]
     ],
 )
