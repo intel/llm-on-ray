@@ -285,6 +285,7 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
+    # TODO:Abstract the preprocess_prompts function into a class for handling chat templates
     def preprocess_prompts(self, input: Union[str, list], tools=None, tool_choice=None):
         """
         Preprocesses the input prompts.
@@ -333,16 +334,23 @@ class PredictorDeployment:
                             m.content = self.openai_tools_prompter.content_from_tool(m)  # type: ignore
 
                 if self.predictor.infer_conf.model_description.chat_template is not None:
-                    self.predictor.tokenizer.chat_template = self.predictor.infer_conf.model_description.chat_template
+                    self.predictor.tokenizer.chat_template = (
+                        self.predictor.infer_conf.model_description.chat_template
+                    )
                 elif self.predictor.tokenizer.chat_template is None:
-                    self.predictor.tokenizer.chat_template = self.predictor.infer_conf.model_description.default_chat_template
+                    self.predictor.tokenizer.chat_template = (
+                        self.predictor.infer_conf.model_description.default_chat_template
+                    )
 
                 if self.is_mllm:
                     if isinstance(input, list):
                         if isinstance(input, list) and input and isinstance(input[0], ChatMessage):
                             messages = []
                             for chat_message in input:
-                                message = {"role": chat_message.role, "content": chat_message.content}
+                                message = {
+                                    "role": chat_message.role,
+                                    "content": chat_message.content,
+                                }
                                 messages.append(message)
                             texts, images = self._extract_messages(messages)
                         elif isinstance(input, list) and input and isinstance(input[0], dict):
@@ -351,25 +359,32 @@ class PredictorDeployment:
                             texts, images = [self._extract_messages(p) for p in input]
 
                         image = self._prepare_image(images)
-                        prompt = self.tokenize_inputs(texts)
+                        prompt = self.predictor.tokenizer.apply_chat_template(texts, tokenize=False)
                         return prompt, image
                 else:
                     if isinstance(input, list) and input and isinstance(input[0], dict):
                         prompt = self.predictor.tokenizer.apply_chat_template(input, tokenize=False)
                     elif isinstance(input, list) and input and isinstance(input[0], list):
-                        prompt = [self.predictor.tokenizer.apply_chat_template(t, tokenize=False) for t in input]
+                        prompt = [
+                            self.predictor.tokenizer.apply_chat_template(t, tokenize=False)
+                            for t in input
+                        ]
                     elif isinstance(input, list) and input and isinstance(input[0], ChatMessage):
                         messages = []
                         for chat_message in input:
                             message = {"role": chat_message.role, "content": chat_message.content}
                             messages.append(message)
-                        prompt = self.predictor.tokenizer.apply_chat_template(messages, tokenize=False)
+                        prompt = self.predictor.tokenizer.apply_chat_template(
+                            messages, tokenize=False
+                        )
                     elif isinstance(input, list) and input and isinstance(input[0], str):
                         prompt = input
                     elif isinstance(input, str):
                         prompt = input
                     else:
-                        raise TypeError(f"Unsupported type {type(input)} for text. Expected dict or list of dicts.")
+                        raise TypeError(
+                            f"Unsupported type {type(input)} for text. Expected dict or list of dicts."
+                        )
                 logger.info(prompt)
                 return prompt
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
@@ -428,18 +443,19 @@ class PredictorDeployment:
         else:
             yield await self.handle_non_streaming(prompts, config)
 
-
-    def _extract_messages(messages):
+    def _extract_messages(self, messages):
         texts, images = [], []
         for message in messages:
-            if message['role'] == 'user' and isinstance(message['content'], list):
-                texts.append({"role": "user", "content": message['content'][0]['text']})
-                images.append({"role": "user", "content": message['content'][1]['image_url']['url']})
+            if message["role"] == "user" and isinstance(message["content"], list):
+                texts.append({"role": "user", "content": message["content"][0]["text"]})
+                images.append(
+                    {"role": "user", "content": message["content"][1]["image_url"]["url"]}
+                )
             else:
                 texts.append(message)
         return texts, images
 
-    def _prepare_image(self, messages: Union[List[dict], List[List[dict]]]):
+    def _prepare_image(self, messages: list):
         """Prepare image from history messages."""
         from PIL import Image
         import requests
@@ -448,12 +464,12 @@ class PredictorDeployment:
         import re
 
         # prepare images
-        images = []
-        if isinstance(messages[0], list):
-            for i in len(messages):
+        images: List = []
+        if isinstance(messages[0], List):
+            for i in range(len(messages)):
                 for msg in messages[i]:
                     msg = dict(msg)
-                    role, content = msg["role"], msg["content"]
+                    content = msg["content"]
                     if "url" not in content:
                         continue
                     is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
@@ -462,10 +478,10 @@ class PredictorDeployment:
                         images[i].append(Image.open(BytesIO(base64.b64decode(encoded_str))))
                     else:
                         images[i].append(Image.open(requests.get(content["url"], stream=True).raw))
-        else:
+        elif isinstance(messages[0], dict):
             for msg in messages:
                 msg = dict(msg)
-                role, content = msg["role"], msg["content"]
+                content = msg["content"]
                 if "url" not in content:
                     continue
                 is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
