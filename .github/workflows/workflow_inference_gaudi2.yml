@@ -20,7 +20,7 @@ on:
         default: '/mnt/DP_disk1/huggingface/cache'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf-gaudi2
   cancel-in-progress: true
 
 jobs:
