@@ -308,11 +308,6 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
-
-        logger.info("preprocess_prompts")
-        logger.info(type(input))
-        logger.info(input)
-
         if isinstance(input, str):
             return input
         elif isinstance(input, list):
@@ -385,7 +380,6 @@ class PredictorDeployment:
                         raise TypeError(
                             f"Unsupported type {type(input)} for text. Expected dict or list of dicts."
                         )
-                logger.info(prompt)
                 return prompt
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
                 raise HTTPException(400, "Invalid prompt format.")
