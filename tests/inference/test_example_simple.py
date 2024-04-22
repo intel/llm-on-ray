@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import subprocess
 import pytest
 import os
@@ -29,14 +45,14 @@ def start_serve(model_name):
 
 
 def script_with_args(
-    base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+    script_name, base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
     current_path = os.path.dirname(os.path.abspath(__file__))
 
     os.path.join(current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml")
 
     example_query_single_path = os.path.join(
-        current_path, "../../examples/inference/api_server_simple/query_single.py"
+        current_path, f"../../examples/inference/api_server_simple/{script_name}"
     )
 
     cmd_single = [
@@ -79,9 +95,19 @@ executed_models = {}
 # Parametrize the test function with different combinations of parameters
 # TODO: more models and combinations will be added and tested.
 @pytest.mark.parametrize(
-    "base_url,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
+    "script_name,base_url,model_name,streaming_response,max_new_tokens,temperature,top_p, top_k",
     [
-        (base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k)
+        (
+            script_name,
+            base_url,
+            model_name,
+            streaming_response,
+            max_new_tokens,
+            temperature,
+            top_p,
+            top_k,
+        )
+        for script_name in ["query_single.py", "query_dynamic_batch.py"]
         for base_url in ["http://localhost:8000/"]
         for model_name in ["gpt2"]
         for streaming_response in [None]
@@ -92,7 +118,7 @@ executed_models = {}
     ],
 )
 def test_script(
-    base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+    script_name, base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
 ):
     global executed_models
 
@@ -103,5 +129,12 @@ def test_script(
         executed_models[model_name] = True
 
     script_with_args(
-        base_url, model_name, streaming_response, max_new_tokens, temperature, top_p, top_k
+        script_name,
+        base_url,
+        model_name,
+        streaming_response,
+        max_new_tokens,
+        temperature,
+        top_p,
+        top_k,
     )
