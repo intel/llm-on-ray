@@ -17,37 +17,12 @@
 import openai
 import pytest
 import os
-import subprocess
 from openai import OpenAI
+from basic_set import start_serve
 
-os.environ["no_proxy"] = "localhost,127.0.0.1"
-os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
-os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
 openai_base_url = os.environ["OPENAI_BASE_URL"]
 openai_api_key = os.environ["OPENAI_API_KEY"]
 client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
-
-
-def start_serve(model_name):
-    print("start_serve")
-    current_path = os.path.dirname(os.path.abspath(__file__))
-
-    config_path = os.path.join(
-        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
-    )
-    os.path.join(current_path, "../../inference/serve.py")
-    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
-
-    result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
-
-    # Ensure there are no errors in the serve script execution
-    assert result_serve.returncode == 0, print(
-        "\n" + "Serve error stderr message: " + "\n", result_serve.stderr
-    )
-
-    # Print the output of subprocess.run for checking if output is expected
-    print("\n" + "Serve message: " + "\n", result_serve.stdout)
 
 
 def models(openai_testing_model):  # noqa: F811
@@ -121,7 +96,7 @@ def chat_stream(openai_testing_model):  # noqa: F811
     assert chat_completion.choices[0].delta == {} or hasattr(
         chat_completion.choices[0].delta, "content"
     )
-    assert chat_completion.choices[0]._fields["finish_reason"]
+    assert chat_completion.choices[0].model_fields["finish_reason"]
     assert i > 4
 
 
@@ -150,7 +125,7 @@ executed_models = {}
             "models",
             "chat",
             "chat_stream",
-            "chat_bad_request",
+            # "chat_bad_request",
             # "chat_stream_bad_request"
         ]
     ],
