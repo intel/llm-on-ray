@@ -26,7 +26,7 @@ def start_serve(model_name):
     current_path = os.path.dirname(os.path.abspath(__file__))
 
     config_path = os.path.join(
-        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
+        current_path, "../.github/workflows/config/" + model_name + "-ci.yaml"
     )
     os.path.join(current_path, "../../inference/serve.py")
     cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
