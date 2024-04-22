@@ -20,6 +20,12 @@ import os
 from basic_set import start_serve
 
 
+os.environ["no_proxy"] = "localhost,127.0.0.1"
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
+os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
+
+
 def script_with_args(api_base, model_name, streaming_response, max_new_tokens, temperature, top_p):
     current_path = os.path.dirname(os.path.abspath(__file__))
 

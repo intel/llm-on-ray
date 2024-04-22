@@ -40,10 +40,3 @@ def start_serve(model_name):
 
     # Print the output of subprocess.run for checking if output is expected
     print("\n" + "Serve message: " + "\n", result_serve.stdout)
-
-
-def test_openai_env():
-    os.environ["no_proxy"] = "localhost,127.0.0.1"
-    os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-    os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
-    os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"

@@ -20,6 +20,12 @@ import os
 from openai import OpenAI
 from basic_set import start_serve
 
+
+os.environ["no_proxy"] = "localhost,127.0.0.1"
+os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
+os.environ["OPENAI_API_KEY"] = "YOUR_OPEN_AI_KEY"
+os.environ["OPENAI_BASE_URL"] = "http://localhost:8000/v1"
+
 openai_base_url = os.environ["OPENAI_BASE_URL"]
 openai_api_key = os.environ["OPENAI_API_KEY"]
 client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
