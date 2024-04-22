@@ -87,12 +87,12 @@ def test_decide_torch_dtype_cpu_without_ipex(mock_infer_conf):
 
 
 def test_decide_torch_dtype_respect_user_config(mock_infer_conf):
-    mock_infer_conf.model_description.config.torch_dtype = torch.float16
+    mock_infer_conf.model_description.config.torch_dtype = "bf16"
     mock_infer_conf.device = DEVICE_CPU
 
     decide_torch_dtype(mock_infer_conf)
 
-    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.bfloat16
 
 
 def test_decide_torch_dtype_hpu_with_deepspeed(mock_infer_conf):
@@ -107,17 +107,17 @@ def test_decide_torch_dtype_hpu_with_deepspeed(mock_infer_conf):
 def test_decide_torch_dtype_with_hf_config_torch_dtype(mock_infer_conf):
     mock_infer_conf.device = DEVICE_CPU
     mock_infer_conf.ipex.enabled = True
-    hf_config = {"torch_dtype": torch.float16}
+    hf_config = {"torch_dtype": torch.bfloat16}
 
     decide_torch_dtype(mock_infer_conf, hf_config)
 
-    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.bfloat16
 
 
 def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_conf):
     class HFConfig:
         def __init__(self):
-            self.torch_dtype = torch.float16
+            self.torch_dtype = torch.bfloat16
 
     mock_infer_conf.device = DEVICE_CPU
     mock_infer_conf.ipex.enabled = True
@@ -125,7 +125,7 @@ def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_c
 
     decide_torch_dtype(mock_infer_conf, hf_config)
 
-    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.bfloat16
 
 
 if __name__ == "__main__":
