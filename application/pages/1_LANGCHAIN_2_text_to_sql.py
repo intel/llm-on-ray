@@ -83,7 +83,7 @@ class Basic:
 
     def setup_db_retriever(
         self,
-        db=os.path.join(os.path.abspath(os.path.dirname(__file__)), "retriever.db"),
+        db=os.path.join(os.path.abspath(os.path.dirname(__file__)), "text2sql/retriever.db"),
         emb_model_name="defog/sqlcoder-7b-2",
         top_k_table=1,
     ):
