@@ -64,8 +64,8 @@ deepspeed = [
     "deepspeed>=0.10.2, <0.11.2"
 ]
 
-bigdl-cpu = [
-    "bigdl-llm[all]==2.5.0b20240222"
+ipex-llm = [
+    "ipex-llm[all]==2.1.0b20240408"
 ]
 
 

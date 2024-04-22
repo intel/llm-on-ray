@@ -1,18 +1,18 @@
 port: 8000
-name: mpt-7b-bigdl
-route_prefix: /mpt-7b-bigdl
+name: mpt-7b-ipex-llm
+route_prefix: /mpt-7b-ipex-llm
 num_replicas: 1
 cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2
-device: CPU
+device: cpu
 ipex:
   enabled: false
   precision: bf16
 model_description:
   model_id_or_path: mosaicml/mpt-7b-chat
-  bigdl: true
+  ipexllm: true
   tokenizer_name_or_path: EleutherAI/gpt-neox-20b
   chat_processor: ChatModelGptJ
   prompt:

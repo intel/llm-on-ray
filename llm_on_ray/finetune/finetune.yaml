@@ -2,7 +2,7 @@ General:
   base_model: EleutherAI/gpt-j-6b
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
-  checkpoint_dir: null 
+  checkpoint_dir: null
   config:
     trust_remote_code: false
     use_auth_token: null
@@ -28,7 +28,7 @@ Training:
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
-  device: CPU
+  device: cpu
   num_training_workers: 2
   resources_per_worker:
     CPU: 32

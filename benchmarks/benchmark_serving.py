@@ -239,6 +239,7 @@ async def send_request(
     track_input_output: bool = False,
     progress_bar: tqdm = None,
     simple: bool = False,
+    vllm_engine: bool = False,
 ) -> None:
     """
     Sends a request to the specified API URL with the given prompt and configuration.
@@ -278,6 +279,8 @@ async def send_request(
             "temperature": temp_config["temperature"] if "temperature" in temp_config else None,
             "top_p": temp_config["top_p"] if "top_p" in temp_config else None,
         }
+        if vllm_engine:
+            pload.update({"ignore_eos": True})
 
     token_latencies_per_request: List[float] = []
 
@@ -322,6 +325,11 @@ async def send_request(
                         generate_len = json.loads(response_text)["usage"]["completion_tokens"]
                     except Exception:
                         generate_len = None
+            expected_output_len = temp_config["max_new_tokens"]
+            if vllm_engine and generate_len != expected_output_len:
+                print(
+                    f"Warning: the actual generated length is {generate_len}, which is different from the expected output length({expected_output_len})."
+                )
             if progress_bar:
                 progress_bar.update()
             break
@@ -356,6 +364,7 @@ async def benchmark(
     track_input_output: bool = False,
     progress: bool = False,
     simple: bool = False,
+    vllm_engine: bool = False,
 ) -> None:
     """
     Benchmark the API by sending multiple requests asynchronously.
@@ -386,6 +395,7 @@ async def benchmark(
                     track_input_output,
                     progress_bar,
                     simple,
+                    vllm_engine,
                 )
             )
         )
@@ -460,6 +470,9 @@ def main(args: argparse.Namespace):
         config["top_p"] = float(args.top_p)
     if args.top_k:
         config["top_k"] = float(args.top_k)
+    # In order to align with vllm test parameters
+    if args.vllm_engine:
+        config["ignore_eos"] = True
 
     benchmark_start_time = time.perf_counter()
     asyncio.run(
@@ -474,6 +487,7 @@ def main(args: argparse.Namespace):
             args.track_input_output,
             args.progress,
             args.simple,
+            args.vllm_engine,
         )
     )
 
@@ -712,6 +726,11 @@ if __name__ == "__main__":
         default=None,
         help="The number of highest probability vocabulary tokens to keep \
             for top-k-filtering.",
+    )
+    parser.add_argument(
+        "--vllm-engine",
+        action="store_true",
+        help="If set, parameter ignore_eos will be True to generate the completion.",
     )
     parser.add_argument(
         "--progress", action="store_true", help="Whether to display a progress bar."

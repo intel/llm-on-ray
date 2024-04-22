@@ -30,7 +30,7 @@ COPY ./MANIFEST.in .
 # create llm_on_ray package directory to bypass the following 'pip install -e' command
 RUN mkdir ./llm_on_ray
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[bigdl-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[ipex-llm] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
