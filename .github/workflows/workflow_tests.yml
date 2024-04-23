@@ -160,7 +160,7 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           PYTHON_V=${{matrix.python-version}}
           source docker.sh
-          build_and_prune TARGET DF_SUFFIX PYTHON_V
+          build_and_prune ${TARGET} ${DF_SUFFIX} ${PYTHON_V}
 
       - name: Start Docker Container
         run: |
