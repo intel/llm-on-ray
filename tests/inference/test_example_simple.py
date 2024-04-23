@@ -84,7 +84,7 @@ executed_models = {}
             top_k,
         )
         for script_name in ["query_single.py", "query_dynamic_batch.py"]
-        for base_url in ["http://localhost:8000/"]
+        for base_url in ["http://localhost:8000/v1"]
         for model_name in ["gpt2"]
         for streaming_response in [None]
         for max_new_tokens in [None]
