@@ -21,8 +21,13 @@ import subprocess
 from openai import OpenAI
 
 
-def start_serve(model_name):
+def start_serve(model_name, api_base="http://localhost:8000/v1"):
     print("start_serve")
+    # Other OpenAI SDK tests
+    if api_base != "http://localhost:8000/v1":
+        os.environ["OPENAI_API_BASE"] = api_base
+        os.environ["OPENAI_BASE_URL"] = api_base
+
     current_path = os.path.dirname(os.path.abspath(__file__))
 
     config_path = os.path.join(

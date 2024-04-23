@@ -18,8 +18,7 @@ import openai
 import pytest
 import os
 from openai import OpenAI
-from basic_set import start_serve
-
+from tests.basic_set import start_serve
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
@@ -52,25 +51,13 @@ def chat(openai_testing_model):  # noqa: F811
 
 
 def chat_bad_request(openai_testing_model):  # noqa: F811
-    client.chat.completions.create(
-        model=openai_testing_model,
-        messages=[{"role": "user", "content": "Hello world"}],
-        temperature=-0.1,
-    )
-    # with pytest.raises(openai.OpenAIError) as exc_info:
-    try:
+    with pytest.raises(openai.InternalServerError) as exc_info:
         client.chat.completions.create(
             model=openai_testing_model,
             messages=[{"role": "user", "content": "Hello world"}],
             temperature=-0.1,
         )
-        # response = client.completions.create(
-        #     model="gpt-3.5-turbo-instruct",
-        #     prompt="Say this is a test"
-        # )
-    except openai.InvalidRequestError as exc_info:
         print(exc_info)
-        # assert "temperature" in str(exc_info.value)
 
 
 def chat_stream(openai_testing_model):  # noqa: F811
@@ -106,19 +93,7 @@ def chat_stream(openai_testing_model):  # noqa: F811
     assert i > 4
 
 
-def chat_stream_bad_request(openai_testing_model):  # noqa: F811
-    with pytest.raises(openai.APIError) as exc_info:
-        for _chat_completion in client.chat.completions.create(
-            model=openai_testing_model,
-            messages=[{"role": "user", "content": "Hello world"}],
-            stream=True,
-            temperature=-0.1,
-        ):
-            pass
-    assert "temperature" in str(exc_info.value)
-
-
-executed_models = {}
+executed_models = []
 
 
 # Parametrize the test function with different combinations of parameters
@@ -127,13 +102,7 @@ executed_models = {}
     [
         (model, test_func)
         for model in ["gpt2"]
-        for test_func in [
-            "models",
-            "chat",
-            "chat_stream",
-            # "chat_bad_request",
-            # "chat_stream_bad_request"
-        ]
+        for test_func in ["models", "chat", "chat_stream", "chat_bad_request"]
     ],
 )
 def test_openai(model, test_func):
@@ -143,5 +112,5 @@ def test_openai(model, test_func):
     if model not in executed_models:
         start_serve(model)
         # Mark this modelname has already executed start_serve
-        executed_models[model] = True
+        executed_models.append(model)
     eval(test_func + "('" + model + "')")
