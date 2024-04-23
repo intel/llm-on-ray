@@ -80,14 +80,19 @@ class Basic:
         )
         chain = ConversationChain(llm=llm, verbose=True)
         return chain
+    
+    def setup_emb_model(self, emb_model_name="defog/sqlcoder-7b-2"):
+        embeddings = HuggingFaceEmbeddings(model_name=emb_model_name)
+        tokenizer = embeddings.client.tokenizer
+        tokenizer.pad_token = tokenizer.eos_token
+        return embeddings
 
     def setup_db_retriever(
         self,
+        embeddings,
         db=os.path.join(os.path.abspath(os.path.dirname(__file__)), "text2sql/retriever.db"),
-        emb_model_name="defog/sqlcoder-7b-2",
         top_k_table=1,
     ):
-        embeddings = HuggingFaceEmbeddings(model_name=emb_model_name)
         db = FAISS.load_local(db, embeddings, allow_dangerous_deserialization=True)
         retriever = db.as_retriever(
             search_type="mmr", search_kwargs={"k": top_k_table, "lambda_mult": 1}
@@ -96,7 +101,8 @@ class Basic:
 
     def main(self):
         chain = self.setup_chain()
-        db_retriever = self.setup_db_retriever()
+        embeddings = self.setup_emb_model()
+        db_retriever = self.setup_db_retriever(embeddings)
         for message in self.history_messages:  # Display the prior chat messages
             with st.chat_message(message["role"]):
                 st.write(message["content"])
