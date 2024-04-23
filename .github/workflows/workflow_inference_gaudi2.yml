@@ -8,7 +8,7 @@ on:
         default: 'pr'
       runner_container_image:
         type: string
-        default: 'llmray-build'
+        default: '127.0.0.1:5000/llmray-build'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
