@@ -21,7 +21,7 @@ import subprocess
 from openai import OpenAI
 
 
-def start_serve(model_name, api_base="http://localhost:8000/v1"):
+def start_serve(model_name, api_base="http://localhost:8000/v1", simple=False):
     print("start_serve")
     # Other OpenAI SDK tests
     if api_base != "http://localhost:8000/v1":
@@ -35,6 +35,9 @@ def start_serve(model_name, api_base="http://localhost:8000/v1"):
     )
     os.path.join(current_path, "../../inference/serve.py")
     cmd_serve = ["llm_on_ray-serve", "--config_file", config_path]
+
+    if simple:
+        cmd_serve.extend(["--simple"])
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
 

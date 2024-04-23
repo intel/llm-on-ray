@@ -65,7 +65,7 @@ def script_with_args(
     assert result_query_single.returncode == 0
 
 
-executed_models = {}
+executed_models = []
 
 
 # Parametrize the test function with different combinations of parameters
@@ -84,7 +84,7 @@ executed_models = {}
             top_k,
         )
         for script_name in ["query_single.py", "query_dynamic_batch.py"]
-        for base_url in ["http://localhost:8000/v1"]
+        for base_url in ["http://localhost:8000/"]
         for model_name in ["gpt2"]
         for streaming_response in [None]
         for max_new_tokens in [None]
@@ -100,9 +100,9 @@ def test_script(
 
     # Check if this modelname has already executed start_serve
     if model_name not in executed_models:
-        start_serve(model_name)
+        start_serve(model_name, simple=True)
         # Mark this modelname has already executed start_serve
-        executed_models[model_name] = True
+        executed_models.append(model_name)
 
     script_with_args(
         script_name,
