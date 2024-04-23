@@ -160,15 +160,14 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           PYTHON_V=${{matrix.python-version}}
           source docker.sh
-          build_and_prune TARGET=${TARGET} DF_SUFFIX=${DF_SUFFIX} PYTHON_V=${PYTHON_V}
-          docker images
+          build_and_prune TARGET DF_SUFFIX PYTHON_V
+
       - name: Start Docker Container
         run: |
           TARGET=${{steps.target.outputs.target}}
           code_checkout_path=${{ github.workspace }}
           source docker.sh
-          clean_docker  TARGET=${TARGET} 
-          run_docker TARGET=${TARGET} code_checkout_path=${code_checkout_path}
+          start_docker TARGET code_checkout_path
 
       - name: Install Dependencies for Tests
         run: |

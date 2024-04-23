@@ -8,10 +8,10 @@ CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
 build_and_prune() {
     # Set TARGET and DF-SUFFIX using the passed in parameters
-    local TARGET=$TARGET
-    local DF_SUFFIX=$DF_SUFFIX
-    local PYTHON_V=$PYTHON_V  ## same name
-    local USE_PROXY=$USE_PROXY
+    local TARGET=$1
+    local DF_SUFFIX=$2
+    local PYTHON_V=$3  ## same name
+    local USE_PROXY=$4
 
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
@@ -34,23 +34,19 @@ build_and_prune() {
     
 }
 
-clean_docker(){
-    local TARGET="$TARGET"
 
+start_docker() {
+    local TARGET=$1
+    local code_checkout_path=$2
+    local model_cache_path=$3
+    local USE_PROXY=$4
+    
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
     # check and remove exited container
     cid=$(docker ps -a -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker rm $cid; fi
     docker ps -a
-}
-
-run_docker() {
-    local TARGET="$TARGET"
-    local code_checkout_path="$code_checkout_path"
-    local model_cache_path="$model_cache_path"
-    local USE_PROXY="$USE_PROXY"
-    
 
     docker_args=()
     docker_args+=("-v=${code_checkout_path}:${CODE_CHECKOUT_PATH_LOCAL}")
@@ -68,9 +64,18 @@ run_docker() {
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
 }
 
+
+
 docker_bash(){
-    local TARGET="$TARGET" 
-    local bash_command="$bash_command"
+    local TARGET=$1
+    local bash_command=$2
+
+    docker exec "${TARGET}" bash -c "${bash_command}"
+}
+
+dock1er_bash(){
+    local TARGET=$1
+    local bash_command=$2
 
     docker exec "${TARGET}" bash -c "${bash_command}"
 }
