@@ -71,8 +71,10 @@ def get_deployed_models(args):
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
         deployments[model_id] = PredictorDeployment.options(
-            num_replicas=infer_conf.num_replicas, ray_actor_options=ray_actor_options
-        ).bind(infer_conf)
+            num_replicas=infer_conf.num_replicas,
+            ray_actor_options=ray_actor_options,
+            max_concurrent_queries=args.max_concurrent_queries,
+        ).bind(infer_conf, args.vllm_max_num_seqs, args.max_batch_size)
     return deployments, model_list
 
 
@@ -132,7 +134,7 @@ def main(argv=None):
         help="Workers per group, used with --deepspeed.",
     )
     parser.add_argument("--ipex", action="store_true", help="Enable ipex optimization.")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, xpu, hpu or cuda.")
+    parser.add_argument("--device", default="cpu", type=str, help="cpu, gpu, hpu or cuda.")
     parser.add_argument(
         "--serve_local_only",
         action="store_true",
@@ -148,6 +150,29 @@ def main(argv=None):
         action="store_true",
         help="Whether to keep serve terminal.",
     )
+    parser.add_argument(
+        "--max_concurrent_queries",
+        default=100,
+        type=int,
+        help="The max concurrent requests ray serve can process.",
+    )
+
+    # TODO: vllm_max_num_seqs and max_batch_size should be moved to InferenceConfig
+    parser.add_argument(
+        "--vllm_max_num_seqs",
+        default=256,
+        type=int,
+        help="The batch size for vLLM. Used when vLLM is enabled.",
+    )
+
+    parser.add_argument(
+        "--max_batch_size", default=8, type=int, help="The max batch size for dynamic batching."
+    )
+
+    # Print help if no arguments were provided
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
 
     args = parser.parse_args(argv)
 
@@ -164,7 +189,7 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         rp = args.route_prefix if args.route_prefix else ""
         route_prefix = "/{}".format(rp)
-        openai_serve_run(deployments, host, route_prefix, args.port)
+        openai_serve_run(deployments, host, route_prefix, args.port, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:

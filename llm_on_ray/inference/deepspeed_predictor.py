@@ -1,24 +1,40 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import ray
 import torch
 import deepspeed
 
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
-from ray.air.util.torch_dist import (
+from transformers import AutoModelForCausalLM, AutoConfig
+from llm_on_ray.inference.torch_dist import (
     TorchDistributedWorker,
     init_torch_dist_process_group,
     shutdown_torch_dist_process_group,
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
-from typing import List
+from typing import List, Union
 import os
 from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
     DEVICE_CPU,
-    DEVICE_XPU,
+    DEVICE_GPU,
     PRECISION_BF16,
 )
 
@@ -38,12 +54,11 @@ class DSPipeline:
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_desc.model_id_or_path,
             config=hf_config,
-            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
             **model_config.dict(),
         )
@@ -114,7 +129,7 @@ class PredictionWorker(TorchDistributedWorker):
 
         if self.infer_conf.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.infer_conf.device == DEVICE_XPU:
+        elif self.infer_conf.device == DEVICE_GPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -244,53 +259,37 @@ class DeepSpeedPredictor(Predictor):
         for worker in self.prediction_workers[1:]:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, prompt, **config):
-        input_ids, input_length = self.tokenize_inputs(prompt)
+    def generate(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[GenerateResult, List[GenerateResult], None]:
+        input_ids, input_length = self.tokenize_inputs(prompts)
         inputs_ref = ray.put(input_ids)
         gen_tokens = ray.get(
             [worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers]
         )[0]
+
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        if isinstance(prompt, list) and len(prompt) > 1:
-            return decode_result
-        return GenerateResult(
-            text=decode_result,
-            input_length=input_length,
-            generate_length=gen_tokens.size()[1] - input_length,
-        )
+
+        if isinstance(prompts, str):
+            return GenerateResult(
+                text=decode_result,
+                input_length=input_length,
+                generate_length=gen_tokens.size()[1] - input_length,
+            )
+        elif isinstance(prompts, List):
+            return [
+                GenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompts))
+            ]
+
+        return None
 
     def get_streamer(self):
-        from transformers import TextStreamer
-        from typing import Optional
-        from ray.util.queue import Queue
-
-        class RayTextIteratorStreamer(TextStreamer):
-            def __init__(
-                self,
-                tokenizer: "AutoTokenizer",
-                skip_prompt: bool = False,
-                timeout: Optional[float] = None,
-                **decode_kwargs,
-            ):
-                super().__init__(tokenizer, skip_prompt, **decode_kwargs)
-                self.text_queue = Queue()
-                self.stop_signal = None
-                self.timeout = timeout
-
-            def on_finalized_text(self, text: str, stream_end: bool = False):
-                self.text_queue.put(text, timeout=self.timeout)
-                if stream_end:
-                    self.text_queue.put(self.stop_signal, timeout=self.timeout)
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                value = self.text_queue.get(timeout=self.timeout)
-                if value == self.stop_signal:
-                    raise StopIteration()
-                else:
-                    return value
+        from llm_on_ray.inference.utils import RayTextIteratorStreamer
 
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 

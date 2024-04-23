@@ -29,6 +29,8 @@ parser.add_argument(
     action="store_true",
     help="Whether to enable streaming response",
 )
+parser.add_argument("--max_tokens", default=256, help="The maximum numbers of tokens to generate")
+
 
 args = parser.parse_args()
 
@@ -52,6 +54,7 @@ llm = ChatOpenAI(
     model_name=args.model_name,
     openai_api_key=openai_api_key,
     streaming=args.streaming_response,
+    max_tokens=args.max_tokens,
 )
 
 prompt = PromptTemplate(template="list 3 {things}", input_variables=["things"])

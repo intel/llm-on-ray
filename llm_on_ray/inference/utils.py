@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 
-from transformers import StoppingCriteria
+from transformers import StoppingCriteria, TextStreamer
+from ray.util.queue import Queue
 import torch
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Optional, Union
 from enum import Enum
-from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_HPU
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
@@ -37,18 +38,50 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
+    if infer_conf.vllm.enabled:
+        runtime_env[_ray_env_key]["OMP_PROC_BIND"] = "true"
     # now PredictorDeployment itself is a worker, we should require resources for it
     ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
         ray_actor_options["num_cpus"] = infer_conf.cpus_per_worker
     elif infer_conf.device == "cuda":
         ray_actor_options["num_gpus"] = infer_conf.gpus_per_worker
-    elif infer_conf.device == "hpu":
+    elif infer_conf.device == "hpu" and not infer_conf.deepspeed:
+        # when using deepspeed on hpu, deployment actor does not need HPU
         ray_actor_options["resources"] = {"HPU": infer_conf.hpus_per_worker}
     else:
         # TODO add xpu
         pass
     return ray_actor_options
+
+
+class RayTextIteratorStreamer(TextStreamer):
+    def __init__(
+        self,
+        tokenizer,
+        skip_prompt: bool = False,
+        timeout: Optional[float] = None,
+        **decode_kwargs,
+    ):
+        super().__init__(tokenizer, skip_prompt, **decode_kwargs)
+        self.text_queue = Queue()
+        self.stop_signal = None
+        self.timeout = timeout
+
+    def on_finalized_text(self, text: str, stream_end: bool = False):
+        self.text_queue.put(text, timeout=self.timeout)
+        if stream_end:
+            self.text_queue.put(self.stop_signal, timeout=self.timeout)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        value = self.text_queue.get(timeout=self.timeout)
+        if value == self.stop_signal:
+            raise StopIteration()
+        else:
+            return value
 
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -83,22 +116,36 @@ def max_input_len(input_text_length):
         return 4096
 
 
-def get_torch_dtype(infer_conf: InferenceConfig, hf_config) -> torch.dtype:
+def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
     """
-    return torch default dtype, a.k.a float32, if it's cpu only inference without
-    ipex because bfloat16 is too slow and float16 is not supported in CPU
+    Decide torch dtype based on user config and model config.
+    This function modifies `torch_dtype` in infer_conf.model_description.config.
     """
-    if hf_config is None or is_cpu_without_ipex(infer_conf):
-        return torch.get_default_dtype()
-    if hasattr(hf_config, "torch_dtype"):
-        t = hf_config.torch_dtype
-        if t:
-            return t
-    if hasattr(hf_config, "__getitem__"):
-        t = hf_config["torch_dtype"]
-        if t:
-            return t
-    return torch.get_default_dtype()
+    # First, create torch_dtype if it does not exist
+    if not hasattr(infer_conf.model_description.config, "torch_dtype"):
+        infer_conf.model_description.config.torch_dtype = None
+
+    if infer_conf.model_description.config.torch_dtype:
+        # respect user config
+        return
+    elif hf_config is None:
+        # default to float32 if hf_config is not supplied
+        infer_conf.model_description.config.torch_dtype = torch.get_default_dtype()
+    # if hf_config contains recommended torch_dtype, use it
+    elif hasattr(hf_config, "torch_dtype") and hf_config.torch_dtype:
+        infer_conf.model_description.config.torch_dtype = hf_config.torch_dtype
+    elif hasattr(hf_config, "__getitem__") and "torch_dtype" in hf_config:
+        infer_conf.model_description.config.torch_dtype = hf_config["torch_dtype"]
+
+    # if using hpu
+    if infer_conf.device == DEVICE_HPU:
+        # if using deepspeed, we should use bfloat16
+        # TODO if quantization is enabled, we should use bfloat16
+        if infer_conf.deepspeed:
+            infer_conf.model_description.config.torch_dtype = torch.bfloat16
+    elif is_cpu_without_ipex(infer_conf):
+        # cpu without ipex use default float32
+        infer_conf.model_description.config.torch_dtype = torch.get_default_dtype()
 
 
 def is_cpu_without_ipex(infer_conf: InferenceConfig) -> bool:

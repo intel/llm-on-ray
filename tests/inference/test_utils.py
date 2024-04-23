@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import pytest
 import torch
 
@@ -5,10 +21,10 @@ from llm_on_ray.inference.utils import (
     get_deployment_actor_options,
     StoppingCriteriaSub,
     max_input_len,
-    get_torch_dtype,
+    decide_torch_dtype,
     is_cpu_without_ipex,
 )
-from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_HPU
 
 
 # Mock the InferenceConfig for testing
@@ -57,15 +73,6 @@ def test_max_input_len():
 # Add more tests for edge cases
 
 
-def test_get_torch_dtype_cpu_without_ipex(mock_infer_conf):
-    hf_config = None
-    dtype = get_torch_dtype(mock_infer_conf, hf_config)
-    assert dtype == torch.get_default_dtype()
-
-
-# Add more tests for different configurations and hf_config values
-
-
 def test_is_cpu_without_ipex(mock_infer_conf):
     assert is_cpu_without_ipex(mock_infer_conf) is True
 
@@ -73,4 +80,53 @@ def test_is_cpu_without_ipex(mock_infer_conf):
     assert is_cpu_without_ipex(mock_infer_conf) is False
 
 
-# Add more tests for different configurations
+def test_decide_torch_dtype_cpu_without_ipex(mock_infer_conf):
+    decide_torch_dtype(mock_infer_conf)
+
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.get_default_dtype()
+
+
+def test_decide_torch_dtype_respect_user_config(mock_infer_conf):
+    mock_infer_conf.model_description.config.torch_dtype = torch.float16
+    mock_infer_conf.device = DEVICE_CPU
+
+    decide_torch_dtype(mock_infer_conf)
+
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+
+
+def test_decide_torch_dtype_hpu_with_deepspeed(mock_infer_conf):
+    mock_infer_conf.device = DEVICE_HPU
+    mock_infer_conf.deepspeed = True
+
+    decide_torch_dtype(mock_infer_conf)
+
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.bfloat16
+
+
+def test_decide_torch_dtype_with_hf_config_torch_dtype(mock_infer_conf):
+    mock_infer_conf.device = DEVICE_CPU
+    mock_infer_conf.ipex.enabled = True
+    hf_config = {"torch_dtype": torch.float16}
+
+    decide_torch_dtype(mock_infer_conf, hf_config)
+
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+
+
+def test_decide_torch_dtype_with_hf_config_torch_dtype_as_attribute(mock_infer_conf):
+    class HFConfig:
+        def __init__(self):
+            self.torch_dtype = torch.float16
+
+    mock_infer_conf.device = DEVICE_CPU
+    mock_infer_conf.ipex.enabled = True
+    hf_config = HFConfig()
+
+    decide_torch_dtype(mock_infer_conf, hf_config)
+
+    assert mock_infer_conf.model_description.config.torch_dtype == torch.float16
+
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__])

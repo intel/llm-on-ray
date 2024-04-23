@@ -1,2 +1,3 @@
 # with [tools.setuptools] in pyproject.toml, the configs below work in both baremetal and container
 include inference/**/*.yaml
+include inference/**/*.jinja

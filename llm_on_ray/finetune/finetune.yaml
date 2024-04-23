@@ -2,7 +2,7 @@ General:
   base_model: EleutherAI/gpt-j-6b
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
-  checkpoint_dir: /tmp/llm-ray/checkpoint
+  checkpoint_dir: null
   config:
     trust_remote_code: false
     use_auth_token: null
@@ -14,6 +14,10 @@ General:
   enable_gradient_checkpointing: false
 Dataset:
   train_file: examples/data/sample_finetune_data_small.jsonl
+  group: true
+  max_length: 512
+  block_size: 512
+  shuffle: false
   validation_file: null
   validation_split_percentage: 5
 Training:
@@ -24,11 +28,11 @@ Training:
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
-  device: CPU
+  device: cpu
   num_training_workers: 2
   resources_per_worker:
     CPU: 32
-  accelerate_mode: CPU_DDP
+  accelerate_mode: DDP
   gradient_accumulation_steps: 1
   logging_steps: 10
   deepspeed_config_file: finetune/ds_config_zero2.json

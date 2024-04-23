@@ -1,5 +1,34 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from pydantic import BaseModel, validator
 from typing import Optional, List
+
+
+PRECISION_BF16 = "bf16"
+PRECISION_FP16 = "fp16"
+PRECISION_NO = "no"
+
+DEVICE_CPU = "cpu"
+DEVICE_HPU = "hpu"
+DEVICE_GPU = "gpu"
+
+ACCELERATE_STRATEGY_DDP = "DDP"
+ACCELERATE_STRATEGY_FSDP = "FSDP"
+ACCELERATE_STRATEGY_DEEPSPEED = "DEEPSPEED"
 
 
 class GeneralConfig(BaseModel):
@@ -23,6 +52,7 @@ class DeltatunerConfig(BaseModel):
 
 class General(BaseModel):
     base_model: str
+    tokenizer_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
     checkpoint_dir: Optional[str]
@@ -36,48 +66,56 @@ class Dataset(BaseModel):
     train_file: str
     validation_file: Optional[str]
     validation_split_percentage: int
+    max_length: int = 512
+    group: bool = True
+    block_size: int = 512
+    shuffle: bool = False
 
 
 class RayResourceConfig(BaseModel):
     CPU: int
     GPU: int = 0
+    HPU: int = 0
 
 
 class Training(BaseModel):
     optimizer: str
     batch_size: int
     epochs: int
+    max_train_steps: Optional[int] = None
     learning_rate: float
     lr_scheduler: str
     weight_decay: float
-    device: str
+    device: str = DEVICE_CPU
     num_training_workers: int
     resources_per_worker: RayResourceConfig
-    accelerate_mode: str
-    mixed_precision: str = "no"
+    accelerate_mode: str = ACCELERATE_STRATEGY_DDP
+    mixed_precision: str = PRECISION_NO
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
 
     @validator("device")
     def check_device(cls, v: str):
-        devices = ["CPU", "GPU"]
-        if v not in devices:
-            raise ValueError(f"device must be one of {devices}")
-        return v
+        # will convert to lower case
+        if v:
+            assert v.lower() in [DEVICE_CPU, DEVICE_GPU, DEVICE_HPU]
+        return v.lower()
 
     @validator("accelerate_mode")
     def check_accelerate_mode(cls, v: str):
-        modes = ["CPU_DDP", "GPU_DDP", "GPU_FSDP", "GPU_DEEPSPEED"]
-        if v not in modes:
-            raise ValueError(f"accelerate_mode must be one of {modes}")
+        if v:
+            assert v in [
+                ACCELERATE_STRATEGY_DDP,
+                ACCELERATE_STRATEGY_FSDP,
+                ACCELERATE_STRATEGY_DEEPSPEED,
+            ]
         return v
 
     @validator("mixed_precision")
     def check_mixed_precision(cls, v: str):
-        supported_precisions = ["no", "fp16", "bf16"]
-        if v not in supported_precisions:
-            raise ValueError(f"mixed_precision must be one of {supported_precisions}")
+        if v:
+            assert v in [PRECISION_BF16, PRECISION_FP16, PRECISION_NO]
         return v
 
     @validator("logging_steps")
