@@ -64,18 +64,31 @@ start_docker() {
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
 }
 
-
-
-docker_bash(){
+install_dependencies(){
     local TARGET=$1
-    local bash_command=$2
 
-    docker exec "${TARGET}" bash -c "${bash_command}"
+    # Install Dependencies for Tests
+    docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
 }
 
-dock1er_bash(){
+strat_ray(){
     local TARGET=$1
-    local bash_command=$2
 
-    docker exec "${TARGET}" bash -c "${bash_command}"
+    # Start Ray Cluster
+    docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+}
+
+run_tests(){
+    local TARGET=$1
+    
+    # Run Tests
+    docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
+}
+
+stop_container(){
+    local TARGET=$1
+
+    # Stop Container
+    cid=$(docker ps -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
 }
