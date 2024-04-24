@@ -56,12 +56,6 @@ jobs:
         - ${{ inputs.runner_config_path }}:/root/actions-runner-config
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
-
       - name: Determine Target
         id: "target"
         run: |
@@ -71,6 +65,12 @@ jobs:
           fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load environment variables
+        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: |
