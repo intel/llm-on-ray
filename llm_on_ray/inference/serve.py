@@ -24,11 +24,10 @@ from llm_on_ray.inference.inference_config import ModelDescription, InferenceCon
 
 
 def get_deployed_models(args):
-    """
+    """ 
     The priority of how to choose models to deploy based on passed parameters:
     1. Use inference configuration file if config_file is set,
-    2. Use relevant configuration parameters to generate `InferenceConfig` if model_id_or_path is set,
-    3. Serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
+    2. If config_file is unset, serve all of the models if models is set, or GPT2 by default if it is unset.
     """
     if args.config_file is None:
         if args.models:
@@ -43,7 +42,7 @@ def get_deployed_models(args):
     else:
         # config_file has precedence over others
         if args.config_file:
-            print("reading from config file, " + args.config_file)
+            print("Reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
                 infer_conf = parse_yaml_raw_as(InferenceConfig, f)
         model_list = {}
@@ -76,7 +75,7 @@ def main(argv=None):
         nargs="*",
         default=["gpt2"],
         type=str,
-        help=f"Only used when config_file and model_id_or_path are both None, valid values can be any items in {list(all_models.keys())}.",
+        help=f"Only used when config_file is None, valid values can be any items in {list(all_models.keys())}.",
     )
     parser.add_argument(
         "--simple",
@@ -99,6 +98,7 @@ def main(argv=None):
         action="store_true",
         help="Only support local access to url.",
     )
+    parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
 
     # TODO: vllm_max_num_seqs and max_batch_size should be moved to InferenceConfig
     parser.add_argument(
@@ -130,7 +130,9 @@ def main(argv=None):
         # all models are served under the same URL and then accessed
         # through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        openai_serve_run(deployments, host, "/", 8000, args.max_concurrent_queries)
+        print("Service is running with deployments:" + deployments)
+        print("Service is running models:" + model_list)
+        openai_serve_run(deployments, host, "/", args.port, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
