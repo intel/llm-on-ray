@@ -24,7 +24,7 @@ from llm_on_ray.inference.inference_config import ModelDescription, InferenceCon
 
 
 def get_deployed_models(args):
-    """ 
+    """
     The priority of how to choose models to deploy based on passed parameters:
     1. Use inference configuration file if config_file is set,
     2. If config_file is unset, serve all of the models if models is set, or GPT2 by default if it is unset.
