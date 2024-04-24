@@ -48,9 +48,7 @@ jobs:
     container:
       image: ${{ inputs.runner_container_image }}
       env:
-        SHELL: bash -eo pipefail
-        http_proxy:
-        https_proxy:
+        SHELL: bash -eo pipefail && unset http_proxy && unset https_proxy
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ${{ inputs.runner_config_path }}:/root/actions-runner-config
