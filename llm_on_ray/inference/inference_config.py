@@ -191,7 +191,6 @@ class InferenceConfig(BaseModel):
 
 
 all_models: Dict[str, InferenceConfig] = {}
-base_models: Dict[str, InferenceConfig] = {}
 _models: Dict[str, InferenceConfig] = {}
 
 _cur = os.path.dirname(os.path.abspath(__file__))

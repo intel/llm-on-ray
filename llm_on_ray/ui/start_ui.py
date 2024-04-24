@@ -29,8 +29,10 @@ from ray.tune import Stopper
 from ray.train.base_trainer import TrainingFailedError
 from ray.tune.logger import LoggerCallback
 from ray.util import queue
-from llm_on_ray.inference.inference_config import all_models, ModelDescription, Prompt
-from llm_on_ray.inference.inference_config import InferenceConfig as FinetunedConfig
+
+from llm_on_ray.finetune.finetune_config import base_models, FinetuneConfig
+from llm_on_ray.inference.inference_config import ModelDescription, all_models
+from llm_on_ray.inference.inference_config import InferenceConfig
 
 from llm_on_ray.inference.predictor_deployment import PredictorDeployment
 from llm_on_ray.ui.html_format import cpu_memory_html, ray_status_html, custom_css
@@ -108,20 +110,20 @@ class LoggingCallback(LoggerCallback):
 
 class ChatBotUI:
     def __init__(
-        self,
-        all_models: Dict[str, FinetunedConfig],
-        base_models: Dict[str, FinetunedConfig],
-        finetune_model_path: str,
-        finetuned_checkpoint_path: str,
-        repo_code_path: str,
-        default_data_path: str,
-        default_rag_path: str,
-        config: dict,
-        head_node_ip: str,
-        node_port: str,
-        node_user_name: str,
-        conda_env_name: str,
-        master_ip_port: str,
+            self,
+            all_models: Dict[str, InferenceConfig],
+            base_models: Dict[str, FinetuneConfig],
+            finetune_model_path: str,
+            finetuned_checkpoint_path: str,
+            repo_code_path: str,
+            default_data_path: str,
+            default_rag_path: str,
+            config: dict,
+            head_node_ip: str,
+            node_port: str,
+            node_user_name: str,
+            conda_env_name: str,
+            master_ip_port: str,
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -147,7 +149,6 @@ class ChatBotUI:
             "What is Ray?",
             "What is chatbot?",
         ]
-        self.process_tool = None
         self.finetune_actor = None
         self.finetune_status = False
         self.default_rag_path = default_rag_path
@@ -214,8 +215,10 @@ class ChatBotUI:
         return "", history + [[user_message, None]]
 
     def model_generate(self, prompt, request_url, model_name, config, simple_api=True):
+        print("model_generate")
+        print("prompt: ", prompt)
+
         if simple_api:
-            prompt = self.process_tool.get_prompt(prompt)
             sample_input = {"text": prompt, "config": config, "stream": True}
         else:
             sample_input = {
@@ -227,42 +230,42 @@ class ChatBotUI:
                 "top_p": config["top_p"],
                 "top_k": config["top_k"],
             }
+
         proxies = {"http": None, "https": None}
         outputs = requests.post(request_url, proxies=proxies, json=sample_input, stream=True)
+
         outputs.raise_for_status()
         for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
-            # remove context
-            if simple_api:
-                if prompt in output:
-                    output = output[len(prompt) :]
-            else:
-                if output is None or output == "":
-                    continue
+            if not simple_api:
                 import json
                 import re
 
-                chunk_data = re.sub("^data: ", "", output)
-                if chunk_data != "[DONE]":
-                    decoded_output = json.loads(chunk_data)
-                    if "choices" in decoded_output:
-                        choices = decoded_output["choices"]
+                if output is not None and output != "":
+                    # Get data from reponse chunk
+                    chunk_data = re.sub("^data: ", "", output)
+                    if chunk_data.strip() != "[DONE]":
+                        # Get message choices from data
+                        choices = json.loads(chunk_data)["choices"]
+
+                        # Pick content from first choice
                         output = choices[0]["delta"].get("content", "")
-                else:
-                    output = ""
+
+                    else:
+                        output = ""
             yield output
 
     def bot(
-        self,
-        history,
-        deploy_model_endpoint,
-        model_endpoint,
-        Max_new_tokens,
-        Temperature,
-        Top_p,
-        Top_k,
-        model_name=None,
-        image=None,
-        enhance_knowledge=None,
+            self,
+            history,
+            deploy_model_endpoint,
+            model_endpoint,
+            Max_new_tokens,
+            Temperature,
+            Top_p,
+            Top_k,
+            model_name=None,
+            image=None,
+            enhance_knowledge=None,
     ):
         request_url = model_endpoint if model_endpoint != "" else deploy_model_endpoint
         simple_api = is_simple_api(request_url, model_name)
@@ -295,11 +298,7 @@ class ChatBotUI:
         for output in outputs:
             if len(output) != 0:
                 time_end = time.time()
-                if simple_api:
-                    history[-1][1] += output
-                    history[-1][1] = self.process_tool.convert_output(history[-1][1])
-                else:
-                    history[-1][1] += output
+                history[-1][1] += output
                 time_spend = round(time_end - time_start, 3)
                 token_num += 1
                 new_token_latency = f"""
@@ -310,16 +309,16 @@ class ChatBotUI:
                 yield [history, new_token_latency]
 
     def bot_test(
-        self,
-        bot_queue,
-        queue_id,
-        history,
-        model_endpoint,
-        Max_new_tokens,
-        Temperature,
-        Top_p,
-        Top_k,
-        model_name=None,
+            self,
+            bot_queue,
+            queue_id,
+            history,
+            model_endpoint,
+            Max_new_tokens,
+            Temperature,
+            Top_p,
+            Top_k,
+            model_name=None,
     ):
         request_url = model_endpoint
         simple_api = is_simple_api(request_url, model_name)
@@ -355,19 +354,19 @@ class ChatBotUI:
         bot_queue.put([queue_id, "", ""])
 
     def bot_rag(
-        self,
-        history,
-        deploy_model_endpoint,
-        model_endpoint,
-        Max_new_tokens,
-        Temperature,
-        Top_p,
-        Top_k,
-        rag_selector,
-        rag_path,
-        returned_k,
-        model_name=None,
-        image=None,
+            self,
+            history,
+            deploy_model_endpoint,
+            model_endpoint,
+            Max_new_tokens,
+            Temperature,
+            Top_p,
+            Top_k,
+            rag_selector,
+            rag_path,
+            returned_k,
+            model_name=None,
+            image=None,
     ):
         enhance_knowledge = None
         if os.path.isabs(rag_path):
@@ -413,16 +412,16 @@ class ChatBotUI:
             yield output
 
     def regenerate(
-        self,
-        db_dir,
-        upload_type,
-        input_type,
-        input_texts,
-        depth,
-        upload_files,
-        embedding_model,
-        splitter_chunk_size,
-        cpus_per_worker,
+            self,
+            db_dir,
+            upload_type,
+            input_type,
+            input_texts,
+            depth,
+            upload_files,
+            embedding_model,
+            splitter_chunk_size,
+            cpus_per_worker,
     ):
         if upload_type == "Youtube":
             input_texts = input_texts.split(";")
@@ -501,16 +500,16 @@ class ChatBotUI:
         return db_dir
 
     def send_all_bot(
-        self,
-        id,
-        history,
-        deployed_model_endpoint,
-        model_endpoint,
-        Max_new_tokens,
-        Temperature,
-        Top_p,
-        Top_k,
-        model_name,
+            self,
+            id,
+            history,
+            deployed_model_endpoint,
+            model_endpoint,
+            Max_new_tokens,
+            Temperature,
+            Top_p,
+            Top_k,
+            model_name,
     ):
         id = int(id)
         self.bot_queue[id] = Queue()
@@ -536,21 +535,20 @@ class ChatBotUI:
             yield res[1]
 
     def finetune(
-        self,
-        model_name,
-        custom_model_name,
-        custom_tokenizer_name,
-        dataset,
-        new_model_name,
-        batch_size,
-        num_epochs,
-        max_train_step,
-        lr,
-        worker_num,
-        cpus_per_worker_ftn,
+            self,
+            model_name,
+            custom_model_name,
+            custom_tokenizer_name,
+            dataset,
+            new_model_name,
+            batch_size,
+            num_epochs,
+            max_train_step,
+            lr,
+            worker_num,
+            cpus_per_worker_ftn,
     ):
         if model_name == "specify other models":
-            model_desc = None
             origin_model_path = custom_model_name
             tokenizer_path = custom_tokenizer_name
             if "gpt" in model_name.lower() or "pythia" in model_name.lower():
@@ -558,35 +556,33 @@ class ChatBotUI:
             else:
                 gpt_base_model = False
         else:
-            model_desc = self._base_models[model_name].model_description
-            origin_model_path = model_desc.model_id_or_path
-            tokenizer_path = model_desc.tokenizer_name_or_path
-            gpt_base_model = model_desc.gpt_base_model
+            finetune_config = self._base_models[model_name]
+            gpt_base_model = finetune_config.General.gpt_base_model
+
+        print(type(finetune_config))
+        print(f"Finetune config: {finetune_config}")
+        finetune_config = finetune_config.dict()
+        print(type(finetune_config))
+        print(f"Finetune config: {finetune_config}")
         last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
-        finetuned_checkpoint_path = (
-            os.path.join(self.finetuned_checkpoint_path, model_name, new_model_name)
-            if self.finetuned_checkpoint_path != ""
-            else None
-        )
 
-        finetune_config = self.config.copy()
-        training_config = finetune_config.get("Training")
-        exist_worker = int(training_config["num_training_workers"])
-        exist_cpus_per_worker_ftn = int(training_config["resources_per_worker"]["CPU"])
+        exist_worker = int(finetune_config["Training"].get("num_training_workers"))
+
+        exist_cpus_per_worker_ftn = int(finetune_config["Training"].get("resources_per_worker")["CPU"])
 
         ray_resources = ray.available_resources()
         if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(
-            ray.available_resources()["CPU"]
+                ray.available_resources()["CPU"]
         ):
             num_req = cpus_per_worker_ftn * worker_num + 1
             num_act = int(ray.available_resources()["CPU"])
             error_msg = f"Resources are not meeting the demand, required num_cpu is {num_req}, actual num_cpu is {num_act}"
             raise gr.Error(error_msg)
         if (
-            worker_num != exist_worker
-            or cpus_per_worker_ftn != exist_cpus_per_worker_ftn
-            or not (gpt_base_model and last_gpt_base_model)
+                worker_num != exist_worker
+                or cpus_per_worker_ftn != exist_cpus_per_worker_ftn
+                or not (gpt_base_model and last_gpt_base_model)
         ):
             ray.shutdown()
             new_ray_init_config = {
@@ -606,22 +602,17 @@ class ChatBotUI:
             if gpt_base_model:
                 new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.26.0"]
             else:
-                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.31.0"]
-            last_gpt_base_model = gpt_base_model
-            finetune_config["Training"]["num_training_workers"] = int(worker_num)
-            finetune_config["Training"]["resources_per_worker"]["CPU"] = int(cpus_per_worker_ftn)
+                new_ray_init_config["runtime_env"]["pip"] = ["transformers==4.38.1"]
 
             ray.init(**new_ray_init_config)
-            exist_worker = worker_num
-            exist_cpus_per_worker_ftn = cpus_per_worker_ftn
 
         finetune_config["Dataset"]["train_file"] = dataset
-        finetune_config["General"]["base_model"] = origin_model_path
+        # finetune_config["General"]["base_model"] = origin_model_path
         finetune_config["Training"]["epochs"] = num_epochs
         finetune_config["General"]["output_dir"] = finetuned_model_path
-        finetune_config["General"]["config"]["trust_remote_code"] = True
-        if finetuned_checkpoint_path:
-            finetune_config["General"]["checkpoint_dir"] = finetuned_checkpoint_path
+
+        # if finetuned_checkpoint_path:
+        #     finetune_config["General"]["checkpoint_dir"] = finetuned_checkpoint_path
         finetune_config["Training"]["batch_size"] = batch_size
         finetune_config["Training"]["learning_rate"] = lr
         if max_train_step != 0:
@@ -653,6 +644,9 @@ class ChatBotUI:
         self.finetune_status = False
         # todo: a more reasonable solution is needed
         try:
+            print("Start fine-tuning")
+            print(finetune_config)
+
             results = main(finetune_config)
             if results.metrics["done"]:
                 self.finetune_status = True
@@ -668,21 +662,18 @@ class ChatBotUI:
         ray.kill(self.finetune_actor)
         self.finetune_actor = None
 
-        new_prompt = Prompt()
-        new_prompt.intro = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n"
-        new_prompt.human_id = "\n### Instruction"
-        new_prompt.bot_id = "\n### Response"
-        new_prompt.stop_words.extend(
-            ["### Instruction", "# Instruction", "### Question", "##", " ="]
-        )
-        new_model_desc = ModelDescription(
-            model_id_or_path=finetuned_model_path,
-            tokenizer_name_or_path=tokenizer_path,
-            prompt=new_prompt,
-            chat_processor=model_desc.chat_processor if model_desc is not None else "ChatModelGptJ",
-        )
+        if finetune_config["General"].get("lora_config", None) is not None:
+            new_model_desc = ModelDescription(
+                model_id_or_path=finetune_config["General"].get("base_model"),
+                tokenizer_name_or_path=finetuned_model_path,
+            )
+        else:
+            new_model_desc = ModelDescription(
+                model_id_or_path=finetuned_model_path,
+                tokenizer_name_or_path=finetuned_model_path,
+            )
         new_model_desc.config.trust_remote_code = True
-        new_finetuned = FinetunedConfig(
+        new_finetuned = InferenceConfig(
             name=new_model_name,
             route_prefix="/" + new_model_name,
             model_description=new_model_desc,
@@ -711,14 +702,14 @@ class ChatBotUI:
                 progress(
                     float(int(value_step) / int(total_steps)),
                     desc="Start Training: epoch "
-                    + str(value_epoch)
-                    + " / "
-                    + str(total_epochs)
-                    + "  "
-                    + "step "
-                    + str(value_step)
-                    + " / "
-                    + str(total_steps),
+                         + str(value_epoch)
+                         + " / "
+                         + str(total_epochs)
+                         + "  "
+                         + "step "
+                         + str(value_step)
+                         + " / "
+                         + str(total_steps),
                 )
             except Exception:
                 pass
@@ -726,15 +717,15 @@ class ChatBotUI:
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
     def deploy_func(
-        self,
-        model_name: str,
-        replica_num: int,
-        cpus_per_worker_deploy: int,
-        hpus_per_worker_deploy: int,
+            self,
+            model_name: str,
+            replica_num: int,
+            cpus_per_worker_deploy: int,
+            hpus_per_worker_deploy: int,
     ):
         self.shutdown_deploy()
         if cpus_per_worker_deploy * replica_num > int(
-            ray.available_resources()["CPU"]
+                ray.available_resources()["CPU"]
         ) or hpus_per_worker_deploy * replica_num > int(
             ray.available_resources()["HPU"] if "HPU" in ray.available_resources() else 0
         ):
@@ -744,19 +735,7 @@ class ChatBotUI:
 
         finetuned = self._all_models[model_name]
         model_desc = finetuned.model_description
-        prompt = model_desc.prompt
         print("model path: ", model_desc.model_id_or_path)
-
-        if model_desc.chat_processor is not None:
-            chat_model = getattr(sys.modules[__name__], model_desc.chat_processor, None)
-            if chat_model is None:
-                return (
-                    model_name
-                    + " deployment failed. "
-                    + model_desc.chat_processor
-                    + " does not exist."
-                )
-            self.process_tool = chat_model(**prompt.dict())
 
         finetuned_deploy = finetuned.copy(deep=True)
         if hpus_per_worker_deploy > 0:
@@ -776,13 +755,14 @@ class ChatBotUI:
         elif "fuyu-8b" in model_name:
             pip_env = "transformers==4.37.2"
         else:
-            pip_env = "transformers==4.31.0"
+            pip_env = "transformers==4.38.1"
         if finetuned_deploy.device == "cpu":
             ray_actor_options["runtime_env"] = {"pip": [pip_env]}
         deployment = PredictorDeployment.options(  # type: ignore
             num_replicas=replica_num,
             ray_actor_options=ray_actor_options,
         ).bind(finetuned_deploy)
+        print("deployment: ", deployment)
         serve.start(http_options={"host": finetuned_deploy.host, "port": finetuned_deploy.port})
         serve.run(
             deployment,
@@ -810,7 +790,7 @@ class ChatBotUI:
         return stdout.read().decode("utf-8"), stderr.read().decode("utf-8")
 
     def get_ray_cluster(self):
-        command = "ray status"
+        command = "/home/damon/anaconda3/bin/ray status"
         out, err = self.exec_command(-1, command, ray=True)
         try:
             out_words = [word for word in out.split("\n") if "CPU" in word][0]
@@ -854,9 +834,9 @@ class ChatBotUI:
         elif btn_txt == "Start":
             index = int(index)
             command = (
-                "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address="
-                + self.master_ip_port
-                + r""" --resources='{"special_hardware": 2}'"""
+                    "RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address="
+                    + self.master_ip_port
+                    + r""" --resources='{"special_hardware": 2}'"""
             )
             self.exec_command(index, command, ray=True)
             self.ray_nodes[index]["Alive"] = "True"
@@ -1321,8 +1301,8 @@ class ChatBotUI:
                         rag_input_text = gr.Textbox(
                             label="Local file path",
                             placeholder="Support types: "
-                            + " ".join(recdp_support_suffix)
-                            + ". Support multiple absolute paths, separated by ';'",
+                                        + " ".join(recdp_support_suffix)
+                                        + ". Support multiple absolute paths, separated by ';'",
                             visible=True,
                             scale=2,
                         )
@@ -1777,7 +1757,7 @@ if __name__ == "__main__":
     ray_init_config: Dict[str, Any] = {
         "runtime_env": {
             "env_vars": {
-                "OMP_NUM_THREADS": "24",
+                "OMP_NUM_THREADS": "32",
                 "ACCELERATE_USE_CPU": "True",
                 "ACCELERATE_MIXED_PRECISION": "no",
                 "CCL_WORKER_COUNT": "1",
@@ -1799,9 +1779,10 @@ if __name__ == "__main__":
     default_rag_path = args.default_rag_path
 
     initial_model_list = {k: all_models[k] for k in sorted(all_models.keys())}
+    initial_base_model_list = {k: base_models[k] for k in sorted(base_models.keys())}
     ui = ChatBotUI(
         initial_model_list,
-        initial_model_list,
+        initial_base_model_list,
         finetune_model_path,
         finetune_checkpoint_path,
         repo_path,
