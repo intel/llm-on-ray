@@ -176,6 +176,8 @@ class GeneralProcesser(DataProcesser):
                 desc=f"Grouping texts in chunks of {block_size}",
             )
 
+        return tokenized_datasets
+
         data_collator = DataCollatorForCompletionOnlyLM(
             tokenizer=tokenizer,
             mlm=False,

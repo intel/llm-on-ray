@@ -23,6 +23,8 @@ from typing import Any, Dict, Union, Optional
 
 import torch
 
+import transformers
+
 import ray
 from ray.train.torch import TorchTrainer
 from ray.air.config import ScalingConfig
@@ -42,6 +44,7 @@ from importlib import util
 
 use_habana = False
 if util.find_spec("habana_frameworks") is not None:
+    from optimum.habana.transformers import TrainingArguments
     from optimum.habana.accelerate import GaudiAccelerator as Accelerator
     from optimum.habana.accelerate.utils import (
         GaudiFullyShardedDataParallelPlugin as FullyShardedDataParallelPlugin,
@@ -50,6 +53,7 @@ if util.find_spec("habana_frameworks") is not None:
 
     use_habana = True
 else:
+    from transformers import TrainingArguments
     from accelerate import Accelerator, FullyShardedDataParallelPlugin
     from accelerate.utils import set_seed, is_xpu_available
 
@@ -130,6 +134,46 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
     return mode_env_vars[device][accelerate_mode]
 
 
+def convert_to_training_args(config):
+    device = config["Training"]["device"]
+    accelerate_mode = config["Training"]["accelerate_mode"]
+    checkpoint_dir = config["General"]["checkpoint_dir"]
+    save_strategy = "no" if checkpoint_dir is None else "epoch"
+    deepspeed_config_file = (
+        config["Training"]["deepspeed_config_file"] if accelerate_mode == "DEEPSPEED" else None
+    )
+    use_cpu = True if device == "cpu" else False
+
+    args = {
+        "use_cpu": use_cpu,
+        "output_dir": config["General"]["output_dir"],
+        "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
+        "save_strategy": save_strategy,
+        "deepspeed": deepspeed_config_file,
+        "bf16": config["Training"]["mixed_precision"] == "bf16",
+        "num_train_epochs": config["Training"]["epochs"],
+        "per_device_train_batch_size": config["Training"]["batch_size"],
+        "per_device_eval_batch_size": config["Training"]["batch_size"],
+        "learning_rate": config["Training"]["learning_rate"],
+        "logging_steps": config["Training"]["logging_steps"],
+        "lr_scheduler_type": config["Training"]["lr_scheduler"],
+        "weight_decay": config["Training"]["weight_decay"],
+        "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
+    }
+
+    if device == "hpu":
+        hpu_args = {
+            "use_habana": True,
+            "use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy",
+            # "pipelining_fwd_bwd":           True,
+            # "throughput_warmup_steps":      3,
+            # "adam_epsilon":                 1e-8
+        }
+        args.update(hpu_args)
+
+    return TrainingArguments(**args)
+
+
 def get_device_environment_variable(device):
     if device == "hpu":
         return {
@@ -153,7 +197,7 @@ def train_func(config: Dict[str, Any]):
     if cwd:
         os.chdir(cwd)
 
-    gradient_accumulation_steps = config["Training"].get("gradient_accumulation_steps", 1)
+    config["Training"].get("gradient_accumulation_steps", 1)
     base_model = config["General"]["base_model"]
     if config["General"].get("tokenizer_name") is not None:
         tokenizer_name = config["General"].get("tokenizer_name")
@@ -193,92 +237,30 @@ def train_func(config: Dict[str, Any]):
         }
     )
 
-    optimizer = common.optimizer.Optimizer.registory.get("DefaultOptimizer")()(
-        model,
-        config={
-            "name": config["Training"]["optimizer"],
-            "config": {"lr": config["Training"]["learning_rate"]},
-        },
-    )
-
-    accelerate_mode = config["Training"]["accelerate_mode"]
-    if accelerate_mode == "FSDP":
-        fsdp_plugin = FullyShardedDataParallelPlugin(
-            state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
-            optim_state_dict_config=FullOptimStateDictConfig(
-                offload_to_cpu=False, rank0_only=False
-            ),
+    device = config["Training"]["device"]
+    training_args = convert_to_training_args(config)
+    dataprocesser_config = {
+        "type": "GeneralProcesser",
+        "per_device_train_batch_size": config["Training"]["batch_size"],
+        "per_device_eval_batch_size": config["Training"]["batch_size"],
+        "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
+        "max_length": config["Dataset"].get("max_length", 512),
+        "group": config["Dataset"].get("group", True),
+        "block_size": config["Dataset"].get("block_size", 512),
+        "shuffle": config["Dataset"].get("shuffle", False),
+    }
+    dataprocesser = common.dataprocesser.GeneralProcesser(dataprocesser_config)
+    tokenized_datasets = dataprocesser.prepare(tokenizer, datasets)
+    if device in ["cpu", "gpu"]:
+        trainer = transformers.Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=tokenized_datasets["train"],
+            eval_dataset=tokenized_datasets["validation"],
         )
-        deepspeed_plugin = None
-    elif accelerate_mode == "DEEPSPEED":
-        fsdp_plugin = None
-        hf_ds_config = config["Training"]["deepspeed_config_file"]
-        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=hf_ds_config)
-    else:
-        fsdp_plugin = None
-        deepspeed_plugin = None
-
-    output_dir = config["General"]["output_dir"]
-    accelerator = Accelerator(
-        device_placement=False,
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        fsdp_plugin=fsdp_plugin,
-        deepspeed_plugin=deepspeed_plugin,
-    )
-    epochs = config["Training"]["epochs"]
-
-    common.logger.info(
-        f"accelerator generate finish, accelerator device type = {accelerator.device}"
-    )
-
-    trainer = common.trainer.Trainer.registory.get("DefaultTrainer")(
-        config={
-            "device": config["Training"]["device"],
-            "accelerate_mode": config["Training"]["accelerate_mode"],
-            "num_train_epochs": epochs,
-            "max_train_steps": config["Training"].get("max_train_steps", None),
-            "logging_steps": config["Training"].get("logging_steps", 1),
-            "output": output_dir,
-            "dataprocesser": {
-                "type": "GeneralProcesser",
-                "per_device_train_batch_size": config["Training"]["batch_size"],
-                "per_device_eval_batch_size": config["Training"]["batch_size"],
-                "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
-                "max_length": config["Dataset"].get("max_length", 512),
-                "group": config["Dataset"].get("group", True),
-                "block_size": config["Dataset"].get("block_size", 512),
-                "shuffle": config["Dataset"].get("shuffle", False),
-            },
-            "lr_scheduler": {
-                "enable": True,
-                "max_train_steps": None,
-                "lr_scheduler_type": config["Training"]["lr_scheduler"],
-                "num_warmup_steps": 0,
-                "learning_rate": config["Training"]["learning_rate"],
-                "weight_decay": config["Training"]["weight_decay"],
-            },
-            "checkpoint": {
-                "root_path": config["General"].get("checkpoint_dir", None),
-            },
-        }
-    )
-
-    try:
-        common.logger.info("trainer prepare start")
-        model.training = True
-        trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)
-    except Exception as e:
-        common.logger.critical(e, exc_info=True)
-        exit(1)
-    common.logger.info("trainer prepare finish")
-
-    try:
         common.logger.info("train start")
         trainer.train()
-    except Exception as e:
-        common.logger.critical(e, exc_info=True)
-        exit(1)
-    common.logger.info("train finish")
+        common.logger.info("train finish")
 
 
 def get_finetune_config():
