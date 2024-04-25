@@ -76,7 +76,7 @@ jobs:
         run: |
           DF_SUFFIX=".gaudi2"
           TARGET=${{steps.target.outputs.target}}
-          docker build --build-arg CACHEBUST=1 -f dev/docker/Dockerfile.habana -t ${TARGET}:habana ../..
+          docker build --build-arg CACHEBUST=1 -f dev/docker/Dockerfile.habana -t ${TARGET}:habana .
           docker container prune -f
           docker image prune -f
 
