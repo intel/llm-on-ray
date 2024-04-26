@@ -92,3 +92,22 @@ stop_container(){
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
 }
+
+# declare map
+declare -A DF_SUFFIX_MAPPER
+DF_SUFFIX_MAPPER=(
+    ["mpt-7b-ipex-llm"]=".ipex-llm"
+    ["llama-2-7b-chat-hf-vllm"]=".vllm"
+    ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
+    ["default"]=".cpu_and_deepspeed"
+)
+
+declare -A TARGET_MAPPER
+TARGET_MAPPER=(
+    ["mpt-7b-ipex-llm"]="${target}_ipex-llm"
+    ["llama-2-7b-chat-hf-vllm"]="${target}_vllm"
+    ["default"]="${target}"
+)
+
+model="mpt-7b-ipex-llm"
+target=${TARGET_MAPPER[$model]}
