@@ -99,7 +99,7 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 
 class GeneralProcesser(DataProcesser):
-    def prepare(self, tokenizer, dataset):
+    def tokenize_dataset(self, tokenizer, dataset):
         max_length = self.config.get("max_length")
         group = self.config.get("group")
         block_size = self.config.get("block_size")
@@ -175,7 +175,7 @@ class GeneralProcesser(DataProcesser):
 
         return tokenized_datasets
 
-    def convert_to_dataloader(self, tokenizer, dataset):
+    def convert_dataset(self, tokenizer, dataset):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size")
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
         shuffle = self.config.get("shuffle")
@@ -187,7 +187,7 @@ class GeneralProcesser(DataProcesser):
             pad_to_multiple_of=8,
         )
 
-        tokenized_datasets = self.prepare(tokenizer, dataset)
+        tokenized_datasets = self.tokenize_dataset(tokenizer, dataset)
 
         train_dataset = tokenized_datasets["train"]
         train_dataloader_params = {

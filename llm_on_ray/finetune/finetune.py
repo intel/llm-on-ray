@@ -44,17 +44,10 @@ from importlib import util
 
 use_habana = False
 if util.find_spec("habana_frameworks") is not None:
-    from optimum.habana.transformers import TrainingArguments
-    from optimum.habana.accelerate import GaudiAccelerator as Accelerator
-    from optimum.habana.accelerate.utils import (
-        GaudiFullyShardedDataParallelPlugin as FullyShardedDataParallelPlugin,
-    )
     from optimum.habana.utils import set_seed
 
     use_habana = True
 else:
-    from transformers import TrainingArguments
-    from accelerate import Accelerator, FullyShardedDataParallelPlugin
     from accelerate.utils import set_seed, is_xpu_available
 
     use_habana = False
@@ -134,22 +127,16 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
     return mode_env_vars[device][accelerate_mode]
 
 
-def convert_to_training_args(config):
+def convert_to_training_args(cls, config):
     device = config["Training"]["device"]
     accelerate_mode = config["Training"]["accelerate_mode"]
     checkpoint_dir = config["General"]["checkpoint_dir"]
     save_strategy = "no" if checkpoint_dir is None else "epoch"
-    deepspeed_config_file = (
-        config["Training"]["deepspeed_config_file"] if accelerate_mode == "DEEPSPEED" else None
-    )
-    use_cpu = True if device == "cpu" else False
 
     args = {
-        "use_cpu": use_cpu,
         "output_dir": config["General"]["output_dir"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
         "save_strategy": save_strategy,
-        "deepspeed": deepspeed_config_file,
         "bf16": config["Training"]["mixed_precision"] == "bf16",
         "num_train_epochs": config["Training"]["epochs"],
         "per_device_train_batch_size": config["Training"]["batch_size"],
@@ -161,17 +148,23 @@ def convert_to_training_args(config):
         "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
     }
 
-    if device == "hpu":
-        hpu_args = {
-            "use_habana": True,
-            "use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy",
-            # "pipelining_fwd_bwd":           True,
-            # "throughput_warmup_steps":      3,
-            # "adam_epsilon":                 1e-8
-        }
-        args.update(hpu_args)
+    # set attr 'use_cpu'
+    if hasattr(cls, "use_cpu"):
+        args.update({"use_cpu": True if device == "cpu" else False})
 
-    return TrainingArguments(**args)
+    # set attr 'deepspeed'
+    if accelerate_mode == "DEEPSPEED":
+        args.update({"deepspeed": config["Training"]["deepspeed_config_file"]})
+
+    # set attr for Intel Gaudi
+    if device == "hpu":
+        args.update({"use_habana": True})
+        args.update({"use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy"})
+        args.update({"pipelining_fwd_bwd": True})
+        args.update({"throughput_warmup_steps": 3})
+        args.update({"adam_epsilon": 1e-8})
+
+    return cls(**args)
 
 
 def get_device_environment_variable(device):
@@ -193,11 +186,10 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
 
 
 def train_func(config: Dict[str, Any]):
-    cwd = config.get("cwd")
-    if cwd:
-        os.chdir(cwd)
+    os.chdir(config["cwd"])
 
-    config["Training"].get("gradient_accumulation_steps", 1)
+    device = config["Training"]["device"]
+
     base_model = config["General"]["base_model"]
     if config["General"].get("tokenizer_name") is not None:
         tokenizer_name = config["General"].get("tokenizer_name")
@@ -209,6 +201,13 @@ def train_func(config: Dict[str, Any]):
     if seed is not None:
         set_seed(seed)
 
+    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
+        config={
+            "name": tokenizer_name,
+            "config": config["General"]["config"],
+        }
+    )
+
     datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
         config={
             "name": dataset_file,
@@ -217,18 +216,24 @@ def train_func(config: Dict[str, Any]):
         }
     )
 
-    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
+    dataprocesser = common.dataprocesser.DataProcesser.registory.get("GeneralProcesser")(
         config={
-            "name": tokenizer_name,
-            "config": config["General"]["config"],
+            "per_device_train_batch_size": config["Training"]["batch_size"],
+            "per_device_eval_batch_size": config["Training"]["batch_size"],
+            "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
+            "max_length": config["Dataset"].get("max_length", 512),
+            "group": config["Dataset"].get("group", True),
+            "block_size": config["Dataset"].get("block_size", 512),
+            "shuffle": config["Dataset"].get("shuffle", False),
         }
     )
+    tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
 
     model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
         config={
             "name": base_model,
             "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
-            "device": torch.device(config["Training"]["device"]),
+            "device": torch.device(device),
             "config": config["General"]["config"],
             "enable_gradient_checkpointing": config["General"].get(
                 "enable_gradient_checkpointing", False
@@ -237,27 +242,32 @@ def train_func(config: Dict[str, Any]):
         }
     )
 
-    device = config["Training"]["device"]
-    training_args = convert_to_training_args(config)
-    dataprocesser_config = {
-        "type": "GeneralProcesser",
-        "per_device_train_batch_size": config["Training"]["batch_size"],
-        "per_device_eval_batch_size": config["Training"]["batch_size"],
-        "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
-        "max_length": config["Dataset"].get("max_length", 512),
-        "group": config["Dataset"].get("group", True),
-        "block_size": config["Dataset"].get("block_size", 512),
-        "shuffle": config["Dataset"].get("shuffle", False),
-    }
-    dataprocesser = common.dataprocesser.GeneralProcesser(dataprocesser_config)
-    tokenized_datasets = dataprocesser.prepare(tokenizer, datasets)
     if device in ["cpu", "gpu"]:
-        trainer = transformers.Trainer(
+        from transformers import Trainer, TrainingArguments
+
+        training_args = convert_to_training_args(TrainingArguments, config)
+        trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["validation"],
         )
+
+        common.logger.info("train start")
+        trainer.train()
+        common.logger.info("train finish")
+    elif device in ["hpu"]:
+        from optimum.habana.transformers import GaudiTrainer
+        from optimum.habana.transformers import GaudiTrainingArguments
+
+        training_args = convert_to_training_args(GaudiTrainingArguments, config)
+        trainer = GaudiTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=tokenized_datasets["train"],
+            eval_dataset=tokenized_datasets["validation"],
+        )
+
         common.logger.info("train start")
         trainer.train()
         common.logger.info("train finish")
@@ -330,18 +340,13 @@ def main(external_config=None):
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        if use_habana:
-            ray.init(runtime_env=runtime_env)
+        if device == "gpu":
+            num_cpus = (
+                resources_per_worker["CPU"] * num_training_workers + 1
+            )  # additional 1 for head worker
+            ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
         else:
-            import intel_extension_for_pytorch as ipex
-
-            if "xpu" in ipex.__version__:
-                num_cpus = (
-                    resources_per_worker["CPU"] * num_training_workers + 1
-                )  # additional 1 for head worker
-                ray.init(num_cpus=num_cpus, runtime_env=runtime_env)
-            else:
-                ray.init(runtime_env=runtime_env)
+            ray.init(runtime_env=runtime_env)
 
     common.logger.info(f"ray available resources = {ray.available_resources()}")
     use_gpu = True if device == "gpu" else False
@@ -352,7 +357,9 @@ def main(external_config=None):
         placement_strategy="SPREAD",
     )
 
-    if not use_habana and device == "gpu" and is_xpu_available():
+    # if try to use Intel GPU, convert device to 'xpu'
+    # due to accelerate internal use 'xpu' represent Intel GPU
+    if device == "gpu" and is_xpu_available():
         device = "xpu"
 
     if config.get("torch_config", None) is None:
