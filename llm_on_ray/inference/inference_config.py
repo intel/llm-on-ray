@@ -76,6 +76,16 @@ class IpexllmModelConfig(BaseModel):
         return v
 
 
+# for HPU model
+class HpuModelConfig(BaseModel):
+    # Enable HPU graph runtime
+    use_hpu_graphs: bool = True
+    # Enable Torch compile
+    torch_compile: bool = False
+    # Point to an HQT config json file
+    quant_config: Union[str, None] = None
+
+
 # for non-streaming response
 class GenerateResult(BaseModel):
     text: Union[str, List[str]] = ""
@@ -100,9 +110,6 @@ class ModelDescription(BaseModel):
 
     ipexllm: bool = False
     ipexllm_config: IpexllmModelConfig = IpexllmModelConfig()
-
-    # only effective when device is hpu
-    use_hpu_graphs: bool = True
 
     # prevent warning of protected namespaces
     # DO NOT TOUCH
@@ -139,6 +146,7 @@ class InferenceConfig(BaseModel):
     workers_per_group: int = 2
     device: str = DEVICE_CPU
     ipex: Ipex = Ipex()
+    hpu_model_config: HpuModelConfig = HpuModelConfig()
     model_description: ModelDescription = ModelDescription()
 
     # prevent warning of protected namespaces
