@@ -166,6 +166,7 @@ class FinetuneConfig(BaseModel):
     Dataset: Dataset
     Training: Training
 
+
 base_models: Dict[str, FinetuneConfig] = {}
 _models: Dict[str, FinetuneConfig] = {}
 
@@ -177,6 +178,6 @@ for model_file in os.listdir(_models_folder):
         continue
     with open(file_path, "r") as f:
         m: FinetuneConfig = parse_yaml_raw_as(FinetuneConfig, f)
-        _models[m.name] = m
+        _models[m.General.base_model] = m
 
 all_models = _models.copy()

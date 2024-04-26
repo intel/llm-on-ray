@@ -110,20 +110,20 @@ class LoggingCallback(LoggerCallback):
 
 class ChatBotUI:
     def __init__(
-            self,
-            all_models: Dict[str, InferenceConfig],
-            base_models: Dict[str, FinetuneConfig],
-            finetune_model_path: str,
-            finetuned_checkpoint_path: str,
-            repo_code_path: str,
-            default_data_path: str,
-            default_rag_path: str,
-            config: dict,
-            head_node_ip: str,
-            node_port: str,
-            node_user_name: str,
-            conda_env_name: str,
-            master_ip_port: str,
+        self,
+        all_models: Dict[str, InferenceConfig],
+        base_models: Dict[str, FinetuneConfig],
+        finetune_model_path: str,
+        finetuned_checkpoint_path: str,
+        repo_code_path: str,
+        default_data_path: str,
+        default_rag_path: str,
+        config: dict,
+        head_node_ip: str,
+        node_port: str,
+        node_user_name: str,
+        conda_env_name: str,
+        master_ip_port: str,
     ):
         self._all_models = all_models
         self._base_models = base_models
@@ -556,14 +556,15 @@ class ChatBotUI:
             finetune_config = self._base_models[model_name]
             gpt_base_model = finetune_config.General.gpt_base_model
 
-
         finetune_config = finetune_config.dict()
         last_gpt_base_model = False
         finetuned_model_path = os.path.join(self.finetuned_model_path, model_name, new_model_name)
 
         exist_worker = int(finetune_config["Training"].get("num_training_workers"))
 
-        exist_cpus_per_worker_ftn = int(finetune_config["Training"].get("resources_per_worker")["CPU"])
+        exist_cpus_per_worker_ftn = int(
+            finetune_config["Training"].get("resources_per_worker")["CPU"]
+        )
 
         ray_resources = ray.available_resources()
         if "CPU" not in ray_resources or cpus_per_worker_ftn * worker_num + 1 > int(
@@ -602,9 +603,9 @@ class ChatBotUI:
 
         finetune_config["Dataset"]["train_file"] = dataset
         if origin_model_path is not None:
-             finetune_config["General"]["base_model"] = origin_model_path
+            finetune_config["General"]["base_model"] = origin_model_path
         if tokenizer_path is not None:
-             finetune_config["General"]["tokenizer_name"] = tokenizer_path
+            finetune_config["General"]["tokenizer_name"] = tokenizer_path
         finetune_config["Training"]["epochs"] = num_epochs
         finetune_config["General"]["output_dir"] = finetuned_model_path
 
@@ -698,14 +699,14 @@ class ChatBotUI:
                 progress(
                     float(int(value_step) / int(total_steps)),
                     desc="Start Training: epoch "
-                         + str(value_epoch)
-                         + " / "
-                         + str(total_epochs)
-                         + "  "
-                         + "step "
-                         + str(value_step)
-                         + " / "
-                         + str(total_steps),
+                    + str(value_epoch)
+                    + " / "
+                    + str(total_epochs)
+                    + "  "
+                    + "step "
+                    + str(value_step)
+                    + " / "
+                    + str(total_steps),
                 )
             except Exception:
                 pass
@@ -713,15 +714,15 @@ class ChatBotUI:
         return "<h4 style='text-align: left; margin-bottom: 1rem'>Completed the fine-tuning process.</h4>"
 
     def deploy_func(
-            self,
-            model_name: str,
-            replica_num: int,
-            cpus_per_worker_deploy: int,
-            hpus_per_worker_deploy: int,
+        self,
+        model_name: str,
+        replica_num: int,
+        cpus_per_worker_deploy: int,
+        hpus_per_worker_deploy: int,
     ):
         self.shutdown_deploy()
         if cpus_per_worker_deploy * replica_num > int(
-                ray.available_resources()["CPU"]
+            ray.available_resources()["CPU"]
         ) or hpus_per_worker_deploy * replica_num > int(
             ray.available_resources()["HPU"] if "HPU" in ray.available_resources() else 0
         ):
