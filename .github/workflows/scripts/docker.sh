@@ -30,10 +30,29 @@ build_and_prune() {
     # Build Docker image and perform cleaning operation
     docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes 
     docker image prune -f
-
-    
+ 
 }
+build_and_prune_inference() {
+    # Set TARGET and DF-SUFFIX using the passed in parameters
+    local TARGET=$1
+    local DF_SUFFIX=$2
+    local USE_PROXY=$3
 
+    docker_args=()
+    docker_args+=("--build-arg=CACHEBUST=1")
+
+    if [ -n "$USE_PROXY" ]; then
+        docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
+        docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
+    fi
+    
+    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
+
+    # Build Docker image and perform cleaning operation
+    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes 
+    docker image prune -f
+ 
+}
 
 start_docker() {
     local TARGET=$1
