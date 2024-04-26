@@ -242,6 +242,10 @@ def train_func(config: Dict[str, Any]):
         }
     )
 
+    data_collator = common.dataprocesser.general_processer.DataCollatorForCompletionOnlyLM(
+        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
+    )
+
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
@@ -251,6 +255,8 @@ def train_func(config: Dict[str, Any]):
             args=training_args,
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["validation"],
+            tokenizer=tokenizer,
+            data_collator=data_collator,
         )
 
         common.logger.info("train start")
@@ -266,6 +272,8 @@ def train_func(config: Dict[str, Any]):
             args=training_args,
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["validation"],
+            tokenizer=tokenizer,
+            data_collator=data_collator,
         )
 
         common.logger.info("train start")
