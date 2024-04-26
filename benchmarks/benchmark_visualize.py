@@ -1,3 +1,19 @@
+#
+# Copyright 2023 The LLM-on-Ray Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import argparse
 import matplotlib.pyplot as plt
 import string
@@ -23,7 +39,7 @@ def extract_metric(file_name, mark_name):
     with open(file_name, "r") as file:
         logs = file.read()
     extract_value = re.findall(marks[mark_name] + r"\s+([\d.]+)", logs)
-    print(f"extract_value： {extract_value}")
+    print(f"extract {mark_name}： {extract_value}")
     if mark_name in ["bs_mark", "iter_mark", "input_tokens_length_mark", "prompts_num_mark"]:
         extract_value = list(map(int, extract_value))
     else:
@@ -105,8 +121,9 @@ def plot_latency_throughput(concurrency, latency, throughput, save_path):
 
 def main(args):
     choice = args.choice
-    if choice == 1:
-        # draw vllm peak throughput
+    if 1 in choice:
+        # get the peak output throughput of llm-on-ray with vllm
+        print("draw the output token throughput of llm-on-ray with vllm")
         log_file_vllm = "benchmarks/logs/1_result.txt"
         bs = extract_metric(log_file_vllm, "bs_mark")
 
@@ -114,8 +131,9 @@ def main(args):
         save_path = "benchmarks/figures/1_vllm_peak_throughput.png"
         output_Token_Throughput = extract_metric(log_file_vllm, mark_name)
         plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_path)
-    elif choice == 2:
-        # draw vllm vs llmonray(output token throughput, average latency per token)
+    if 2 in choice:
+        # compare output token throughput(average latency per token) between llm-on-ray with vllm and llm-on-ray
+        print("draw vllm vs llmonray(output token throughput/average latency per token)")
         log_file_vllm = "benchmarks/logs/2_result_vllm.txt"
         log_file_llmonray = "benchmarks/logs/2_result_llmonray.txt"
         bs = extract_metric(log_file_vllm, "bs_mark")
@@ -139,8 +157,9 @@ def main(args):
             mark_name,
             save_path,
         )
-    elif choice == 3:
-        # draw average_latency_for_next_token vs output tokens throughput
+    if 3 in choice:
+        # latency vs throughput tradeoff for various number of requests
+        print("draw latency vs throughput tradeoff for various number of requests")
         log_file = "benchmarks/logs/3_result.txt"
         iters = extract_metric(log_file, "iter_mark")
         num_prompts = extract_metric(log_file, "prompts_num_mark")
@@ -158,8 +177,9 @@ def main(args):
         plot_latency_throughput(
             num_prompts[:per_iter_len], avg_latency_next_token, avg_output_throughput, save_path
         )
-    elif choice == 4:
-        # get the best latency of llm on ray with vllm
+    if 4 in choice:
+        # get the latency of llm-on-Ray with vllm
+        print("get the latency of llm-on-ray with vllm")
         log_file = "benchmarks/logs/4_result.txt"
         iters = extract_metric(log_file, "iter_mark")
         input_tokens_length_li = extract_metric(log_file, "input_tokens_length_mark")
@@ -173,10 +193,10 @@ def main(args):
         per_iter_len = int(len(input_tokens_length_li) / num_iter)
         avg_latency_first_token = get_avg_metric(latency_first_token, num_iter, per_iter_len)
         avg_latency_next_token = get_avg_metric(latency_next_token, num_iter, per_iter_len)
-        print("result: ")
-        print(input_tokens_length_li[:per_iter_len])
-        print(avg_latency_first_token)
-        print(avg_latency_next_token)
+        print("Results: ")
+        print(f"input_tokens_length: {input_tokens_length_li[:per_iter_len]}")
+        print(f"avg_latency_first_token: {avg_latency_first_token}")
+        print(f"avg_latency_next_token: {avg_latency_next_token}")
 
 
 if __name__ == "__main__":
@@ -185,9 +205,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--choice",
-        required=True,
+        nargs="*",
+        default=[1, 2, 3, 4],
         type=int,
-        help="Which type of chart to draw. [1: vllm peak throughput, 2: vllm vs llmonray, 3: latency_throughput, 4: get the latecy of llmonray with vllm]",
+        help="Which type of figure to draw. [1: the peak throughput of llm-on-ray, 2: llm-on-ray with vllm vs llm-on-ray, 3: latency_throughput, 4: get the latecy of llm-on-ray with vllm]",
     )
     args = parser.parse_args()
     main(args)
