@@ -26,6 +26,8 @@ from typing import AsyncGenerator, List, Tuple, Union, Dict, Any
 from starlette.requests import Request
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
+
+from llm_on_ray.inference.chat_template_process import ChatTemplatePreprocess
 from llm_on_ray.inference.inference_config import InferenceConfig
 from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ChatMessage,
@@ -82,6 +84,8 @@ class PredictorDeployment:
             self.predictor = TransformerPredictor(infer_conf)
 
         self.loop = asyncio.get_running_loop()
+        self.process_tool = ChatTemplatePreprocess(self.predictor.tokenizer)
+
 
     def consume_streamer(self, streamer):
         for text in streamer:
@@ -285,13 +289,12 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
-    # TODO:Abstract the preprocess_prompts function into a class for handling chat templates
-    def preprocess_prompts(self, input: Union[str, list], tools=None, tool_choice=None):
+    def preprocess_prompts(self, input: Union[str, List], tools=None, tool_choice=None):
         """
         Preprocesses the input prompts.
 
         Args:
-            input (Union[str, List[dict]]): The input prompt(s) to be preprocessed.
+            input (Union[str, List[str]]): The input prompt(s) to be preprocessed.
             tools (List[str]): The list of tools to be used.
             tool_choice: The choice of tool to be used.
 
@@ -310,7 +313,10 @@ class PredictorDeployment:
         """
         if isinstance(input, str):
             return input
-        elif isinstance(input, list):
+        elif isinstance(input, List):
+            prompts = []
+            images = []
+
             prompt_format = get_prompt_format(input)
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 # Process the input prompts with tools
@@ -327,63 +333,23 @@ class PredictorDeployment:
                             m.content = self.openai_tools_prompter.content_from_assistant(m)  # type: ignore
                         elif m.tool_call_id is not None:  # type: ignore
                             m.content = self.openai_tools_prompter.content_from_tool(m)  # type: ignore
-
-                if self.predictor.infer_conf.model_description.chat_template is not None:
-                    self.predictor.tokenizer.chat_template = (
-                        self.predictor.infer_conf.model_description.chat_template
-                    )
-                elif self.predictor.tokenizer.chat_template is None:
-                    self.predictor.tokenizer.chat_template = (
-                        self.predictor.infer_conf.model_description.default_chat_template
-                    )
-
-                if self.is_mllm:
-                    if isinstance(input, list):
-                        if isinstance(input, list) and input and isinstance(input[0], ChatMessage):
-                            messages = []
-                            for chat_message in input:
-                                message = {
-                                    "role": chat_message.role,
-                                    "content": chat_message.content,
-                                }
-                                messages.append(message)
-                            texts, images = self._extract_messages(messages)
-                        elif isinstance(input, list) and input and isinstance(input[0], dict):
-                            texts, images = self._extract_messages(input)
-                        elif isinstance(input, list) and input and isinstance(input[0], list):
-                            texts, images = [self._extract_messages(p) for p in input]
-
-                        image = self._prepare_image(images)
-                        prompt = self.predictor.tokenizer.apply_chat_template(texts, tokenize=False)
-                        return prompt, image
-                else:
-                    if isinstance(input, list) and input and isinstance(input[0], dict):
-                        prompt = self.predictor.tokenizer.apply_chat_template(input, tokenize=False)
-                    elif isinstance(input, list) and input and isinstance(input[0], list):
-                        prompt = [
-                            self.predictor.tokenizer.apply_chat_template(t, tokenize=False)
-                            for t in input
-                        ]
-                    elif isinstance(input, list) and input and isinstance(input[0], ChatMessage):
-                        messages = []
-                        for chat_message in input:
-                            message = {"role": chat_message.role, "content": chat_message.content}
-                            messages.append(message)
-                        prompt = self.predictor.tokenizer.apply_chat_template(
-                            messages, tokenize=False
-                        )
-                    elif isinstance(input, list) and input and isinstance(input[0], str):
-                        prompt = input
-                    elif isinstance(input, str):
-                        prompt = input
+                # Process the input prompts with MLLM tool
+                if self.process_tool is not None:
+                    if self.is_mllm:
+                        input, image = self.process_tool.get_prompt(input, self.is_mllm)
+                        prompts.append(input)
+                        images.extend(image)
+                        return prompts, images
                     else:
-                        raise TypeError(
-                            f"Unsupported type {type(input)} for text. Expected dict or list of dicts."
-                        )
-                return prompt
+                        prompt = self.process_tool.get_prompt(input)
+                        return prompt
+                else:
+                    prompts.extend(input)
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
+                prompts.extend(input)
+            else:
                 raise HTTPException(400, "Invalid prompt format.")
-            return input
+            return prompts
         else:
             raise HTTPException(400, "Invalid prompt format.")
 
