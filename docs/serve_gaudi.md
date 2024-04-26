@@ -6,6 +6,7 @@ This guide provides steps for deploying and serving LLMs with HPU, including the
 * Deploy Llama2-7b model using single HPU
 * Deploy Llama2-70b model using 8 HPUs
 * How to deploy them on our Web UI
+* Advanced usages: quantization, torch compile
 
 ## Setup
 Please follow [setup.md](setup.md) to setup the environment for HPU first.
@@ -51,3 +52,27 @@ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
 You can now start the UI: `python llm_on_ray/ui/start-ui.py --node_port 3022 --master_ip_port RAY_HEAD_ADDRESS`
 
 Under the **inference** tab, choose the models to deploy. Then, expand **Parameters**, drag the slider for CPU to 1, and the one for HPU to 1. You can now hit the **Deploy** button and wait for the service is up. After you see model endpoint gets printed, you can now chat with the deployed model.
+
+## Advanced usages
+### Torch Compile
+You can enable torch compile by adding such config:
+```yaml
+hpu_model_config:
+  torch_compile: true
+```
+Note that torch compile only works for llama models.
+
+### Quantization
+
+#### 1. Measurement
+To enable HPU quantization, you need to first run measurements on the model. Please visit [here](https://github.com/huggingface/optimum-habana/tree/main/examples/text-generation#running-with-fp8) for instructions and complete the measurement. Save the output statistics for future use.
+
+#### 2. Deploy quantized model
+Once you complete the measurement, enable quantization by adding such config:
+```yaml
+hpu_model_config:
+  quant_config: ./quant.json
+```
+Make sure the config json file contains correct path to the measurement output you just created.
+
+For more details, please visit [this tutorial](https://docs.habana.ai/en/latest/PyTorch/Inference_on_PyTorch/Inference_Using_FP8.html).

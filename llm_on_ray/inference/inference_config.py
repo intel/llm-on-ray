@@ -80,7 +80,7 @@ class IpexllmModelConfig(BaseModel):
 class HpuModelConfig(BaseModel):
     # Enable HPU graph runtime
     use_hpu_graphs: bool = True
-    # Enable Torch compile
+    # Enable Torch compile, only works for llama
     torch_compile: bool = False
     # Point to an HQT config json file
     quant_config: Union[str, None] = None
