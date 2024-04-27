@@ -19,9 +19,8 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
 class ChatTemplatePreprocess:
-
-    def __init__(self, tokenizer) -> None:
-        self.tokenizer = tokenizer
+    def __init__(self, predictor) -> None:
+        self.predictor = predictor
 
     def get_prompt(self, input: List, is_mllm=False):
         """Generate response based on input."""
@@ -58,17 +57,14 @@ class ChatTemplatePreprocess:
                 prompt = self.predictor.tokenizer.apply_chat_template(input, tokenize=False)
             elif isinstance(input, list) and input and isinstance(input[0], list):
                 prompt = [
-                    self.predictor.tokenizer.apply_chat_template(t, tokenize=False)
-                    for t in input
+                    self.predictor.tokenizer.apply_chat_template(t, tokenize=False) for t in input
                 ]
             elif isinstance(input, list) and input and isinstance(input[0], ChatMessage):
                 messages = []
                 for chat_message in input:
                     message = {"role": chat_message.role, "content": chat_message.content}
                     messages.append(message)
-                prompt = self.predictor.tokenizer.apply_chat_template(
-                    messages, tokenize=False
-                )
+                prompt = self.predictor.tokenizer.apply_chat_template(messages, tokenize=False)
             elif isinstance(input, list) and input and isinstance(input[0], str):
                 prompt = input
             elif isinstance(input, str):

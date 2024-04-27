@@ -84,8 +84,7 @@ class PredictorDeployment:
             self.predictor = TransformerPredictor(infer_conf)
 
         self.loop = asyncio.get_running_loop()
-        self.process_tool = ChatTemplatePreprocess(self.predictor.tokenizer)
-
+        self.process_tool = ChatTemplatePreprocess(self.predictor)
 
     def consume_streamer(self, streamer):
         for text in streamer:
@@ -311,6 +310,10 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
+        logger.info("preprocess_prompts")
+        logger.info(input)
+        logger.info(type(input))
+
         if isinstance(input, str):
             return input
         elif isinstance(input, List):
@@ -366,6 +369,7 @@ class PredictorDeployment:
             )
         streaming_response = json_request["stream"] if "stream" in json_request else False
         input = json_request["text"] if "text" in json_request else ""
+
         if input == "":
             return JSONResponse(
                 status_code=400,
@@ -402,5 +406,3 @@ class PredictorDeployment:
                 yield result
         else:
             yield await self.handle_non_streaming(prompts, config)
-
-
