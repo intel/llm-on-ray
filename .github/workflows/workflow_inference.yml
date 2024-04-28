@@ -135,7 +135,7 @@ jobs:
               with open(conf_path, 'w') as output:
                   yaml.dump(result, output, sort_keys=False)
           if ("${{ matrix.model }}" == "llama-2-7b-chat-hf-vllm"):
-            conf_path = ".github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml"
+              conf_path = ".github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml"
               with open(conf_path, encoding="utf-8") as reader:
                   result = yaml.load(reader, Loader=yaml.FullLoader)
                   result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
