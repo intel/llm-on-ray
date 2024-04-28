@@ -40,11 +40,11 @@ jobs:
 
         exclude:
           - { isPR: true }
-        # include:
-        #   - { model: "EleutherAI/gpt-j-6b"}
-        #   - { model: "meta-llama/Llama-2-7b-chat-hf"}
-        #   - { model: "mistralai/Mistral-7B-v0.1"}
-        #   - { model: "google/gemma-2b"}
+        include:
+          - { model: "EleutherAI/gpt-j-6b"}
+          - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          - { model: "mistralai/Mistral-7B-v0.1"}
+          - { model: "google/gemma-2b"}
 
     runs-on: self-hosted
 

@@ -42,13 +42,13 @@ jobs:
           - { isPR: true }
 
         include:
-          # - { model: "gpt-j-6b"}
-          # - { model: "mistral-7b-v0.1"}
-          # - { model: "mpt-7b-ipex-llm"}
+          - { model: "gpt-j-6b"}
+          - { model: "mistral-7b-v0.1"}
+          - { model: "mpt-7b-ipex-llm"}
           - { model: "llama-2-7b-chat-hf-vllm"}
-          # - { model: "gemma-2b"}
-          # - dtuner_model: nathan0/mpt-7b-deltatuner-model
-          #   model: mpt-7b
+          - { model: "gemma-2b"}
+          - dtuner_model: nathan0/mpt-7b-deltatuner-model
+            model: mpt-7b
 
     runs-on: self-hosted
 
@@ -118,37 +118,11 @@ jobs:
       - name: Run Inference Test
         run: |
           TARGET=${{steps.target.outputs.target}}
-          CMD=$(cat << EOF
-          import yaml
-          if ("${{ matrix.model }}" == "starcoder"):
-              conf_path = "llm_on_ray/inference/models/starcoder.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          if ("${{ matrix.model }}" == "llama-2-7b-chat-hf"):
-              conf_path = "llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          if ("${{ matrix.model }}" == "gemma-2b"):
-              conf_path = "llm_on_ray/inference/models/gemma-2b.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          EOF
-          )
-          docker exec "${TARGET}" python -c "$CMD"
+          # Enable non-gated and gated models access
+          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            # Enable gated model access
-            docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
           else
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
