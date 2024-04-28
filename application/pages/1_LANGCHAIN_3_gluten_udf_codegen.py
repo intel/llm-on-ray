@@ -13,21 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import requests
 import streamlit as st
-
-from codegen.coder import (
-    generate_to_cpp_code,
-    generate_velox_udf,
-    retrieve_reference,
-    generate_keywords,
-)
-
-from langchain_community.chat_models import ChatOpenAI
+from code_editor import code_editor
+import json
 
 st.set_page_config(page_title="Gluten_Coder_Chatbot_V2", page_icon="💬")
 st.header("Gluten Coder Chatbot")
 st.write("Convert code to Gluten/Velox UDF with the LLM")
-from code_editor import code_editor
 
 code_editor_btns_config = [
     {
@@ -77,21 +70,16 @@ info_bar = {
 
 class Basic:
     def __init__(self):
-        self.openai_model = "deepseek-coder:33b-instruct"
-        self.coder_llm = ChatOpenAI(
-            openai_api_base="http://localhost:8000/v1",
-            model_name="deepseek-coder-33b-instruct",
-            openai_api_key="not_needed",
-            streaming=False,
-        )
+        self.server_url = "http://127.0.0.1:8000"
 
-        self.general_llm = self.coder_llm
-        # self.general_llm = ChatOpenAI(
-        #     openai_api_base="http://localhost:8000/v1",
-        #     model_name="mistral-7b-instruct-v0.2",
-        #     openai_api_key="not_needed",
-        #     streaming=False,
-        # )
+    def _post_parse_response(self, response):
+        if response.status_code == 200:
+            text = response.text
+            json_data = json.loads(text)
+            return json_data
+        else:
+            print("Error Code: ", response.status_code)
+            return None
 
     def main(self):
         step = 1
@@ -117,7 +105,11 @@ class Basic:
                 st.write(f"Step {step}:  convert the code into C++")
                 step += 1
             with st.spinner("Converting your code to C++..."):
-                cpp_code_res, cpp_code = generate_to_cpp_code(self.coder_llm, code_to_convert)
+                data = {"code": code_to_convert}
+                response = requests.post(self.server_url + "/v1/convert_to_cpp", json=data)
+                json_data = self._post_parse_response(response)
+                cpp_code_res = json_data["answer"]
+                cpp_code = json_data["cpp_code"]
                 with st.chat_message("ai"):
                     st.markdown(cpp_code_res)
 
@@ -125,7 +117,10 @@ class Basic:
                 st.write(f"Step {step}: Analyze the keywords that may need to be queried")
                 step += 1
             with st.spinner("Analyze the  code..."):
-                keywords = generate_keywords(self.general_llm, cpp_code)
+                data = {"cpp_code": cpp_code}
+                response = requests.post(self.server_url + "/v1/generate_keywords", json=data)
+                json_data = self._post_parse_response(response)
+                keywords = json_data["velox_keywords"]
                 with st.chat_message("ai"):
                     st.markdown("\n".join(keywords))
 
@@ -133,22 +128,27 @@ class Basic:
                 st.write(f"Step {step}: Retrieve related knowledge from velox documentations")
                 step += 1
             with st.spinner("Retrieve reference from velox document and code..."):
-                rag_source = retrieve_reference(tuple(keywords))
+                data = {"velox_keywords": keywords}
+                response = requests.post(self.server_url + "/v1/retrieve_doc", json=data)
+                json_data = self._post_parse_response(response)
+                related_docs = json_data["related_docs"]
                 with st.chat_message("ai"):
-                    st.write(rag_source)
+                    st.write(related_docs)
 
             with st.chat_message(name="assistant", avatar="🧑‍💻"):
                 st.write(f"Step {step}: Based on the previous analysis, rewrite velox based UDF")
                 step += 1
             with st.spinner("Converting the C++ code to velox based udf..."):
-                result = generate_velox_udf(
-                    self.coder_llm,
-                    code_to_convert,
-                    rag_queries=",".join(keywords),
-                    rag_text=rag_source,
-                )
+                data = {
+                    "velox_keywords": keywords,
+                    "code": code_to_convert,
+                    "related_docs": related_docs,
+                }
+                response = requests.post(self.server_url + "/v1/get_gluten_udf", json=data)
+                json_data = self._post_parse_response(response)
+                udf_answer = json_data["udf_answer"]
                 with st.chat_message("ai"):
-                    st.markdown(result)
+                    st.markdown(udf_answer)
 
 
 if __name__ == "__main__":
