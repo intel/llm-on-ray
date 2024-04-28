@@ -36,7 +36,7 @@ class VllmPredictor(Predictor):
         dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"
 
         # Set environment variable VLLM_CPU_KVCACHE_SPACE to control the size of the CPU key-value cache.
-        # The default value is 40MB.
+        # The default value is 40GB.
         os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
 
         args = AsyncEngineArgs(
