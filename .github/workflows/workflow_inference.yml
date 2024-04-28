@@ -107,13 +107,16 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
+          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           inference_test ${TARGET} ${{ matrix.model }}
+
       - name: Run Inference Test with Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
           inference_test_deltatuner ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
+          
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}

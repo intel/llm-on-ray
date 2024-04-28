@@ -157,7 +157,6 @@ inference_test(){
 local TARGET=$1
 local model=$2
 
-docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
 docker exec "${TARGET}" bash -c "${INFERENCE_MAPPER["${model}"]}"
 
 echo Non-streaming query:
@@ -170,7 +169,8 @@ inference_test_deltatuner(){
     local TARGET=$1
     local dtuner_model=$2
     local model=$3
-    if [ -n "$dtuner_model" ];then
+    echo "${dtuner_model}"
+    if [ "${dtuner_model}" ];then
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
         docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model }"
         docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model } --streaming_response"
@@ -191,6 +191,18 @@ inference_test_deepspeed(){
     fi
 }
 
+inference_test_deepspeed_deltatuner(){
+    local TARGET=$1
+    local dtuner_model=$2
+    local model=$3
+    if [[ ${model} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
+        echo ${model} is not supported!
+    elif [[ ! ${model} == "llama-2-7b-chat-hf-vllm" ]]; then
+        docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+    fi
+}
 
 # model="mpt-7b-ipex-llm"
 # target=${TARGET_MAPPER[$model]}
