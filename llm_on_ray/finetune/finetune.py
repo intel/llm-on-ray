@@ -150,6 +150,7 @@ def convert_to_training_args(cls, config):
     if device == "cpu":
         if hasattr(cls, "no_cuda"):
             args.update({"no_cuda": True})
+        args.update({"use_ipex": True})
 
     # set attr 'deepspeed'
     if accelerate_mode == "DEEPSPEED":
