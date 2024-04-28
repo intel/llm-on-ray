@@ -39,8 +39,6 @@ class VllmPredictor(Predictor):
         # The default value is 40MB.
         os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
 
-        # Remove device=infer_conf.device here as CPU device type dispatch is not aligned in vLLM now
-        # Will add back when this is fixed
         args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
             trust_remote_code=model_config.trust_remote_code,
