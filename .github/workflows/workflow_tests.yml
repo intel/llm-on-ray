@@ -152,7 +152,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          DF_SUFFIX=".tests_cpu_and_deepspeed"
+          DF_SUFFIX=".tests_cpu"
           TARGET=${{steps.target.outputs.target}}
           docker build ./ --build-arg CACHEBUST=1 --build-arg python_v=${{matrix.python-version}} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
           docker container prune -f 

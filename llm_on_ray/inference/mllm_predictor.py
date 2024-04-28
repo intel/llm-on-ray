@@ -17,7 +17,7 @@
 import torch
 from transformers import TextIteratorStreamer
 from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
-from llm_on_ray.inference.utils import get_torch_dtype, module_import
+from llm_on_ray.inference.utils import decide_torch_dtype, module_import
 from llm_on_ray.inference.predictor import Predictor
 
 
@@ -33,13 +33,12 @@ class MllmPredictor(Predictor):
 
             adapt_transformers_to_gaudi()
         # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, None)
+        decide_torch_dtype(infer_conf)
 
         model_loader_name = infer_conf.model_description.model_loader
         input_processor_name = infer_conf.model_description.input_processor
         model = module_import("transformers", model_loader_name).from_pretrained(
             model_desc.model_id_or_path,
-            torch_dtype=torch_dtype,
             **model_desc.config.dict(),
         )
         processor = module_import("transformers", input_processor_name).from_pretrained(

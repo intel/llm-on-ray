@@ -26,15 +26,15 @@ from llm_on_ray.inference.torch_dist import (
 )
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
-from typing import List
+from typing import List, Union
 import os
 from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.utils import get_torch_dtype
+from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     GenerateResult,
     DEVICE_CPU,
-    DEVICE_XPU,
+    DEVICE_GPU,
     PRECISION_BF16,
 )
 
@@ -54,12 +54,11 @@ class DSPipeline:
             use_auth_token=infer_conf.model_description.config.use_auth_token,
         )
 
-        # get correct torch type for loading HF model
-        torch_dtype = get_torch_dtype(infer_conf, hf_config)
+        # decide correct torch type for loading HF model
+        decide_torch_dtype(infer_conf, hf_config)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_desc.model_id_or_path,
             config=hf_config,
-            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
             **model_config.dict(),
         )
@@ -130,7 +129,7 @@ class PredictionWorker(TorchDistributedWorker):
 
         if self.infer_conf.device == DEVICE_CPU:
             replace_with_kernel_inject = False
-        elif self.infer_conf.device == DEVICE_XPU:
+        elif self.infer_conf.device == DEVICE_GPU:
             replace_with_kernel_inject = False
         else:
             replace_with_kernel_inject = True
@@ -260,20 +259,34 @@ class DeepSpeedPredictor(Predictor):
         for worker in self.prediction_workers[1:]:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(self, prompt, **config):
-        input_ids, input_length = self.tokenize_inputs(prompt)
+    def generate(
+        self, prompts: Union[str, List[str]], **config
+    ) -> Union[GenerateResult, List[GenerateResult], None]:
+        input_ids, input_length = self.tokenize_inputs(prompts)
         inputs_ref = ray.put(input_ids)
         gen_tokens = ray.get(
             [worker.generate.remote(inputs_ref, **config) for worker in self.prediction_workers]
         )[0]
+
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-        if isinstance(prompt, list) and len(prompt) > 1:
-            return decode_result
-        return GenerateResult(
-            text=decode_result,
-            input_length=input_length,
-            generate_length=gen_tokens.size()[1] - input_length,
-        )
+
+        if isinstance(prompts, str):
+            return GenerateResult(
+                text=decode_result,
+                input_length=input_length,
+                generate_length=gen_tokens.size()[1] - input_length,
+            )
+        elif isinstance(prompts, List):
+            return [
+                GenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompts))
+            ]
+
+        return None
 
     def get_streamer(self):
         from llm_on_ray.inference.utils import RayTextIteratorStreamer

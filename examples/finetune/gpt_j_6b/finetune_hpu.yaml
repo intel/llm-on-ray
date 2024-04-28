@@ -25,7 +25,7 @@ Training:
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
-  device: HPU
+  device: hpu
   num_training_workers: 2
   accelerate_mode: DDP
   resources_per_worker:

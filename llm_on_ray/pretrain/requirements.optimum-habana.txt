@@ -2,7 +2,7 @@ accelerate==0.21.0
 datasets==2.12.0
 numpy==1.24.4
 https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
-transformers==4.36.0
+transformers==4.38.0
 typing==3.7.4.3
 tabulate
 ray[tune]
@@ -11,7 +11,7 @@ gradio
 gymnasium
 dm-tree
 scikit-image
-pydantic==1.10.11
+pydantic==1.10.13
 tensorboard
 einops
 gpustat==1.0.0
