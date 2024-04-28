@@ -310,9 +310,6 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
-        logger.info("preprocess_prompts")
-        logger.info(input)
-        logger.info(type(input))
 
         if isinstance(input, str):
             return input
@@ -357,7 +354,6 @@ class PredictorDeployment:
             raise HTTPException(400, "Invalid prompt format.")
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
-        logger.info("PredictorDeployment call")
         self.use_openai = False
 
         try:
@@ -376,7 +372,6 @@ class PredictorDeployment:
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
-        logger.info(input)
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
 
