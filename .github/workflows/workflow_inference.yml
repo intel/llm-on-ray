@@ -76,50 +76,82 @@ jobs:
         id: "target"
         run: |
           target="inference"
-          source dev/scripts/docker.sh
-          target="${target}${TARGET_MAPPER[${{ matrix.model}}]}"
+          if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
+            target="${target}_ipex-llm"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            target="${target}_vllm"
+          fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
-          source dev/scripts/docker.sh
-          DF_SUFFIX="${DF_SUFFIX_MAPPER[${{ matrix.model }}]}"
+          if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
+            DF_SUFFIX=".ipex-llm"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            DF_SUFFIX=".vllm"
+          elif [[ ${{ matrix.model }} == "gpt-j-6b" ]]; then
+            DF_SUFFIX=".cpu_and_deepspeed.pip_non_editable"
+          else
+            DF_SUFFIX=".cpu_and_deepspeed"
+          fi
           TARGET=${{steps.target.outputs.target}}
-
-          build_and_prune_inference ${TARGET} ${DF_SUFFIX}
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest
+          docker container prune -f
+          docker image prune -f
 
       - name: Start Docker Container
         run: |
           TARGET=${{steps.target.outputs.target}}
-          code_checkout_path=${{ inputs.code_checkout_path }}
-          model_cache_path=${{ inputs.model_cache_path }}
-          source dev/scripts/docker.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_checkout_path} 
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
 
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/docker.sh
-          strat_ray ${TARGET}
+          docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
 
       - name: Run Inference Test
         run: |
           TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/docker.sh
-          inference_test ${TARGET} ${{ matrix.model }}
+          # Enable non-gated and gated models access
+          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
+          if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
+          else
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
+          fi
+          echo Non-streaming query:
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          echo Streaming query:
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+
       - name: Run Inference Test with Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/docker.sh
-          inference_test_deltatuner ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
+          docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/docker.sh
-          inference_test_deepspeed ${TARGET} ${{ matrix.model }}
-          
+          if [[ ${{ matrix.model }} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
+            echo ${{ matrix.model }} is not supported!
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file \"${{ matrix.model }}\".yaml.deepspeed --simple"
+            docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+            docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+          fi
+
       - name: Run Inference Test with DeepSpeed and Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
