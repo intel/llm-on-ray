@@ -77,14 +77,14 @@ jobs:
         run: |
           target="inference"
           source dev/scripts/docker.sh
-          target="${target}${TARGET_MAPPER[${{ matrix.model}}]}"
+          target="${target}$(get_DF_SUFFIX_MAPPER ${{ matrix.model }})"
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
           source dev/scripts/docker.sh
-          DF_SUFFIX="${DF_SUFFIX_MAPPER[${{ matrix.model }}]}"
+          DF_SUFFIX="$(get_DF_SUFFIX_MAPPER ${{ matrix.model }})"
           TARGET=${{steps.target.outputs.target}}
 
           build_and_prune_inference ${TARGET} ${DF_SUFFIX}

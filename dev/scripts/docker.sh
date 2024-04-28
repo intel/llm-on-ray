@@ -118,15 +118,33 @@ DF_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]=".ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]=".vllm"
     ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
-    ["default"]=".cpu_and_deepspeed"
 )
+
+
+get_DF_SUFFIX_MAPPER() {
+    local key="$1"
+    if [[ ${DF_SUFFIX_MAPPER[$key]+_} ]]; then
+        echo "${DF_SUFFIX_MAPPER[$key]}"
+    else
+        echo ".cpu_and_deepspeed"
+    fi
+}
 
 declare -A TARGET_MAPPER
 TARGET_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]="_vllm"
-    ["default"]=""
 )
+
+get_TARGET_MAPPER() {
+    local key="$1"
+    if [[ ${TARGET_MAPPER[$key]+_} ]]; then
+        echo "${TARGET_MAPPER[$key]}"
+    else
+        echo ""
+    fi
+}
+
 
 declare -A INFERENCE_MAPPER
 INFERENCE_MAPPER=(

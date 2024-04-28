@@ -166,7 +166,7 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           code_checkout_path=${{ github.workspace }}
-          source docker.sh
+          source dev/scripts/docker.sh
           start_docker ${TARGET} ${code_checkout_path}
       
       - name: Install Dependencies for Tests
