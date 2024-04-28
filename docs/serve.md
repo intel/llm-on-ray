@@ -24,7 +24,7 @@ To deploy on Gaudi, please make sure `device` is set to hpu and `hpus_per_worker
 hpus_per_worker: 1
 device: hpu
 ```
-LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [BigDL-LLM](serve_bigdl.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
+LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [IPEX-LLM](serve_ipex-llm.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
 
 ## Serving
 We support three methods to specify the models to be served, and they have the following priorities.

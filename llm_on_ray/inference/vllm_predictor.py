@@ -15,6 +15,7 @@
 #
 
 import asyncio
+import os
 from typing import AsyncGenerator, List, Union
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
@@ -25,6 +26,8 @@ from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResul
 
 
 class VllmPredictor(Predictor):
+    VLLM_CPU_KVCACHE_SPACE_DEFAULT = 40
+
     def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         super().__init__(infer_conf)
 
@@ -32,13 +35,16 @@ class VllmPredictor(Predictor):
         model_config = model_desc.config
         dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"
 
+        # Set environment variable VLLM_CPU_KVCACHE_SPACE to control the size of the CPU key-value cache.
+        # The default value is 40GB.
+        os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
+
         args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
             dtype=dtype,
             disable_log_requests=True,
-            swap_space=40,
             max_num_seqs=max_num_seqs,
         )
 

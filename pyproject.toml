@@ -41,9 +41,9 @@ dependencies = [
 [project.optional-dependencies]
 cpu = [
     "transformers>=4.38.0, <=4.38.1",
-    "intel_extension_for_pytorch>=2.2.0",
-    "torch>=2.2.0",
-    "oneccl_bind_pt>=2.2.0"
+    "intel_extension_for_pytorch==2.2.0",
+    "torch==2.2.0",
+    "oneccl_bind_pt==2.2.0"
 ]
 
 gpu = [
@@ -64,8 +64,8 @@ deepspeed = [
     "deepspeed>=0.10.2, <0.11.2"
 ]
 
-bigdl-cpu = [
-    "bigdl-llm[all]==2.5.0b20240222"
+ipex-llm = [
+    "ipex-llm[all]==2.1.0b20240408"
 ]
 
 

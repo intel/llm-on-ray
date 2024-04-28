@@ -5,16 +5,8 @@ on:
     branches:
       - main
     paths:
-      - '.github/**'
-      - 'docker/**'
-      - 'dev/docker/**'
-      - 'llm_on_ray/common/**'
-      - 'llm_on_ray/finetune/**'
-      - 'llm_on_ray/inference/**'
-      - 'llm_on_ray/rlhf/**'
-      - 'tools/**'
-      - 'pyproject.toml'
-      - 'tests/**'
+      - '**'
+      - '!*.md'
 
 jobs:
   Lint:
