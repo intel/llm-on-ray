@@ -37,8 +37,6 @@ jobs:
 
         include:
           - { model: "llama-2-7b-chat-hf"}
-          - dtuner_model: nathan0/mpt-7b-deltatuner-model
-            model: mpt-7b
 
     runs-on: gaudi2
 
