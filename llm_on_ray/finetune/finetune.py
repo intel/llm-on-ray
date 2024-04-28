@@ -32,12 +32,6 @@ from ray.air import RunConfig, FailureConfig
 
 from pydantic_yaml import parse_yaml_raw_as
 
-from accelerate import DeepSpeedPlugin
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-    FullOptimStateDictConfig,
-    FullStateDictConfig,
-)
-
 from llm_on_ray import common
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 from importlib import util
@@ -151,6 +145,11 @@ def convert_to_training_args(cls, config):
     # set attr 'use_cpu'
     if hasattr(cls, "use_cpu"):
         args.update({"use_cpu": True if device == "cpu" else False})
+
+    # set attr for device cpu
+    if device == "cpu":
+        if hasattr(cls, "no_cuda"):
+            args.update({"no_cuda": True})
 
     # set attr 'deepspeed'
     if accelerate_mode == "DEEPSPEED":
@@ -339,11 +338,11 @@ def main(external_config=None):
                 "FI_PROVIDER": "tcp",
             }
         }
-        accelerate_env_vars = get_accelerate_environment_variable(config)
-        runtime_env["env_vars"].update(accelerate_env_vars)
+        # accelerate_env_vars = get_accelerate_environment_variable(config)
+        # runtime_env["env_vars"].update(accelerate_env_vars)
 
-        device_env_vars = get_device_environment_variable(device)
-        runtime_env["env_vars"].update(device_env_vars)
+        # device_env_vars = get_device_environment_variable(device)
+        # runtime_env["env_vars"].update(device_env_vars)
 
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
