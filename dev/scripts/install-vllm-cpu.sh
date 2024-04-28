@@ -4,7 +4,10 @@
 [[ -n $(which g++) ]] || { echo "GNU C++ Compiler (g++) is not found!";  exit 1; }
 [[ -n $(which pip) ]] || { echo "pip command is not found!";  exit 1; }
 
-# g++ version should be >=12.3
+# g++ version should be >=12.3. On Ubuntu 22.4, you can run:
+# sudo apt-get update  -y
+# sudo apt-get install -y gcc-12 g++-12
+# sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
 version_greater_equal()
 {
     printf '%s\n%s\n' "$2" "$1" | sort --check=quiet --version-sort
