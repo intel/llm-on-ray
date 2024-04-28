@@ -96,7 +96,7 @@ jobs:
             DF_SUFFIX=".cpu_and_deepspeed"
           fi
           TARGET=${{steps.target.outputs.target}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest
           docker container prune -f
           docker image prune -f
 
@@ -118,32 +118,8 @@ jobs:
       - name: Run Inference Test
         run: |
           TARGET=${{steps.target.outputs.target}}
-          CMD=$(cat << EOF
-          import yaml
-          if ("${{ matrix.model }}" == "starcoder"):
-              conf_path = "llm_on_ray/inference/models/starcoder.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          if ("${{ matrix.model }}" == "llama-2-7b-chat-hf"):
-              conf_path = "llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          if ("${{ matrix.model }}" == "gemma-2b"):
-              conf_path = "llm_on_ray/inference/models/gemma-2b.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
-          EOF
-          )
-          docker exec "${TARGET}" python -c "$CMD"
+          # Enable non-gated and gated models access
+          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
