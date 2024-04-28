@@ -154,7 +154,7 @@ jobs:
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
           elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            echo .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml
+            cat .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
           else
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
