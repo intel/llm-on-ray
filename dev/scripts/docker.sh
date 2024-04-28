@@ -157,7 +157,7 @@ inference_test(){
 local TARGET=$1
 local model=$2
 
-docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{env.HF_ACCESS_TOKEN}}"
+docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
 docker exec "${TARGET}" bash -c "${INFERENCE_MAPPER["${model}"]}"
 
 echo Non-streaming query:
