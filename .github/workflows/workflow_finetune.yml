@@ -40,11 +40,11 @@ jobs:
 
         exclude:
           - { isPR: true }
-        include:
-          - { model: "EleutherAI/gpt-j-6b"}
-          - { model: "meta-llama/Llama-2-7b-chat-hf"}
-          - { model: "mistralai/Mistral-7B-v0.1"}
-          - { model: "google/gemma-2b"}
+        # include:
+        #   - { model: "EleutherAI/gpt-j-6b"}
+        #   - { model: "meta-llama/Llama-2-7b-chat-hf"}
+        #   - { model: "mistralai/Mistral-7B-v0.1"}
+        #   - { model: "google/gemma-2b"}
 
     runs-on: self-hosted
 
@@ -70,7 +70,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest 
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest
           docker container prune -f
           docker image prune -f
 
