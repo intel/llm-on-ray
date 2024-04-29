@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from typing import List, Union
+from typing import List
 
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
@@ -24,56 +24,31 @@ class ChatTemplatePreprocess:
 
     def get_prompt(self, input: List, is_mllm=False):
         """Generate response based on input."""
-        if self.predictor.infer_conf.model_description.chat_template is not None:
-            self.predictor.tokenizer.chat_template = (
-                self.predictor.infer_conf.model_description.chat_template
-            )
-        elif self.predictor.tokenizer.chat_template is None:
-            self.predictor.tokenizer.chat_template = (
-                self.predictor.infer_conf.model_description.default_chat_template
-            )
+        self.predictor.tokenizer.chat_template = (
+            self.predictor.infer_conf.model_description.chat_template
+            or self.predictor.tokenizer.chat_template
+            or self.predictor.infer_conf.model_description.default_chat_template
+        )
 
-        if is_mllm:
-            if isinstance(input, List):
-                if isinstance(input, list) and input and isinstance(input[0], ChatMessage):
-                    messages = []
-                    for chat_message in input:
-                        message = {
-                            "role": chat_message.role,
-                            "content": chat_message.content,
-                        }
-                        messages.append(message)
-                    texts, images = self._extract_messages(messages)
-                elif isinstance(input, list) and input and isinstance(input[0], dict):
-                    texts, images = self._extract_messages(input)
-                elif isinstance(input, list) and input and isinstance(input[0], list):
-                    texts, images = [self._extract_messages(p) for p in input]
-
+        if isinstance(input, list) and input and isinstance(input[0], (ChatMessage, dict)):
+            messages = (
+                [dict(chat_message) for chat_message in input]
+                if isinstance(input[0], ChatMessage)
+                else input
+            )
+            prompt = self.predictor.tokenizer.apply_chat_template(
+                messages, add_generation_prompt=True, tokenize=False
+            )
+            if is_mllm:
+                texts, images = self._extract_messages(messages)
                 image = self._prepare_image(images)
-                prompt = self.predictor.tokenizer.apply_chat_template(texts, tokenize=False)
-                return prompt, image
-        else:
-            if isinstance(input, list) and input and isinstance(input[0], dict):
-                prompt = self.predictor.tokenizer.apply_chat_template(input, tokenize=False)
-            elif isinstance(input, list) and input and isinstance(input[0], list):
-                prompt = [
-                    self.predictor.tokenizer.apply_chat_template(t, tokenize=False) for t in input
-                ]
-            elif isinstance(input, list) and input and isinstance(input[0], ChatMessage):
-                messages = []
-                for chat_message in input:
-                    message = {"role": chat_message.role, "content": chat_message.content}
-                    messages.append(message)
-                prompt = self.predictor.tokenizer.apply_chat_template(messages, tokenize=False)
-            elif isinstance(input, list) and input and isinstance(input[0], str):
-                prompt = input
-            elif isinstance(input, str):
-                prompt = input
-            else:
-                raise TypeError(
-                    f"Unsupported type {type(input)} for text. Expected dict or list of dicts."
+                prompt = self.predictor.tokenizer.apply_chat_template(
+                    texts, add_generation_prompt=True, tokenize=False
                 )
-        return prompt
+                return prompt, image
+            return prompt
+
+        raise TypeError(f"Unsupported type {type(input)} for text. Expected dict or list of dicts.")
 
     def _extract_messages(self, messages):
         texts, images = [], []
@@ -97,30 +72,16 @@ class ChatTemplatePreprocess:
 
         # prepare images
         images: List = []
-        if isinstance(messages[0], List):
-            for i in range(len(messages)):
-                for msg in messages[i]:
-                    msg = dict(msg)
-                    content = msg["content"]
-                    if "url" not in content:
-                        continue
-                    is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
-                    if is_data:
-                        encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
-                        images[i].append(Image.open(BytesIO(base64.b64decode(encoded_str))))
-                    else:
-                        images[i].append(Image.open(requests.get(content["url"], stream=True).raw))
-        elif isinstance(messages[0], dict):
-            for msg in messages:
-                msg = dict(msg)
-                content = msg["content"]
-                if "url" not in content:
-                    continue
-                is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
-                if is_data:
-                    encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
-                    images.append(Image.open(BytesIO(base64.b64decode(encoded_str))))
-                else:
-                    images.append(Image.open(requests.get(content["url"], stream=True).raw))
+        for msg in messages:
+            msg = dict(msg)
+            content = msg["content"]
+            if "url" not in content:
+                continue
+            is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
+            if is_data:
+                encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
+                images.append(Image.open(BytesIO(base64.b64decode(encoded_str))))
+            else:
+                images.append(Image.open(requests.get(content["url"], stream=True).raw))
 
         return images
