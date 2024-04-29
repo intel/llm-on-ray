@@ -111,7 +111,7 @@ class HPUPredictor(Predictor):
 
             # quantization
             if infer_conf.hpu_model_config.quant_config:
-                from quantization_toolkit import habana_quantization_toolkit
+                import habana_quantization_toolkit
 
                 habana_quantization_toolkit.prep_model(
                     model, config_path=infer_conf.hpu_model_config.quant_config
@@ -309,7 +309,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
 
         ds_inference_kwargs = {"dtype": model_dtype}
         ds_inference_kwargs["tensor_parallel"] = {"tp_size": self.world_size}
-        ds_inference_kwargs["enable_cuda_graph"] = model_desc.use_hpu_graphs
+        ds_inference_kwargs["enable_cuda_graph"] = self.infer_conf.hpu_model_config.use_hpu_graphs
         ds_inference_kwargs["injection_policy"] = get_ds_injection_policy(config)
         if load_to_meta:
             ds_inference_kwargs["checkpoint"] = checkpoints_json.name
@@ -334,7 +334,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
             patch_scoped_linear_all_reduce(self.model)
         # quantization
         if self.infer_conf.hpu_model_config.quant_config:
-            from quantization_toolkit import habana_quantization_toolkit
+            import habana_quantization_toolkit
 
             habana_quantization_toolkit.prep_model(
                 self.model, config_path=self.infer_conf.hpu_model_config.quant_config
