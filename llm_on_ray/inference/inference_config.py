@@ -122,20 +122,22 @@ class ModelDescription(BaseModel):
     chat_model_with_image: bool = False
     chat_template: Union[str, None] = None
     default_chat_template: str = (
-        "{{ bos_token }}"
+        "Below is an instruction that describes a task. Write a response that appropriately completes the request."
         "{% if messages[0]['role'] == 'system' %}"
-        "{{ raise_exception('System role not supported') }}"
-        "{% endif %}"
-        "{% for message in messages %}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}{% set loop_messages = messages %}"
+        "{% set system_message = false %}{% endif %}"
+        "{% for message in loop_messages %}"
         "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
         "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
         "{% endif %}"
         "{% if message['role'] == 'user' %}"
-        "{{ '### Instruction: ' + message['content'] + eos_token }}"
+        "{{ '### Instruction: ' + message['content'].strip() }}"
         "{% elif message['role'] == 'assistant' %}"
-        "{{ '### Response:'  + message['content'] + eos_token }}"
+        "{{ '### Response:'  + message['content'].strip() }}"
         "{% endif %}{% endfor %}"
-        "{{'### End \n'}}"
+        "{% if add_generation_prompt %}{{'### Response:\n'}}{% endif %}"
     )
 
     @validator("quantization_type")
