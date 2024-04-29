@@ -27,7 +27,7 @@ device: hpu
 LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [IPEX-LLM](serve_ipex-llm.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
 
 ## Serving
-We support three methods to specify the models to be served, and they have the following priorities.
+We support two methods to specify the models to be served, and they have the following priorities.
 1. Use inference configuration file if config_file is set.
 ```
 llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
