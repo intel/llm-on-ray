@@ -68,7 +68,11 @@ start_docker() {
     docker_args+=("--name=${TARGET}" )
     docker_args+=("--hostname=${TARGET}-container")
 
-    docker_args+=("-v=${model_cache_path }:${MODEL_CACHE_PATH_LOACL}")
+    if [-z "$model_cache_path" ];  then 
+        echo "nocache path" 
+    else 
+        docker_args+=("-v=${model_cache_path }:${MODEL_CACHE_PATH_LOACL}");
+    fi
 
     docker_args+=("-e=http_proxy=${HTTP_PROXY}")
     docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
