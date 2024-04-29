@@ -55,7 +55,6 @@ start_docker() {
     local TARGET=$1
     local code_checkout_path=$2
     local model_cache_path=$3
-    local USE_PROXY=$4
     
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
@@ -69,9 +68,7 @@ start_docker() {
     docker_args+=("--name=${TARGET}" )
     docker_args+=("--hostname=${TARGET}-container")
 
-    if [-n "$model_cache_path"]; then
-        docker_args+=("-v="${model_cache_path }:${MODEL_CACHE_PATH_LOACL}"")
-    fi
+    docker_args+=("-v="${model_cache_path }:${MODEL_CACHE_PATH_LOACL}"")
 
     docker_args+=("-e=http_proxy=${HTTP_PROXY}")
     docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
