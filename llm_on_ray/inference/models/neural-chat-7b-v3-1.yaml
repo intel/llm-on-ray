@@ -14,4 +14,3 @@ model_description:
   model_id_or_path: Intel/neural-chat-7b-v3-1
   tokenizer_name_or_path: Intel/neural-chat-7b-v3-1
   chat_template: "'### System:You are a chatbot developed by Intel. Please answer all questions to the best of your ability.\n'{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:]}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = false %}{% endif %}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ '### User: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ '### Assistant:'  + message['content'].strip() }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{'### Assistant:\n'}}{% endif %}"
-
