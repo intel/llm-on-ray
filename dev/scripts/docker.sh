@@ -41,7 +41,7 @@ build_and_prune_inference() {
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
 
-    if [ -n "$USE_PROXY" ]; then
+    if [! -z $3 ];; then
         docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
         docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
@@ -72,10 +72,10 @@ start_docker() {
     docker_args+=("--name=${TARGET}" )
     docker_args+=("--hostname=${TARGET}-container")
 
-    if [ -n "$model_cache_path" ]; then
+    if [! -z "$3"]; then
         docker_args+=("-v="${model_cache_path }:${MODEL_CACHE_PATH_LOACL}"")
     fi
-     if [ -n "$USE_PROXY" ]; then
+    if [! -z "$4" ]; then
         docker_args+=("-e=http_proxy=${HTTP_PROXY}")
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
