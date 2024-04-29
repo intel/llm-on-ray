@@ -37,7 +37,7 @@ build_and_prune_inference() {
     local TARGET=$1
     local DF_SUFFIX=$2
     local USE_PROXY=$3
-    
+
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
 
@@ -100,6 +100,15 @@ strat_ray(){
 
     # Start Ray Cluster
     docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+}
+
+stop_ray(){
+    local TARGET=$1
+
+    cid=$(docker ps -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then
+        docker exec "${TARGET}" bash -c "ray stop"
+    fi
 }
 
 run_tests(){
@@ -182,8 +191,8 @@ inference_test_deltatuner(){
     echo "${dtuner_model}"
     if [ "${dtuner_model}" ];then
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model }"
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model } --streaming_response"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
     fi
 }
 
@@ -205,17 +214,36 @@ inference_test_deepspeed_deltatuner(){
     local TARGET=$1
     local dtuner_model=$2
     local model=$3
-    if [[ ${model} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
+    if [[ ${model} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
         echo ${model} is not supported!
-    elif [[ ! ${model} == "llama-2-7b-chat-hf-vllm" ]]; then
+    else
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
     fi
 }
 
-# model="mpt-7b-ipex-llm"
-# target=${TARGET_MAPPER[$model]}
+inference_test_restapi(){
+    local TARGET=$1
+    local model=$2
+    if [[ ${model} == "mpt-7b-ipex-llm" ]]; then
+        docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml"
+    elif [[ ! ${model} == "llama-2-7b-chat-hf-vllm" ]]; then
+        docker exec "${TARGET}" bash -c "llm_on_ray-serve --models ${model}"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${model}"
+    fi
+}
+
+
+agent_inference_test_restapi(){
+    local TARGET=$1
+    local model=$2
+    if [[ ${model} == "llama-2-7b-chat-hf" ]]; then
+        docker exec "${TARGET}" bash -c "llm_on_ray-serve --models ${model}"
+        docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests_tool.py --model_name ${model}"
+    fi
+}
+
 
 test_z(){
     local AA=$1
