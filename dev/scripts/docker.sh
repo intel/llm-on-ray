@@ -68,7 +68,7 @@ start_docker() {
     if [ -z "$model_cache_path" ];  then 
         echo "no cache path" 
     else 
-        docker_args+=("-v=${model_cache_path }:${MODEL_CACHE_PATH_LOACL}");
+        docker_args+=("-v=${model_cache_path }:${MODEL_CACHE_PATH_LOACL}")
     fi
 
     docker_args+=("--name=${TARGET}" )
