@@ -65,14 +65,15 @@ start_docker() {
 
     docker_args=()
     docker_args+=("-v=${code_checkout_path}:${CODE_CHECKOUT_PATH_LOCAL}")
-    docker_args+=("--name=${TARGET}" )
-    docker_args+=("--hostname=${TARGET}-container")
-
-    if [-z "$model_cache_path" ];  then 
-        echo "nocache path" 
+    if [ -z "$model_cache_path" ];  then 
+        echo "no cache path" 
     else 
         docker_args+=("-v=${model_cache_path }:${MODEL_CACHE_PATH_LOACL}");
     fi
+
+    docker_args+=("--name=${TARGET}" )
+    docker_args+=("--hostname=${TARGET}-container")
+
 
     docker_args+=("-e=http_proxy=${HTTP_PROXY}")
     docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
@@ -209,3 +210,12 @@ inference_test_deepspeed_deltatuner(){
 
 # model="mpt-7b-ipex-llm"
 # target=${TARGET_MAPPER[$model]}
+
+test_z(){
+    local AA=$1
+    if [ -z "$AA"];then
+        echo "not"
+    else
+        echo "$AA"
+    fi
+}
