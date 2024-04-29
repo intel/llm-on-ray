@@ -150,15 +150,17 @@ declare -A INFERENCE_MAPPER
 INFERENCE_MAPPER=(
     ["mpt-7b-ipex-llm"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
     ["llama-2-7b-chat-hf-vllm"]="llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
-    # ["default"]="llm_on_ray-serve --simple --models ${model}"
+    ["default"]="llm_on_ray-serve --simple --models ${model}"
 )
 
 inference_test(){
 local TARGET=$1
 local model=$2
 if [[ ${INFERENCE_MAPPER[$model]+_} ]]; then
+    echo "${INFERENCE_MAPPER[$model]}"
     docker exec "${TARGET}" bash -c "${INFERENCE_MAPPER["${model}"]}"
 else
+    echo "${INFERENCE_MAPPER["default"]}"
     docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${model}"
 fi
 
