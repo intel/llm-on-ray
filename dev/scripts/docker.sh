@@ -41,7 +41,7 @@ build_and_prune_inference() {
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
 
-    if [! -z $3 ];; then
+    if [! -z $3 ]; then
         docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
         docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
