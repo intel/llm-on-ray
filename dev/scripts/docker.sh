@@ -36,15 +36,12 @@ build_and_prune_inference() {
     # Set TARGET and DF-SUFFIX using the passed in parameters
     local TARGET=$1
     local DF_SUFFIX=$2
-    local USE_PROXY=$3
 
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
 
-    if [-n "$USE_PROXY" ]; then
-        docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
-        docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
-    fi
+    docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
+    docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     
     echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
 
@@ -75,10 +72,10 @@ start_docker() {
     if [-n "$model_cache_path"]; then
         docker_args+=("-v="${model_cache_path }:${MODEL_CACHE_PATH_LOACL}"")
     fi
-    if [-n "$USE_PROXY"]; then
-        docker_args+=("-e=http_proxy=${HTTP_PROXY}")
-        docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
-    fi
+
+    docker_args+=("-e=http_proxy=${HTTP_PROXY}")
+    docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
+
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
 }
