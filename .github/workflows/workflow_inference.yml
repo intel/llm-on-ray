@@ -87,7 +87,7 @@ jobs:
           DF_SUFFIX="$(get_DF_SUFFIX_MAPPER ${{ matrix.model }})"
           TARGET=${{steps.target.outputs.target}}
 
-          build_and_prune_inference ${TARGET} ${DF_SUFFIX} 
+          build_and_prune_inference ${TARGET} ${DF_SUFFIX} "USE_PROXY"
 
       - name: Start Docker Container
         run: |
@@ -95,7 +95,7 @@ jobs:
           code_checkout_path=${{ inputs.code_checkout_path }}
           model_cache_path=${{ inputs.model_cache_path }}
           source dev/scripts/docker.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} 
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} "USE_PROXY"
 
       - name: Start Ray Cluster
         run: |
