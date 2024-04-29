@@ -391,9 +391,14 @@ class PredictorDeployment:
         tool_choice=None,
     ):
         self.use_openai = True
-
+        print("openai_call")
+        print(input)
+        print(type(input))
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input, tools, tool_choice)
+        print("preprocess_prompts")
+        print(prompts)
+        print(type(prompts))
 
         # Handle streaming response
         if streaming_response:
