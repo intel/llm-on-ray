@@ -87,7 +87,7 @@ def main(argv=None):
     parser.add_argument(
         "--config_file",
         type=str,
-        help="Inference configuration file in YAML. If specified, all other arguments will be ignored.",
+        help="Inference configuration file in YAML. If specified, it will be prioritized and other configs like --models will be ignored.",
     )
     parser.add_argument("--model_id_or_path", default=None, type=str, help="Model name or path.")
     parser.add_argument(

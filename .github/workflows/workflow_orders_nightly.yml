@@ -11,6 +11,11 @@ jobs:
     with:
       ci_type: nightly
 
+  call-inference-gaudi:
+    uses: ./.github/workflows/workflow_inference_gaudi2.yml
+    with:
+      ci_type: nightly
+
   call-finetune:
     uses: ./.github/workflows/workflow_finetune.yml
     with:
