@@ -33,7 +33,7 @@ We support two methods to specify the models to be served, and they have the fol
 llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
 ```
-2. If --config_file is None, it will serve GPT2 by default, or the models if models is set.
+2. If --config_file is None, it will serve GPT2 by default, or the models specified by --models.
 ```
 llm_on_ray-serve --models gpt2 gpt-j-6b
 ```
