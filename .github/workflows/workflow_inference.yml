@@ -77,7 +77,7 @@ jobs:
         run: |
           target="inference"
           source dev/scripts/docker.sh
-          target="${target}$(get_DF_SUFFIX_MAPPER ${{ matrix.model }})"
+          target="${target}$(get_TARGET_MAPPER ${{ matrix.model }})"
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
@@ -108,17 +108,17 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
           docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
-          if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
-            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
-          else
-            docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
-          fi
-          echo Non-streaming query:
-          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
-          echo Streaming query:
-          docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
+          # if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
+          #   docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
+          # elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          #   docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
+          # else
+          #   docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
+          # fi
+          # echo Non-streaming query:
+          # docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
+          # echo Streaming query:
+          # docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }} --streaming_response"
 
           inference_test ${TARGET} ${{ matrix.model }}
 
