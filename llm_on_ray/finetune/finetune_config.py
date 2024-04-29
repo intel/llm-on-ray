@@ -64,7 +64,7 @@ class General(BaseModel):
     enable_gradient_checkpointing: bool = False
     chat_template: Optional[str] = None
     default_chat_template: str = (
-        "{{ bos_token }}"
+        "Below is an instruction that describes a task. Write a response that appropriately completes the request."
         "{% if messages[0]['role'] == 'system' %}"
         "{{ raise_exception('System role not supported') }}"
         "{% endif %}"

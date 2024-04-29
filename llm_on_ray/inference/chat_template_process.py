@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 from typing import List
-
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
@@ -63,14 +62,12 @@ class ChatTemplatePreprocess:
         return texts, images
 
     def _prepare_image(self, messages: list):
-        """Prepare image from history messages."""
         from PIL import Image
         import requests
         from io import BytesIO
         import base64
         import re
 
-        # prepare images
         images: List = []
         for msg in messages:
             msg = dict(msg)
