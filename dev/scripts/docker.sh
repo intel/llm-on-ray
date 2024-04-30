@@ -265,4 +265,5 @@ denas_lora_test(){
     else
         docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
         docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
+    fi
 }
