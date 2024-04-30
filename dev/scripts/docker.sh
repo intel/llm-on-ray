@@ -42,8 +42,8 @@ build_and_prune() {
     docker_args+=("--build-arg=CACHEBUST=1")
 
     if [ ! -z "$USE_PROXY" ]; then
-        docker_args+=("-e=http_proxy=${HTTP_PROXY}")
-        docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
+        docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
+        docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
     
     echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
