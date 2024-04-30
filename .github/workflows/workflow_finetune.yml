@@ -77,7 +77,7 @@ jobs:
 
       - name: Start Docker Container
         run: |
-          TARGET=TARGET="finetune"
+          TARGET="finetune"
           code_checkout_path=${{ inputs.code_checkout_path }}
           model_cache_path=${{ inputs.model_cache_path }}
           source dev/scripts/docker.sh
