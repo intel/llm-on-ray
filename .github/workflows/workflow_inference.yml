@@ -83,10 +83,10 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          DF_SUFFIX="$(get_DF_SUFFIX ${{ matrix.model }})"
           TARGET=${{steps.target.outputs.target}}
           USE_PROXY="1"
           source dev/scripts/docker.sh
+          DF_SUFFIX="$(get_DF_SUFFIX ${{ matrix.model }})"
           build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY}
 
       - name: Start Docker Container
@@ -96,7 +96,7 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/docker.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY}
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
 
       - name: Start Ray Cluster
         run: |
