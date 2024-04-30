@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  inference:
+  finetune:
     name: finetune
     strategy:
       matrix:
@@ -69,24 +69,25 @@ jobs:
         run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
-        run: |
-          source dev/scripts/docker.sh
+        run: |      
           DF_SUFFIX=".cpu_and_deepspeed"
           TARGET="finetune"
-          build_and_prune ${TARGET} ${DF_SUFFIX} "USE_PROXY"
+          USE_PROXY="1"
+          source dev/scripts/docker.sh
+          build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY}
 
       - name: Start Docker Container
         run: |
           TARGET="finetune"
           code_checkout_path=${{ inputs.code_checkout_path }}
           model_cache_path=${{ inputs.model_cache_path }}
+          USE_PROXY="1"
           source dev/scripts/docker.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} "USE_PROXY"
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY}
           
       - name: Run Finetune Test
         run: |
           TARGET="finetune"
-          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           source dev/scripts/docker.sh
           finetune_test ${{ matrix.model }}
 

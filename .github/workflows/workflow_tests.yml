@@ -172,7 +172,6 @@ jobs:
       - name: Install Dependencies for Tests
         run: |
           TARGET=${{steps.target.outputs.target}}
-          # source docker.sh
           source dev/scripts/docker.sh
           install_dependencies ${TARGET}
 

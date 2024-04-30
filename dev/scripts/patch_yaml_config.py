@@ -14,10 +14,9 @@
 # limitations under the License.
 #
 import yaml
-import sys
 
 
-def modify_yaml(argv=None):
+def patch_yaml_config():
     import argparse
     import os
 
@@ -87,4 +86,4 @@ def modify_yaml(argv=None):
 
 
 if __name__ == "__main__":
-    modify_yaml(sys.argv[1:])
+    patch_yaml_config()

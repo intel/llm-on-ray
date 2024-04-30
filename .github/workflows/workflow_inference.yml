@@ -77,25 +77,26 @@ jobs:
         run: |
           target="inference"
           source dev/scripts/docker.sh
-          target="${target}$(get_TARGET_MAPPER ${{ matrix.model }})"
+          target="${target}$(get_TARGET_SUFFIX ${{ matrix.model }})"
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image
         run: |
-          source dev/scripts/docker.sh
-          DF_SUFFIX="$(get_DF_SUFFIX_MAPPER ${{ matrix.model }})"
+          DF_SUFFIX="$(get_DF_SUFFIX ${{ matrix.model }})"
           TARGET=${{steps.target.outputs.target}}
-
-          build_and_prune ${TARGET} ${DF_SUFFIX} "USE_PROXY"
+          USE_PROXY="1"
+          source dev/scripts/docker.sh
+          build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY}
 
       - name: Start Docker Container
         run: |
           TARGET=${{steps.target.outputs.target}}
           code_checkout_path=${{ inputs.code_checkout_path }}
           model_cache_path=${{ inputs.model_cache_path }}
+          USE_PROXY="1"
           source dev/scripts/docker.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} "USE_PROXY"
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY}
 
       - name: Start Ray Cluster
         run: |
@@ -106,7 +107,6 @@ jobs:
       - name: Run Inference Test
         run: |
           TARGET=${{steps.target.outputs.target}}
-          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           source dev/scripts/docker.sh
           inference_test ${TARGET} ${{ matrix.model }}
 
@@ -115,32 +115,32 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          inference_test_deltatuner ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
+          inference_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
           
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          inference_test_deepspeed ${TARGET} ${{ matrix.model }}
+          inference_deepspeed_test ${TARGET} ${{ matrix.model }}
           
       - name: Run Inference Test with DeepSpeed and Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          inference_test_deepspeed_deltatuner ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
+          inference_deepspeed_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
 
       - name: Run Inference Test with REST API
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          inference_test_restapi ${TARGET} ${{ matrix.model }}
+          inference_restapi_test ${TARGET} ${{ matrix.model }}
 
       - name: Run Agent tool Inference Test with REST API
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          agent_inference_test_restapi ${TARGET} ${{ matrix.model }}
+          inference_agent_restapi_test ${TARGET} ${{ matrix.model }}
 
       - name: Stop Ray
         run: |

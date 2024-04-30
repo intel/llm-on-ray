@@ -20,7 +20,7 @@ build_and_prune_test() {
         docker_args+=("--build-arg=python_v=${PYTHON_V}")
     fi
 
-    if [ -n "$USE_PROXY" ]; then
+    if [  "$USE_PROXY" == "1" ]; then
         docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
         docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
@@ -41,7 +41,7 @@ build_and_prune() {
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
 
-    if [ ! -z "$USE_PROXY" ]; then
+    if [ "$USE_PROXY" == "1" ]; then
         docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
         docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
@@ -59,6 +59,7 @@ start_docker() {
     local code_checkout_path=$2
     local model_cache_path=$3
     local USE_PROXY=$4
+    local HF_TOKEN=$5
     
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
@@ -79,13 +80,14 @@ start_docker() {
     docker_args+=("--name=${TARGET}" )
     docker_args+=("--hostname=${TARGET}-container")
 
-    if [ ! -z "$USE_PROXY" ]; then
+    if [ "$USE_PROXY" == "1" ]; then
         docker_args+=("-e=http_proxy=${HTTP_PROXY}")
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
+    docker exec "${TARGET}" bash -c "huggingface-cli login --token ${HF_TOKEN}"
 }
 
 install_dependencies(){
@@ -135,7 +137,7 @@ DF_SUFFIX_MAPPER=(
 )
 
 
-get_DF_SUFFIX_MAPPER() {
+get_DF_SUFFIX() {
     local key="$1"
     if [[ ${DF_SUFFIX_MAPPER[$key]+_} ]]; then
         echo "${DF_SUFFIX_MAPPER[$key]}"
@@ -144,16 +146,16 @@ get_DF_SUFFIX_MAPPER() {
     fi
 }
 
-declare -A TARGET_MAPPER
-TARGET_MAPPER=(
+declare -A TARGET_SUFFIX_MAPPER
+TARGET_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]="_vllm"
 )
 
-get_TARGET_MAPPER() {
+get_TARGET_SUFFIX() {
     local key="$1"
-    if [[ ${TARGET_MAPPER[$key]+_} ]]; then
-        echo "${TARGET_MAPPER[$key]}"
+    if [[ ${TARGET_SUFFIX_MAPPER[$key]+_} ]]; then
+        echo "${TARGET_SUFFIX_MAPPER[$key]}"
     else
         echo ""
     fi
@@ -184,7 +186,7 @@ echo Streaming query:
 docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
 }
 
-inference_test_deltatuner(){
+inference_deltatuner_test(){
     local TARGET=$1
     local dtuner_model=$2
     local model=$3
@@ -197,7 +199,7 @@ inference_test_deltatuner(){
 }
 
 
-inference_test_deepspeed(){
+inference_deepspeed_test(){
     local TARGET=$1
     local model=$2
     if [[ ${model} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
@@ -210,7 +212,7 @@ inference_test_deepspeed(){
     fi
 }
 
-inference_test_deepspeed_deltatuner(){
+inference_deepspeed_deltatuner_test(){
     local TARGET=$1
     local dtuner_model=$2
     local model=$3
@@ -223,7 +225,7 @@ inference_test_deepspeed_deltatuner(){
     fi
 }
 
-inference_test_restapi(){
+inference_restapi_test(){
     local TARGET=$1
     local model=$2
     if [[ ${model} == "mpt-7b-ipex-llm" ]]; then
@@ -235,7 +237,7 @@ inference_test_restapi(){
 }
 
 
-agent_inference_test_restapi(){
+inference_agent_restapi_test(){
     local TARGET=$1
     local model=$2
     if [[ ${model} == "llama-2-7b-chat-hf" ]]; then
@@ -247,14 +249,14 @@ agent_inference_test_restapi(){
 finetune_test(){
     local model=$1
     docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
-    docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} "
+    docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} "
     docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
 
 peft_lora_test(){
     local model=$1
     docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
-    docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora"
+    docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora"
     docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
 
@@ -264,6 +266,7 @@ denas_lora_test(){
         echo ${model} is not supported!
     else
         docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
-        docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
+        docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
+        docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
     fi
 }
