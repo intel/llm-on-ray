@@ -6,7 +6,7 @@ HTTPS_PROXY='http://10.24.221.149:911'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
-build_and_prune() {
+build_and_prune_test() {
     # Set TARGET and DF-SUFFIX using the passed in parameters
     local TARGET=$1
     local DF_SUFFIX=$2
@@ -32,7 +32,7 @@ build_and_prune() {
     docker image prune -f
  
 }
-build_and_prune_inference() {
+build_and_prune() {
     # Set TARGET and DF-SUFFIX using the passed in parameters
     local TARGET=$1
     local DF_SUFFIX=$2
@@ -244,12 +244,16 @@ agent_inference_test_restapi(){
     fi
 }
 
+finetune_test(){
+    local model=$1
+    docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
+    docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} "
+    docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
+}
 
-test_z(){
-    local AA=$1
-    if [ -z "$AA"];then
-        echo "not"
-    else
-        echo "$AA"
-    fi
+peft_lora_test(){
+    local model=$1
+    docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
+    docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora"
+    docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
