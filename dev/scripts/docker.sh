@@ -257,3 +257,12 @@ peft_lora_test(){
     docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora"
     docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
+
+denas_lora_test(){
+    local model=$1
+    if [[ ${model} =~ ^(mosaicml\/mpt-7b|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
+        echo ${model} is not supported!
+    else
+        docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
+        docker exec "finetune" bash -c "python dev/scripts/modify_yaml.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
+}
