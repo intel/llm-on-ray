@@ -159,8 +159,9 @@ jobs:
           DF_SUFFIX=".tests_cpu"
           TARGET=${{steps.target.outputs.target}}
           PYTHON_V=${{matrix.python-version}}
+          USE_PROXY="0"
           source dev/scripts/docker.sh
-          build_and_prune_test ${TARGET} ${DF_SUFFIX} ${PYTHON_V}
+          build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY} ${PYTHON_V}
 
       - name: Start Docker Container
         run: |
