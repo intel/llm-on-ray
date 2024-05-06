@@ -311,9 +311,13 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
+
         if isinstance(input, str):
             return input
-        elif isinstance(input, list):
+        elif isinstance(input, List):
+            prompts = []
+            images = []
+
             prompt_format = get_prompt_format(input)
             if prompt_format == PromptFormat.CHAT_FORMAT:
                 # Process the input prompts with tools
@@ -340,14 +344,17 @@ class PredictorDeployment:
                     else:
                         prompt = self.process_tool.get_prompt(input)
                         return prompt
+                else:
+                    prompts.extend(input)
             elif prompt_format == PromptFormat.PROMPTS_FORMAT:
+                prompts.extend(input)
+            else:
                 raise HTTPException(400, "Invalid prompt format.")
-            return input
+            return prompts
         else:
             raise HTTPException(400, "Invalid prompt format.")
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
-        logger.info("PredictorDeployment call")
         self.use_openai = False
 
         try:
@@ -366,7 +373,6 @@ class PredictorDeployment:
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
-
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
 
