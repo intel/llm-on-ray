@@ -150,10 +150,6 @@ jobs:
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
 
-      # - name: Source build script  
-      #   run: |
-      #     cp .github/workflows/scripts/docker.sh .
-
       - name: Build Docker Image
         run: |
           DF_SUFFIX=".tests_cpu"
