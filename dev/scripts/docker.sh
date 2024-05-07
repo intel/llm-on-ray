@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-HTTP_PROXY='http://10.24.221.149:911'
-HTTPS_PROXY='http://10.24.221.149:911'
+HTTP_PROXY='http://10.24.221.169:911'
+HTTPS_PROXY='http://10.24.221.169:911'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
@@ -11,7 +11,7 @@ build_and_prune() {
     local TARGET=$1
     local DF_SUFFIX=$2
     local USE_PROXY=$3
-    local PYTHON_V=$4  
+    local PYTHON_V=$4
 
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
@@ -29,9 +29,9 @@ build_and_prune() {
     echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
 
     # Build Docker image and perform cleaning operation
-    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes 
+    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
     docker image prune -f
- 
+
 }
 
 start_docker() {
@@ -40,7 +40,7 @@ start_docker() {
     local model_cache_path=$3
     local USE_PROXY=$4
     local HF_TOKEN=$5
-    
+
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
     # check and remove exited container
@@ -50,10 +50,10 @@ start_docker() {
 
     docker_args=()
     docker_args+=("-v=${code_checkout_path}:${CODE_CHECKOUT_PATH_LOCAL}")
-    
-    if [ -z "$model_cache_path" ];  then 
-        echo "no cache path" 
-    else 
+
+    if [ -z "$model_cache_path" ];  then
+        echo "no cache path"
+    else
         docker_args+=("-v=${model_cache_path}:${MODEL_CACHE_PATH_LOACL}")
     fi
 
@@ -67,9 +67,9 @@ start_docker() {
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
-    if [ -z "$HF_TOKEN" ]; then 
-        echo "no hf token" 
-    else 
+    if [ -z "$HF_TOKEN" ]; then
+        echo "no hf token"
+    else
         docker exec "${TARGET}" bash -c "huggingface-cli login --token ${HF_TOKEN}"
     fi
 }
@@ -99,7 +99,7 @@ stop_ray(){
 
 run_tests(){
     local TARGET=$1
-    
+
     # Run Tests
     docker exec "${TARGET}" bash -c "./tests/run-tests.sh"
 }
@@ -145,7 +145,6 @@ get_TARGET_SUFFIX() {
     fi
 }
 
-
 declare -A INFERENCE_MAPPER
 INFERENCE_MAPPER=(
     ["mpt-7b-ipex-llm"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
@@ -154,21 +153,21 @@ INFERENCE_MAPPER=(
 )
 
 inference_test(){
-local TARGET=$1
-local model=$2
-if [[ ${INFERENCE_MAPPER[$model]+_} ]]; then
-    echo "${INFERENCE_MAPPER[$model]}"
-    docker exec "${TARGET}" bash -c "${INFERENCE_MAPPER["${model}"]}"
-else
-    echo "${INFERENCE_MAPPER["default"]}"
-    docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${model}"
-fi
+    local TARGET=$1
+    local model=$2
+    if [[ ${INFERENCE_MAPPER[$model]+_} ]]; then
+        echo "${INFERENCE_MAPPER[$model]}"
+        docker exec "${TARGET}" bash -c "${INFERENCE_MAPPER["${model}"]}"
+    else
+        echo "${INFERENCE_MAPPER["default"]}"
+        docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${model}"
+    fi
 
-echo Basic inference test:
-echo Non-streaming query:
-docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
-echo Streaming query:
-docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
+    echo Basic inference test:
+    echo Non-streaming query:
+    docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
+    echo Streaming query:
+    docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
 }
 
 inference_deltatuner_test(){
@@ -186,7 +185,6 @@ inference_deltatuner_test(){
         docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
     fi
 }
-
 
 inference_deepspeed_test(){
     local TARGET=$1

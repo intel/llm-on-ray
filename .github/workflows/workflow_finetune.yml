@@ -11,10 +11,10 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.149:911'
+        default: 'http://10.24.221.169:911'
       https_proxy:
         type: string
-        default: 'http://10.24.221.149:911'
+        default: 'http://10.24.221.169:911'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -69,7 +69,7 @@ jobs:
         run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Build Docker Image
-        run: |      
+        run: |
           DF_SUFFIX=".cpu_and_deepspeed"
           TARGET="finetune"
           USE_PROXY="1"
@@ -84,7 +84,7 @@ jobs:
           USE_PROXY="1"
           source dev/scripts/docker.sh
           start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
-          
+
       - name: Run Finetune Test
         run: |
           TARGET="finetune"
@@ -112,5 +112,5 @@ jobs:
         run: |
           TARGET="finetune"
           source dev/scripts/docker.sh
-          stop_container ${TARGET} 
+          stop_container ${TARGET}
 

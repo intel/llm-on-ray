@@ -11,10 +11,10 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.149:911'
+        default: 'http://10.24.221.169:911'
       https_proxy:
         type: string
-        default: 'http://10.24.221.149:911'
+        default: 'http://10.24.221.169:911'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -116,13 +116,13 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
           inference_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
-          
+
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
           inference_deepspeed_test ${TARGET} ${{ matrix.model }}
-          
+
       - name: Run Inference Test with DeepSpeed and Deltatuner
         if: ${{ matrix.dtuner_model }}
         run: |
@@ -153,4 +153,4 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/docker.sh
-          stop_container ${TARGET} 
+          stop_container ${TARGET}
