@@ -15,4 +15,4 @@ model_description:
   tokenizer_name_or_path: google/gemma-2b
   config:
     use_auth_token: ' '
-  chat_template: "{% if messages[0]['role'] == 'system' %}{{ raise_exception('System role not supported') }}{% endif %}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if (message['role'] == 'assistant') %}{% set role = 'model' %}{% else %}{% set role = message['role'] %}{% endif %}{{ '<start_of_turn>' + role + '\n' + message['content'] | trim + '<end_of_turn>\n' }}{% endfor %}"
+  chat_template: "llm_on_ray/common/templates/template_gemma.jinja"

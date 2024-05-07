@@ -14,4 +14,4 @@ model_description:
   tokenizer_name_or_path: defog/sqlcoder-7b-2
   config:
     use_auth_token: ''
-    chat_template: "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = false %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ message['content'].strip() }}{% endif %}{% endfor %}"
+  chat_template: "llm_on_ray/common/templates/template_gpt2.jinja"

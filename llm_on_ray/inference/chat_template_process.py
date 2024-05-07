@@ -16,6 +16,7 @@
 from typing import List
 
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
+from llm_on_ray.inference.utils import parse_jinja_file
 
 
 class ChatTemplatePreprocess:
@@ -23,21 +24,18 @@ class ChatTemplatePreprocess:
         self.predictor = predictor
 
     def get_prompt(self, input: List, is_mllm=False):
-        """Generate response based on input."""
+        """Generate prompt based on chat templates."""
         self.predictor.tokenizer.chat_template = (
-            self.predictor.infer_conf.model_description.chat_template
+            parse_jinja_file(self.predictor.infer_conf.model_description.chat_template)
             or self.predictor.tokenizer.chat_template
-            or self.predictor.infer_conf.model_description.default_chat_template
+            or parse_jinja_file(self.predictor.infer_conf.model_description.default_chat_template)
         )
 
-        if isinstance(input, list) and input and isinstance(input[0], (ChatMessage, dict)):
+        if input and isinstance(input[0], (ChatMessage, dict)):
             messages = (
                 [dict(chat_message) for chat_message in input]
                 if isinstance(input[0], ChatMessage)
                 else input
-            )
-            prompt = self.predictor.tokenizer.apply_chat_template(
-                messages, add_generation_prompt=True, tokenize=False
             )
             if is_mllm:
                 texts, images = self._extract_messages(messages)
@@ -46,6 +44,10 @@ class ChatTemplatePreprocess:
                     texts, add_generation_prompt=True, tokenize=False
                 )
                 return prompt, image
+
+            prompt = self.predictor.tokenizer.apply_chat_template(
+                messages, add_generation_prompt=True, tokenize=False
+            )
             return prompt
 
         raise TypeError(f"Unsupported type {type(input)} for text. Expected dict or list of dicts.")

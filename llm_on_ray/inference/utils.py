@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import os
+import pathlib
 from transformers import StoppingCriteria, TextStreamer
 from ray.util.queue import Queue
 import torch
@@ -194,3 +195,15 @@ def module_import_and_init(module_name, clazz, **clazzs_kwargs):
     module = importlib.import_module(module_name)
     class_ = getattr(module, clazz)
     return class_(**clazzs_kwargs)
+
+
+def parse_jinja_file(chat_template: str):
+    if chat_template is not None:
+        jinja_path = (
+            pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / chat_template
+        )
+        assert jinja_path.exists()
+
+        with open(jinja_path, "r") as file:
+            content = file.read()
+        return content
