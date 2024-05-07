@@ -19,7 +19,13 @@ from ray.util.queue import Queue
 import torch
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
-from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_HPU
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    DEVICE_CPU,
+    DEVICE_HPU,
+    PRECISION_BF16,
+    PRECISION_FP32,
+)
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
@@ -127,6 +133,10 @@ def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
 
     if infer_conf.model_description.config.torch_dtype:
         # respect user config
+        if infer_conf.model_description.config.torch_dtype == PRECISION_BF16:
+            infer_conf.model_description.config.torch_dtype = torch.bfloat16
+        elif infer_conf.model_description.config.torch_dtype == PRECISION_FP32:
+            infer_conf.model_description.config.torch_dtype = torch.float32
         return
     elif hf_config is None:
         # default to float32 if hf_config is not supplied

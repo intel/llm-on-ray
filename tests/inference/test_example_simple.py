@@ -17,31 +17,7 @@
 import subprocess
 import pytest
 import os
-
-os.environ["no_proxy"] = "localhost,127.0.0.1"
-
-
-def start_serve(model_name):
-    current_path = os.path.dirname(os.path.abspath(__file__))
-
-    config_path = os.path.join(
-        current_path, "../../.github/workflows/config/" + model_name + "-ci.yaml"
-    )
-
-    cmd_serve = ["llm_on_ray-serve", "--config_file", config_path, "--simple"]
-
-    result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
-
-    # Ensure there are no errors in the serve script execution
-    assert result_serve.returncode == 0, print(
-        "\n" + "Serve error stderr message: " + "\n", result_serve.stderr
-    )
-
-    # Print the output of subprocess.run for checking if output is expected
-    print("\n" + "Serve message: " + "\n", result_serve.stdout)
-
-    # Ensure there are no errors in the serve script execution
-    assert "Error" not in result_serve.stderr
+from basic_set import start_serve
 
 
 def script_with_args(
@@ -89,7 +65,7 @@ def script_with_args(
     assert result_query_single.returncode == 0
 
 
-executed_models = {}
+executed_models = []
 
 
 # Parametrize the test function with different combinations of parameters
@@ -124,9 +100,9 @@ def test_script(
 
     # Check if this modelname has already executed start_serve
     if model_name not in executed_models:
-        start_serve(model_name)
+        start_serve(model_name, simple=True)
         # Mark this modelname has already executed start_serve
-        executed_models[model_name] = True
+        executed_models.append(model_name)
 
     script_with_args(
         script_name,
