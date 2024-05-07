@@ -99,7 +99,7 @@ def plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_path)
     plt.close()
 
 
-def plot_latency_throughput(concurrency, latency, throughput, save_path):
+def plot_latency_throughput(concurrency, num_replica, latency, throughput, save_path):
     fig, ax1 = plt.subplots()
 
     for i in range(len(latency)):
@@ -107,7 +107,7 @@ def plot_latency_throughput(concurrency, latency, throughput, save_path):
     ax1.plot(latency, throughput, color="tab:blue")
     mark = []
     for i in concurrency:
-        mark.append(f"bs={i}")
+        mark.append(f"bs={int(i/num_replica)}")
     for i in range(len(mark)):
         plt.text(latency[i], throughput[i], mark[i])
     ax1.set_xlabel("Average latency for Next Tokens (ms)")
@@ -160,23 +160,36 @@ def main(args):
     if 3 in choice:
         # latency vs throughput tradeoff for various number of requests
         print("draw latency vs throughput tradeoff for various number of requests")
-        log_file = "benchmarks/logs/3_result.txt"
-        iters = extract_metric(log_file, "iter_mark")
-        num_prompts = extract_metric(log_file, "prompts_num_mark")
-        latency_next_token = extract_metric(log_file, "latency_next_token_mark")
-        output_throughput = extract_metric(log_file, "output_token_throughput_mark")
-        print("iter: ", iters)
-        print("num prompt: ", num_prompts)
-        num_iter = len(iters)
-        per_iter_len = int(len(num_prompts) / num_iter)
-        avg_latency_next_token = get_avg_metric(latency_next_token, num_iter, per_iter_len)
-        avg_output_throughput = get_avg_metric(output_throughput, num_iter, per_iter_len)
-        print(avg_latency_next_token)
-        print(avg_output_throughput)
-        save_path = "benchmarks/figures/3_latency_throughput.png"
-        plot_latency_throughput(
-            num_prompts[:per_iter_len], avg_latency_next_token, avg_output_throughput, save_path
-        )
+        log_file_all = [
+            "benchmarks/logs/3_result_32_64.txt",
+            "benchmarks/logs/3_result_1024_128.txt",
+        ]
+        save_path_all = [
+            "benchmarks/figures/3_latency_throughput_32_64.png",
+            "benchmarks/figures/3_latency_throughput_1024_128.png",
+        ]
+        for i in range(len(log_file_all)):
+            log_file = log_file_all[i]
+            save_path = save_path_all[i]
+            iters = extract_metric(log_file, "iter_mark")
+            num_prompts = extract_metric(log_file, "prompts_num_mark")
+            latency_next_token = extract_metric(log_file, "latency_next_token_mark")
+            output_throughput = extract_metric(log_file, "output_token_throughput_mark")
+            print("iter: ", iters)
+            print("num prompt: ", num_prompts)
+            num_iter = len(iters)
+            per_iter_len = int(len(num_prompts) / num_iter)
+            avg_latency_next_token = get_avg_metric(latency_next_token, num_iter, per_iter_len)
+            avg_output_throughput = get_avg_metric(output_throughput, num_iter, per_iter_len)
+            print(avg_latency_next_token)
+            print(avg_output_throughput)
+            plot_latency_throughput(
+                num_prompts[:per_iter_len],
+                args.num_replica,
+                avg_latency_next_token,
+                avg_output_throughput,
+                save_path,
+            )
     if 4 in choice:
         # get the latency of llm-on-Ray with vllm
         print("get the latency of llm-on-ray with vllm")
@@ -209,6 +222,12 @@ if __name__ == "__main__":
         default=[1, 2, 3, 4],
         type=int,
         help="Which type of figure to draw. [1: the peak throughput of llm-on-ray, 2: llm-on-ray with vllm vs llm-on-ray, 3: latency_throughput, 4: get the latecy of llm-on-ray with vllm]",
+    )
+    parser.add_argument(
+        "--num-replica",
+        default=1,
+        type=int,
+        help="The number of replicas that respond to requests at the same time.",
     )
     args = parser.parse_args()
     main(args)
