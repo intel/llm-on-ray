@@ -19,6 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class SQLGeneratorAPIRouter(APIRouter):
     def __init__(self):
         super().__init__()
@@ -39,7 +40,7 @@ class SQLGeneratorAPIRouter(APIRouter):
         tokenizer = embeddings.client.tokenizer
         tokenizer.pad_token = tokenizer.eos_token
         return embeddings
-        
+
     def setup_db_retriever(
         self,
         embeddings,
@@ -51,7 +52,7 @@ class SQLGeneratorAPIRouter(APIRouter):
             search_type="mmr", search_kwargs={"k": top_k_table, "lambda_mult": 1}
         )
         return retriever
-    
+
     def retrieve(self, query):
         matched_tables = []
         matched_documents = self.db_retriever.get_relevant_documents(query=query)
@@ -59,13 +60,15 @@ class SQLGeneratorAPIRouter(APIRouter):
             page_content = document.page_content
             matched_tables.append(page_content)
         return matched_tables
-    
+
     def generate_sql_code(self, query, schema):
         prompt = generate_prompt(query, schema)
         res = self.llm.invoke(prompt)
         return res
 
+
 router = SQLGeneratorAPIRouter()
+
 
 @router.post("/v1/retrieve_tables")
 async def retrieve_tables(request: Request):
@@ -76,6 +79,7 @@ async def retrieve_tables(request: Request):
     print(f"[SQLGenerator - chat] matched_tables: {matched_tables}")
     return {"matched_tables": matched_tables}
 
+
 @router.post("/v1/generate_sql_code")
 async def generate_sql_code(request: Request):
     params = await request.json()
@@ -85,6 +89,7 @@ async def generate_sql_code(request: Request):
     sql_code = router.generate_sql_code(query, schema)
     print(f"[SQLGenerator - chat] sql_code: {sql_code}")
     return {"sql_code": sql_code}
+
 
 app.include_router(router)
 

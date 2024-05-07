@@ -60,7 +60,8 @@ class Basic:
                     matched_tables = json_data_rag["matched_tables"]
 
                     response_sql = requests.post(
-                        f"{self.server_url}/v1/generate_sql_code", json={"query": user_query, "schema": matched_tables}
+                        f"{self.server_url}/v1/generate_sql_code",
+                        json={"query": user_query, "schema": matched_tables},
                     )
                     json_data_sql = self._post_parse_response(response_sql)
                     sql_answer = json_data_sql["sql_code"]["content"]
@@ -69,7 +70,7 @@ class Basic:
                     print(sql_answer)
                     for token in sql_answer.split():
                         time.sleep(1)
-                        st_cb.on_llm_new_token(token+" ")
+                        st_cb.on_llm_new_token(token + " ")
 
 
 if __name__ == "__main__":
