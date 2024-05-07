@@ -52,6 +52,14 @@ neural_chat_jinja_path = (
 )
 assert neural_chat_jinja_path.exists()
 
+
+llama2_jinja_path = (
+    pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
+    / "llm_on_ray/common/templates/template_llama2.jinja"
+)
+assert neural_chat_jinja_path.exists()
+
+
 # Define models, templates, and their corresponding expected outputs
 MODEL_TEMPLATE_GENERATON_OUTPUT = [
     (
@@ -135,6 +143,18 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "### Assistant:Hi there!\n"
         "### User: What is the capital of\n",
     ),
+    (
+        "adept/fuyu-8b",
+        llama2_jinja_path,
+        True,
+        "|ENDOFTEXT|[INST] Hello [/INST] Hi there! |ENDOFTEXT||ENDOFTEXT|[INST] What is the capital of [/INST]",
+    ),
+    (
+        "adept/fuyu-8b",
+        llama2_jinja_path,
+        False,
+        "|ENDOFTEXT|[INST] Hello [/INST] Hi there! |ENDOFTEXT||ENDOFTEXT|[INST] What is the capital of [/INST]",
+    ),
 ]
 
 
@@ -158,8 +178,7 @@ def test_get_gen_default_prompt(
     result = tokenizer.apply_chat_template(
         conversation=TEST_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
     )
-    print(result)
-    print(expected_output)
+
     # Test assertion
     assert result == expected_output, (
         f"The generated prompt does not match the expected output for "

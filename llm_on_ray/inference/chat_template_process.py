@@ -77,13 +77,10 @@ class ChatTemplatePreprocess:
         for msg in messages:
             msg = dict(msg)
             content = msg["content"]
-            if "url" not in content:
-                continue
-            is_data = len(re.findall("^data:image/.+;base64,", content["url"])) > 0
+            is_data = len(re.findall("^data:image/.+;base64,", content)) > 0
             if is_data:
-                encoded_str = re.sub("^data:image/.+;base64,", "", content["url"])
+                encoded_str = re.sub("^data:image/.+;base64,", "", content)
                 images.append(Image.open(BytesIO(base64.b64decode(encoded_str))))
             else:
-                images.append(Image.open(requests.get(content["url"], stream=True).raw))
-
+                images.append(Image.open(requests.get(content, stream=True).raw))
         return images
