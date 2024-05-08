@@ -81,23 +81,23 @@ class PredictorDeployment:
         self.use_openai = False
 
         if infer_conf.device == "hpu":
-            from llm_on_ray.inference.hpu_predictor import HPUPredictor
+            from llm_on_ray.inference.predictors.hpu_predictor import HPUPredictor
 
             self.predictor = HPUPredictor(infer_conf)
         elif self.use_deepspeed:
-            from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
+            from llm_on_ray.inference.predictors.deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
         elif self.use_vllm:
-            from llm_on_ray.inference.vllm_predictor import VllmPredictor
+            from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
 
             self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         elif self.is_mllm:
-            from llm_on_ray.inference.mllm_predictor import MllmPredictor
+            from llm_on_ray.inference.predictors.mllm_predictor import MllmPredictor
 
             self.predictor = MllmPredictor(infer_conf)
         else:
-            from llm_on_ray.inference.transformer_predictor import TransformerPredictor
+            from llm_on_ray.inference.predictors.transformer_predictor import TransformerPredictor
 
             self.predictor = TransformerPredictor(infer_conf)
 
