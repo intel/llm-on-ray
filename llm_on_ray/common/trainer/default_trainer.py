@@ -130,7 +130,9 @@ class DefaultTrainer(Trainer):
                 f"model embedding size resize to {len(tokenizer)} because of tokenizer size"
             )
 
-        train_dataloader, eval_dataloader = self.dataprocesser.convert_dataset(tokenizer, dataset)
+        train_dataloader, eval_dataloader = self.dataprocesser.prepare_dataloader(
+            tokenizer, dataset
+        )
 
         lr_scheduler_config = self.config.get("lr_scheduler")
         if lr_scheduler_config:

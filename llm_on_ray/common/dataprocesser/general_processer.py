@@ -175,7 +175,7 @@ class GeneralProcesser(DataProcesser):
 
         return tokenized_datasets
 
-    def convert_dataset(self, tokenizer, dataset):
+    def prepare_dataloader(self, tokenizer, dataset):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size")
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
         shuffle = self.config.get("shuffle")

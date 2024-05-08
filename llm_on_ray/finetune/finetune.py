@@ -142,6 +142,10 @@ def convert_to_training_args(cls, config):
         "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
     }
 
+    # set attr max_steps
+    if config["Training"]["max_train_steps"] is not None:
+        args.update({"max_steps": config["Training"]["max_train_steps"]})
+
     # set attr 'use_cpu'
     if hasattr(cls, "use_cpu"):
         args.update({"use_cpu": True if device == "cpu" else False})
@@ -161,8 +165,6 @@ def convert_to_training_args(cls, config):
         args.update({"use_habana": True})
         args.update({"use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy"})
         args.update({"pipelining_fwd_bwd": True})
-        args.update({"throughput_warmup_steps": 3})
-        args.update({"adam_epsilon": 1e-8})
 
     return cls(**args)
 
@@ -322,23 +324,17 @@ def main(external_config=None):
             "accelerate_mode"
         ] = "DDP"  # will use DDP to accelerate if no method specified
 
-    ccl_worker_count = 1
     device = config["Training"]["device"]
     if device != "cpu":
-        ccl_worker_count = num_training_workers
+        pass
 
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
-                "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
-                "CCL_ZE_IPC_EXCHANGE": "sockets",
-                "CCL_WORKER_COUNT": str(ccl_worker_count),
-                "CCL_LOG_LEVEL": "info",
                 "WORLD_SIZE": str(num_training_workers),
-                "FI_TCP_IFACE": "lo",
-                "FI_PROVIDER": "tcp",
             }
         }
+
         # accelerate_env_vars = get_accelerate_environment_variable(config)
         # runtime_env["env_vars"].update(accelerate_env_vars)
 
