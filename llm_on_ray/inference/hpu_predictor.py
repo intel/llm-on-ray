@@ -68,18 +68,14 @@ class HPUPredictor(Predictor):
         super().__init__(infer_conf)
 
         model_desc = infer_conf.model_description
-        model_config = model_desc.config
-        # decide correct torch type for loading HF model
+        # decide correct torch dtype for loading HF model
         decide_torch_dtype(infer_conf)
-        self.use_lazy_mode = True
-        self.use_hpu_graphs = model_desc.use_hpu_graphs
-        # TODO add torch_compile, i.e. hpu specific configs. including quant
-        # if args.torch_compile and model.config.model_type == "llama":
-        #     self.use_lazy_mode = False
-        self.use_deepspeed = False
+
+        self.use_lazy_mode = not infer_conf.hpu_model_config.torch_compile
+        self.use_hpu_graphs = infer_conf.hpu_model_config.use_hpu_graphs
+
         if infer_conf.deepspeed:
             # DeepSpeed is enabled, start worker group
-            self.use_deepspeed = True
             # Prepare placement group
             resource_bundles = [
                 {
@@ -91,18 +87,38 @@ class HPUPredictor(Predictor):
 
             self.init_worker_group()
         else:
+            # Not using DeepSpeed, load model locally
+            # if using quantization
+            if infer_conf.hpu_model_config.quant_config:
+                # memory issue in hqt prep_model
+                os.environ.setdefault("EXPERIMENTAL_WEIGHT_SHARING", "FALSE")
+                # enable inference optimizations
+                import habana_frameworks.torch.core as htcore
+
+                htcore.hpu_set_env()
+
+            # Tweak transformer to optimize performance on Gaudi
             from optimum.habana.transformers.modeling_utils import (
                 adapt_transformers_to_gaudi,
             )
 
-            # Tweak transformer to optimize performance on Gaudi
             adapt_transformers_to_gaudi()
-            # Not using DeepSpeed, load model locally
+
             self.device = torch.device("hpu")
             model = AutoModelForCausalLM.from_pretrained(
-                model_desc.model_id_or_path, **model_config.dict()
+                model_desc.model_id_or_path, **model_desc.config.dict()
             )
+
+            # quantization
+            if infer_conf.hpu_model_config.quant_config:
+                import habana_quantization_toolkit
+
+                habana_quantization_toolkit.prep_model(
+                    model, config_path=infer_conf.hpu_model_config.quant_config
+                )
+
             self.model = model.eval().to(self.device)
+            # HPU graph runtime
             if self.use_hpu_graphs:
                 from habana_frameworks.torch.hpu import (
                     wrap_in_hpu_graph,
@@ -111,6 +127,16 @@ class HPUPredictor(Predictor):
                 self.model = wrap_in_hpu_graph(self.model)
             else:
                 print("Warning: use_hpu_graphs is set to False. This will hurt the performance.")
+            # torch compile
+            if (
+                infer_conf.hpu_model_config.torch_compile
+                and self.model.config.model_type == "llama"
+            ):
+                self.model = get_torch_compiled_model(self.model)
+            # Enable quantization inference mode
+            if infer_conf.hpu_model_config.quant_config:
+                htcore.hpu_initialize(model)
+
             self.tokenizer = load_tokenizer(model, model_desc.tokenizer_name_or_path)
 
     def init_worker_group(self):
@@ -146,7 +172,7 @@ class HPUPredictor(Predictor):
             config["max_new_tokens"] = 128
 
     def get_streamer(self):
-        if self.use_deepspeed:
+        if self.infer_conf.deepspeed:
             return ray.get(self.deepspeed_workers[0].get_streamer.remote())
         else:
             return TextIteratorStreamer(
@@ -155,7 +181,7 @@ class HPUPredictor(Predictor):
 
     def generate(self, prompt, **config):
         self._process_config(config)
-        if self.use_deepspeed:
+        if self.infer_conf.deepspeed:
             return ray.get(
                 [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
             )[0]
@@ -175,7 +201,7 @@ class HPUPredictor(Predictor):
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
-        if self.use_deepspeed:
+        if self.infer_conf.deepspeed:
             self.deepspeed_workers[0].streaming_generate.remote(prompt, streamer, **config)
             for worker in self.deepspeed_workers[1:]:
                 worker.streaming_generate.remote(prompt, self._create_dummy_streamer(), **config)
@@ -213,12 +239,25 @@ def load_tokenizer(model, tokenizer_name_or_path):
     return tokenizer
 
 
+def get_torch_compiled_model(model):
+    model.model = torch.compile(model.model, backend="hpu_backend")
+    return model
+
+
 @ray.remote
 class HPUDeepSpeedWorker(TorchDistributedWorker):
     def __init__(self, infer_conf: InferenceConfig):
         self.infer_conf = infer_conf
         os.environ.setdefault("PT_HPU_LAZY_ACC_PAR_MODE", "0")
         os.environ.setdefault("PT_HPU_ENABLE_LAZY_COLLECTIVES", "true")
+        # if using quantization
+        if infer_conf.hpu_model_config.quant_config:
+            # memory issue in hqt prep_model
+            os.environ.setdefault("EXPERIMENTAL_WEIGHT_SHARING", "FALSE")
+            # enable inference optimizations
+            import habana_frameworks.torch.core as htcore
+
+            htcore.hpu_set_env()
 
     def load_model_and_tokenizer(self):
         # after init_worker_group, these envvar should be set
@@ -229,21 +268,25 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
 
         adapt_transformers_to_gaudi()
+        self.load_model()
         model_desc = self.infer_conf.model_description
-        model_config = model_desc.config
-        self.load_model(model_desc, model_config)
         self.tokenizer = load_tokenizer(self.model, model_desc.tokenizer_name_or_path)
+        if self.infer_conf.hpu_model_config.quant_config:
+            import habana_frameworks.torch.core as htcore
+
+            htcore.hpu_initialize(self.model)
 
     def get_streamer(self):
         from llm_on_ray.inference.utils import RayTextIteratorStreamer
 
         return RayTextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
 
-    def load_model(self, model_desc, model_config):
+    def load_model(self):
         import deepspeed
 
-        model_dtype = model_config.torch_dtype
-        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, **model_config.dict())
+        model_desc = self.infer_conf.model_description
+        model_dtype = model_desc.config.torch_dtype
+        config = AutoConfig.from_pretrained(model_desc.model_id_or_path, **model_desc.config.dict())
         load_to_meta = model_on_meta(config)
 
         if load_to_meta:
@@ -255,18 +298,18 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
                 model_desc.model_id_or_path,
                 self.local_rank,
                 checkpoints_json,
-                token=model_config.use_auth_token,
+                token=model_desc.config.use_auth_token,
             )
         else:
             with deepspeed.OnDevice(dtype=model_dtype, device="cpu"):
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_desc.model_id_or_path, **model_config.dict()
+                    model_desc.model_id_or_path, **model_desc.config.dict()
                 )
         model.eval()
 
         ds_inference_kwargs = {"dtype": model_dtype}
         ds_inference_kwargs["tensor_parallel"] = {"tp_size": self.world_size}
-        ds_inference_kwargs["enable_cuda_graph"] = model_desc.use_hpu_graphs
+        ds_inference_kwargs["enable_cuda_graph"] = self.infer_conf.hpu_model_config.use_hpu_graphs
         ds_inference_kwargs["injection_policy"] = get_ds_injection_policy(config)
         if load_to_meta:
             ds_inference_kwargs["checkpoint"] = checkpoints_json.name
@@ -289,6 +332,19 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
                     patch_scoped_linear_all_reduce(module)
 
             patch_scoped_linear_all_reduce(self.model)
+        # quantization
+        if self.infer_conf.hpu_model_config.quant_config:
+            import habana_quantization_toolkit
+
+            habana_quantization_toolkit.prep_model(
+                self.model, config_path=self.infer_conf.hpu_model_config.quant_config
+            )
+        # torch compile
+        if (
+            self.infer_conf.hpu_model_config.torch_compile
+            and self.model.config.model_type == "llama"
+        ):
+            self.model = get_torch_compiled_model(self.model)
 
     def tokenize(self, prompt):
         input_tokens = self.tokenizer(prompt, return_tensors="pt", padding=True)
