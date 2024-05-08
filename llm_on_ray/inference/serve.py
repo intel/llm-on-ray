@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import ray
 import sys
 from pydantic_yaml import parse_yaml_raw_as
@@ -28,10 +27,9 @@ def get_deployed_models(args):
     """
     The priority of how to choose models to deploy based on passed parameters:
     1. Use inference configuration file if config_file is set,
-    2. Use relevant configuration parameters to generate `InferenceConfig` if model_id_or_path is set,
-    3. Serve all pre-defined models in inference/models/*.yaml, or part of them if models is set.
+    2. If config_file is unset, serve all of the models if models is set, or GPT2 by default if it is unset.
     """
-    if args.model_id_or_path is None and args.config_file is None:
+    if args.config_file is None:
         if args.models:
             models = args.models
             all_models_name = list(all_models.keys())
@@ -44,26 +42,9 @@ def get_deployed_models(args):
     else:
         # config_file has precedence over others
         if args.config_file:
-            print("reading from config file, " + args.config_file)
+            print("Reading from config file, " + args.config_file)
             with open(args.config_file, "r") as f:
                 infer_conf = parse_yaml_raw_as(InferenceConfig, f)
-        else:  # args.model_id_or_path should be set
-            print("reading from command line, " + args.model_id_or_path)
-            model_desc = ModelDescription()
-            model_desc.model_id_or_path = args.model_id_or_path
-            model_desc.tokenizer_name_or_path = (
-                args.tokenizer_id_or_path
-                if args.tokenizer_id_or_path is not None
-                else args.model_id_or_path
-            )
-            infer_conf = InferenceConfig(model_description=model_desc)
-            infer_conf.host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-            infer_conf.port = args.port
-            rp = args.route_prefix if args.route_prefix else ""
-            infer_conf.route_prefix = "/{}".format(rp)
-            infer_conf.num_replicas = args.num_replicas
-            infer_conf.name = rp
-            infer_conf.ipex.enabled = args.ipex
         model_list = {}
         model_list[infer_conf.name] = infer_conf
 
@@ -87,58 +68,14 @@ def main(argv=None):
     parser.add_argument(
         "--config_file",
         type=str,
-        help="Inference configuration file in YAML. If specified, all other arguments will be ignored.",
-    )
-    parser.add_argument("--model_id_or_path", default=None, type=str, help="Model name or path.")
-    parser.add_argument(
-        "--tokenizer_id_or_path", default=None, type=str, help="Tokenizer name or path."
+        help="Inference configuration file in YAML. If specified, it will be prioritized and other configs like --models will be ignored.",
     )
     parser.add_argument(
         "--models",
         nargs="*",
         default=["gpt2"],
         type=str,
-        help=f"Only used when config_file and model_id_or_path are both None, valid values can be any items in {list(all_models.keys())}.",
-    )
-    parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
-    parser.add_argument(
-        "--route_prefix",
-        default=None,
-        type=str,
-        help="The route prefix for HTTP requests.",
-    )
-    parser.add_argument(
-        "--num_replicas",
-        default=1,
-        type=int,
-        help="The number of replicas used to respond to HTTP requests.",
-    )
-    parser.add_argument("--cpus_per_worker", default="24", type=int, help="CPUs per worker.")
-    parser.add_argument(
-        "--gpus_per_worker",
-        default=0,
-        type=float,
-        help="GPUs per worker, used when --device is cuda.",
-    )
-    parser.add_argument(
-        "--hpus_per_worker",
-        default=0,
-        type=float,
-        help="HPUs per worker, used when --device is hpu.",
-    )
-    parser.add_argument("--deepspeed", action="store_true", help="Enable deepspeed inference.")
-    parser.add_argument(
-        "--workers_per_group",
-        default="2",
-        type=int,
-        help="Workers per group, used with --deepspeed.",
-    )
-    parser.add_argument("--ipex", action="store_true", help="Enable ipex optimization.")
-    parser.add_argument("--device", default="cpu", type=str, help="cpu, gpu, hpu or cuda.")
-    parser.add_argument(
-        "--serve_local_only",
-        action="store_true",
-        help="Only support local access to url.",
+        help=f"Only used when config_file is None, valid values can be any items in {list(all_models.keys())}.",
     )
     parser.add_argument(
         "--simple",
@@ -156,6 +93,12 @@ def main(argv=None):
         type=int,
         help="The max concurrent requests ray serve can process.",
     )
+    parser.add_argument(
+        "--serve_local_only",
+        action="store_true",
+        help="Only support local access to url.",
+    )
+    parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
 
     # TODO: vllm_max_num_seqs and max_batch_size should be moved to InferenceConfig
     parser.add_argument(
@@ -187,9 +130,9 @@ def main(argv=None):
         # all models are served under the same URL and then accessed
         # through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        rp = args.route_prefix if args.route_prefix else ""
-        route_prefix = "/{}".format(rp)
-        openai_serve_run(deployments, host, route_prefix, args.port, args.max_concurrent_queries)
+        print("Service is running with deployments:" + str(deployments))
+        print("Service is running models:" + str(model_list))
+        openai_serve_run(deployments, host, "/", args.port, args.max_concurrent_queries)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
