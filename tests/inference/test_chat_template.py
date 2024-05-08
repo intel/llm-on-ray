@@ -171,9 +171,13 @@ TEST_MESSAGES = [
 def test_get_gen_default_prompt(
     model: object, template: object, add_generation_prompt: object, expected_output: object
 ) -> object:
+    print(template)
+    print(model)
     # Initialize the tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model)
+    print(tokenizer)
     tokenizer.chat_template = parse_jinja_file(template)
+
     # Call the function and get the result
     result = tokenizer.apply_chat_template(
         conversation=TEST_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
