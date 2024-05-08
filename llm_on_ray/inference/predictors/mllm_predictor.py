@@ -94,15 +94,15 @@ class MllmPredictor(Predictor):
                 # lazy mode should be True when using hpu graphs
                 config["lazy_mode"] = True
 
-    def _tokenize_inputs(self, image, text_prompt):
-        input_tokens = self.processor(text=text_prompt, images=image, return_tensors="pt")
+    def _tokenize_inputs(self, text_prompt, images):
+        input_tokens = self.processor(text=text_prompt, images=images, return_tensors="pt")
         if self.device.type != "cpu":
             input_tokens = input_tokens.to(device=self.device)
         return input_tokens
 
-    def streaming_generate(self, image, prompt, streamer, **config):
+    def streaming_generate(self, prompts, images, streamer, **config):
         self._process_config(config)
-        inputs = self._tokenize_inputs(image, prompt)
+        inputs = self._tokenize_inputs(prompts, images)
         self.model.generate(
             **inputs,
             stopping_criteria=self.stopping_criteria,
@@ -114,11 +114,11 @@ class MllmPredictor(Predictor):
         if not isinstance(input, tuple):
             raise TypeError("MllmPredictor should use (image, prompt) as input.")
 
-        image, prompt = input
+        prompts, images = input
 
         self._process_config(config)
-        inputs = self._tokenize_inputs(image, prompt)
-        input_length = sum([len(i) for i in prompt])
+        inputs = self._tokenize_inputs(prompts, images)
+        input_length = sum([len(i) for i in prompts])
         gen_tokens = self.model.generate(
             **inputs, stopping_criteria=self.stopping_criteria, **config
         )

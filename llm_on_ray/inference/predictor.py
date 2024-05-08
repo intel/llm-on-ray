@@ -24,7 +24,7 @@ from abc import ABC, abstractmethod
 
 SinglePromptInput = str
 MultiplePromptInput = List[str]
-MllmPromptInput = Tuple[str, str]  # (image, prompt)
+MllmPromptInput = Tuple[List[str], List[str]]  # (prompts, images)
 GenerateInput = Union[SinglePromptInput, MultiplePromptInput, MllmPromptInput]
 GenerateOutput = Union[ModelGenerateResult, List[ModelGenerateResult], None]
 
