@@ -28,11 +28,17 @@ from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.air import ScalingConfig
 from typing import List, Union
 import os
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import (
+    GenerateInput,
+    GenerateOutput,
+    MllmPromptInput,
+    Predictor,
+    SinglePromptInput,
+)
 from llm_on_ray.inference.utils import decide_torch_dtype
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
-    GenerateResult,
+    ModelGenerateResult,
     DEVICE_CPU,
     DEVICE_GPU,
     PRECISION_BF16,
@@ -259,9 +265,13 @@ class DeepSpeedPredictor(Predictor):
         for worker in self.prediction_workers[1:]:
             worker.streaming_generate.remote(inputs_ref, self._create_dummy_streamer(), **config)
 
-    def generate(
-        self, prompts: Union[str, List[str]], **config
-    ) -> Union[GenerateResult, List[GenerateResult], None]:
+    def generate(self, input: GenerateInput, **config) -> GenerateOutput:
+        if isinstance(input, tuple):
+            raise TypeError("DeepSpeedPredictor doesn't support MLLM input.")
+
+        # Convert prompts to list
+        prompts = [input] if isinstance(input, SinglePromptInput) else input
+
         input_ids, input_length = self.tokenize_inputs(prompts)
         inputs_ref = ray.put(input_ids)
         gen_tokens = ray.get(
@@ -269,24 +279,16 @@ class DeepSpeedPredictor(Predictor):
         )[0]
 
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-
-        if isinstance(prompts, str):
-            return GenerateResult(
-                text=decode_result,
+        results = [
+            ModelGenerateResult(
+                text=decode_result[i],
                 input_length=input_length,
                 generate_length=gen_tokens.size()[1] - input_length,
             )
-        elif isinstance(prompts, List):
-            return [
-                GenerateResult(
-                    text=decode_result[i],
-                    input_length=input_length,
-                    generate_length=gen_tokens.size()[1] - input_length,
-                )
-                for i in range(len(prompts))
-            ]
+            for i in range(len(prompts))
+        ]
 
-        return None
+        return results[0] if isinstance(input, SinglePromptInput) else results
 
     def get_streamer(self):
         from llm_on_ray.inference.utils import RayTextIteratorStreamer

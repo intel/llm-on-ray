@@ -17,12 +17,19 @@
 import re
 import torch
 from transformers import AutoTokenizer, StoppingCriteriaList
-from typing import List, AsyncGenerator, Union
-from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult
+from typing import List, AsyncGenerator, Tuple, Union
+from llm_on_ray.inference.inference_config import InferenceConfig, ModelGenerateResult
 from llm_on_ray.inference.utils import StoppingCriteriaSub
+from abc import ABC, abstractmethod
+
+SinglePromptInput = str
+MultiplePromptInput = List[str]
+MllmPromptInput = Tuple[str, str]  # (image, prompt)
+GenerateInput = Union[SinglePromptInput, MultiplePromptInput, MllmPromptInput]
+GenerateOutput = Union[ModelGenerateResult, List[ModelGenerateResult], None]
 
 
-class Predictor:
+class Predictor(ABC):
     def __init__(self, infer_conf: InferenceConfig) -> None:
         self.infer_conf = infer_conf
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -94,14 +101,15 @@ class Predictor:
             tokenizer.pad_token = tokenizer.eos_token
             model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
+    @abstractmethod
     def generate(
-        self, prompts: Union[str, List[str]], **config
-    ) -> Union[GenerateResult, List[GenerateResult], None]:
+        self,
+        input: GenerateInput,
+        **config,
+    ) -> Union[ModelGenerateResult, List[ModelGenerateResult], None]:
         pass
 
-    async def generate_async(
-        self, prompts: Union[str, List[str]], **config
-    ) -> Union[str, List[str]]:
+    async def generate_async(self, input: GenerateInput, **config) -> Union[str, List[str]]:
         pass
 
     # output is streamed into streamer

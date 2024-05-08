@@ -34,6 +34,7 @@
 #
 import os
 import tempfile
+from typing import List, Union
 import ray
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.util.placement_group import (
@@ -57,9 +58,14 @@ from llm_on_ray.inference.torch_dist import (
 )
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
-    GenerateResult,
+    ModelGenerateResult,
 )
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import (
+    GenerateInput,
+    GenerateOutput,
+    Predictor,
+    SinglePromptInput,
+)
 from llm_on_ray.inference.utils import decide_torch_dtype
 
 
@@ -153,21 +159,26 @@ class HPUPredictor(Predictor):
                 self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
             )
 
-    def generate(self, prompt, **config):
+    # FIXME: return ModelGenerateResult list when prompts are list
+    def generate(self, input: GenerateInput, **config) -> GenerateOutput:
         self._process_config(config)
+
+        # Convert prompts to list
+        prompts = [input] if isinstance(input, SinglePromptInput) else input
+
         if self.use_deepspeed:
             return ray.get(
-                [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
+                [worker.generate.remote(prompts, **config) for worker in self.deepspeed_workers]
             )[0]
         else:
-            input_ids, input_length = self.tokenize_inputs(prompt)
+            input_ids, input_length = self.tokenize_inputs(prompts)
             gen_tokens = self.model.generate(
                 input_ids, stopping_criteria=self.stopping_criteria, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-            if isinstance(prompt, list) and len(prompt) > 1:
+            if isinstance(prompts, list) and len(prompts) > 1:
                 return decode_result
-            return GenerateResult(
+            return ModelGenerateResult(
                 text=decode_result,
                 input_length=input_length,
                 generate_length=gen_tokens.size()[1] - input_length,
@@ -213,6 +224,7 @@ def load_tokenizer(model, tokenizer_name_or_path):
     return tokenizer
 
 
+# FIXME: consolidate DeepSpeedPredictor's PredictionWorker and HPUDeepSpeedWorker
 @ray.remote
 class HPUDeepSpeedWorker(TorchDistributedWorker):
     def __init__(self, infer_conf: InferenceConfig):
