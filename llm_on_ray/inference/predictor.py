@@ -106,7 +106,7 @@ class Predictor(ABC):
         self,
         input: GenerateInput,
         **config,
-    ) -> Union[ModelGenerateResult, List[ModelGenerateResult], None]:
+    ) -> GenerateOutput:
         pass
 
     async def generate_async(self, input: GenerateInput, **config) -> Union[str, List[str]]:
