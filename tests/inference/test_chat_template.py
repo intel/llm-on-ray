@@ -57,7 +57,7 @@ llama2_jinja_path = (
     pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
     / "llm_on_ray/common/templates/template_llama2.jinja"
 )
-assert neural_chat_jinja_path.exists()
+assert llama2_jinja_path.exists()
 
 
 # Define models, templates, and their corresponding expected outputs
