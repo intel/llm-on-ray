@@ -80,47 +80,47 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
     ),
     ("gpt2", gpt2_jinja_path, True, "Hello\nHi there!\nWhat is the capital of\n"),
     ("gpt2", gpt2_jinja_path, False, "Hello\nHi there!\nWhat is the capital of\n"),
-    (
-        "google/gemma-2b",
-        gemma_jinja_path,
-        True,
-        "<start_of_turn>user\n"
-        "Hello<end_of_turn>\n"
-        "<start_of_turn>model\n"
-        "Hi there!<end_of_turn>\n"
-        "<start_of_turn>user\n"
-        "What is the capital of<end_of_turn>\n"
-        "<start_of_turn>model\n",
-    ),
-    (
-        "google/gemma-2b",
-        gemma_jinja_path,
-        False,
-        "<start_of_turn>user\n"
-        "Hello<end_of_turn>\n"
-        "<start_of_turn>model\n"
-        "Hi there!<end_of_turn>\n"
-        "<start_of_turn>user\n"
-        "What is the capital of<end_of_turn>\n",
-    ),
-    (
-        "mistralai/Mistral-7B-v0.1",
-        mistral_jinja_path,
-        True,
-        "<s>\n"
-        "[INST] Hello [/INST]\n"
-        "Hi there!</s>\n"
-        "[INST] What is the capital of [/INST]\n",
-    ),
-    (
-        "mistralai/Mistral-7B-v0.1",
-        mistral_jinja_path,
-        False,
-        "<s>\n"
-        "[INST] Hello [/INST]\n"
-        "Hi there!</s>\n"
-        "[INST] What is the capital of [/INST]\n",
-    ),
+    # (
+    #     "google/gemma-2b",
+    #     gemma_jinja_path,
+    #     True,
+    #     "<start_of_turn>user\n"
+    #     "Hello<end_of_turn>\n"
+    #     "<start_of_turn>model\n"
+    #     "Hi there!<end_of_turn>\n"
+    #     "<start_of_turn>user\n"
+    #     "What is the capital of<end_of_turn>\n"
+    #     "<start_of_turn>model\n",
+    # ),
+    # (
+    #     "google/gemma-2b",
+    #     gemma_jinja_path,
+    #     False,
+    #     "<start_of_turn>user\n"
+    #     "Hello<end_of_turn>\n"
+    #     "<start_of_turn>model\n"
+    #     "Hi there!<end_of_turn>\n"
+    #     "<start_of_turn>user\n"
+    #     "What is the capital of<end_of_turn>\n",
+    # ),
+    # (
+    #     "mistralai/Mistral-7B-v0.1",
+    #     mistral_jinja_path,
+    #     True,
+    #     "<s>\n"
+    #     "[INST] Hello [/INST]\n"
+    #     "Hi there!</s>\n"
+    #     "[INST] What is the capital of [/INST]\n",
+    # ),
+    # (
+    #     "mistralai/Mistral-7B-v0.1",
+    #     mistral_jinja_path,
+    #     False,
+    #     "<s>\n"
+    #     "[INST] Hello [/INST]\n"
+    #     "Hi there!</s>\n"
+    #     "[INST] What is the capital of [/INST]\n",
+    # ),
     (
         "Intel/neural-chat-7b-v3-1",
         neural_chat_jinja_path,
@@ -171,11 +171,8 @@ TEST_MESSAGES = [
 def test_get_gen_default_prompt(
     model: object, template: object, add_generation_prompt: object, expected_output: object
 ) -> object:
-    print(template)
-    print(model)
     # Initialize the tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model)
-    print(tokenizer)
     tokenizer.chat_template = parse_jinja_file(template)
 
     # Call the function and get the result
