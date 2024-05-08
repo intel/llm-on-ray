@@ -185,24 +185,28 @@ class HPUPredictor(Predictor):
                 self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
             )
 
-    # FIXME: return ModelGenerateResult list when prompts are list
+    # FIXME: support MultiplePromptInput and MllmPromptInput
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
-        self._process_config(config)
+        if not isinstance(input, SinglePromptInput):
+            raise TypeError(
+                "HPUPredictor doesn't support multiple prompts and MLLM prompts for now!"
+            )
 
-        # Convert prompts to list
-        prompts = [input] if isinstance(input, SinglePromptInput) else input
+        prompt = input
+
+        self._process_config(config)
 
         if self.infer_conf.deepspeed:
             return ray.get(
-                [worker.generate.remote(prompts, **config) for worker in self.deepspeed_workers]
+                [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
             )[0]
         else:
-            input_ids, input_length = self.tokenize_inputs(prompts)
+            input_ids, input_length = self.tokenize_inputs(prompt)
             gen_tokens = self.model.generate(
                 input_ids, stopping_criteria=self.stopping_criteria, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-            if isinstance(prompts, list) and len(prompts) > 1:
+            if isinstance(prompt, list) and len(prompt) > 1:
                 return decode_result
             return ModelGenerateResult(
                 text=decode_result,
