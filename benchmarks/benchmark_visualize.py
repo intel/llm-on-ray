@@ -17,35 +17,22 @@
 import argparse
 import matplotlib.pyplot as plt
 import string
-import re
+import json
+import os
 
 marks = {}
-marks["bs_mark"] = r"bs:"
-marks["iter_mark"] = r"iter:"
-marks["input_tokens_length_mark"] = r"input_tokens_length:"
-marks["prompts_num_mark"] = r"num_prompts:"
-marks["total_time_mark"] = r"Total time:"
-marks["prompt_length_mark"] = r"Prompt Length (Min/Med/Max):"
-marks["request_throughput_mark"] = r"Request Throughput (QPS):"
-marks["input_token_throughput_mark"] = r"Input Token Throughput:"
-marks["output_token_throughput_mark"] = r"output Token Throughput:"
-marks["latency_per_req_mark"] = r"Average latency per Request:"
-marks["latency_per_token_mark"] = r"Average latency per Token:"
-marks["latency_first_token_mark"] = r"Average latency for First Tokens:"
-marks["latency_next_token_mark"] = r"Average latency for Next Tokens:"
-
-
-def extract_metric(file_name, mark_name):
-    with open(file_name, "r") as file:
-        logs = file.read()
-    extract_value = re.findall(marks[mark_name] + r"\s+([\d.]+)", logs)
-    print(f"extract {mark_name}： {extract_value}")
-    if mark_name in ["bs_mark", "iter_mark", "input_tokens_length_mark", "prompts_num_mark"]:
-        extract_value = list(map(int, extract_value))
-    else:
-        extract_value = list(map(float, extract_value))
-
-    return extract_value
+marks["prompts_num_mark"] = r"num_prompts"
+marks["total_time_mark"] = r"benchmark_time"
+marks["min_prompt_len_mark"] = r"min_prompt_len"
+marks["med_prompt_len_mark"] = r"med_prompt_len"
+marks["max_prompt_len_mark"] = r"max_prompt_len"
+marks["request_throughput_mark"] = r"throughput_requests_per_s"
+marks["input_token_throughput_mark"] = r"input_throughput_tokens_per_s"
+marks["output_token_throughput_mark"] = r"output_throughput_tokens_per_s"
+marks["latency_per_req_mark"] = r"avg_latency"
+marks["latency_per_token_mark"] = r"avg_per_token_latency"
+marks["latency_first_token_mark"] = r"avg_first_token_latency"
+marks["latency_next_token_mark"] = r"avg_next_token_latency"
 
 
 def get_avg_metric(metric, num_iter, per_iter_len):
@@ -64,7 +51,7 @@ def get_avg_metric(metric, num_iter, per_iter_len):
 def get_title_label(mark_name):
     title = marks[mark_name].strip(string.punctuation)
     label = title
-    if "Throughput" in label:
+    if "throughput" in label:
         label += " (tokens/s)"
     elif "latency" in label:
         label += " (s)"
@@ -84,6 +71,7 @@ def plot_compare_metric(bs, metric_vllm, metric_llmonray, mark_name, save_path):
 
     plt.savefig(save_path)
     plt.close()
+    print("generated successfully")
 
 
 def plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_path):
@@ -97,6 +85,7 @@ def plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_path)
     plt.title(title)
     plt.savefig(save_path)
     plt.close()
+    print("generated successfully")
 
 
 def plot_latency_throughput(concurrency, num_replica, latency, throughput, save_path):
@@ -117,87 +106,155 @@ def plot_latency_throughput(concurrency, num_replica, latency, throughput, save_
     plt.title("Values of Throughput and Next Token Latency corresponding to different bs")
     plt.savefig(save_path)
     plt.close()
+    print("generated successfully")
+
+
+def extract_metric_choice_1_2(bs_dirs, mark_name):
+    bs = []
+    metric_value = []
+    for bs_dir in os.listdir(bs_dirs):
+        bs.append(int(bs_dir.split("_")[-1]))
+        res_path = os.path.join(bs_dirs, bs_dir)
+        # get the latest summary log file
+        log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+        with open(log_file) as f:
+            log_content = json.load(f)
+        metric_value.append(float(log_content[marks[mark_name]]))
+    return bs, metric_value
+
+
+def extract_metric_choice_3(iter_dirs):
+    iters = []
+    num_prompts = []
+    latency_next_token = []
+    output_throughput = []
+    for iter_dir in os.listdir(iter_dirs):
+        prompt_dirs = os.path.join(iter_dirs, iter_dir)
+        iters.append(int(iter_dir.split("_")[-1]))
+        for prompt_dir in os.listdir(prompt_dirs):
+            num_prompts.append(int(prompt_dir.split("_")[-1]))
+            res_path = os.path.join(prompt_dirs, prompt_dir)
+            # get the latest summary log file
+            log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+            with open(log_file) as f:
+                log_content = json.load(f)
+            latency_next_token.append(float(log_content[marks["latency_next_token_mark"]]))
+            output_throughput.append(float(log_content[marks["output_token_throughput_mark"]]))
+    return iters, num_prompts, latency_next_token, output_throughput
+
+
+def extract_metric_choice_4(iter_dirs):
+    iters = []
+    input_tokens_length_li = []
+    latency_first_token = []
+    latency_next_token = []
+    for iter_dir in os.listdir(iter_dirs):
+        iters.append(int(iter_dir.split("_")[-1]))
+        token_dirs = os.path.join(iter_dirs, iter_dir)
+        for token_dir in os.listdir(token_dirs):
+            input_tokens_length_li.append(int(token_dir.split("_")[-2]))
+            res_path = os.path.join(token_dirs, token_dir)
+            # get the latest summary log file
+            log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+            with open(log_file) as f:
+                log_content = json.load(f)
+            latency_first_token.append(float(log_content[marks["latency_first_token_mark"]]))
+            latency_next_token.append(float(log_content[marks["latency_next_token_mark"]]))
+
+    return iters, input_tokens_length_li, latency_first_token, latency_next_token
 
 
 def main(args):
     choice = args.choice
+    benchmark_dir = args.benchmark_dir
+    save_dir = args.save_dir
     if 1 in choice:
         # get the peak output throughput of llm-on-ray with vllm
         print("draw the output token throughput of llm-on-ray with vllm")
-        log_file_vllm = "benchmarks/logs/1_result.txt"
-        bs = extract_metric(log_file_vllm, "bs_mark")
+        choice_dir = os.path.join(benchmark_dir, "choice_1")
 
         mark_name = "output_token_throughput_mark"
-        save_path = "benchmarks/figures/1_vllm_peak_throughput.png"
-        output_Token_Throughput = extract_metric(log_file_vllm, mark_name)
-        plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_path)
+        bs, output_Token_Throughput = extract_metric_choice_1_2(choice_dir, mark_name)
+        print("bs: ", bs)
+        print("output_Token_throughput: ", output_Token_Throughput)
+
+        save_figure_path = os.path.join(save_dir, "choice1_vllm_peak_throughput.png")
+        plot_vllm_peak_throughput(bs, output_Token_Throughput, mark_name, save_figure_path)
     if 2 in choice:
         # compare output token throughput(average latency per token) between llm-on-ray with vllm and llm-on-ray
         print("draw vllm vs llmonray(output token throughput/average latency per token)")
-        log_file_vllm = "benchmarks/logs/2_result_vllm.txt"
-        log_file_llmonray = "benchmarks/logs/2_result_llmonray.txt"
-        bs = extract_metric(log_file_vllm, "bs_mark")
+        choice_dir = os.path.join(benchmark_dir, "choice_2")
+        vllm_dir = os.path.join(choice_dir, "vllm")
+        wo_vllm_dir = os.path.join(choice_dir, "wo_vllm")
 
         mark_name = "output_token_throughput_mark"
-        vllm_output_Token_Throughput = extract_metric(log_file_vllm, mark_name)
-        llmonray_output_Token_Throughput = extract_metric(log_file_llmonray, mark_name)
-        save_path = "benchmarks/figures/2_output_token_throughput_compare.png"
+        bs, vllm_output_Token_Throughput = extract_metric_choice_1_2(vllm_dir, mark_name)
+        _, wo_vllm_output_Token_Throughput = extract_metric_choice_1_2(wo_vllm_dir, mark_name)
+        print("bs: ", bs)
+        print("vllm_output_Token_Throughput: ", vllm_output_Token_Throughput)
+        print("wo_vllm_output_Token_Throughput: ", wo_vllm_output_Token_Throughput)
+
+        save_figure_path = os.path.join(save_dir, "choice2_output_token_throughput_compare.png")
         plot_compare_metric(
-            bs, vllm_output_Token_Throughput, llmonray_output_Token_Throughput, mark_name, save_path
+            bs,
+            vllm_output_Token_Throughput,
+            wo_vllm_output_Token_Throughput,
+            mark_name,
+            save_figure_path,
         )
 
         mark_name = "latency_per_token_mark"
-        save_path = "benchmarks/figures/2_average_latency_per_token_compare.png"
-        vllm_average_latency_per_token = extract_metric(log_file_vllm, mark_name)
-        llmonray_average_latency_per_token = extract_metric(log_file_llmonray, mark_name)
+        save_figure_path = os.path.join(save_dir, "choice2_average_latency_per_token_compare.png")
+        bs, vllm_average_latency_per_token = extract_metric_choice_1_2(vllm_dir, mark_name)
+        _, wo_vllm_average_latency_per_token = extract_metric_choice_1_2(wo_vllm_dir, mark_name)
+        print("vllm_average_latency_per_token: ", vllm_average_latency_per_token)
+        print("wo_vllm_average_latency_per_token: ", wo_vllm_average_latency_per_token)
         plot_compare_metric(
             bs,
             vllm_average_latency_per_token,
-            llmonray_average_latency_per_token,
+            wo_vllm_average_latency_per_token,
             mark_name,
-            save_path,
+            save_figure_path,
         )
     if 3 in choice:
         # latency vs throughput tradeoff for various number of requests
+        choice_dir = os.path.join(benchmark_dir, "choice_3")
+        token_dirs = os.listdir(choice_dir)
         print("draw latency vs throughput tradeoff for various number of requests")
-        log_file_all = [
-            "benchmarks/logs/3_result_32_64.txt",
-            "benchmarks/logs/3_result_1024_128.txt",
-        ]
-        save_path_all = [
-            "benchmarks/figures/3_latency_throughput_32_64.png",
-            "benchmarks/figures/3_latency_throughput_1024_128.png",
-        ]
-        for i in range(len(log_file_all)):
-            log_file = log_file_all[i]
-            save_path = save_path_all[i]
-            iters = extract_metric(log_file, "iter_mark")
-            num_prompts = extract_metric(log_file, "prompts_num_mark")
-            latency_next_token = extract_metric(log_file, "latency_next_token_mark")
-            output_throughput = extract_metric(log_file, "output_token_throughput_mark")
+        for token_res in token_dirs:
+            iter_dirs = os.path.join(choice_dir, token_res)
+            save_figure_path = os.path.join(save_dir, "choice3_" + token_res)
+            iters, num_prompts, latency_next_token, output_throughput = extract_metric_choice_3(
+                iter_dirs
+            )
+
             print("iter: ", iters)
             print("num prompt: ", num_prompts)
+            print("latency_next_token: ", latency_next_token)
+            print("output_throughput: ", output_throughput)
             num_iter = len(iters)
             per_iter_len = int(len(num_prompts) / num_iter)
             avg_latency_next_token = get_avg_metric(latency_next_token, num_iter, per_iter_len)
             avg_output_throughput = get_avg_metric(output_throughput, num_iter, per_iter_len)
-            print(avg_latency_next_token)
-            print(avg_output_throughput)
+            print("avg_latency_next_token: ", avg_latency_next_token)
+            print("avg_output_throughput: ", avg_output_throughput)
             plot_latency_throughput(
                 num_prompts[:per_iter_len],
                 args.num_replica,
                 avg_latency_next_token,
                 avg_output_throughput,
-                save_path,
+                save_figure_path,
             )
     if 4 in choice:
         # get the latency of llm-on-Ray with vllm
+        choice_dir = os.path.join(benchmark_dir, "choice_4")
         print("get the latency of llm-on-ray with vllm")
-        log_file = "benchmarks/logs/4_result.txt"
-        iters = extract_metric(log_file, "iter_mark")
-        input_tokens_length_li = extract_metric(log_file, "input_tokens_length_mark")
-        latency_first_token = extract_metric(log_file, "latency_first_token_mark")
-        latency_next_token = extract_metric(log_file, "latency_next_token_mark")
+        (
+            iters,
+            input_tokens_length_li,
+            latency_first_token,
+            latency_next_token,
+        ) = extract_metric_choice_4(choice_dir)
         print("iter: ", iters)
         print("input_tokens_length: ", input_tokens_length_li)
         print("latency_first_token: ", latency_first_token)
@@ -229,5 +286,15 @@ if __name__ == "__main__":
         type=int,
         help="The number of replicas that respond to requests at the same time.",
     )
+    parser.add_argument(
+        "--benchmark-dir",
+        default="benchmarks/results",
+        type=str,
+        help="The directory of benchmark results.",
+    )
+    parser.add_argument(
+        "--save-dir", default="benchmarks/figures", type=str, help="The directory to save figures."
+    )
+
     args = parser.parse_args()
     main(args)
