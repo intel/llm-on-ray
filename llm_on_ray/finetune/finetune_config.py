@@ -55,7 +55,7 @@ class General(BaseModel):
     tokenizer_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
-    checkpoint_dir: Optional[str]
+    save_strategy: str = "no"
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
