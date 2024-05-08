@@ -28,7 +28,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ llama-2-7b-chat-hf ]
+        model: [ llama-2-7b-chat-hf-hpu ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -36,7 +36,8 @@ jobs:
           - { isPR: true }
 
         include:
-          - { model: "llama-2-7b-chat-hf"}
+          - { model: "llama-2-7b-chat-hf-hpu"}
+          - { model: "llama-2-70b-chat-hf-hpu"}
 
     runs-on: gaudi2
 
@@ -58,7 +59,9 @@ jobs:
         id: "target"
         run: |
           target="inference"
-          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
+          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-hpu" ]]; then
+            target="${target}_gaudi2"
+          elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf-hpu" ]]; then
             target="${target}_gaudi2"
           fi
           echo "target is ${target}"
@@ -98,8 +101,15 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           CMD=$(cat << EOF
           import yaml
-          if ("${{ matrix.model }}" == "llama-2-7b-chat-hf"):
+          if ("${{ matrix.model }}" == "llama-2-7b-chat-hf-hpu"):
               conf_path = "llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml"
+              with open(conf_path, encoding="utf-8") as reader:
+                  result = yaml.load(reader, Loader=yaml.FullLoader)
+                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
+              with open(conf_path, 'w') as output:
+                  yaml.dump(result, output, sort_keys=False)
+          elif ("${{ matrix.model }}" == "llama-2-70b-chat-hf-hpu"):
+              conf_path = "llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml"
               with open(conf_path, encoding="utf-8") as reader:
                   result = yaml.load(reader, Loader=yaml.FullLoader)
                   result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
@@ -108,8 +118,10 @@ jobs:
           EOF
           )
           docker exec "${TARGET}" python -c "$CMD"
-          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
+          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-hpu" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml --simple"
+          elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf-hpu" ]]; then
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml --simple"
           fi
           echo Non-streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
