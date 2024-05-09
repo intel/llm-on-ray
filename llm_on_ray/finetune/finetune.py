@@ -128,7 +128,7 @@ def convert_to_training_args(cls, config):
     args = {
         "output_dir": config["General"]["output_dir"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
-        "save_strategy": config["Training"]["save_strategy"],
+        "save_strategy": config["General"]["save_strategy"],
         "bf16": config["Training"]["mixed_precision"] == "bf16",
         "num_train_epochs": config["Training"]["epochs"],
         "per_device_train_batch_size": config["Training"]["batch_size"],
