@@ -8,7 +8,7 @@ Please follow [Setting up For Intel CPU/GPU/Gaudi](setup.md) to install LLM-on-R
 
 ## Install vLLM for Intel CPU
 
-__NOTICE: vLLM should be installed after LLM-on-Ray for now due to  vLLM may introduce newer packages__
+__NOTICE: vLLM should be installed after LLM-on-Ray for now due to  vLLM may introduce newer packages.__
 
 vLLM for CPU currently supports Intel® 4th Gen Xeon® Scalable Performance processor (formerly codenamed Sapphire Rapids) for best performance and is runnable with FP32 precision for other Xeon processors.
 
