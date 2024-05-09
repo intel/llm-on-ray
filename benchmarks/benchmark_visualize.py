@@ -168,6 +168,8 @@ def main(args):
     choice = args.choice
     benchmark_dir = args.benchmark_dir
     save_dir = args.save_dir
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     if 1 in choice:
         # get the peak output throughput of llm-on-ray with vllm
         print("draw the output token throughput of llm-on-ray with vllm")

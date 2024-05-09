@@ -16,7 +16,17 @@ dataset_compare_num=128
 numa_server_command=""
 numa_client_command="numactl -N 1 -m 1"
 num_replica=4
-save_dir="benchmarks/results"
+if run_mode="test"
+then
+    save_dir="benchmarks/results_test"
+elif run_mode="benchmark"
+then
+    save_dir="benchmarks/results"
+else
+    echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
+    exit 1
+
+fi
 
 get_peak_throughpt(){
     echo "get performance results of llm-on-ray with vllm based on different bs"
@@ -134,9 +144,6 @@ then
     then
         bs=(1 2 4)
         prompt_num=8
-    else
-        echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
-        exit 1
     fi
     get_peak_throughpt "${bs[*]}" $prompt_num $benchmark_dir
 fi
@@ -155,9 +162,6 @@ then
     then
         bs=(1 2 4)
         prompt_num=1
-    else
-        echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
-        exit 1
     fi
     metric_bs "${bs[*]}" $prompt_num $benchmark_dir_vllm $benchmark_dir_wo_vllm
 fi
@@ -188,9 +192,6 @@ then
         input_tokens_length=32
         output_tokens_length=20
         latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
-    else
-        echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
-        exit 1
     fi
 fi
 if [[ "$choice" == *"4"* ]]
@@ -206,9 +207,6 @@ then
     then
         iter=2
         input_tokens_length=(32 128)
-    else
-        echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
-        exit 1
     fi
     output_tokens_length=32
     get_best_latency $iter "${input_tokens_length[*]}" $output_tokens_length $benchmark_dir
