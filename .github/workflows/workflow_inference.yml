@@ -34,7 +34,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm, gemma-2b, deepseek-coder-33b-instruct]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf, gemma-2b, deepseek-coder-33b-instruct]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -45,7 +45,7 @@ jobs:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
           - { model: "mpt-7b-ipex-llm"}
-          - { model: "llama-2-7b-chat-hf-vllm"}
+          - { model: "llama-2-7b-chat-hf"}
           - { model: "gemma-2b"}
           - dtuner_model: nathan0/mpt-7b-deltatuner-model
             model: mpt-7b
@@ -78,7 +78,7 @@ jobs:
           target="inference"
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             target="${target}_ipex-llm"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             target="${target}_vllm"
           fi
           echo "target is ${target}"
@@ -88,7 +88,7 @@ jobs:
         run: |
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             DF_SUFFIX=".ipex-llm"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             DF_SUFFIX=".vllm"
           elif [[ ${{ matrix.model }} == "gpt-j-6b" ]]; then
             DF_SUFFIX=".cpu_and_deepspeed.pip_non_editable"
@@ -122,7 +122,7 @@ jobs:
           docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
           else
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --simple --models ${{ matrix.model }}"
@@ -145,7 +145,7 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
             echo ${{ matrix.model }} is not supported!
-          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${{ matrix.model }}\".yaml --output_file \"${{ matrix.model }}\".yaml.deepspeed --deepspeed"
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file \"${{ matrix.model }}\".yaml.deepspeed --simple"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${{ matrix.model }}"
@@ -169,7 +169,7 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "mpt-7b-ipex-llm" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml"
-          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          elif [[ ! ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --models ${{ matrix.model }}"
             docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
           fi
