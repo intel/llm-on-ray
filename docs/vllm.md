@@ -6,12 +6,10 @@ __NOTICE: The support for vLLM is experimental and subject to change.__
 
 vLLM for CPU currently supports Intel® 4th Gen Xeon® Scalable Performance processor (formerly codenamed Sapphire Rapids) for best performance and is runnable with FP32 precision for other Xeon processors.
 
-Currently a GNU C++ compiler with >=12.3 version is required to build and install. In Ubuntu 22.4, you can use the following commands to install GCC 12.3:
+Currently a GNU C++ compiler with >=12.3 version is required to build and install. You can use the following commands to install GCC 12.3 and dependencies into the conda environment:
 
 ```bash
-sudo apt-get update  -y
-sudo apt-get install -y gcc-12 g++-12
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
+conda install -y -c conda-forge gxx=12.3 gxx_linux-64=12.3 libxcrypt
 ```
 
 Then please run the following script to install vLLM for CPU into your current environment.
