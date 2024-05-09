@@ -43,7 +43,7 @@ def script_with_args(choice, benchmark_dir, save_dir):
 
 
 @pytest.mark.parametrize(
-    "choice,save_dir",
+    "choice,benchmark_dir,save_dir",
     [
         (choice, benchmark_dir, save_dir)
         for choice in [1, 2, 3, 4]
