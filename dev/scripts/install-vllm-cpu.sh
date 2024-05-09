@@ -18,7 +18,7 @@ echo Current GNU C++ Compiler version: $gcc_version
 echo
 version_greater_equal "${gcc_version}" 12.3.0 || { echo "GNU C++ Compiler 12.3.0 or above is required!"; exit 1; }
 
-VLLM_VERSION=0.4.1
+VLLM_VERSION=0.4.2
 
 echo Installing VLLM v$VLLM_VERSION ...
 # Install VLLM from source, refer to https://docs.vllm.ai/en/latest/getting_started/cpu-installation.html for details
