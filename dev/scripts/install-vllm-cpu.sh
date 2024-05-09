@@ -20,7 +20,7 @@ version_greater_equal "${gcc_version}" 12.3.0 || { echo "GNU C++ Compiler 12.3.0
 
 VLLM_VERSION=0.4.2
 
-echo Installing VLLM v$VLLM_VERSION ...
+echo Installing vLLM v$VLLM_VERSION ...
 # Install VLLM from source, refer to https://docs.vllm.ai/en/latest/getting_started/cpu-installation.html for details
 # We use this one-liner to install latest vllm-cpu
 MAX_JOBS=8 VLLM_TARGET_DEVICE=cpu pip install -v git+https://github.com/vllm-project/vllm.git@v$VLLM_VERSION \
