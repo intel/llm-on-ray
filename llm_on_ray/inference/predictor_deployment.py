@@ -210,7 +210,28 @@ class PredictorDeployment:
     async def handle_non_streaming(self, prompts, config) -> Union[JSONResponse, str]:
         # Use vllm for continuous batching
         if self.use_vllm:
-            return await self.predictor.generate_async(prompts, **config)
+            results = await self.predictor.generate_async(prompts, **config)
+            if isinstance(results, list):
+                responses = []
+                for result in results:
+                    responses.append(
+                        ModelResponse(
+                            generated_text=result.text,
+                            num_input_tokens=self.predictor.input_length,
+                            num_input_tokens_batch=self.predictor.input_length,
+                            num_generated_tokens=result.generate_length,
+                            preprocessing_time=0,
+                        )
+                    )
+                return responses
+            else:
+                return ModelResponse(
+                    generated_text=results.text,
+                    num_input_tokens=results.input_length,
+                    num_input_tokens_batch=results.input_length,
+                    num_generated_tokens=results.generate_length,
+                    preprocessing_time=0,
+                )
         else:
             # static batching
             if isinstance(prompts, list):
