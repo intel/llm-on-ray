@@ -119,6 +119,27 @@ class ModelDescription(BaseModel):
     input_processor: str = "AutoProcessor"
     model_loader: str = "AutoModel"
 
+    chat_model_with_image: bool = False
+    chat_template: Union[str, None] = None
+    default_chat_template: str = (
+        "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        "{% if messages[0]['role'] == 'system' %}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}{% set loop_messages = messages %}"
+        "{% set system_message = false %}{% endif %}"
+        "{% for message in loop_messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'].strip() }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Response:'  + message['content'].strip() }}"
+        "{% endif %}{% endfor %}"
+        "{% if add_generation_prompt %}{{'### Response:\n'}}{% endif %}"
+    )
+
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
         if v:
@@ -178,7 +199,6 @@ class InferenceConfig(BaseModel):
 
 
 all_models: Dict[str, InferenceConfig] = {}
-base_models: Dict[str, InferenceConfig] = {}
 _models: Dict[str, InferenceConfig] = {}
 
 _cur = os.path.dirname(os.path.abspath(__file__))

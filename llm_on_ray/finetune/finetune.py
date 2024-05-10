@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-#!/usr/bin/env python
+# !/usr/bin/env python
 
 import os
 import argparse
@@ -248,6 +248,9 @@ def train_func(config: Dict[str, Any]):
                 "group": config["Dataset"].get("group", True),
                 "block_size": config["Dataset"].get("block_size", 512),
                 "shuffle": config["Dataset"].get("shuffle", False),
+                "gpt_base_model": config["General"].get("gpt_base_model", False),
+                "chat_template": config["General"]["chat_template"],
+                "default_chat_template": config["General"]["default_chat_template"],
             },
             "lr_scheduler": {
                 "enable": True,

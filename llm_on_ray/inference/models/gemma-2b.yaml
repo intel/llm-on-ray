@@ -6,20 +6,13 @@ cpus_per_worker: 2
 gpus_per_worker: 0
 deepspeed: false
 workers_per_group: 2
-device: cpu
+device: CPU
 ipex:
   enabled: true
   precision: bf16
 model_description:
   model_id_or_path: google/gemma-2b
   tokenizer_name_or_path: google/gemma-2b
-  chat_processor: ChatModelGemma
-  prompt:
-    intro: ''
-    human_id: '<bos><start_of_turn>user
-    {msg}<end_of_turn>'
-    bot_id: '<bos><start_of_turn>model
-    {msg}<end_of_turn>'
-    stop_words: []
   config:
     use_auth_token: ' '
+  chat_template: "{% if messages[0]['role'] == 'system' %}{{ raise_exception('System role not supported') }}{% endif %}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if (message['role'] == 'assistant') %}{% set role = 'model' %}{% else %}{% set role = message['role'] %}{% endif %}{{ '<start_of_turn>' + role + '\n' + message['content'] | trim + '<end_of_turn>\n' }}{% endfor %}"

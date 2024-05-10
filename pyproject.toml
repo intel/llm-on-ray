@@ -34,7 +34,8 @@ dependencies = [
     "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
-    "async_timeout",
+    "async-timeout",
+    "jinja2>=3.0.0",
     "typer"
 ]
 

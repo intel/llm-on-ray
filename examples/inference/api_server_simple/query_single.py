@@ -55,7 +55,12 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-prompt = "Once upon a time,"
+# prompt = "Once upon a time,"
+prompt = [
+    {"role": "user", "content": "Which is bigger, the moon or the sun?"},
+]
+
+
 config: Dict[str, Union[int, float]] = {}
 if args.max_new_tokens:
     config["max_new_tokens"] = int(args.max_new_tokens)

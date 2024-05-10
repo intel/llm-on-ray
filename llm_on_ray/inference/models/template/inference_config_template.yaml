@@ -13,7 +13,7 @@ ipex:
   precision: bf16
 model_description:
   model_id_or_path: null
-  ipexllm:: false
+  ipexllm: false
   tokenizer_name_or_path: null
   chat_processor: null
   gpt_base_model: false
@@ -22,11 +22,6 @@ model_description:
   peft_model_id_or_path: null
   peft_type: null
   use_hpu_graphs: true
-  prompt:
-    intro: ''
-    human_id: ''
-    bot_id: ''
-    stop_words: []
   config:
     trust_remote_code: false
     use_auth_token: null

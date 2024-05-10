@@ -26,6 +26,8 @@ from typing import AsyncGenerator, List, Tuple, Union, Dict, Any
 from starlette.requests import Request
 from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
+
+from llm_on_ray.inference.chat_template_process import ChatTemplatePreprocess
 from llm_on_ray.inference.inference_config import InferenceConfig
 from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ChatMessage,
@@ -51,31 +53,11 @@ class PredictorDeployment:
         max_batch_size=_DEFAULT_MAX_BATCH_SIZE,
     ):
         self.device = torch.device(infer_conf.device)
-        self.process_tool = None
-        chat_processor_name = infer_conf.model_description.chat_processor
-        prompt = infer_conf.model_description.prompt
 
         self.handle_dynamic_batch.set_max_batch_size(max_batch_size)
-
-        if chat_processor_name:
-            try:
-                module = __import__("chat_process")
-            except Exception:
-                sys.path.append(os.path.dirname(__file__))
-                module = __import__("chat_process")
-            chat_processor = getattr(module, chat_processor_name, None)
-            if chat_processor is None:
-                raise ValueError(
-                    infer_conf.name
-                    + " deployment failed. chat_processor("
-                    + chat_processor_name
-                    + ") does not exist."
-                )
-            self.process_tool = chat_processor(**prompt.dict())
-
         self.use_deepspeed = infer_conf.deepspeed
         self.use_vllm = infer_conf.vllm.enabled
-        self.is_mllm = True if chat_processor_name in ["ChatModelwithImage"] else False
+        self.is_mllm = infer_conf.model_description.chat_model_with_image
 
         # Used to determine if openai backend is used
         self.use_openai = False
@@ -102,6 +84,7 @@ class PredictorDeployment:
             self.predictor = TransformerPredictor(infer_conf)
 
         self.loop = asyncio.get_running_loop()
+        self.process_tool = ChatTemplatePreprocess(self.predictor)
 
     def consume_streamer(self, streamer):
         for text in streamer:
@@ -305,12 +288,13 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
-    def preprocess_prompts(self, input: Union[str, List], tools=None, tool_choice=None):
+    # TODO:Abstract the preprocess_prompts function into a class for handling chat templates
+    def preprocess_prompts(self, input: Union[str, list], tools=None, tool_choice=None):
         """
         Preprocesses the input prompts.
 
         Args:
-            input (Union[str, List[str]]): The input prompt(s) to be preprocessed.
+            input (Union[str, List[dict]]): The input prompt(s) to be preprocessed.
             tools (List[str]): The list of tools to be used.
             tool_choice: The choice of tool to be used.
 
@@ -327,6 +311,7 @@ class PredictorDeployment:
         Raises:
             HTTPException: If the input prompt format is invalid or not supported.
         """
+
         if isinstance(input, str):
             return input
         elif isinstance(input, List):
@@ -352,7 +337,7 @@ class PredictorDeployment:
                 # Process the input prompts with MLLM tool
                 if self.process_tool is not None:
                     if self.is_mllm:
-                        input, image = self.process_tool.get_prompt(input)
+                        input, image = self.process_tool.get_prompt(input, self.is_mllm)
                         prompts.append(input)
                         images.extend(image)
                         return prompts, images
@@ -379,16 +364,15 @@ class PredictorDeployment:
                 status_code=400,
                 content="Invalid JSON format from http request.",
             )
-
         streaming_response = json_request["stream"] if "stream" in json_request else False
         input = json_request["text"] if "text" in json_request else ""
+
         if input == "":
             return JSONResponse(
                 status_code=400,
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
-
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
 
@@ -408,9 +392,14 @@ class PredictorDeployment:
         tool_choice=None,
     ):
         self.use_openai = True
+        print("openai_call")
+        print(input)
+        print(type(input))
 
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input, tools, tool_choice)
+        print(prompts)
+        print(type(prompts))
 
         # Handle streaming response
         if streaming_response:

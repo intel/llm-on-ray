@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
 
 from pydantic import BaseModel, validator
-from typing import Optional, List
+from typing import Optional, List, Dict
 
+from pydantic_yaml import parse_yaml_raw_as
 
 PRECISION_BF16 = "bf16"
 PRECISION_FP16 = "fp16"
@@ -60,6 +62,23 @@ class General(BaseModel):
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
+    chat_template: Optional[str] = None
+    default_chat_template: str = (
+        "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        "{% if messages[0]['role'] == 'system' %}"
+        "{{ raise_exception('System role not supported') }}"
+        "{% endif %}"
+        "{% for message in messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'] + eos_token }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Response:'  + message['content'] + eos_token }}"
+        "{% endif %}{% endfor %}"
+        "{{'### End \n'}}"
+    )
 
 
 class Dataset(BaseModel):
@@ -146,3 +165,19 @@ class FinetuneConfig(BaseModel):
     General: General
     Dataset: Dataset
     Training: Training
+
+
+base_models: Dict[str, FinetuneConfig] = {}
+_models: Dict[str, FinetuneConfig] = {}
+
+_cur = os.path.dirname(os.path.abspath(__file__))
+_models_folder = _cur + "/models"
+for model_file in os.listdir(_models_folder):
+    file_path = _models_folder + "/" + model_file
+    if os.path.isdir(file_path):
+        continue
+    with open(file_path, "r") as f:
+        m: FinetuneConfig = parse_yaml_raw_as(FinetuneConfig, f)
+        _models[m.General.base_model] = m
+
+all_models = _models.copy()

@@ -99,10 +99,65 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 
 class GeneralProcesser(DataProcesser):
+    def tokenize_function(self, examples, tokenizer):
+        if self.config.get("gpt_base_model"):
+            instruction = examples["instruction"]
+            response = examples["response"]
+            context = examples.get("context")
+            if not instruction:
+                raise ValueError(f"Expected an instruction in: {examples}")
+            if not response:
+                raise ValueError(f"Expected a response in: {examples}")
+            if context:
+                new_message = PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=instruction, response=response, input=context
+                )
+            else:
+                new_message = PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=instruction, response=response
+                )
+            return tokenizer(
+                new_message, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
+        else:
+            new_messages = [
+                {
+                    "role": "user",
+                    "content": "###Instruction:\n"
+                    + examples["instruction"]
+                    + "\n\n"
+                    + "###context:\n"
+                    + examples["context"]
+                    + "\n\n",
+                },
+                {"role": "assistant", "content": examples["response"] + "\n\n"},
+            ]
+            if self.config.get("chat_template") is not None:
+                tokenizer.chat_template = self.config.get("chat_template")
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                )
+            elif tokenizer.chat_template is not None:
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                )
+            else:
+                tokenizer.chat_template = self.config.get("default_chat_template")
+                new_tokenizer = tokenizer.apply_chat_template(
+                    new_messages,
+                    tokenize=False,
+                )
+            tokenizer = tokenizer(
+                new_tokenizer, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
+            return tokenizer
+
     def prepare(self, tokenizer, dataset):
         per_device_train_batch_size = self.config.get("per_device_train_batch_size")
         per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
-        max_length = self.config.get("max_length")
+
         group = self.config.get("group")
         block_size = self.config.get("block_size")
         shuffle = self.config.get("shuffle")
@@ -114,38 +169,8 @@ class GeneralProcesser(DataProcesser):
         if isinstance(dataset, datasets.DatasetDict):
             column_names = dataset["train"].column_names
 
-        if column_names and TEXT_COLUMN_NAME not in column_names:
-
-            def prompt(rec):
-                instruction = rec["instruction"]
-                response = rec["response"]
-                context = rec.get("context")
-                if not instruction:
-                    raise ValueError(f"Expected an instruction in: {rec}")
-                if not response:
-                    raise ValueError(f"Expected a response in: {rec}")
-                if context:
-                    rec["text"] = PROMPT_WITH_INPUT_FORMAT.format(
-                        instruction=instruction, response=response, input=context
-                    )
-                else:
-                    rec["text"] = PROMPT_NO_INPUT_FORMAT.format(
-                        instruction=instruction, response=response
-                    )
-                return rec
-
-            dataset = dataset.map(
-                prompt,
-                load_from_cache_file=False,
-                desc="Prompt",
-            )
-            column_names += [TEXT_COLUMN_NAME]
-
-        def tokenize_function(examples):
-            return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
-
         tokenized_datasets = dataset.map(
-            tokenize_function,
+            lambda examples: self.tokenize_function(examples, tokenizer),
             remove_columns=column_names,
             load_from_cache_file=False,
             desc="Tokenize dataset",

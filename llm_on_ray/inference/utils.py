@@ -166,7 +166,7 @@ def get_prompt_format(input: Union[List[str], List[dict], List[ChatMessage]]):
     chat_format = True
     prompts_format = True
     for item in input:
-        if isinstance(item, str) or isinstance(item, list):
+        if isinstance(item, str):
             chat_format = False
         elif isinstance(item, dict) or isinstance(item, ChatMessage):
             prompts_format = False
