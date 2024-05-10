@@ -17,6 +17,7 @@
 import os
 import pytest
 import subprocess
+import re
 
 figures_name = [
     "choice1_vllm_peak_throughput.png",
@@ -31,6 +32,7 @@ def script_with_args(choice, benchmark_dir, save_dir):
     benchmark_script = os.path.join(current_path, "../../benchmarks/run_benchmark.sh")
     visualize_script = os.path.join(current_path, "../../benchmarks/benchmark_visualize.py")
     save_dir = os.path.join(current_path, "../../", save_dir)
+    print("figure save path:", save_dir)
 
     cmd_bench = ["bash", benchmark_script, str(choice), "test"]
     cmd_visual = [
@@ -44,6 +46,16 @@ def script_with_args(choice, benchmark_dir, save_dir):
     subprocess.run(cmd_bench, capture_output=True, text=True)
     result_visual = subprocess.run(cmd_visual, capture_output=True, text=True)
     print(result_visual)
+    assert "Error" not in result_visual.stderr
+    assert result_visual.returncode == 0
+    print("Output of stderr:", result_visual.stderr)
+    bs = re.search(r"bs:\s+(\[.*?\])", result_visual.stdout)
+    if bs:
+        bs = bs.group(1)
+    iter = re.search(r"iter:\s+(\[.*?\])", result_visual.stdout)
+    if iter:
+        iter = iter.group(1)
+    assert (bs == "[1, 2, 4]") or (iter == "[1, 2]")
     if choice in [1, 2, 3]:
         file_path = os.path.join(save_dir, figures_name[choice - 1])
         assert os.path.exists(file_path)
