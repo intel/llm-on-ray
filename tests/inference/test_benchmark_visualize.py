@@ -43,7 +43,10 @@ def script_with_args(choice, benchmark_dir, save_dir):
         "--benchmark-dir",
         benchmark_dir,
     ]
-    subprocess.run(cmd_bench, capture_output=True, text=True)
+    result_bench = subprocess.run(cmd_bench, capture_output=True, text=True)
+    assert "Error" not in result_bench.stderr
+    assert result_bench.returncode == 0
+    print("Output of result_bench:", result_bench)
     result_visual = subprocess.run(cmd_visual, capture_output=True, text=True)
     print(result_visual)
     assert "Error" not in result_visual.stderr
