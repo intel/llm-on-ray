@@ -73,7 +73,7 @@ jobs:
           DF_SUFFIX=".cpu_and_deepspeed"
           TARGET="finetune"
           USE_PROXY="1"
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY}
 
       - name: Start Docker Container
@@ -82,35 +82,35 @@ jobs:
           code_checkout_path=${{ inputs.code_checkout_path }}
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
 
       - name: Run Finetune Test
         run: |
           TARGET="finetune"
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           finetune_test ${{ matrix.model }}
 
       - name: Run PEFT-LoRA Test
         run: |
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           peft_lora_test ${{ matrix.model }}
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           denas_lora_test ${{ matrix.model }}
 
       - name: Stop Ray
         run: |
           TARGET="finetune"
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           stop_ray ${TARGET}
 
       - name: Stop Container
         if: success() || failure()
         run: |
           TARGET="finetune"
-          source dev/scripts/docker.sh
+          source dev/scripts/ci-functions.sh
           stop_container ${TARGET}
 
