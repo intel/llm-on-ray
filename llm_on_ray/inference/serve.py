@@ -51,11 +51,18 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-        deployments[model_id] = PredictorDeployment.options(
-            num_replicas=infer_conf.num_replicas,
-            ray_actor_options=ray_actor_options,
-            max_concurrent_queries=args.max_concurrent_queries,
-        ).bind(infer_conf, args.vllm_max_num_seqs, args.max_batch_size)
+        depolyment_config = {
+            "ray_actor_options": ray_actor_options,
+            "max_concurrent_queries": infer_conf.max_concurrent_queries,
+        }
+        if infer_conf.autoscaling_config:
+            depolyment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
+        elif infer_conf.num_replicas:
+            depolyment_config["num_replicas"] = infer_conf.num_replicas
+        deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
+            infer_conf, infer_conf.vllm.vllm_max_num_seqs, infer_conf.dynamic_max_batch_size
+        )
+
     return deployments, model_list
 
 
@@ -88,29 +95,11 @@ def main(argv=None):
         help="Whether to keep serve terminal.",
     )
     parser.add_argument(
-        "--max_concurrent_queries",
-        default=100,
-        type=int,
-        help="The max concurrent requests ray serve can process.",
-    )
-    parser.add_argument(
         "--serve_local_only",
         action="store_true",
         help="Only support local access to url.",
     )
     parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
-
-    # TODO: vllm_max_num_seqs and max_batch_size should be moved to InferenceConfig
-    parser.add_argument(
-        "--vllm_max_num_seqs",
-        default=256,
-        type=int,
-        help="The batch size for vLLM. Used when vLLM is enabled.",
-    )
-
-    parser.add_argument(
-        "--max_batch_size", default=8, type=int, help="The max batch size for dynamic batching."
-    )
 
     # Print help if no arguments were provided
     if len(sys.argv) == 1:

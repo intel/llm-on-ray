@@ -56,6 +56,7 @@ class Ipex(BaseModel):
 
 class Vllm(BaseModel):
     enabled: bool = False
+    vllm_max_num_seqs: int = 256
     precision: str = "bf16"
 
     @validator("precision")
@@ -132,12 +133,29 @@ class ModelDescription(BaseModel):
         return v
 
 
+class AutoscalingConfig(BaseModel):
+    min_replicas: int = 1
+    initial_replicas: int = 1
+    max_replicas: int = 1
+    target_num_ongoing_requests_per_replica: int = 1
+    metrics_interval_s: float = 10.0
+    look_back_period_s: float = 30.0
+    smoothing_factor: float = 1.0
+    upscale_smoothing_factor: Union[float, None] = None
+    downscale_smoothing_factor: Union[float, None] = None
+    downscale_delay_s: float = 600.0
+    upscale_delay_s: float = 30.0
+
+
 class InferenceConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     name: str = "default"
     route_prefix: Union[str, None] = None
-    num_replicas: int = 1
+    dynamic_max_batch_size: int = 8
+    num_replicas: Union[int, None] = None
+    max_concurrent_queries: int = 100
+    autoscaling_config: Union[AutoscalingConfig, None] = None
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0
