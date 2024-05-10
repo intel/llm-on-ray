@@ -34,3 +34,7 @@ RUN mkdir ./llm_on_ray
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
+# Install vllm-cpu
+# Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
