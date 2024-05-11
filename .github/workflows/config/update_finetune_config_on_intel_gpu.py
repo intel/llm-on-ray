@@ -39,7 +39,7 @@ def update_finetune_config(config_file, base_model):
 
         config["General"]["base_model"] = base_model
         config["General"]["output_dir"] = "./output"
-        config["General"]["checkpoint_dir"] = "no"
+        config["General"]["save_strategy"] = "no"
         config["Training"]["device"] = "GPU"
         config["Training"]["resources_per_worker"]["CPU"] = 1
         config["Training"]["resources_per_worker"]["GPU"] = 1
