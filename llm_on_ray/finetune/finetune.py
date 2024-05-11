@@ -124,11 +124,12 @@ def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
 def convert_to_training_args(cls, config):
     device = config["Training"]["device"]
     accelerate_mode = config["Training"]["accelerate_mode"]
+    save_strategy = config["General"]["save_strategy"]
 
     args = {
         "output_dir": config["General"]["output_dir"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
-        "save_strategy": config["General"]["save_strategy"],
+        "save_strategy": save_strategy if save_strategy != "False" else "no",
         "bf16": config["Training"]["mixed_precision"] == "bf16",
         "num_train_epochs": config["Training"]["epochs"],
         "per_device_train_batch_size": config["Training"]["batch_size"],
@@ -318,9 +319,6 @@ def main(external_config=None):
         config = external_config
 
     config["cwd"] = os.getcwd()
-    print(
-        f">>>>>>>>>>>>>>>>>>>> save_strategy = {config['General']['save_strategy']}, with type {type(config['General']['save_strategy'])}"
-    )
 
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
