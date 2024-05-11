@@ -145,12 +145,10 @@ def convert_to_training_args(cls, config):
     if config["Training"]["max_train_steps"] is not None:
         args.update({"max_steps": config["Training"]["max_train_steps"]})
 
-    # set attr 'use_cpu'
-    if hasattr(cls, "use_cpu"):
-        args.update({"use_cpu": True if device == "cpu" else False})
-
     # set attr for device cpu
     if device == "cpu":
+        if hasattr(cls, "use_cpu"):
+            args.update({"use_cpu": True})
         if hasattr(cls, "no_cuda"):
             args.update({"no_cuda": True})
         args.update({"use_ipex": True})
@@ -158,6 +156,10 @@ def convert_to_training_args(cls, config):
     # set attr 'deepspeed'
     if accelerate_mode == "DEEPSPEED":
         args.update({"deepspeed": config["Training"]["deepspeed_config_file"]})
+
+    # set attr for FSDP
+    # if accelerate_mode == "FSDP":
+    #     args.updatwe({})
 
     # set attr for Intel Gaudi
     if device == "hpu":
@@ -262,6 +264,7 @@ def train_func(config: Dict[str, Any]):
 
         common.logger.info("train start")
         trainer.train()
+        trainer.save_model()
         common.logger.info("train finish")
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
@@ -279,6 +282,7 @@ def train_func(config: Dict[str, Any]):
 
         common.logger.info("train start")
         trainer.train()
+        trainer.save_model()
         common.logger.info("train finish")
 
 
