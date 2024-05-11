@@ -61,11 +61,6 @@ class General(BaseModel):
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
 
-    @validator("save_strategy")
-    def check_save_strategy(cls, v: str):
-        assert v in ["no", "steps", "epoch"]
-        return v
-
 
 class Dataset(BaseModel):
     train_file: str

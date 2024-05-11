@@ -318,7 +318,9 @@ def main(external_config=None):
         config = external_config
 
     config["cwd"] = os.getcwd()
-    print(f">>>>>>>>>>>>>>>>>>>> save_strategy = {config['General']['save_strategy']}")
+    print(
+        f">>>>>>>>>>>>>>>>>>>> save_strategy = {config['General']['save_strategy']}, with type {type(config['General']['save_strategy'])}"
+    )
 
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
