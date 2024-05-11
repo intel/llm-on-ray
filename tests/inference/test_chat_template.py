@@ -21,8 +21,12 @@ import pytest
 from transformers import AutoTokenizer
 
 from llm_on_ray.inference.utils import parse_jinja_file
+
 # Define the base path for templates
-base_path = pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "llm_on_ray/common/templates"
+base_path = (
+    pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
+    / "llm_on_ray/common/templates"
+)
 
 
 # Define models, templates, and their corresponding expected outputs
@@ -44,7 +48,12 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "### Instruction: Hello### Response:Hi there!### Instruction: What is the capital of",
     ),
     ("gpt2", base_path / "template_gpt2.jinja", True, "Hello\nHi there!\nWhat is the capital of\n"),
-    ("gpt2", base_path / "template_gpt2.jinja", False, "Hello\nHi there!\nWhat is the capital of\n"),
+    (
+        "gpt2",
+        base_path / "template_gpt2.jinja",
+        False,
+        "Hello\nHi there!\nWhat is the capital of\n",
+    ),
     (
         "google/gemma-2b",
         base_path / "template_gemma.jinja",
@@ -124,15 +133,13 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "codellama/CodeLlama-7b-hf",
         base_path / "template_codellama.jinja",
         True,
-        '<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of '
-        '[/INST]",',
+        "<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of " '[/INST]",',
     ),
     (
         "codellama/CodeLlama-7b-hf",
         base_path / "template_codellama.jinja",
         False,
-        '<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of '
-        '[/INST]",',
+        "<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of " '[/INST]",',
     ),
 ]
 
@@ -142,7 +149,6 @@ TEST_MESSAGES = [
     {"role": "assistant", "content": "Hi there!"},
     {"role": "user", "content": "What is the capital of"},
 ]
-
 
 
 @pytest.mark.parametrize(
