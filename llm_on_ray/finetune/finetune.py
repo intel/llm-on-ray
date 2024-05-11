@@ -133,6 +133,7 @@ def convert_to_training_args(cls, config):
         "num_train_epochs": config["Training"]["epochs"],
         "per_device_train_batch_size": config["Training"]["batch_size"],
         "per_device_eval_batch_size": config["Training"]["batch_size"],
+        "optim": config["Training"]["optimizer"],
         "learning_rate": config["Training"]["learning_rate"],
         "logging_steps": config["Training"]["logging_steps"],
         "lr_scheduler_type": config["Training"]["lr_scheduler"],
