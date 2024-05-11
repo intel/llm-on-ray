@@ -168,6 +168,19 @@ def main(args):
     choice = args.choice
     benchmark_dir = args.benchmark_dir
     save_dir = args.save_dir
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    if benchmark_dir is None:
+        if args.run_mode == "benchmark":
+            benchmark_dir = os.path.join(current_path, "results")
+        elif args.run_mode == "test":
+            benchmark_dir = os.path.join(current_path, "results_test")
+        else:
+            print(
+                f"Invalid run_mode, expected value 'test' or 'benchmark', but got {args.run_mode}."
+            )
+            exit(1)
+    if save_dir is None:
+        save_dir = os.path.join(current_path, "figures")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     if 1 in choice:
@@ -289,14 +302,18 @@ if __name__ == "__main__":
         help="The number of replicas that respond to requests at the same time.",
     )
     parser.add_argument(
+        "--run-mode",
+        default="benchmark",
+        type=str,
+        help="Which run mode is used to generate the results, benchmark or test?",
+    )
+    parser.add_argument(
         "--benchmark-dir",
-        default="benchmarks/results",
+        default=None,
         type=str,
         help="The directory of benchmark results.",
     )
-    parser.add_argument(
-        "--save-dir", default="benchmarks/figures", type=str, help="The directory to save figures."
-    )
+    parser.add_argument("--save-dir", default=None, type=str, help="The directory to save figures.")
 
     args = parser.parse_args()
     main(args)

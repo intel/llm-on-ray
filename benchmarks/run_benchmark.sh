@@ -4,26 +4,37 @@ set -eo pipefail
 choice=${1}
 run_mode=${2}   # "test" or "benchmark", where "test" will only use a small part of the dataset
 VALUE_INF=2000
-benchmark_script="benchmarks/benchmark_serving.py"
 model_endpoint="http://localhost:8000/llama-2-7b-chat-hf"
 model_name="llama-2-7b-chat-hf"
-with_vllm_config_file="llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
-wo_vllm_config_file="llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
-dataset_ShareGPT_path="./dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
-dataset_IPEX_path="./dataset/prompt.json"
+SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
+benchmark_script=$SHELL_FOLDER"/benchmark_serving.py"
+with_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
+wo_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
+dataset_ShareGPT_path=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
+dataset_IPEX_path=$SHELL_FOLDER"/../dataset/prompt.json"
+
+if [ ! -f $dataset_ShareGPT_path ]
+then
+    echo "Dataset $dataset_ShareGPT_path not found, Please download ShareGPT dataset."
+fi
+if [ ! -f $dataset_IPEX_path ]
+then
+    echo "Dataset $dataset_IPEX_path not found, Please download IPEX dataset."
+fi
+
 dataset_benchmark_num=1000
 dataset_compare_num=128
 numa_server_command=""
 numa_client_command="numactl -N 1 -m 1"
 num_replica=4
-if run_mode="test"
+if [ $run_mode = "test" ]
 then
-    save_dir="benchmarks/results_test"
-elif run_mode="benchmark"
+    save_dir=$SHELL_FOLDER"/results_test"
+elif [ $run_mode = "benchmark" ]
 then
-    save_dir="benchmarks/results"
+    save_dir=$SHELL_FOLDER"/results"
 else
-    echo "Invalid run_mode, expected value 'test' or 'benchmark', but got $run_mode."
+    echo "Invalid run_mode, expected value 'test' or 'benchmark', but got '$run_mode'."
     exit 1
 
 fi

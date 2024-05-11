@@ -26,13 +26,12 @@ figures_name = [
 ]
 
 
-def script_with_args(choice, benchmark_dir, save_dir):
+def script_with_args(choice):
     global figures_name
     current_path = os.path.dirname(os.path.abspath(__file__))
     benchmark_script = os.path.join(current_path, "../../benchmarks/run_benchmark.sh")
     visualize_script = os.path.join(current_path, "../../benchmarks/benchmark_visualize.py")
-    save_dir = os.path.join(current_path, "../../", save_dir)
-    print("figure save path:", save_dir)
+    save_dir = os.path.join(current_path, "../../benchmarks/figures")
 
     cmd_bench = ["bash", benchmark_script, str(choice), "test"]
     cmd_visual = [
@@ -40,8 +39,8 @@ def script_with_args(choice, benchmark_dir, save_dir):
         visualize_script,
         "--choice",
         str(choice),
-        "--benchmark-dir",
-        benchmark_dir,
+        "--run-mode",
+        "test",
     ]
     result_bench = subprocess.run(cmd_bench, capture_output=True, text=True)
     assert "Error" not in result_bench.stderr
@@ -65,13 +64,8 @@ def script_with_args(choice, benchmark_dir, save_dir):
 
 
 @pytest.mark.parametrize(
-    "choice,benchmark_dir,save_dir",
-    [
-        (choice, benchmark_dir, save_dir)
-        for choice in [1, 2, 3, 4]
-        for benchmark_dir in ["benchmarks/results_test"]
-        for save_dir in ["benchmarks/figures"]
-    ],
+    "choice",
+    [(choice) for choice in [1, 2, 3, 4]],
 )
-def test_script(choice, benchmark_dir, save_dir):
-    script_with_args(choice, benchmark_dir, save_dir)
+def test_script(choice):
+    script_with_args(choice)
