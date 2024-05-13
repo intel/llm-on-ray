@@ -65,6 +65,8 @@ from llm_on_ray.inference.predictor import (
     GenerateOutput,
     Predictor,
     SinglePromptInput,
+    MultiplePromptInput,
+    MllmPromptInput,
 )
 from llm_on_ray.inference.utils import decide_torch_dtype
 
