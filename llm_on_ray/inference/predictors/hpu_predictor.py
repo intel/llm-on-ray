@@ -185,7 +185,7 @@ class HPUPredictor(Predictor):
                 self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
             )
 
-    # FIXME: support MultiplePromptInput and MllmPromptInput
+    # FIXME: support MllmPromptInput
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
         if isinstance(input, MllmPromptInput):
             raise TypeError(
