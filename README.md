@@ -33,7 +33,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 ![llm-on-ray](https://github.com/intel/llm-on-ray/assets/9278199/68017c14-c0be-4b91-8d71-4b74ab89bd81)
 
 
-## Getting Started
+## Getting Started With Source code
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
@@ -100,6 +100,31 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
 python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+```
+
+## Getting Started With Docker
+This guide will assist you in setting up LLM-on-Ray on With Docker
+Software requirement: Ubuntu and Docker
+
+#### 1. Build docker with dockerfile
+```bash
+git clone https://github.com/intel/llm-on-ray.git
+cd llm-on-ray
+## You can change any settings here 
+source dev/scripts/start_with_docker.sh
+build_and_prune #{YOUR_CONTAINER_NAME} #{DOCKER_FILE_NAME}
+start_docker #{YOUR_CONTAINER_NAME} #{YOUR_SOURCE_CODE_PATH} #{YOUR_MODEL_CACHE_PATH}
+```
+
+#### 2. Start Ray
+```bash
+docker exec #{YOUR_CONTAINER_NAME} bash -c "./dev/scripts/start-ray-cluster.sh"
+```
+
+#### 3. Start LLM-on-Ray
+```bash
+## Same as start with source code
+docker exec #{YOUR_CONTAINER_NAME} bash -c "Your serving or finetune scripts shell"
 ```
 
 ## Documents
