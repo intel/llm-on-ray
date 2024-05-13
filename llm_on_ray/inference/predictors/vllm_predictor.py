@@ -21,7 +21,7 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import GenerateInput, GenerateOutput, Predictor
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     ModelGenerateResult,
@@ -73,6 +73,14 @@ class VllmPredictor(Predictor):
                     generate_length=len(request_output.outputs[0].token_ids),
                 )
         return None
+
+    def generate(
+        self,
+        input: GenerateInput,
+        **config,
+    ) -> GenerateOutput:
+        # This method is not used for VllmPredictor, used generate_async instead
+        pass
 
     async def generate_async(self, prompts: Union[str, List[str]], **config) -> ModelGenerateResult:
         config = self.update_vllm_config(**config)
