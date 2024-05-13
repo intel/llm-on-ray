@@ -34,7 +34,7 @@ The following are the parameters supported in the finetuning workflow.
 ## Training Parameters
 |Configuration Name| Default|Meaning|
 |-|-|-|
-|optimizer|AdamW|The optimizer used for model training. Supported values: "Adadelta", "Adagrad", "Adam", "AdamW", "Adamax", "ASGD", "NAdam", "RAdam", "RMSprop", "Rprop", "SGD"|
+|optimizer|adamw_torch|The optimizer to use: adamw_hf, adamw_torch, adamw_torch_fused, adamw_apex_fused, adamw_anyprecision or adafactor. for more optimizer names, please search OptimizerNames [here](https://github.com/huggingface/transformers/blob/main/src/transformers/training_args.py)|
 |batch_size|4|Batch size per training worker|
 |epochs|3|Total number of training epochs to perform.|
 |learning_rate|1e-5|Initial learning rate to use.|

@@ -329,14 +329,21 @@ def main(external_config=None):
             "accelerate_mode"
         ] = "DDP"  # will use DDP to accelerate if no method specified
 
+    ccl_worker_count = 1
     device = config["Training"]["device"]
     if device != "cpu":
-        pass
+        ccl_worker_count = num_training_workers
 
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
+                "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
+                "CCL_ZE_IPC_EXCHANGE": "sockets",
+                "CCL_WORKER_COUNT": str(ccl_worker_count),
+                "CCL_LOG_LEVEL": "info",
                 "WORLD_SIZE": str(num_training_workers),
+                "FI_TCP_IFACE": "lo",
+                "FI_PROVIDER": "tcp",
             }
         }
 
