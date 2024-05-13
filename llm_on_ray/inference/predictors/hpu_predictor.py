@@ -190,9 +190,7 @@ class HPUPredictor(Predictor):
     # FIXME: support MllmPromptInput
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
         if isinstance(input, MllmPromptInput):
-            raise TypeError(
-                "HPUPredictor doesn't support MLLM prompts for now!"
-            )
+            raise TypeError("HPUPredictor doesn't support MLLM prompts for now!")
 
         prompt = input
 
