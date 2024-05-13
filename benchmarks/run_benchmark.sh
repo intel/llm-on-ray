@@ -41,7 +41,6 @@ fi
 
 get_peak_throughpt(){
     echo "get performance results of llm-on-ray with vllm based on different bs"
-    echo "results will be saved in $log_path"
     bs=${1}
     echo "batch_size: $bs"
     num_prompts=${2}
@@ -61,7 +60,6 @@ get_peak_throughpt(){
 
 metric_bs(){
     echo "get performance results of llm-on-ray with vllm and llm-on-ray based on different bs"
-    echo "results will be saved in $log_path_vllm and $log_path_llmonray"
     bs=${1}
     num_prompts=${2}
     choice_dir_vllm=${3}
