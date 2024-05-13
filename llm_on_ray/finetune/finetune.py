@@ -128,6 +128,7 @@ def convert_to_training_args(cls, config):
 
     args = {
         "output_dir": config["General"]["output_dir"],
+        "resume_from_checkpoint": config["General"]["resume_from_checkpoint"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
         "save_strategy": save_strategy if save_strategy != "False" else "no",
         "bf16": config["Training"]["mixed_precision"] == "bf16",
@@ -264,7 +265,7 @@ def train_func(config: Dict[str, Any]):
         )
 
         common.logger.info("train start")
-        trainer.train()
+        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
         trainer.save_model()
         common.logger.info("train finish")
     elif device in ["hpu"]:
@@ -282,7 +283,7 @@ def train_func(config: Dict[str, Any]):
         )
 
         common.logger.info("train start")
-        trainer.train()
+        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
         trainer.save_model()
         common.logger.info("train finish")
 
