@@ -187,9 +187,9 @@ class HPUPredictor(Predictor):
 
     # FIXME: support MultiplePromptInput and MllmPromptInput
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
-        if not isinstance(input, SinglePromptInput):
+        if isinstance(input, MllmPromptInput):
             raise TypeError(
-                "HPUPredictor doesn't support multiple prompts and MLLM prompts for now!"
+                "HPUPredictor doesn't support MLLM prompts for now!"
             )
 
         prompt = input
