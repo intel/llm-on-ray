@@ -103,15 +103,16 @@ python examples/inference/api_server_simple/query_single.py --model_endpoint htt
 ```
 
 ## Getting Started With Docker
-This guide will assist you in setting up LLM-on-Ray on With Docker
-Software requirement: Ubuntu and Docker
+This guide will assist you in setting up LLM-on-Ray on With Docker.
 
 #### 1. Build docker with dockerfile
+Software requirement: Ubuntu and Docker
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
 ## You can change any settings here 
 source dev/scripts/start_with_docker.sh
+## Docker flie path is 'dev/docker/Dockerfile.{DOCKER_FILE_NAME}'.
 build_and_prune #{YOUR_CONTAINER_NAME} #{DOCKER_FILE_NAME}
 start_docker #{YOUR_CONTAINER_NAME} #{YOUR_SOURCE_CODE_PATH} #{YOUR_MODEL_CACHE_PATH}
 ```
