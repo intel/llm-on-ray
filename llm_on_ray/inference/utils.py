@@ -95,7 +95,7 @@ class StoppingCriteriaSub(StoppingCriteria):
         super().__init__()
         self.stops = stops
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
         for stop in self.stops:
             length = 1 if len(stop.size()) == 0 else stop.size()[0]
             if torch.all((stop == input_ids[0][-length:])).item():
