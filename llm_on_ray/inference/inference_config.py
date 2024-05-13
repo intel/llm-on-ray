@@ -137,7 +137,7 @@ class AutoscalingConfig(BaseModel):
     min_replicas: int = 1
     initial_replicas: int = 1
     max_replicas: int = 1
-    target_num_ongoing_requests_per_replica: int = 1
+    target_ongoing_requests: float = 1.0
     metrics_interval_s: float = 10.0
     look_back_period_s: float = 30.0
     smoothing_factor: float = 1.0

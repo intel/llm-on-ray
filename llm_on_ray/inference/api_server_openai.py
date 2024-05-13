@@ -38,7 +38,7 @@ from llm_on_ray.inference.api_openai_backend.query_client import RouterQueryClie
 from llm_on_ray.inference.api_openai_backend.router_app import Router, router_app
 
 
-def router_application(deployments, max_concurrent_queries):
+def router_application(deployments, model_list, max_concurrent_queries):
     """Create a Router Deployment.
 
     Router Deployment will point to a Serve Deployment for each specified base model,
@@ -46,16 +46,33 @@ def router_application(deployments, max_concurrent_queries):
     """
     merged_client = RouterQueryClient(deployments)
 
+    max_num_replica = 0
+    max_num_concurrent_query = 0
+    for _, infer_conf in model_list.items():
+        config_num_replicas = (
+            infer_conf.num_replicas
+            if infer_conf.num_replicas
+            else infer_conf.autoscaling_config.max_replicas
+        )
+        max_num_replica = max(max_num_replica, config_num_replicas if config_num_replicas else 0)
+        max_num_concurrent_query = max(
+            max_num_concurrent_query,
+            infer_conf.max_concurrent_queries if infer_conf.max_concurrent_queries else 0,
+        )
+
     RouterDeployment = serve.deployment(
         route_prefix="/",
-        max_concurrent_queries=max_concurrent_queries,  # Maximum backlog for a single replica
+        max_ongoing_requests=max_num_replica
+        * (
+            (max_concurrent_queries if max_concurrent_queries else max_num_concurrent_query) + 1
+        ),  # Maximum backlog for a single replica
     )(serve.ingress(router_app)(Router))
 
     return RouterDeployment.bind(merged_client)
 
 
-def openai_serve_run(deployments, host, route_prefix, port, max_concurrent_queries):
-    router_app = router_application(deployments, max_concurrent_queries)
+def openai_serve_run(deployments, model_list, host, route_prefix, port, max_concurrent_queries):
+    router_app = router_application(deployments, model_list, max_concurrent_queries)
 
     serve.start(http_options={"host": host, "port": port})
     serve.run(

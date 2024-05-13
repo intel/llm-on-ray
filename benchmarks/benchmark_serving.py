@@ -310,9 +310,9 @@ async def send_request(
                 else:
                     response_content = json.loads(response_text)
                     if isinstance(response_content, list):
-                        generate_len = response_content[0]["generate_length"]
+                        generate_len = response_content[0]["num_generated_tokens"]
                     else:
-                        generate_len = response_content["generate_length"]
+                        generate_len = response_content["num_generated_tokens"]
             else:
                 if args.track_token_latency:
                     response_content = chunks[-2].decode("utf-8")

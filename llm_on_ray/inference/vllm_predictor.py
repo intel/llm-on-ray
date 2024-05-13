@@ -74,6 +74,7 @@ class VllmPredictor(Predictor):
         config = self.update_vllm_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
+            print("###################### pass3")
             request_id = random_uuid()
             results_generator = self.engine.generate(prompts, sampling_params, request_id)
             async for request_output in results_generator:
@@ -84,6 +85,7 @@ class VllmPredictor(Predictor):
                         generate_length=len(request_output.outputs[0].token_ids),
                     )
         else:
+            print("######################## pass4")
             results_generators = [
                 self.engine.generate(prompt, sampling_params, random_uuid()) for prompt in prompts
             ]

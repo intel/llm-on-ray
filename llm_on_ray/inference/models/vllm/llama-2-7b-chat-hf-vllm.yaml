@@ -6,8 +6,10 @@ autoscaling_config:
     min_replicas: 1
     initial_replicas: 1
     max_replicas: 2
-    target_num_ongoing_requests_per_replica: 64
-cpus_per_worker: 27
+    target_ongoing_requests: 64
+    downscale_delay_s: 60
+    upscale_delay_s: 10
+cpus_per_worker: 24
 gpus_per_worker: 0
 deepspeed: false
 vllm:
