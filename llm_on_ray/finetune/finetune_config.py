@@ -55,7 +55,8 @@ class General(BaseModel):
     tokenizer_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
-    checkpoint_dir: Optional[str]
+    resume_from_checkpoint: Optional[str] = None
+    save_strategy: str = "no"
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
@@ -87,6 +88,7 @@ class Training(BaseModel):
     lr_scheduler: str
     weight_decay: float
     device: str = DEVICE_CPU
+    hpu_execution_mode: str = "lazy"
     num_training_workers: int
     resources_per_worker: RayResourceConfig
     accelerate_mode: str = ACCELERATE_STRATEGY_DDP
@@ -101,6 +103,12 @@ class Training(BaseModel):
         if v:
             assert v.lower() in [DEVICE_CPU, DEVICE_GPU, DEVICE_HPU]
         return v.lower()
+
+    @validator("hpu_execution_mode")
+    def check_hpu_execution_mode(cls, v: str):
+        if v:
+            assert v in ["lazy", "eager", "eager.compile"]
+        return v
 
     @validator("accelerate_mode")
     def check_accelerate_mode(cls, v: str):
