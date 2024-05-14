@@ -32,6 +32,7 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ErrorResponse,
     ModelResponse,
 )
+from llm_on_ray.inference.predictor import GenerateInput
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
 from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, ChatPromptCapture
 from llm_on_ray.inference.logger import get_logger
@@ -81,23 +82,23 @@ class PredictorDeployment:
         self.use_openai = False
 
         if infer_conf.device == "hpu":
-            from llm_on_ray.inference.hpu_predictor import HPUPredictor
+            from llm_on_ray.inference.predictors.hpu_predictor import HPUPredictor
 
             self.predictor = HPUPredictor(infer_conf)
         elif self.use_deepspeed:
-            from llm_on_ray.inference.deepspeed_predictor import DeepSpeedPredictor
+            from llm_on_ray.inference.predictors.deepspeed_predictor import DeepSpeedPredictor
 
             self.predictor = DeepSpeedPredictor(infer_conf)
         elif self.use_vllm:
-            from llm_on_ray.inference.vllm_predictor import VllmPredictor
+            from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
 
             self.predictor = VllmPredictor(infer_conf, max_num_seqs)
         elif self.is_mllm:
-            from llm_on_ray.inference.mllm_predictor import MllmPredictor
+            from llm_on_ray.inference.predictors.mllm_predictor import MllmPredictor
 
             self.predictor = MllmPredictor(infer_conf)
         else:
-            from llm_on_ray.inference.transformer_predictor import TransformerPredictor
+            from llm_on_ray.inference.predictors.transformer_predictor import TransformerPredictor
 
             self.predictor = TransformerPredictor(infer_conf)
 
@@ -120,8 +121,8 @@ class PredictorDeployment:
                 await asyncio.sleep(0.001)
 
     # Handle streaming, only support single prompt
-    async def handle_streaming(self, prompt: Union[str, List[str]], config: Dict[str, Any]):
-        if isinstance(prompt, List):
+    async def handle_streaming(self, input: GenerateInput, config: Dict[str, Any]):
+        if isinstance(input, List):
             error_message = (
                 "Streaming response is not supported when multiple prompts are provided."
             )
@@ -141,7 +142,7 @@ class PredictorDeployment:
                 )
         if self.use_deepspeed:
             streamer = self.predictor.get_streamer()
-            self.predictor.streaming_generate(prompt, streamer, **config)
+            self.predictor.streaming_generate(input, streamer, **config)
             if not self.use_openai:
                 yield StreamingResponse(
                     self.consume_streamer(streamer), status_code=200, media_type="text/plain"
@@ -157,7 +158,7 @@ class PredictorDeployment:
                     )
                     yield model_response
         elif self.use_vllm:
-            results_generator = await self.predictor.streaming_generate_async(prompt, **config)
+            results_generator = await self.predictor.streaming_generate_async(input, **config)
             if not self.use_openai:
                 yield StreamingResponse(
                     self.predictor.stream_results(results_generator),
@@ -178,7 +179,7 @@ class PredictorDeployment:
             streamer = self.predictor.get_streamer()
             self.loop.run_in_executor(
                 None,
-                functools.partial(self.predictor.streaming_generate, prompt, streamer, **config),
+                functools.partial(self.predictor.streaming_generate, input, streamer, **config),
             )
 
             if not self.use_openai:
@@ -194,7 +195,7 @@ class PredictorDeployment:
                             processed_output,
                             tool_call_list,
                         ) = self.tools_capture_texts.process_full_output(
-                            output, self.openai_tools_prompter, prompt
+                            output, self.openai_tools_prompter, input
                         )
                     model_response = ModelResponse(
                         generated_text=processed_output,
@@ -207,10 +208,10 @@ class PredictorDeployment:
                     yield model_response
 
     # Handle non-streaming, support single and multiple prompts
-    async def handle_non_streaming(self, prompts, config) -> Union[JSONResponse, str]:
+    async def handle_non_streaming(self, input: GenerateInput, config) -> Union[JSONResponse, str]:
         # Use vllm for continuous batching
         if self.use_vllm:
-            results = await self.predictor.generate_async(prompts, **config)
+            results = await self.predictor.generate_async(input, **config)
             if isinstance(results, list):
                 responses = []
                 for result in results:
@@ -234,11 +235,11 @@ class PredictorDeployment:
                 )
         else:
             # static batching
-            if isinstance(prompts, list):
-                return await self.handle_static_batch(prompts, **config)
+            if isinstance(input, list):
+                return await self.handle_static_batch(input, **config)
 
             # dynamic batching
-            return await self.handle_dynamic_batch((prompts, config))
+            return await self.handle_dynamic_batch((input, config))
 
         return JSONResponse(status_code=400, content="Error when handling non-streaming request.")
 
@@ -326,7 +327,9 @@ class PredictorDeployment:
                     preprocessing_time=0,
                 )
 
-    def preprocess_prompts(self, input: Union[str, List], tools=None, tool_choice=None):
+    def preprocess_prompts(
+        self, input: Union[str, List], tools=None, tool_choice=None
+    ) -> GenerateInput:
         """
         Preprocesses the input prompts.
 
@@ -336,7 +339,7 @@ class PredictorDeployment:
             tool_choice: The choice of tool to be used.
 
         Returns:
-            Union[str, List[str], Tuple[List[str], List[str]]]: The preprocessed prompt(s):
+            The preprocessed prompt(s) in the following `GenerateInput` format:
 
             - str: If the input is a single prompt or
                    if the input is a list of prompts (CHAT_FORMAT) and processed by tool
@@ -376,7 +379,7 @@ class PredictorDeployment:
                         input, image = self.process_tool.get_prompt(input)
                         prompts.append(input)
                         images.extend(image)
-                        return prompts, images
+                        return (prompts, images)
                     else:
                         prompt = self.process_tool.get_prompt(input)
                         return prompt
@@ -431,11 +434,11 @@ class PredictorDeployment:
         self.use_openai = True
 
         # return prompt or list of prompts preprocessed
-        prompts = self.preprocess_prompts(input, tools, tool_choice)
+        input = self.preprocess_prompts(input, tools, tool_choice)
 
         # Handle streaming response
         if streaming_response:
-            async for result in self.handle_streaming(prompts, config):
+            async for result in self.handle_streaming(input, config):
                 yield result
         else:
-            yield await self.handle_non_streaming(prompts, config)
+            yield await self.handle_non_streaming(input, config)
