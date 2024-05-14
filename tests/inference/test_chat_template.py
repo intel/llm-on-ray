@@ -148,17 +148,22 @@ TEST_MESSAGES = [
 ]
 
 TEST_NEURALCHAT_MESSAGES = [
-    {"role": "system", "content": "You are a chatbot developed by Intel. Please answer all questions to the best of your ability."},
+    {
+        "role": "system",
+        "content": "You are a chatbot developed by Intel. Please answer all questions to the best of your ability.",
+    },
     {"role": "user", "content": "Hello"},
     {"role": "assistant", "content": "Hi there!"},
 ]
 
 TEST_DEFAULT_MESSAGES = [
-    {"role": "system", "content": "Below is an instruction that describes a task. Write a response that appropriately completes the request."},
+    {
+        "role": "system",
+        "content": "Below is an instruction that describes a task. Write a response that appropriately completes the request.",
+    },
     {"role": "user", "content": "Hello"},
     {"role": "assistant", "content": "Hi there!"},
 ]
-
 
 
 @pytest.mark.parametrize(
@@ -178,15 +183,18 @@ def test_get_gen_default_prompt(
         tokenizer.bos_token = "|ENDOFTEXT|"
         tokenizer.eos_token = "|ENDOFTEXT|"
 
-
     # Call the function and get the result
     if model == "Intel/neural-chat-7b-v3-1":
         result = tokenizer.apply_chat_template(
-            conversation=TEST_NEURALCHAT_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
+            conversation=TEST_NEURALCHAT_MESSAGES,
+            tokenize=False,
+            add_generation_prompt=add_generation_prompt,
         )
     elif model == "EleutherAI/gpt-j-6b":
         result = tokenizer.apply_chat_template(
-            conversation=TEST_DEFAULT_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
+            conversation=TEST_DEFAULT_MESSAGES,
+            tokenize=False,
+            add_generation_prompt=add_generation_prompt,
         )
     else:
         result = tokenizer.apply_chat_template(
