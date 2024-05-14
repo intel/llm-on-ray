@@ -87,7 +87,7 @@ class HpuModelConfig(BaseModel):
 
 
 # for non-streaming response
-class GenerateResult(BaseModel):
+class ModelGenerateResult(BaseModel):
     text: Union[str, List[str]] = ""
     input_length: Union[int, None] = None
     generate_length: Union[int, None] = None

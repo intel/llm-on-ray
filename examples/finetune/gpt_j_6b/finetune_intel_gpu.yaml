@@ -2,7 +2,7 @@ General:
   base_model: EleutherAI/gpt-j-6b
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
-  checkpoint_dir: /tmp/llm-ray/checkpoint
+  save_strategy: no
   config:
     trust_remote_code: false
     use_auth_token: null

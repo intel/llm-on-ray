@@ -17,9 +17,19 @@
 from typing import List, Union
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig, TextIteratorStreamer
-from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    ModelGenerateResult,
+    PRECISION_BF16,
+)
 from llm_on_ray.inference.utils import decide_torch_dtype
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import (
+    GenerateInput,
+    GenerateOutput,
+    MllmPromptInput,
+    Predictor,
+    SinglePromptInput,
+)
 
 
 class TransformerPredictor(Predictor):
@@ -102,33 +112,28 @@ class TransformerPredictor(Predictor):
             **config,
         )
 
-    def generate(
-        self, prompts: Union[str, List[str]], **config
-    ) -> Union[GenerateResult, List[GenerateResult], None]:
+    def generate(self, input: GenerateInput, **config) -> GenerateOutput:
+        if isinstance(input, tuple):
+            raise TypeError("TransformerPredictor doesn't support MLLM input.")
+
+        # Convert prompts to list
+        prompts = [input] if isinstance(input, SinglePromptInput) else input
+
         input_ids, input_length = self.tokenize_inputs(prompts)
         gen_tokens = self.model.generate(
             input_ids, stopping_criteria=self.stopping_criteria, **config
         )
 
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-
-        if isinstance(prompts, str):
-            return GenerateResult(
-                text=decode_result,
+        results = [
+            ModelGenerateResult(
+                text=decode_result[i],
                 input_length=input_length,
                 generate_length=gen_tokens.size()[1] - input_length,
             )
-        elif isinstance(prompts, List):
-            return [
-                GenerateResult(
-                    text=decode_result[i],
-                    input_length=input_length,
-                    generate_length=gen_tokens.size()[1] - input_length,
-                )
-                for i in range(len(prompts))
-            ]
-
-        return None
+            for i in range(len(prompts))
+        ]
+        return results[0] if isinstance(input, SinglePromptInput) else results
 
     def get_streamer(self):
         return TextIteratorStreamer(
