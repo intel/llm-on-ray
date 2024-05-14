@@ -189,7 +189,7 @@ class HPUPredictor(Predictor):
 
     # FIXME: support MllmPromptInput
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
-        if isinstance(input, MllmPromptInput):
+        if isinstance(input, tuple):
             raise TypeError("HPUPredictor doesn't support MLLM prompts for now!")
 
         prompt = input
@@ -206,13 +206,15 @@ class HPUPredictor(Predictor):
                 input_ids, stopping_criteria=self.stopping_criteria, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-            if isinstance(prompt, list) and len(prompt) > 1:
-                return decode_result
-            return ModelGenerateResult(
-                text=decode_result,
-                input_length=input_length,
-                generate_length=gen_tokens.size()[1] - input_length,
-            )
+            results = [
+                ModelGenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompt))
+            ]
+            return results[0] if isinstance(input, SinglePromptInput) else results
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
@@ -373,7 +375,16 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
             input_ids,
             **config,
         )
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        results = [
+            ModelGenerateResult(
+                text=decode_result[i],
+                input_length=input_ids.size()[1],
+                generate_length=gen_tokens.size()[1] - input_ids.size()[1],
+            )
+            for i in range(len(prompt))
+        ]
+        return results[0] if isinstance(prompt, str) else results
 
     def streaming_generate(self, prompt, streamer, **config):
         input_ids = self.tokenize(prompt)
