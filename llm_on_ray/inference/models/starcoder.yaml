@@ -15,4 +15,4 @@ model_description:
   tokenizer_name_or_path: bigcode/starcoder
   config:
     use_auth_token: ''
-  chat_template: "llm_on_ray/common/templates/template_gpt2.jinja"
+  chat_template: "llm_on_ray/inference/models/templates/template_gpt2.jinja"

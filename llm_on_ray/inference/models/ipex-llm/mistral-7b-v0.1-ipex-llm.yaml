@@ -17,4 +17,4 @@ model_description:
   config:
     trust_remote_code: true
     load_in_4bit: true
-  chat_template: "llm_on_ray/common/templates/template_mistral.jinja"
+  chat_template: "llm_on_ray/inference/models/templates/template_mistral.jinja"

@@ -13,4 +13,4 @@ ipex:
 model_description:
   model_id_or_path: tiiuae/falcon-7b
   tokenizer_name_or_path: tiiuae/falcon-7b
-  chat_template: "llm_on_ray/common/templates/template_gpt2.jinja"
+  chat_template: "llm_on_ray/inference/models/templates/template_gpt2.jinja"

@@ -16,4 +16,4 @@ model_description:
   tokenizer_name_or_path: mistralai/Mistral-7B-v0.1
   config:
     trust_remote_code: true
-  chat_template: "llm_on_ray/common/templates/template_mistral.jinja"
+  chat_template: "llm_on_ray/inference/models/templates/template_mistral.jinja"
