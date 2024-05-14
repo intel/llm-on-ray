@@ -112,7 +112,7 @@ class MllmPredictor(Predictor):
 
     def generate(self, input: GenerateInput, **config) -> GenerateOutput:
         if not isinstance(input, tuple):
-            raise TypeError("MllmPredictor should use (image, prompt) as input.")
+            raise TypeError("MllmPredictor should use (prompt, image) as input.")
 
         prompts, images = input
 
