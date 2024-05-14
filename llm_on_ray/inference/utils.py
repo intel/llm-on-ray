@@ -198,12 +198,14 @@ def module_import_and_init(module_name, clazz, **clazzs_kwargs):
 
 
 def parse_jinja_file(chat_template: str):
-    if chat_template is not None:
-        jinja_path = (
-            pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / chat_template
-        )
-        assert jinja_path.exists()
+    if chat_template is None:
+        return None
 
-        with open(jinja_path, "r") as file:
-            content = file.read()
-        return content
+    jinja_path = (
+        pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / chat_template
+    )
+    assert jinja_path.exists()
+
+    with open(jinja_path, "r") as file:
+        content = file.read()
+    return content

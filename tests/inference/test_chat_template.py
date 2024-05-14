@@ -37,7 +37,9 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         True,
         "Below is an instruction that describes a task. Write a response that "
         "appropriately completes the request.\n"
-        "### Instruction: Hello### Response:Hi there!### Response:\n",
+        "### Instruction: Hello\n"
+        "### Response:Hi there!\n"
+        "### Response:\n",
     ),
     (
         "EleutherAI/gpt-j-6b",
@@ -45,7 +47,8 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         False,
         "Below is an instruction that describes a task. Write a response that "
         "appropriately completes the request.\n"
-        "### Instruction: Hello### Response:Hi there!",
+        "### Instruction: Hello\n"
+        "### Response:Hi there!\n",
     ),
     ("gpt2", base_path / "template_gpt2.jinja", True, "Hello\nHi there!\nWhat is the capital of\n"),
     (
@@ -58,24 +61,33 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "google/gemma-2b",
         base_path / "template_gemma.jinja",
         True,
+        "<|endoftext|>\n"
         "<start_of_turn>user\n"
         "Hello<end_of_turn>\n"
+        "\n"
         "<start_of_turn>model\n"
         "Hi there!<end_of_turn>\n"
+        "\n"
         "<start_of_turn>user\n"
         "What is the capital of<end_of_turn>\n"
-        "<start_of_turn>model\n",
+        "\n"
+        "<start_of_turn>model\n"
+        "\n",
     ),
     (
         "google/gemma-2b",
         base_path / "template_gemma.jinja",
         False,
+        "<|endoftext|>\n"
         "<start_of_turn>user\n"
         "Hello<end_of_turn>\n"
+        "\n"
         "<start_of_turn>model\n"
         "Hi there!<end_of_turn>\n"
+        "\n"
         "<start_of_turn>user\n"
-        "What is the capital of<end_of_turn>\n",
+        "What is the capital of<end_of_turn>\n"
+        "\n",
     ),
     (
         "mistralai/Mistral-7B-v0.1",
@@ -118,25 +130,33 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "adept/fuyu-8b",
         base_path / "template_llama2.jinja",
         True,
-        "|ENDOFTEXT|[INST] Hello [/INST] Hi there! |ENDOFTEXT||ENDOFTEXT|[INST] What is the capital of [/INST]",
+        "|ENDOFTEXT|[INST] Hello [/INST]\n"
+        " Hi there! |ENDOFTEXT|\n"
+        "|ENDOFTEXT|[INST] What is the capital of [/INST]\n",
     ),
     (
         "adept/fuyu-8b",
         base_path / "template_llama2.jinja",
         False,
-        "|ENDOFTEXT|[INST] Hello [/INST] Hi there! |ENDOFTEXT||ENDOFTEXT|[INST] What is the capital of [/INST]",
+        "|ENDOFTEXT|[INST] Hello [/INST]\n"
+        " Hi there! |ENDOFTEXT|\n"
+        "|ENDOFTEXT|[INST] What is the capital of [/INST]\n",
     ),
     (
         "codellama/CodeLlama-7b-hf",
         base_path / "template_codellama.jinja",
         True,
-        "<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of " '[/INST]",',
+        "<s>[INST] Hello [/INST]\n"
+        " Hi there! </s>\n"
+        "<s>[INST] What is the capital of [/INST]\n",
     ),
     (
         "codellama/CodeLlama-7b-hf",
         base_path / "template_codellama.jinja",
         False,
-        "<s>[INST] Hello [/INST] Hi there! </s><s>[INST] What is the capital of " '[/INST]",',
+        "<s>[INST] Hello [/INST]\n"
+        " Hi there! </s>\n"
+        "<s>[INST] What is the capital of [/INST]\n",
     ),
 ]
 
@@ -200,7 +220,6 @@ def test_get_gen_default_prompt(
         result = tokenizer.apply_chat_template(
             conversation=TEST_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
         )
-
     # Test assertion
     assert result == expected_output, (
         f"The generated prompt does not match the expected output for "
