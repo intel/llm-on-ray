@@ -37,7 +37,13 @@ class DefaultTrainer(Trainer):
         self.config = config
         dataprocesser_config = config.get("dataprocesser")
         dataprocesser_type = dataprocesser_config.get("type")
-        Factory = dataprocesser.DataProcesser.registory.get(dataprocesser_type)
+        if dataprocesser_type == "chat":
+            Factory = dataprocesser.DataProcesser.registory.get("ChatDataPreprocess")
+        elif dataprocesser_type == "SlimOrca":
+            Factory = dataprocesser.DataProcesser.registory.get("SlimOrcaDataPreprocess")
+        else:
+            raise ValueError(f"there is no {dataprocesser_type} dataprocesser.")
+
         if Factory is None:
             raise ValueError(f"there is no {dataprocesser_type} dataprocesser.")
         self.dataprocesser = Factory(dataprocesser_config)

@@ -16,8 +16,12 @@
 import unittest
 
 import transformers
+from datasets import Dataset
 from transformers import AutoTokenizer
-from llm_on_ray.common.dataprocesser.general_processer import ChatDataPreprocess
+from llm_on_ray.common.dataprocesser.general_processer import (
+    ChatDataPreprocess,
+    SlimOrcaDataPreprocess,
+)
 
 
 class TestTokenizeFunction(unittest.TestCase):
@@ -36,57 +40,38 @@ class TestTokenizeFunction(unittest.TestCase):
             "'assistant' %}{{ '### Response: '  + message['content'] }}{% endif %}{% endfor %}{{'### "
             "End \n'}}",
         }
-        self.processer = ChatDataPreprocess(self.config)
+        self.processer = SlimOrcaDataPreprocess(self.config)
+        examples = {
+            "conversations": [
+                {"from": "system", "value": "Test system", "weight": None},
+                {"from": "human", "value": "Test human", "weight": 0},
+                {"from": "gpt", "value": "Test gpt.", "weight": 1},
+            ]
+        }
+
+        self.ds = Dataset.from_dict(examples)
 
     def test_tokenize_function_with_gpt_model(self):
         self.tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-j-6b")
 
-        examples = {
-            "instruction": "Test instruction",
-            "response": "Test response",
-            "context": "Test context",
-        }
-
         # Verify the format of the result
         expected_result = (
-            "Below is an instruction that describes a task. Write a response that "
-            "appropriately completes the request.\n"
-            "\n"
-            "### Instruction: \n"
-            "Test instruction\n"
-            "\n"
-            "Input: \n"
-            "Test context\n"
-            "\n"
-            "### Response: \n"
-            "Test response\n"
-            "\n"
-            "### End"
+            "### System: Test system \n" "### User: Test human \n" "### Assistant: Test gpt."
         )
 
-        print(self.processer.create_data(examples))
-        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(examples))
-        print(self.tokenizer.decode(result["input_ids"]))
+        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(self.ds))
 
         self.assertEqual(expected_result, self.tokenizer.decode(result["input_ids"]))
 
     def test_tokenize_function_with_custom_chat_template(self):
-        examples = {
-            "instruction": "Test instruction",
-            "response": "Test response",
-            "context": "Test context",
-        }
-
         # Verify the format of the result
         expected_result = (
-            "<|im_start|>user\n"
-            "Test instruction\n"
-            "\n"
-            "Input: Test context\n"
-            "\n"
+            "<|im_start|>system\n"
+            "Test system\n"
+            "<|im_end|><|im_start|>user\n"
+            "Test human\n"
             "<|im_end|><|im_start|>assistant\n"
-            "Test response\n"
-            "\n"
+            "Test gpt.\n"
             "<|im_end|>"
         )
 
@@ -98,62 +83,45 @@ class TestTokenizeFunction(unittest.TestCase):
         )
 
         self.config["gpt_base_model"] = False
-        print(self.processer.create_data(examples))
-        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(examples))
-        print(self.tokenizer.decode(result["input_ids"]))
+        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(self.ds))
         self.assertEqual(expected_result, self.tokenizer.decode(result["input_ids"]))
 
     def test_tokenize_function_with_default_chat_template(self):
-        examples = {
-            "instruction": "Test instruction",
-            "response": "Test response",
-            "context": "Test context",
-        }
-
         # Verify the format of the result
         expected_result = (
-            "Below is an instruction that describes a task. Write a response that "
-            "appropriately completes the request\n"
-            "### Instruction: Test instruction\n"
-            "\n"
-            "Input: Test context\n"
-            "\n"
-            "### Response: Test response\n"
-            "\n"
-            "### End \n"
+            "### System: Test system\n" "### User: Test human\n" "### Assistant: Test gpt.\n"
         )
         self.config["gpt_base_model"] = False
-        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(examples))
+        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(self.ds))
         self.assertEqual(expected_result, self.tokenizer.decode(result["input_ids"]))
 
     def test_tokenize_function_with_tokenizer_chat_template(self):
-        self.tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
-        examples = {
-            "instruction": "Test instruction",
-            "response": "Test response",
-            "context": "Test context",
-        }
+        self.tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
 
         chat_example = [
             {
+                "role": "system",
+                "content": "Test system\n",
+            },
+            {
                 "role": "user",
-                "content": "Test instruction\n\nInput: Test context\n\n",
+                "content": "Test human\n",
             },
             {
                 "role": "assistant",
-                "content": "Test response\n\n",
+                "content": "Test gpt.\n",
             },
         ]
 
         # Verify the format of the result
         expected_result = self.tokenizer.apply_chat_template(
-            chat_example, tokenize=False, max_length=self.config.get("max_length")
+            chat_example, tokenize=True, max_length=self.config.get("max_length")
         )
 
         self.config["chat_template"] = None
         self.config["gpt_base_model"] = False
-        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(examples))
-        self.assertEqual(expected_result, self.tokenizer.decode(result["input_ids"]))
+        result = self.processer.tokenize_func(self.tokenizer, self.processer.create_data(self.ds))
+        self.assertEqual(expected_result, result["input_ids"])
 
 
 if __name__ == "__main__":
