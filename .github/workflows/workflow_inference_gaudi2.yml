@@ -119,9 +119,9 @@ jobs:
           )
           docker exec "${TARGET}" python -c "$CMD"
           if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
-            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml"
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml --keep_serve_terminal"
           elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf" ]]; then
-            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml"
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml --keep_serve_terminal"
           fi
           echo Non-streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }}"
