@@ -121,7 +121,7 @@ class ModelDescription(BaseModel):
 
     chat_model_with_image: bool = False
     chat_template: Union[str, None] = None
-    default_chat_template: str = "llm_on_ray/common/templates/default_template.jinja"
+    default_chat_template: str = "llm_on_ray/inference/models/templates/default_template.jinja"
 
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
