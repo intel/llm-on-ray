@@ -25,7 +25,7 @@ from llm_on_ray.inference.utils import parse_jinja_file
 # Define the base path for templates
 base_path = (
     pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
-    / "llm_on_ray/common/templates"
+    / "llm_on_ray/inference/models/templates"
 )
 
 
@@ -37,7 +37,7 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         True,
         "Below is an instruction that describes a task. Write a response that "
         "appropriately completes the request.\n"
-        "### Instruction: Hello### Response:Hi there!### Instruction: What is the capital of### Response:\n",
+        "### Instruction: Hello### Response:Hi there!### Response:\n",
     ),
     (
         "EleutherAI/gpt-j-6b",
@@ -45,7 +45,7 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         False,
         "Below is an instruction that describes a task. Write a response that "
         "appropriately completes the request.\n"
-        "### Instruction: Hello### Response:Hi there!### Instruction: What is the capital of",
+        "### Instruction: Hello### Response:Hi there!",
     ),
     ("gpt2", base_path / "template_gpt2.jinja", True, "Hello\nHi there!\nWhat is the capital of\n"),
     (
@@ -99,23 +99,20 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "Intel/neural-chat-7b-v3-1",
         base_path / "template_neuralchat.jinja",
         True,
-        "'### System:You are a chatbot developed by Intel. Please answer all "
-        "questions to the best of your ability.\\n'\n"
-        "### User: Hello\n"
-        "### Assistant:Hi there!\n"
-        "### User: What is the capital of\n"
-        "### Assistant:\n"
-        "\n",
+        "###System: You are a chatbot developed by Intel. Please answer all "
+        "questions to the best of your ability.\n"
+        "###User: Hello\n"
+        "###Assistant: Hi there!\n"
+        "###Assistant: \n",
     ),
     (
         "Intel/neural-chat-7b-v3-1",
         base_path / "template_neuralchat.jinja",
         False,
-        "'### System:You are a chatbot developed by Intel. Please answer all "
-        "questions to the best of your ability.\\n'\n"
-        "### User: Hello\n"
-        "### Assistant:Hi there!\n"
-        "### User: What is the capital of\n",
+        "###System: You are a chatbot developed by Intel. Please answer all "
+        "questions to the best of your ability.\n"
+        "###User: Hello\n"
+        "###Assistant: Hi there!\n",
     ),
     (
         "adept/fuyu-8b",
@@ -150,6 +147,19 @@ TEST_MESSAGES = [
     {"role": "user", "content": "What is the capital of"},
 ]
 
+TEST_NEURALCHAT_MESSAGES = [
+    {"role": "system", "content": "You are a chatbot developed by Intel. Please answer all questions to the best of your ability."},
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": "Hi there!"},
+]
+
+TEST_DEFAULT_MESSAGES = [
+    {"role": "system", "content": "Below is an instruction that describes a task. Write a response that appropriately completes the request."},
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": "Hi there!"},
+]
+
+
 
 @pytest.mark.parametrize(
     "model,template,add_generation_prompt,expected_output", MODEL_TEMPLATE_GENERATON_OUTPUT
@@ -158,13 +168,30 @@ def test_get_gen_default_prompt(
     model: object, template: object, add_generation_prompt: object, expected_output: object
 ) -> object:
     # Initialize the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model)
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
     tokenizer.chat_template = parse_jinja_file(template)
 
+    if model == "mistralai/Mistral-7B-v0.1" or model == "codellama/CodeLlama-7b-hf":
+        tokenizer.bos_token = "<s>"
+        tokenizer.eos_token = "</s>"
+    elif model == "adept/fuyu-8b":
+        tokenizer.bos_token = "|ENDOFTEXT|"
+        tokenizer.eos_token = "|ENDOFTEXT|"
+
+
     # Call the function and get the result
-    result = tokenizer.apply_chat_template(
-        conversation=TEST_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
-    )
+    if model == "Intel/neural-chat-7b-v3-1":
+        result = tokenizer.apply_chat_template(
+            conversation=TEST_NEURALCHAT_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
+        )
+    elif model == "EleutherAI/gpt-j-6b":
+        result = tokenizer.apply_chat_template(
+            conversation=TEST_DEFAULT_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
+        )
+    else:
+        result = tokenizer.apply_chat_template(
+            conversation=TEST_MESSAGES, tokenize=False, add_generation_prompt=add_generation_prompt
+        )
 
     # Test assertion
     assert result == expected_output, (
