@@ -115,9 +115,9 @@ stop_container(){
 # declare map
 declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
-    ["mpt-7b-ipex-llm"]=".ipex-llm"
-    ["llama-2-7b-chat-hf-vllm"]=".vllm"
-    ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
+    ["mpt-7b-ipex-llm"]=".cpu_all"
+    ["llama-2-7b-chat-hf-vllm"]=".cpu_all"
+    ["gpt-j-6b"]=".cpu_all"
 )
 
 
@@ -126,7 +126,7 @@ get_DF_SUFFIX() {
     if [[ ${DF_SUFFIX_MAPPER[$key]+_} ]]; then
         echo "${DF_SUFFIX_MAPPER[$key]}"
     else
-        echo ".cpu_and_deepspeed"
+        echo ".cpu_all"
     fi
 }
 
