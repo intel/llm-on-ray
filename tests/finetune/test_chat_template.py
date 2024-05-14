@@ -27,14 +27,26 @@ class TestTokenizeFunction(unittest.TestCase):
             "gpt_base_model": True,
             "max_length": 512,
             "trust_remote_code": False,
-            "chat_template": "Below is an instruction that describes a task. Write a response that appropriately "
-            "completes the request\n {% if messages[0]['role'] == 'system' %}{{ raise_exception("
-            "'System role not supported') }}{% endif %}{% for message in messages %}{% if (message["
-            "'role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles "
-            "must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] "
-            "== 'user' %}{{ '### Instruction: ' + message['content'] }}{% elif message['role'] == "
-            "'assistant' %}{{ '### Response: '  + message['content'] }}{% endif %}{% endfor %}{{'### "
-            "End \n'}}",
+            "chat_template": "{% if messages[0]['role'] == 'system' %}"
+                             "{% set loop_messages = messages[1:] %}"
+                             "{% set system_message = messages[0]['content'] %}"
+                             "{% else %}"
+                             "{% set loop_messages = messages %}"
+                             "{% set system_message = false %}"
+                             "{% endif %}"
+                             "{% for message in loop_messages %}"
+                             "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+                             "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+                             "{% endif %}"
+                             "{% if loop.index0 == 0 and system_message %}"
+                             "{{ system_message }}"
+                             "{% endif %}"
+                             "{% if message['role'] == 'user' %}"
+                             "{{ '### Instruction: ' + message['content'] + eos_token }}"
+                             "{% elif message['role'] == 'assistant' %}"
+                             "{{ '### Response:'  + message['content'] + eos_token }}"
+                             "{% endif %}{% endfor %}"
+                             "{{'### End \n'}}",
         }
         self.processer = ChatDataPreprocess(self.config)
 

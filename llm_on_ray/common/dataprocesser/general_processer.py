@@ -133,14 +133,18 @@ class ChatDataPreprocess(DataProcesser):
         else:
             new_messages = [
                 {
+                    "role": "system",
+                    "content": INTRO_BLURB + "\n",
+                },
+                {
                     "role": "user",
                     "content": examples["instruction"]
-                    + "\n\n"
+                    + "\n"
                     + INPUT_KEY
                     + examples["context"]
-                    + "\n\n",
+                    + "\n",
                 },
-                {"role": "assistant", "content": examples["response"] + "\n\n"},
+                {"role": "assistant", "content": examples["response"] + "\n"},
             ]
 
         return new_messages
@@ -162,7 +166,6 @@ class ChatDataPreprocess(DataProcesser):
                 message,
                 tokenize=False,
             )
-            print(new_tokenizer)
             return tokenizer(
                 new_tokenizer, add_special_tokens=False, max_length=self.config.get("max_length")
             )
@@ -251,21 +254,9 @@ class ChatDataPreprocess(DataProcesser):
 
 
 class SlimOrcaDataPreprocess(ChatDataPreprocess):
-    chat_template = (
-        "{% for message in messages %}"
-        "{% if message['role'] == 'system' %}"
-        "{{ '### System: ' + message['content'] }}"
-        "{% elif message['role'] == 'user' %}"
-        "{{ '### User: ' + message['content'] }}"
-        "{% elif message['role'] == 'assistant' %}"
-        "{{ '### Assistant: ' + message['content'] }}"
-        "{% endif %}"
-        "{% endfor %}"
-    )
 
     def __init__(self, config):
         super().__init__(config)
-        self.config["chat_template"] = self.chat_template
         self.default_system = "You are a helpful, respectful and honest assistant."
 
     def create_data(self, data):
@@ -286,22 +277,26 @@ class SlimOrcaDataPreprocess(ChatDataPreprocess):
             examples[conv[j]["from"]] = conv[j]["value"]
             examples[conv[j + 1]["from"]] = conv[j + 1]["value"]
 
-        new_messages = [
-            {"role": "system", "content": examples["system"] + "\n"},
-            {
-                "role": "user",
-                "content": examples["human"] + "\n",
-            },
-            {"role": "assistant", "content": examples["gpt"] + "\n"},
-        ]
         if self.config.get("gpt_base_model"):
             if examples["human"]:
-                return SLIMORCA_PROMPT_DICT["prompt_with_input"].format(
-                    system=examples["system"], user=examples["human"], gpt=examples["gpt"]
+                return PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=examples["system"], response=examples["gpt"], input=examples["human"]
                 )
             else:
-                return SLIMORCA_PROMPT_DICT["prompt_with_input"].format(
-                    system=examples["human"], gpt=examples["gpt"]
+                return PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=examples["system"], response=examples["gpt"]
                 )
         else:
+            new_messages = [
+                {"role": "system", "content": INTRO_BLURB + "\n"},
+                {
+                    "role": "user",
+                    "content": examples["system"]
+                               + "\n"
+                               + INPUT_KEY
+                               + examples["human"]
+                               + "\n",
+                },
+                {"role": "assistant", "content": examples["gpt"] + "\n"},
+            ]
             return new_messages
