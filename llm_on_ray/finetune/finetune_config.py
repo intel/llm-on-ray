@@ -80,6 +80,7 @@ class General(BaseModel):
 
 
 class Dataset(BaseModel):
+    type: str = "chat"
     train_file: str
     validation_file: Optional[str]
     validation_split_percentage: int
