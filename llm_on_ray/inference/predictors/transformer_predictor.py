@@ -133,7 +133,7 @@ class TransformerPredictor(Predictor):
             )
             for i in range(len(prompts))
         ]
-        return results[0] if isinstance(prompts, SinglePromptInput) else results
+        return results[0] if isinstance(input, SinglePromptInput) else results
 
     def get_streamer(self):
         return TextIteratorStreamer(
