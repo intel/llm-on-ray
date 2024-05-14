@@ -179,6 +179,7 @@ class InferenceConfig(BaseModel):
 
 all_models: Dict[str, InferenceConfig] = {}
 base_models: Dict[str, InferenceConfig] = {}
+model_ids = {}
 _models: Dict[str, InferenceConfig] = {}
 
 _cur = os.path.dirname(os.path.abspath(__file__))
@@ -190,5 +191,6 @@ for model_file in os.listdir(_models_folder):
     with open(file_path, "r") as f:
         m: InferenceConfig = parse_yaml_raw_as(InferenceConfig, f)
         _models[m.name] = m
+        model_ids[m.name] = file_path
 
 all_models = _models.copy()
