@@ -73,6 +73,7 @@ tools = [
 
 messages = [
     [
+        {"role": "system", "content": "You are a helpful assistant"},
         {"role": "user", "content": "What's the weather like in Boston today?"},
     ],
 ]
@@ -80,7 +81,7 @@ messages = [
 proxies = {"http": None, "https": None}
 
 for message in messages:
-    print(f"User: {message[0]['content']}")
+    print(f"User: {message[1]['content']}")
     print("Assistant:", end=" ", flush=True)
 
     body = {

@@ -30,7 +30,7 @@ class ChatTemplatePreprocess:
             or self.predictor.tokenizer.chat_template
             or parse_jinja_file(self.predictor.infer_conf.model_description.default_chat_template)
         )
-
+        """ChatMessage for OpenAI backend and dict for simple backend."""
         if input and isinstance(input[0], (ChatMessage, dict)):
             messages = (
                 [dict(chat_message) for chat_message in input]

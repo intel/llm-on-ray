@@ -58,6 +58,7 @@ url = f"{args.request_api_base}/chat/completions"
 body = {
     "model": args.model_name,
     "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": args.input_text},
     ],
     "stream": args.streaming_response,
