@@ -205,11 +205,12 @@ def parse_jinja_file(chat_template: Union[str, None]):
         # Get the absolute path of the provided chat template
         jinja_path = os.path.abspath(chat_template)
 
-        #If the user specifies a jinja file, the absolute path to jinja_path exists.
-        #If jinja_path does not exist, it means that the user did not specify jinja and the default jinja is used.
+        # If the user specifies a jinja file, the absolute path to jinja_path exists.
+        # If jinja_path does not exist, it means that the user did not specify jinja and the default jinja is used.
         if not os.path.exists(jinja_path):
-            jinja_path = (
-                    pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / chat_template
+            jinja_path = str(
+                pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
+                / chat_template
             )
 
         with open(jinja_path, "r") as file:
