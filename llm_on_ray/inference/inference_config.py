@@ -119,6 +119,10 @@ class ModelDescription(BaseModel):
     input_processor: str = "AutoProcessor"
     model_loader: str = "AutoModel"
 
+    chat_model_with_image: bool = False
+    chat_template: Union[str, None] = None
+    default_chat_template: str = "llm_on_ray/inference/models/templates/default_template.jinja"
+
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
         if v:
