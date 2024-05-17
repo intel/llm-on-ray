@@ -27,7 +27,6 @@ INTRO_BLURB = "Below is an instruction that describes a task. Write a response t
 INSTRUCTION_KEY = "### Instruction: "
 INPUT_KEY = "Input: "
 RESPONSE_KEY = "### Response: "
-END_KEY = "### End"
 RESPONSE_KEY_NL = f"{RESPONSE_KEY}\n"
 
 PROMPT_NO_INPUT_FORMAT = """{intro}
@@ -36,15 +35,12 @@ PROMPT_NO_INPUT_FORMAT = """{intro}
 {instruction}
 
 {response_key}
-{response}
-
-{end_key}""".format(
+{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 
 PROMPT_WITH_INPUT_FORMAT = """{intro}
@@ -56,9 +52,7 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
 {input}
 
 {response_key}
-{response}
-
-{end_key}""".format(
+{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
@@ -66,7 +60,6 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
     input="{input}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 TEXT_COLUMN_NAME = "text"
 
@@ -170,10 +163,7 @@ class ChatDataPreprocess(DataProcesser):
                 new_tokenizer, add_special_tokens=False, max_length=self.config.get("max_length")
             )
 
-    def prepare(self, tokenizer, dataset):
-        per_device_train_batch_size = self.config.get("per_device_train_batch_size")
-        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
-
+    def tokenize_dataset(self, tokenizer, dataset):
         group = self.config.get("group")
         block_size = self.config.get("block_size")
         tokenizer.pad_token = tokenizer.eos_token
@@ -254,7 +244,6 @@ class ChatDataPreprocess(DataProcesser):
 
 
 class SlimOrcaDataPreprocess(ChatDataPreprocess):
-
     def __init__(self, config):
         super().__init__(config)
         self.default_system = "You are a helpful, respectful and honest assistant."
@@ -280,7 +269,9 @@ class SlimOrcaDataPreprocess(ChatDataPreprocess):
         if self.config.get("gpt_base_model"):
             if examples["human"]:
                 return PROMPT_WITH_INPUT_FORMAT.format(
-                    instruction=examples["system"], response=examples["gpt"], input=examples["human"]
+                    instruction=examples["system"],
+                    response=examples["gpt"],
+                    input=examples["human"],
                 )
             else:
                 return PROMPT_NO_INPUT_FORMAT.format(
@@ -291,12 +282,40 @@ class SlimOrcaDataPreprocess(ChatDataPreprocess):
                 {"role": "system", "content": INTRO_BLURB + "\n"},
                 {
                     "role": "user",
-                    "content": examples["system"]
-                               + "\n"
-                               + INPUT_KEY
-                               + examples["human"]
-                               + "\n",
+                    "content": examples["system"] + "\n" + INPUT_KEY + examples["human"] + "\n",
                 },
                 {"role": "assistant", "content": examples["gpt"] + "\n"},
+            ]
+            return new_messages
+
+
+class OpenOrcaDataPreprocess(ChatDataPreprocess):
+    def __init__(self, config):
+        super().__init__(config)
+        self.default_system = "You are an AI assistant. You will be given a task. You must generate a detailed and long answer."
+
+    def create_data(self, examples):
+        if self.config.get("gpt_base_model"):
+            if not examples["system"]:
+                examples["system"] = self.default_system
+
+            if examples["question"]:
+                return PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=examples["system"],
+                    response=examples["chosen"],
+                    input=examples["question"],
+                )
+            else:
+                return PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=examples["system"], response=examples["chosen"]
+                )
+        else:
+            new_messages = [
+                {"role": "system", "content": INTRO_BLURB + "\n"},
+                {
+                    "role": "user",
+                    "content": examples["system"] + "\n" + INPUT_KEY + examples["question"] + "\n",
+                },
+                {"role": "assistant", "content": examples["chosen"] + "\n"},
             ]
             return new_messages
