@@ -221,7 +221,17 @@ def train_func(config: Dict[str, Any]):
         }
     )
 
-    dataprocesser = common.dataprocesser.DataProcesser.registory.get("GeneralProcesser")(
+    dataprocesser_type = config["Dataset"]["type"]
+    if dataprocesser_type == "chat":
+        preprocesser_name = "ChatDataPreprocess"
+    elif dataprocesser_type == "OpenOrca":
+        preprocesser_name = "OpenOrcaDataPreprocess"
+    elif dataprocesser_type == "SlimOrca":
+        preprocesser_name = "SlimOrcaDataPreprocess"
+    else:
+        raise ValueError(f"there is no {dataprocesser_type} dataprocesser.")
+
+    dataprocesser = common.dataprocesser.DataProcesser.registory.get(preprocesser_name)(
         config={
             "per_device_train_batch_size": config["Training"]["batch_size"],
             "per_device_eval_batch_size": config["Training"]["batch_size"],
@@ -232,6 +242,9 @@ def train_func(config: Dict[str, Any]):
             "shuffle": config["Dataset"].get("shuffle", False),
             "name": tokenizer_name,
             "config": config["General"]["config"],
+            "gpt_base_model": config["General"].get("gpt_base_model", False),
+            "chat_template": config["General"]["chat_template"],
+            "default_chat_template": config["General"]["default_chat_template"],
         }
     )
     tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
