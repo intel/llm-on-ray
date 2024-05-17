@@ -51,6 +51,6 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[pypj] --extra-in
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Use shell scripting to conditionally install packages
-RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; ds_report && /tmp/install-oneapi.sh;fi
+RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && /tmp/install-oneapi.sh;fi
 RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then /tmp/install-oneapi.sh; fi
 RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./install-vllm-cpu.sh; fi
