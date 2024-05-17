@@ -9,10 +9,5 @@ model_description:
   model_id_or_path: X-D-Lab/MindChat-Qwen2-4B
   tokenizer_name_or_path: X-D-Lab/MindChat-Qwen2-4B
   chat_processor: ChatModelGptJ
-  prompt:
-    intro: ''
-    human_id: ''
-    bot_id: ''
-    stop_words: []
   config:
     use_auth_token: ''

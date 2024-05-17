@@ -10,17 +10,5 @@ model_description:
   tokenizer_name_or_path: EleutherAI/gpt-j-6b
   chat_processor: ChatModelGptJ
   gpt_base_model: true
-  prompt:
-    intro: 'Below is an instruction that describes a task. Write a response that appropriately
-      completes the request.
-
-      '
-    human_id: '
-
-      ### Instruction'
-    bot_id: '
-
-      ### Response'
-    stop_words: []
   config:
     use_auth_token: ''

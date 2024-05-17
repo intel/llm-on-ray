@@ -10,12 +10,5 @@ model_description:
   model_id_or_path: meta-llama/Meta-Llama-3-70b-Instruct
   tokenizer_name_or_path: meta-llama/Meta-Llama-3-70b-Instruct
   chat_processor: ChatModelLLama
-  prompt:
-    intro: ''
-    human_id: '[INST] {msg} [/INST]
-
-      '
-    bot_id: ''
-    stop_words: []
   config:
     use_auth_token: ''

@@ -10,10 +10,5 @@ model_description:
   tokenizer_name_or_path: gpt2
   chat_processor: ChatModelGptJ
   gpt_base_model: true
-  prompt:
-    intro: ''
-    human_id: ''
-    bot_id: ''
-    stop_words: []
   config:
     use_auth_token: ''

@@ -11,10 +11,5 @@ model_description:
   model_id_or_path: bigscience/bloom-560m
   tokenizer_name_or_path: bigscience/bloom-560m
   chat_processor: ChatModelGptJ
-  prompt:
-    intro: ''
-    human_id: ''
-    bot_id: ''
-    stop_words: []
   config:
     use_auth_token: ''
