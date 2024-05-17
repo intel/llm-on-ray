@@ -5,3 +5,5 @@ build/lib/
 *.json
 *.txt
 *.egg-info
+.eggs
+vllm-ext/build
