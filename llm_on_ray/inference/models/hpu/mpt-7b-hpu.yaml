@@ -22,4 +22,5 @@ model_description:
       ### Response'
     stop_words: []
   config:
+    use_auth_token: ''
     trust_remote_code: true

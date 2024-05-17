@@ -14,3 +14,5 @@ model_description:
     human_id: ''
     bot_id: ''
     stop_words: []
+  config:
+    use_auth_token: ''
