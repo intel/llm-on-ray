@@ -24,12 +24,12 @@ build_and_prune() {
         docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
         docker_args+=("--build-arg=https_proxy=${HTTPS_PROXY}")
     fi
-
+    docker_args+=("--build-arg=DOCKER_NAME=${DF_SUFFIX}")
     echo "Build Docker image and perform cleaning operation"
-    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
+    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile.user -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
 
     # Build Docker image and perform cleaning operation
-    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile.user -t ${TARGET}:latest && yes | docker container prune && yes
     docker image prune -f
 
 }
@@ -115,9 +115,9 @@ stop_container(){
 # declare map
 declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
-    ["mpt-7b-ipex-llm"]=".cpu_all"
-    ["llama-2-7b-chat-hf-vllm"]=".cpu_all"
-    ["gpt-j-6b"]=".cpu_all"
+    ["mpt-7b-ipex-llm"]=".ipex-llm"
+    ["llama-2-7b-chat-hf-vllm"]=".vllm"
+    ["gpt-j-6b"]=".cpu_and_deepspeed"
 )
 
 
@@ -126,7 +126,7 @@ get_DF_SUFFIX() {
     if [[ ${DF_SUFFIX_MAPPER[$key]+_} ]]; then
         echo "${DF_SUFFIX_MAPPER[$key]}"
     else
-        echo ".cpu_all"
+        echo ".cpu_and_deepspeed"
     fi
 }
 
