@@ -81,6 +81,10 @@ void Llama::init(const char* path_model, model_context* ctx, int n_gpu_layer_, b
   n_expert = hparams.n_experts;
   n_expert_used = hparams.n_experts_used;
   scratch = llama_mem_req(n_layer, lctx.scratch_size_ratio);
+  // check if scratch size bigger than free mem
+  if (scratch.scratch0 + scratch.scratch1 + scratch.eval > lctx.free_mem) {
+    throw format("scratch size too big");
+  }
   model.scratchs = scratch;
 }
 

@@ -6,4 +6,8 @@ build/lib/
 *.txt
 *.egg-info
 .eggs
-vllm-ext/build
+*.log
+*.so
+*.ninja_log
+build/
+runtime_outs/

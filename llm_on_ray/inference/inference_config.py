@@ -57,11 +57,18 @@ class Ipex(BaseModel):
 class Vllm(BaseModel):
     enabled: bool = False
     precision: str = "bf16"
+    extension: str = None
 
     @validator("precision")
     def _check_precision(cls, v: str):
         if v:
             assert v in [PRECISION_BF16, PRECISION_FP32]
+        return v
+    
+    @validator("extension")
+    def _check_extension(cls, v: str):
+        if v:
+            assert v in ["ns"]
         return v
 
 
