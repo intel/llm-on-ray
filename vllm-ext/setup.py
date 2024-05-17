@@ -259,17 +259,17 @@ if __name__ == '__main__':
         license='Apache 2.0',
         url="https://github.com/intel/llm-on-ray/vllm",
         ext_modules=ext_modules,
-        packages=(find_packages() + find_packages(where='inference_engine/python')),
+        packages=(['vllm'] + find_packages(where='inference_engine/python')),
         # packages=find_packages(),
         # package_dir={'inference_engine': './python/inference_engine', '': './python'},
         # package_dir={'vllm': '', 'inference_engine': 'inference_engine/python'},
-        # namespace_packages=['vllm.extension.ns'],
         package_dir={'inference_engine': "inference_engine/python/inference_engine"},
         # otherwise CMakeExtension's source files will be included in final installation
-        include_package_data=False,
-        package_data={
-            '': ["*.yaml", "*.mat"],
-        },
+        include_package_data=True,
+        # exclude_package_data={"vllm": ["*.pyc", "*.pyo", "**/__pycache__"]},
+        # package_data={
+        #     '': ["*.yaml", "*.mat"],
+        # },
         cmdclass=cmdclass,
         python_requires='>=3.9.0',
         classifiers=[
