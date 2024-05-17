@@ -109,7 +109,6 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           CMD=$(cat << EOF
           import yaml
-          model = ${{ matrix.model }}
           conf_path = "llm_on_ray/inference/models/hpu/" + "${{ matrix.model }}" + "-hpu.yaml"
           with open(conf_path, encoding="utf-8") as reader:
               result = yaml.load(reader, Loader=yaml.FullLoader)
