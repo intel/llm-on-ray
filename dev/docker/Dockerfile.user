@@ -4,11 +4,11 @@ FROM ubuntu:22.04
 # Define build arguments
 ARG DOCKER_NAME=default
 # Set package-specific environment variables based on DOCKER_NAME
-RUN if [ "$DOCKER_NAME" = ".cpu_and_deepspeed" ]; then \
+RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then \
         pypj="cpu,deepspeed"; \
-    elif [ "$DOCKER_NAME" = ".ipex-llm" ]; then \
+    elif [ "${DOCKER_NAME}" = ".ipex-llm" ]; then \
         pypj="ipex-llm"; \
-    elif [ "$DOCKER_NAME" = ".vllm" ]; then \
+    elif [ "${DOCKER_NAME}" = ".vllm" ]; then \
         pypj="cpu"; \
     else \
         echo "No valid pypj specified"; \
@@ -47,7 +47,7 @@ RUN mkdir ./llm_on_ray
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${pypj}] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[pypj] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Use shell scripting to conditionally install packages
