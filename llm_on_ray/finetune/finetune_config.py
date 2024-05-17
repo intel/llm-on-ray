@@ -62,20 +62,29 @@ class General(BaseModel):
     enable_gradient_checkpointing: bool = False
     chat_template: Optional[str] = None
     default_chat_template: str = (
-        "{{ bos_token }}"
         "{% if messages[0]['role'] == 'system' %}"
-        "{{ raise_exception('System role not supported') }}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}"
+        "{% set loop_messages = messages %}"
+        "{% set system_message = false %}"
         "{% endif %}"
-        "{% for message in messages %}"
+        "{% for message in loop_messages %}"
         "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
         "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
         "{% endif %}"
-        "{% if message['role'] == 'user' %}"
-        "{{ '### Instruction: ' + message['content'] + eos_token }}"
+        "{% if loop.index0 == 0 and system_message %}"
+        "{{ system_message }}"
+        "{ % endif %}"
+        "{ % if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'].strip() }}"
         "{% elif message['role'] == 'assistant' %}"
-        "{{ '### Response:'  + message['content'] + eos_token }}"
-        "{% endif %}{% endfor %}"
-        "{{'### End \n'}}"
+        "{{ '### Response:' + message['content'].strip() }}"
+        "{% endif %}"
+        "{% endfor %}"
+        "{% if add_generation_prompt %}"
+        "{{ '### Response: '}}"
+        "{% endif %}"
     )
 
 
