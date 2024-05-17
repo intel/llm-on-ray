@@ -6,9 +6,13 @@ ENV LANG C.UTF-8
 WORKDIR /root/llm-on-ray
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
-    && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
+    && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools gcc-12 g++-12\
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+RUN gcc --version 
 
 ENV CONDA_DIR /opt/conda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
@@ -23,6 +27,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
     conda config --add channels intel && \
     conda install python==3.9
+    
 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
@@ -30,7 +35,8 @@ COPY ./dev/scripts/install-vllm-cpu.sh .
 
 # create llm_on_ray package directory to bypass the following 'pip install -e' command
 RUN mkdir ./llm_on_ray
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed,ipex-llm] --extra-index-url https://download.pytorch.org/whl/cpu \
+# RUN conda install -y -c conda-forge gxx=12.3 gxx_linux-64=12.3 libxcrypt
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu,deepspeed] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 RUN ds_report
@@ -44,3 +50,11 @@ RUN /tmp/install-oneapi.sh
 # Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
 RUN --mount=type=cache,target=/root/.cache/pip \
     source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
+
+## ipex-llm first because IPEX-LLM transformers=4.31.0 https://github.com/intel-analytics/ipex-llm/issues/10974#issuecomment-2102185157
+RUN --mount=type=cache,target=/root/.cache/pip pip install ipex-llm[all]==2.1.0b20240408 --extra-index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+
+RUN --mount=type=cache,target=/root/.cache/pip pip install transformers==4.38.1
+RUN --mount=type=cache,target=/root/.cache/pip pip install tokenizers==0.15.2
+RUN --mount=type=cache,target=/root/.cache/pip pip install accelerate==0.26.1

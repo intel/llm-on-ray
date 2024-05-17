@@ -33,7 +33,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 ![llm-on-ray](https://github.com/intel/llm-on-ray/assets/9278199/68017c14-c0be-4b91-8d71-4b74ab89bd81)
 
 
-## Getting Started With Source code
+## Getting Started Locally With Source code  
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
@@ -104,8 +104,9 @@ python examples/inference/api_server_simple/query_single.py --model_endpoint htt
 
 ## Getting Started With Docker
 This guide will assist you in setting up LLM-on-Ray on With Docker.
+Detailed guidelines for docker in dev/docker/README.md.
 
-#### 1. Build docker with dockerfile
+#### 1. Build Docker Image  
 Software requirement: Ubuntu and Docker
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
