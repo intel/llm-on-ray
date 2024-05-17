@@ -308,11 +308,18 @@ async def send_request(
                 if args.track_token_latency:
                     generate_len = len(tokenizer.encode(response_text))
                 else:
-                    response_content = json.loads(response_text)
-                    if isinstance(response_content, list):
-                        generate_len = response_content[0]["num_generated_tokens"]
+                    if vllm_engine:
+                        length_name = "num_generated_tokens"
                     else:
-                        generate_len = response_content["num_generated_tokens"]
+                        length_name = "generate_length"
+                    try:
+                        response_content = json.loads(response_text)
+                        if isinstance(response_content, list):
+                            generate_len = response_content[0][length_name]
+                        else:
+                            generate_len = response_content[length_name]
+                    except Exception:
+                        generate_len = None
             else:
                 if args.track_token_latency:
                     response_content = chunks[-2].decode("utf-8")
