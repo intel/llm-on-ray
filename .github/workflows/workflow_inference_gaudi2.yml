@@ -28,7 +28,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ bloom-7b1, bloom-560m, CodeLlama-7b-hf, falcon-7b, falcon-40b, gemma-2b, gpt-j-6b, gpt2, llama-2-7b-chat-hf, llama-2-70b-chat-hf, meta-llama-3-8b-instruct, meta-llama-3-70b-instruct, MindChat-Qwen2-4B, mistral-7b-v0.1, mpt-7b ]
+        model: [ bloom-7b1, CodeLlama-7b-hf, falcon-7b, falcon-40b, gemma-2b, gpt-j-6b, gpt2, llama-2-7b-chat-hf, llama-2-70b-chat-hf, meta-llama-3-8b-instruct, meta-llama-3-70b-instruct, MindChat-Qwen2-4B, mistral-7b-v0.1, Mixtral-8x7B-Instruct-v0.1, mpt-7b ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -37,7 +37,6 @@ jobs:
 
         include:
           - { model: "bloom-7b1"}
-          - { model: "bloom-560m"}
           - { model: "CodeLlama-7b-hf"}
           - { model: "falcon-7b"}
           - { model: "falcon-40b"}
@@ -50,6 +49,7 @@ jobs:
           - { model: "meta-llama-3-70b-instruct"}
           - { model: "MindChat-Qwen2-4B"}
           - { model: "mistral-7b-v0.1"}
+          - { model: "Mixtral-8x7B-Instruct-v0.1"}
           - { model: "mpt-7b"}
 
     runs-on: gaudi2
