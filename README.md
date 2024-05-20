@@ -80,7 +80,7 @@ curl $ENDPOINT_URL/chat/completions \
     -H "Content-Type: application/json" \
     -d '{
     "model": "gpt2",
-    "messages": [{"role": "assistant", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}],
+    "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}],
     "temperature": 0.7
     }'
 
