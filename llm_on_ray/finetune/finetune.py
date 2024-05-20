@@ -259,7 +259,9 @@ def train_func(config: Dict[str, Any]):
             model=model,
             args=training_args,
             train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
@@ -271,13 +273,20 @@ def train_func(config: Dict[str, Any]):
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana.transformers import GaudiTrainingArguments
+        from optimum.habana import GaudiConfig
 
+        gaudi_config = GaudiConfig()
+        gaudi_config.use_fused_adam = True
+        gaudi_config.use_fused_clip_norm = True
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
+            gaudi_config=gaudi_config,
             train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
