@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <fstream>
 #include <stdexcept>
 #include <string>

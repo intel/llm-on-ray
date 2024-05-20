@@ -181,49 +181,6 @@ MODEL_API ne_tensor* model_kv_cache_seq_concat(struct ne_cgraph* cgraph, struct 
                                                const std::vector<int>& block_ids, const int& layer_idx,
                                                const bool& concat_k = true);
 
-/*  beam search utils  */
-#define NEG_INF -std::numeric_limits<float>::max()
-
-typedef struct beam_next_token {
-  model_token id = -1;  // token id
-  float score = 0.0f;   // score of the token
-  int beam_idx = -1;    // token in which beam (-1 means unknown)
-} beam_next_token;
-
-struct beam {
-  const model_context* ctx = nullptr;
-  std::vector<model_token> token_ids;
-  // Cumulative beam score (log-softmax here)
-  float score = 0.0f;
-  // record related indices
-  // 0 - request_bs-1
-  int request_idx = -1;
-  // 0 - num_beams-1
-  int beam_idx = -1;
-  // if stop generation (append new token_id)
-  bool done = false;
-
-  // end-of-text
-  const bool eos() const { return !token_ids.empty() && token_ids.back() == ctx->vocab.eos_token_id; }
-
-  void print() const {
-    printf("length: %zu, score: %12.6f, eos: %d, request_idx: %d, beam_idx: %d, done: %d, tokens:\n", token_ids.size(),
-           score, eos(), request_idx, beam_idx, done);
-    for (const auto& id : token_ids) {
-      printf("%d: %s, ", id, model_token_to_str(ctx, id));
-    }
-    printf("\n");
-  }
-
-  void clear() {
-    token_ids.clear();
-    score = 0.0f;
-    request_idx = -1;
-    beam_idx = -1;
-    done = false;
-  }
-};
-
 MODEL_API std::vector<std::vector<int>> split_inputs_into_groups(const model_input* inputs, const int n_input);
 
 #endif  // MODEL_H

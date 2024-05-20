@@ -64,7 +64,8 @@ static bool kv_cache_init(const struct model_hparams& hparams, struct model_kv_c
   auto heads_kv = hparams.n_head_kv > 0 ? hparams.n_head_kv : hparams.n_head;
   const auto head_size = hparams.n_embd_head_k == 0 ? hparams.n_embd / hparams.n_head : hparams.n_embd_head_k;
 
-  int32_t k_size, v_size;
+  // 64bit to avoid overflow in later calculation
+  int64_t k_size, v_size;
   get_batch_kv_elements_from_model_params(heads_kv, head_size, n_ctx, wtype, &k_size, &v_size);
 
   int64_t layer_ne_k = max_batch_size * k_size;
@@ -724,8 +725,8 @@ struct model_context* create_model_context(const model_params& params) {
   return lctx;
 }
 
-void get_batch_kv_elements_from_model_params(int heads_kv, int head_size, int n_ctx, ne_type wtype, int32_t* k_size,
-                                           int32_t* v_size) {
+void get_batch_kv_elements_from_model_params(int heads_kv, int head_size, int n_ctx, ne_type wtype, int64_t* k_size,
+                                           int64_t* v_size) {
   if (wtype == NE_TYPE_F16 || wtype == NE_TYPE_F32) {
     *k_size = n_ctx * heads_kv * head_size;
     *v_size = n_ctx * heads_kv * head_size;

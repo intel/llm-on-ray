@@ -28,7 +28,7 @@ def load_engine_lib(model_type: str):
         native_lib.destroy_model.restype = None
 
         native_lib.init_model.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int, c_int32, c_char_p, c_float, c_int, c_int]
-        native_lib.init_model.restype = None
+        native_lib.init_model.restype = c_bool
 
         native_lib.quantize_model.argtypes = [c_char_p, c_char_p, c_char_p, c_char_p, c_int, c_char_p, c_char_p, c_bool, c_int]
         native_lib.quantize_model.restype = c_int

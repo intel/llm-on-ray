@@ -132,7 +132,7 @@ class Model:
         quantized_model_path = self.quantized_model_path.encode(_CTYPES_STR_ENCODE)
         memory_dtype = self.generation_args["memory_dtype"].encode(_CTYPES_STR_ENCODE)
 
-        self.cpp_module.init_model(self.native_model_ptr, quantized_model_path,
+        ok = self.cpp_module.init_model(self.native_model_ptr, quantized_model_path,
                                    self.generation_args["max_new_tokens"],
                                    self.generation_args["max_batch_size"],
                                    self.generation_args["ctx_size"],
@@ -141,6 +141,8 @@ class Model:
                                    self.generation_args["scratch_size_ratio"],
                                    self.generation_args["threads"],
                                    self.generation_args["seed"])
+        if not ok:
+            raise RuntimeError("Failed to initialize model. Please check native log for details.")
 
     def __call__(self, input_ids_dataptr: int,
                  positions_dataptr: int,

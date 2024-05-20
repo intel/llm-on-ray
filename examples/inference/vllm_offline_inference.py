@@ -24,8 +24,8 @@ sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=256, to
 # llm = LLM(model="meta-llama/Llama-2-7b-chat-hf", device="cpu", quantization="ns")
 # TODO verify block_size >= max_model_len
 # TODO set VLLM_CPU_KVCACHE_SPACE to X (GB) so that VLLM_CPU_KVCACHE_SPACE/(block_size*element_size) = num_cpu_blocks <= max_num_seqs. Otherwise, native kv cache may run out of slots.
-ctx_size = 512
-llm = LLM(model="meta-llama/Llama-2-7b-chat-hf", device="cpu", max_num_seqs=20, block_size=ctx_size, max_model_len=ctx_size, quantization="ns")
+ctx_size = 4096
+llm = LLM(model="meta-llama/Llama-2-7b-chat-hf", device="cpu", max_num_seqs=64, block_size=ctx_size, max_model_len=ctx_size, quantization="ns")
 # llm = LLM(model="meta-llama/Llama-2-7b-chat-hf", device="cpu")
 # Generate texts from the prompts. The output is a list of RequestOutput objects
 # that contain the prompt, generated text, and other information.

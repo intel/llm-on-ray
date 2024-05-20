@@ -389,7 +389,7 @@ class Model {
     if (slot_manager) delete slot_manager;
   }
 
-  void init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
+  bool init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
                   const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int seed);
 
   model_token get_eos_id() { return ctx->vocab.eos_token_id; }
@@ -427,25 +427,21 @@ class Model {
   std::string last_error;
 };
 
-void Model::init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
+bool Model::init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
                        const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int seed) {
-  init_model_params(&params, model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio,
-                    threads, seed);
-  ctx = create_model_context(params);
-  if (pad_token != -1) ctx->vocab.pad_token_id = pad_token;
+  try {
+    init_model_params(&params, model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio,
+                      threads, seed);
+    ctx = create_model_context(params);
+    if (pad_token != -1) ctx->vocab.pad_token_id = pad_token;
 
-  slot_manager = new SlotManager(ctx, max_batch_size);
-}
-
-template<typename T>
-void construct_message(std::ostringstream& oss, T t) {
-  oss << t;
-}
-
-template<typename T, typename... Args>
-std::string& construct_message(std::ostringstream& oss, T t, Args... args) {
-  oss << t;
-  construct_message(oss, args...);
+    slot_manager = new SlotManager(ctx, max_batch_size);
+  } catch (std::exception & e) {
+    last_error = "ERROR: model initialization failed! ";
+    fprintf(stderr, "%s %s\n", last_error, e.what());
+    return false;
+  }
+  return true;
 }
  
 void * Model::generate(void * input_ids_ptr,
@@ -577,11 +573,11 @@ extern "C" {
     delete static_cast<Model*>(model_ptr);
   }
 
-  void init_model(void * model_ptr, char* model_path, int max_new_tokens, int max_batch_size,
+  bool init_model(void * model_ptr, char* model_path, int max_new_tokens, int max_batch_size,
                   int ctx_size, int32_t pad_token, char* memory_dtype,
                   float scratch_size_ratio, int threads, int seed) {
     Model* model = static_cast<Model*>(model_ptr);
-    model->init_model(model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio, threads, seed);
+    return model->init_model(model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio, threads, seed);
   }
 
   int quantize_model(char* model_path, char * out_path, char * weight_dtype,

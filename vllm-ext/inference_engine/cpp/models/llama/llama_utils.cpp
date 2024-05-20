@@ -81,9 +81,15 @@ void Llama::init(const char* path_model, model_context* ctx, int n_gpu_layer_, b
   n_expert = hparams.n_experts;
   n_expert_used = hparams.n_experts_used;
   scratch = llama_mem_req(n_layer, lctx.scratch_size_ratio);
-  // check if scratch size bigger than free mem
-  if (scratch.scratch0 + scratch.scratch1 + scratch.eval > lctx.free_mem) {
-    throw format("scratch size too big");
+  // check if scratch size bigger than available mem * 0.9
+  int64_t avail_mem = get_available_memory() * 0.9;
+  int64_t memory_needed = scratch.scratch0 + scratch.scratch1 + scratch.eval;
+  if (memory_needed > avail_mem) {
+    std::ostringstream oss;
+    construct_message(oss, "Not enough memory for model scratch space. Needed: ", memory_needed,
+                      " Available (90%): ", avail_mem, ". Please reduce either context size or number of max concurrent queries");
+    fprintf(stderr, "ERROR: %s\n", oss.str().c_str());
+    throw std::invalid_argument(oss.str());
   }
   model.scratchs = scratch;
 }

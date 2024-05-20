@@ -66,7 +66,7 @@ class VllmPredictor(Predictor):
                 device=infer_conf.device,
                 dtype=dtype,
                 disable_log_requests=True,
-                max_num_seqs=max_num_seqs,
+                max_num_seqs=64,
                 quantization="ns",
                 block_size=ctx_size,
                 max_model_len=ctx_size

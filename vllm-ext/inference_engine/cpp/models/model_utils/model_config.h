@@ -69,5 +69,5 @@ std::vector<model_token> model_tokenize(struct model_context* ctx, const std::st
 struct model_context* create_model_context(const model_params& params);
 
 // KV cache elements per layer per batch per beam
-void get_batch_kv_elements_from_model_params(int heads_kv, int head_size, int n_ctx, ne_type wtype, int32_t* k_size,
-                                           int32_t* v_size);
+void get_batch_kv_elements_from_model_params(int heads_kv, int head_size, int n_ctx, ne_type wtype, int64_t* k_size,
+                                           int64_t* v_size);

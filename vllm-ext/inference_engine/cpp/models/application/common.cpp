@@ -1155,3 +1155,26 @@ std::string postprocess(const std::string& text) {
 
   return output;
 }
+
+int64_t get_available_memory() {
+    std::ifstream meminfo("/proc/meminfo");
+    std::string line;
+    while (std::getline(meminfo, line)) {
+        if (line.find("MemAvailable") != std::string::npos) {
+            std::istringstream iss(line);
+            std::string name;
+            int64_t value;
+            std::string unit;
+            iss >> name >> value >> unit;
+            if (unit == "kB")
+                return value * 1024;
+            else if (unit == "mB")
+                return value * 1024 * 1024;
+            else if (unit == "gB")
+                return value * 1024 * 1024 * 1024;
+            else
+                return value;
+        }
+    }
+    throw std::runtime_error("Failed to get available memory"); 
+}

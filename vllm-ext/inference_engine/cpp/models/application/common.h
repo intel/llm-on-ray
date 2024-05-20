@@ -43,6 +43,20 @@
 
 int32_t get_num_physical_cores();
 
+// construct log message with variadic arguments
+template<typename T>
+void construct_message(std::ostringstream& oss, T t) {
+  oss << t;
+}
+
+template<typename T, typename... Args>
+void construct_message(std::ostringstream& oss, T t, Args... args) {
+  oss << t;
+  construct_message(oss, args...);
+}
+
+int64_t get_available_memory();
+
 struct common_params {
   int32_t n_threads = get_num_physical_cores();
 
