@@ -244,8 +244,21 @@ class ChatDataPreprocess(DataProcesser):
 
 
 class SlimOrcaDataPreprocess(ChatDataPreprocess):
+    chat_template = (
+        "{% for message in messages %}"
+        "{% if message['role'] == 'system' %}"
+        "{{ '### System: ' + message['content'] }}"
+        "{% elif message['role'] == 'user' %}"
+        "{{ '### User: ' + message['content'] }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Assistant: ' + message['content'] }}"
+        "{% endif %}"
+        "{% endfor %}"
+    )
+
     def __init__(self, config):
         super().__init__(config)
+        self.config["chat_template"] = self.chat_template
         self.default_system = "You are a helpful, respectful and honest assistant."
 
     def create_data(self, data):
@@ -268,18 +281,18 @@ class SlimOrcaDataPreprocess(ChatDataPreprocess):
 
         if self.config.get("gpt_base_model"):
             if examples["human"]:
-                return PROMPT_WITH_INPUT_FORMAT.format(
+                return SLIMORCA_PROMPT_DICT["prompt_with_input"].format(
                     instruction=examples["system"],
                     response=examples["gpt"],
                     input=examples["human"],
                 )
             else:
-                return PROMPT_NO_INPUT_FORMAT.format(
+                return SLIMORCA_PROMPT_DICT["prompt_without_input"].format(
                     instruction=examples["system"], response=examples["gpt"]
                 )
         else:
             new_messages = [
-                {"role": "system", "content": INTRO_BLURB + "\n"},
+                {"role": "system", "content": examples["system"] + "\n"},
                 {
                     "role": "user",
                     "content": examples["system"] + "\n" + INPUT_KEY + examples["human"] + "\n",
