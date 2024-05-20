@@ -176,7 +176,7 @@ class HPUPredictor(Predictor):
         config["lazy_mode"] = self.use_lazy_mode
         config["hpu_graphs"] = self.use_hpu_graphs
         # max_new_tokens is required for hpu
-        if config.get("max_new_tokens"， None) is None:
+        if config.get("max_new_tokens", None) is None:
             config["max_new_tokens"] = 128
 
     def get_streamer(self):
