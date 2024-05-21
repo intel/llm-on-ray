@@ -24,6 +24,25 @@ Then please run the following script to install vLLM for CPU into your LLM-on-Ra
 dev/scripts/install-vllm-cpu.sh
 ```
 
+## Install vLLM Extension (Optional)
+To further speed up quantized model inference on Intel CPU, we extend vLLM to run the model decoding in own own inference engine, which is based on [https://github.com/intel/neural-speed](neural-speed).
+Neural Speed is an innovative library designed to support the efficient inference of large language models (LLMs) on Intel platforms through the state-of-the-art (SOTA) low-bit quantization powered by
+[https://github.com/intel/neural-compressor](Intel Neural Compressor). The work is inspired by [https://github.com/ggerganov/llama.cpp](llama.cpp) and further optimized for Intel platforms with our
+innovations in [https://arxiv.org/abs/2311.00502](NeurIPS' 2023).
+
+You need to first install llm-on-ray with "vllm_cpu" extra.
+
+```bash
+pip install .[vllm_cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+```
+
+Then, install the vLLM extension and the inference engine.
+```bash
+cd vllm-ext
+pip install .
+
+```
+
 ## Run
 
 #### Serving
@@ -38,7 +57,7 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-
 In the above example, `vllm` property is set to `true` in the config file for enabling vLLM.
 
 * vLLM Extension
-To serve model with vLLM extension with Intel inference engine, neural-speed, run with following:
+To serve model with vLLM extension with Intel inference engine, run with following:
 
 ```bash
 llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml --simple --keep_serve_terminal --vllm_max_num_seqs 64
