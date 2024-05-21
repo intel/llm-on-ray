@@ -57,6 +57,7 @@ class Ipex(BaseModel):
 class Vllm(BaseModel):
     enabled: bool = False
     precision: str = "bf16"
+    enforce_eager: bool = False
 
     @validator("precision")
     def _check_precision(cls, v: str):
