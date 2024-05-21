@@ -53,24 +53,20 @@ def get_deployed_models(args):
         ray_actor_options = get_deployment_actor_options(infer_conf)
         depolyment_config = {
             "ray_actor_options": ray_actor_options,
-            "max_ongoing_requests": infer_conf.max_concurrent_queries
-            if not args.max_concurrent_queries
-            else args.max_concurrent_queries,
+            "max_ongoing_requests": infer_conf.max_ongoing_requests
+            if not args.max_ongoing_requests
+            else args.max_ongoing_requests,
         }
         if infer_conf.autoscaling_config:
             depolyment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
         elif infer_conf.num_replicas:
             depolyment_config["num_replicas"] = infer_conf.num_replicas
-        vllm_max_num_seqs = (
-            infer_conf.vllm.vllm_max_num_seqs
-            if not args.vllm_max_num_seqs
-            else args.vllm_max_num_seqs
-        )
+        max_num_seqs = infer_conf.vllm.max_num_seqs if not args.max_num_seqs else args.max_num_seqs
         dynamic_max_batch_size = (
             infer_conf.dynamic_max_batch_size if not args.max_batch_size else args.max_batch_size
         )
         deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
-            infer_conf, vllm_max_num_seqs, dynamic_max_batch_size
+            infer_conf, max_num_seqs, dynamic_max_batch_size
         )
 
     return deployments, model_list
@@ -105,7 +101,7 @@ def main(argv=None):
         help="Whether to keep serve terminal.",
     )
     parser.add_argument(
-        "--max_concurrent_queries",
+        "--max_ongoing_requests",
         default=None,
         type=int,
         help="The max concurrent requests ray serve can process.",
@@ -117,7 +113,7 @@ def main(argv=None):
     )
     parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
     parser.add_argument(
-        "--vllm_max_num_seqs",
+        "--max_num_seqs",
         default=None,
         type=int,
         help="The batch size for vLLM. Used when vLLM is enabled.",
@@ -147,7 +143,7 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         print("Service is running with deployments:" + str(deployments))
         print("Service is running models:" + str(model_list))
-        openai_serve_run(deployments, model_list, host, "/", args.port, args.max_concurrent_queries)
+        openai_serve_run(deployments, model_list, host, "/", args.port, args.max_ongoing_requests)
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
