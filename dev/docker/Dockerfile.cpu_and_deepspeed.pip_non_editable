@@ -22,6 +22,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
     conda config --add channels intel && \
+    conda config --set channel_priority flexible && \
     conda install python==3.9
 
 # copy all checkedout file for later non-editable pip
