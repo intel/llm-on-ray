@@ -3,16 +3,7 @@ FROM ubuntu:22.04
 
 # Define build arguments
 ARG DOCKER_NAME=default
-# Set package-specific environment variables based on DOCKER_NAME
-RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then \
-        pypj="cpu,deepspeed"; \
-    elif [ "${DOCKER_NAME}" = ".ipex-llm" ]; then \
-        pypj="ipex-llm"; \
-    elif [ "${DOCKER_NAME}" = ".vllm" ]; then \
-        pypj="cpu"; \
-    else \
-        echo "No valid pypj specified"; \
-    fi
+ARG PYPJ=default
 ENV LANG C.UTF-8
 
 WORKDIR /root/llm-on-ray
@@ -36,6 +27,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     conda config --add channels intel && \
     conda install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
+RUN git clone 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
 COPY ./dev/scripts/install-vllm-cpu.sh .
@@ -47,10 +39,15 @@ RUN mkdir ./llm_on_ray
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
 
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[pypj] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Use shell scripting to conditionally install packages
 RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && /tmp/install-oneapi.sh;fi
 RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then /tmp/install-oneapi.sh; fi
 RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./install-vllm-cpu.sh; fi
+
+COPY ./dev/scripts/entrypoint_user.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
