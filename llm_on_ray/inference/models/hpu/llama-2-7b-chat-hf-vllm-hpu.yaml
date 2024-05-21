@@ -1,6 +1,6 @@
 port: 8000
-name: llama-2-7b-chat-hf
-route_prefix: /llama-2-7b-chat-hf
+name: llama-2-7b-chat-hf-vllm
+route_prefix: /llama-2-7b-chat-hf-vllm
 num_replicas: 1
 cpus_per_worker: 8
 gpus_per_worker: 0
