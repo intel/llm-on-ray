@@ -7,6 +7,6 @@ hpus_per_worker: 1
 device: hpu
 model_description:
   model_id_or_path: mistralai/Mixtral-8x7B-Instruct-v0.1
-  tokenizer_name_or_path: bmistralai/Mixtral-8x7B-Instruct-v0.1
+  tokenizer_name_or_path: mistralai/Mixtral-8x7B-Instruct-v0.1
   config:
     use_auth_token: ''
