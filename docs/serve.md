@@ -28,7 +28,7 @@ device: hpu
 LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [IPEX-LLM](serve_ipex-llm.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
 
 ### Autoscaling
-LLM-on-Ray supports automatically scales up and down the number of serving replicas based on the resources of ray cluster and the requests traffic. You can adjust the autoscaling strategy through the following parameters in configuration file. You can follow A for more detailed explanation of these parameters.
+LLM-on-Ray supports automatically scales up and down the number of serving replicas based on the resources of ray cluster and the requests traffic. You can adjust the autoscaling strategy through the following parameters in configuration file. You can follow the [guides-autoscaling-config-parameters](https://docs.ray.io/en/master/serve/advanced-guides/advanced-autoscaling.html#autoscaling-config-parameters) for more detailed explanation of these parameters.
 
 ```
 max_ongoing_requests: 64
