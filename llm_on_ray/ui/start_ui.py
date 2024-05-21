@@ -31,11 +31,7 @@ from ray.tune.logger import LoggerCallback
 from ray.util import queue
 from llm_on_ray.inference.inference_config import all_models, ModelDescription, Prompt
 from llm_on_ray.inference.inference_config import InferenceConfig as FinetunedConfig
-from llm_on_ray.inference.chat_process import (
-    ChatModelGptJ,
-    ChatModelLLama,
-    ChatModelwithImage,
-)
+
 from llm_on_ray.inference.predictor_deployment import PredictorDeployment
 from llm_on_ray.ui.html_format import cpu_memory_html, ray_status_html, custom_css
 from langchain.vectorstores import FAISS
