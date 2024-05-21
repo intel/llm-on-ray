@@ -35,7 +35,8 @@ dependencies = [
     "py-cpuinfo",
     "pydantic-yaml",
     "async_timeout",
-    "typer"
+    "typer",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]
