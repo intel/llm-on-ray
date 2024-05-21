@@ -18,6 +18,7 @@ import asyncio
 import os
 from typing import AsyncGenerator, List, Union
 from transformers import AutoConfig
+import ray
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
@@ -49,10 +50,10 @@ class VllmPredictor(Predictor):
         os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
 
         if infer_conf.vllm.extension == "ns":
-            logger.info("applying neural speed extension to vllm ...")
+            logger.warn("applying neural speed extension to vllm ...")
             try:
                 from vllm.extension import ns as ns
-                logger.info("neural speed extension applied to vllm successfully!")
+                logger.warn("neural speed extension applied to vllm successfully!")
             except Exception as e:
                 logger.error(f"failed to apply neural speed extension to vllm: {e}")
                 raise e

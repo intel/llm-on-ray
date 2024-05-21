@@ -1,5 +1,6 @@
 from typing import List, Optional
 import sys
+import ray
 import ctypes
 import torch
 import numpy as np
@@ -18,7 +19,11 @@ from vllm.model_executor.layers.quantization.base_config import QuantizationConf
 from vllm.model_executor.layers.vocab_parallel_embedding import VocabParallelEmbedding
 from vllm.sequence import SamplerOutput, SequenceGroupMetadata
 
+from vllm.logger import init_logger
+
 from vllm.extension import ns
+
+logger = init_logger(__name__)
 
 class NSModel(nn.Module):
     def __init__(self,
@@ -61,7 +66,12 @@ class NSModel(nn.Module):
                              )
     
     def init_inference_engine(self, model_config: ModelConfig, parallel_config: ParallelConfig, scheduler_config: SchedulerConfig):
-        self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len, max_new_tokens=model_config.max_model_len)
+        # get available cores
+        threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
+        logger.info("Using %d threads for inference engine", threads)
+        self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
+                                 max_new_tokens=model_config.max_model_len,
+                                 threads=int(threads))
         self.tokenizer = self.ie_model.tokenizer
 
     def load_weights(self, weights):
