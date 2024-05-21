@@ -14,11 +14,16 @@
 # limitations under the License.
 #
 
+from typing import List, Union
 import torch
 from transformers import TextIteratorStreamer
-from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    ModelGenerateResult,
+    PRECISION_BF16,
+)
 from llm_on_ray.inference.utils import decide_torch_dtype, module_import
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import GenerateInput, GenerateOutput, MllmPromptInput, Predictor
 
 
 class MllmPredictor(Predictor):
@@ -89,15 +94,15 @@ class MllmPredictor(Predictor):
                 # lazy mode should be True when using hpu graphs
                 config["lazy_mode"] = True
 
-    def _tokenize_inputs(self, image, text_prompt):
-        input_tokens = self.processor(text=text_prompt, images=image, return_tensors="pt")
+    def _tokenize_inputs(self, text_prompt, images):
+        input_tokens = self.processor(text=text_prompt, images=images, return_tensors="pt")
         if self.device.type != "cpu":
             input_tokens = input_tokens.to(device=self.device)
         return input_tokens
 
-    def streaming_generate(self, image, prompt, streamer, **config):
+    def streaming_generate(self, prompts, images, streamer, **config):
         self._process_config(config)
-        inputs = self._tokenize_inputs(image, prompt)
+        inputs = self._tokenize_inputs(prompts, images)
         self.model.generate(
             **inputs,
             stopping_criteria=self.stopping_criteria,
@@ -105,16 +110,21 @@ class MllmPredictor(Predictor):
             **config,
         )
 
-    def generate(self, image, prompt, **config):
+    def generate(self, input: GenerateInput, **config) -> GenerateOutput:
+        if not isinstance(input, tuple):
+            raise TypeError("MllmPredictor should use (prompt, image) as input.")
+
+        prompts, images = input
+
         self._process_config(config)
-        inputs = self._tokenize_inputs(image, prompt)
-        input_length = sum([len(i) for i in prompt])
+        inputs = self._tokenize_inputs(prompts, images)
+        input_length = sum([len(i) for i in prompts])
         gen_tokens = self.model.generate(
             **inputs, stopping_criteria=self.stopping_criteria, **config
         )
         decode_result = self.processor.batch_decode(gen_tokens, skip_special_tokens=True)
         output_length = len(decode_result)
-        return GenerateResult(
+        return ModelGenerateResult(
             text=decode_result,
             input_length=input_length,
             generate_length=output_length - input_length,

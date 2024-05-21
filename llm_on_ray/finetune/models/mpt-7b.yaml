@@ -3,7 +3,7 @@ General:
   tokenizer_name: EleutherAI/gpt-neox-20b
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
-  checkpoint_dir: /tmp/llm-ray/checkpoint
+  save_strategy: no
   config:
     trust_remote_code: true
     use_auth_token: null
@@ -18,7 +18,7 @@ Dataset:
   validation_file: null
   validation_split_percentage: 5
 Training:
-  optimizer: AdamW
+  optimizer: adamw_torch
   batch_size: 2
   epochs: 3
   learning_rate: 1.0e-05

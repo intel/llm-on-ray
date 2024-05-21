@@ -21,8 +21,12 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
-from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llm_on_ray.inference.predictor import GenerateInput, GenerateOutput, Predictor
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    ModelGenerateResult,
+    PRECISION_BF16,
+)
 
 
 class VllmPredictor(Predictor):
@@ -63,14 +67,22 @@ class VllmPredictor(Predictor):
     async def _get_generator_output(self, results_generator):
         async for request_output in results_generator:
             if request_output.finished:
-                return GenerateResult(
+                return ModelGenerateResult(
                     text=request_output.outputs[0].text,
                     input_length=len(request_output.prompt_token_ids),
                     generate_length=len(request_output.outputs[0].token_ids),
                 )
         return None
 
-    async def generate_async(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
+    def generate(
+        self,
+        input: GenerateInput,
+        **config,
+    ) -> GenerateOutput:
+        # This method is not used for VllmPredictor, used generate_async instead
+        pass
+
+    async def generate_async(self, prompts: Union[str, List[str]], **config) -> ModelGenerateResult:
         config = self.update_vllm_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
@@ -78,7 +90,7 @@ class VllmPredictor(Predictor):
             results_generator = self.engine.generate(prompts, sampling_params, request_id)
             async for request_output in results_generator:
                 if request_output.finished:
-                    return GenerateResult(
+                    return ModelGenerateResult(
                         text=request_output.outputs[0].text,
                         input_length=len(request_output.prompt_token_ids),
                         generate_length=len(request_output.outputs[0].token_ids),
@@ -93,7 +105,7 @@ class VllmPredictor(Predictor):
             ]
             return await asyncio.gather(*results)
 
-        return GenerateResult()
+        return ModelGenerateResult()
 
     async def streaming_generate_async(self, prompt, **config):
         config = self.update_vllm_config(**config)

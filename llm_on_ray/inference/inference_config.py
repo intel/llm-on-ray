@@ -88,7 +88,7 @@ class HpuModelConfig(BaseModel):
 
 
 # for non-streaming response
-class GenerateResult(BaseModel):
+class ModelGenerateResult(BaseModel):
     text: Union[str, List[str]] = ""
     input_length: Union[int, None] = None
     generate_length: Union[int, None] = None
@@ -119,6 +119,10 @@ class ModelDescription(BaseModel):
     # specify model_loader and input_processor
     input_processor: str = "AutoProcessor"
     model_loader: str = "AutoModel"
+
+    chat_model_with_image: bool = False
+    chat_template: Union[str, None] = None
+    default_chat_template: str = "llm_on_ray/inference/models/templates/default_template.jinja"
 
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):

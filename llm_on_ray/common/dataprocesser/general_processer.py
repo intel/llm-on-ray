@@ -99,13 +99,10 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
 
 
 class GeneralProcesser(DataProcesser):
-    def prepare(self, tokenizer, dataset):
-        per_device_train_batch_size = self.config.get("per_device_train_batch_size")
-        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
+    def tokenize_dataset(self, tokenizer, dataset):
         max_length = self.config.get("max_length")
         group = self.config.get("group")
         block_size = self.config.get("block_size")
-        shuffle = self.config.get("shuffle")
         tokenizer.pad_token = tokenizer.eos_token
 
         if isinstance(dataset, datasets.Dataset):
@@ -176,12 +173,21 @@ class GeneralProcesser(DataProcesser):
                 desc=f"Grouping texts in chunks of {block_size}",
             )
 
+        return tokenized_datasets
+
+    def prepare_dataloader(self, tokenizer, dataset):
+        per_device_train_batch_size = self.config.get("per_device_train_batch_size")
+        per_device_eval_batch_size = self.config.get("per_device_eval_batch_size")
+        shuffle = self.config.get("shuffle")
+
         data_collator = DataCollatorForCompletionOnlyLM(
             tokenizer=tokenizer,
             mlm=False,
             return_tensors="pt",
             pad_to_multiple_of=8,
         )
+
+        tokenized_datasets = self.tokenize_dataset(tokenizer, dataset)
 
         train_dataset = tokenized_datasets["train"]
         train_dataloader_params = {

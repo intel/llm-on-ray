@@ -73,7 +73,7 @@ tools = [
 
 messages = [
     [
-        {"role": "user", "content": "You are a helpful assistant"},
+        {"role": "system", "content": "You are a helpful assistant"},
         {"role": "user", "content": "What's the weather like in Boston today?"},
     ],
 ]

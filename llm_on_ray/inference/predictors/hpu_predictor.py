@@ -34,6 +34,7 @@
 #
 import os
 import tempfile
+from typing import List, Union
 import ray
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from ray.util.placement_group import (
@@ -57,9 +58,16 @@ from llm_on_ray.inference.torch_dist import (
 )
 from llm_on_ray.inference.inference_config import (
     InferenceConfig,
-    GenerateResult,
+    ModelGenerateResult,
 )
-from llm_on_ray.inference.predictor import Predictor
+from llm_on_ray.inference.predictor import (
+    GenerateInput,
+    GenerateOutput,
+    Predictor,
+    SinglePromptInput,
+    MultiplePromptInput,
+    MllmPromptInput,
+)
 from llm_on_ray.inference.utils import decide_torch_dtype
 
 
@@ -168,7 +176,7 @@ class HPUPredictor(Predictor):
         config["lazy_mode"] = self.use_lazy_mode
         config["hpu_graphs"] = self.use_hpu_graphs
         # max_new_tokens is required for hpu
-        if "max_new_tokens" not in config:
+        if config.get("max_new_tokens", None) is None:
             config["max_new_tokens"] = 128
 
     def get_streamer(self):
@@ -179,8 +187,15 @@ class HPUPredictor(Predictor):
                 self.tokenizer, skip_prompt=True, timeout=0, skip_special_tokens=True
             )
 
-    def generate(self, prompt, **config):
+    # FIXME: support MllmPromptInput
+    def generate(self, input: GenerateInput, **config) -> GenerateOutput:
+        if isinstance(input, tuple):
+            raise TypeError("HPUPredictor doesn't support MLLM prompts for now!")
+
+        prompt = input
+
         self._process_config(config)
+
         if self.infer_conf.deepspeed:
             return ray.get(
                 [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
@@ -191,13 +206,15 @@ class HPUPredictor(Predictor):
                 input_ids, stopping_criteria=self.stopping_criteria, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
-            if isinstance(prompt, list) and len(prompt) > 1:
-                return decode_result
-            return GenerateResult(
-                text=decode_result,
-                input_length=input_length,
-                generate_length=gen_tokens.size()[1] - input_length,
-            )
+            results = [
+                ModelGenerateResult(
+                    text=decode_result[i],
+                    input_length=input_length,
+                    generate_length=gen_tokens.size()[1] - input_length,
+                )
+                for i in range(len(prompt))
+            ]
+            return results[0] if isinstance(input, SinglePromptInput) else results
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
@@ -244,6 +261,7 @@ def get_torch_compiled_model(model):
     return model
 
 
+# FIXME: consolidate DeepSpeedPredictor's PredictionWorker and HPUDeepSpeedWorker
 @ray.remote
 class HPUDeepSpeedWorker(TorchDistributedWorker):
     def __init__(self, infer_conf: InferenceConfig):
@@ -357,7 +375,16 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
             input_ids,
             **config,
         )
-        return self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+        results = [
+            ModelGenerateResult(
+                text=decode_result[i],
+                input_length=input_ids.size()[1],
+                generate_length=gen_tokens.size()[1] - input_ids.size()[1],
+            )
+            for i in range(len(prompt))
+        ]
+        return results[0] if isinstance(prompt, str) else results
 
     def streaming_generate(self, prompt, streamer, **config):
         input_ids = self.tokenize(prompt)

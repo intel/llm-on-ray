@@ -2,7 +2,7 @@ General:
   base_model: facebook/opt-125m
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
-  checkpoint_dir: /tmp/llm-ray/checkpoint
+  save_strategy: no
   config:
     trust_remote_code: false
     use_auth_token: null
@@ -16,7 +16,7 @@ Dataset:
   validation_file: null
   validation_split_percentage: 5
 Training:
-  optimizer: AdamW
+  optimizer: adamw_torch
   batch_size: 2
   epochs: 3
   learning_rate: 1.0e-05

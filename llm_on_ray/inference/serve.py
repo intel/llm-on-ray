@@ -151,7 +151,10 @@ def main(argv=None):
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
-        input(msg)
+        try:
+            input(msg)
+        except EOFError:
+            return
     else:
         print(msg)
 
