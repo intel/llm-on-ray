@@ -28,6 +28,7 @@ dev/scripts/install-vllm-cpu.sh
 
 #### Serving
 
+* Vanilla vLLM
 To serve model with vLLM and simple protocol, run the following:
 
 ```bash
@@ -35,6 +36,15 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-
 ```
 
 In the above example, `vllm` property is set to `true` in the config file for enabling vLLM.
+
+* vLLM Extension
+To serve model with vLLM extension with Intel inference engine, neural-speed, run with following:
+
+```bash
+llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml --simple --keep_serve_terminal --vllm_max_num_seqs 64
+```
+
+For now, only Llama2 model is supported.
 
 #### Querying
 
