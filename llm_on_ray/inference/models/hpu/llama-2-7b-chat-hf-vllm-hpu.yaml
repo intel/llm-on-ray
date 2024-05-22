@@ -8,6 +8,7 @@ deepspeed: false
 vllm:
   enabled: true
   precision: bf16
+  enforce_eager: true
 workers_per_group: 2
 device: hpu
 hpus_per_worker: 1
