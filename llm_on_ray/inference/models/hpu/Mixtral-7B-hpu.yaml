@@ -1,6 +1,6 @@
 port: 8000
-name: Mixtral-8x7B-Instruct-v0.1
-route_prefix: /Mixtral-8x7B-Instruct-v0.1
+name: Mixtral-7B
+route_prefix: /Mixtral-7B
 num_replicas: 1
 cpus_per_worker: 8
 hpus_per_worker: 1
