@@ -109,6 +109,7 @@ jobs:
           EOF
           )
           docker exec "${TARGET}" python -c "$CMD"
+          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           docker exec "${TARGET}" bash -c "./tests/run-tests-benchmark.sh"
       - name: Stop Ray
         run: |
