@@ -10,16 +10,19 @@ SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 benchmark_script=$SHELL_FOLDER"/benchmark_serving.py"
 with_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
 wo_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
+dataset_path=$SHELL_FOLDER"/../dataset"
 dataset_ShareGPT_path=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
 dataset_IPEX_path=$SHELL_FOLDER"/../dataset/prompt.json"
 
 if [ ! -f $dataset_ShareGPT_path ]
 then
-    echo "Dataset $dataset_ShareGPT_path not found, Please download ShareGPT dataset."
+    echo "Dataset $dataset_ShareGPT_path not found, download ShareGPT dataset fist."
+    wget -q -P $dataset_path https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json
 fi
 if [ ! -f $dataset_IPEX_path ]
 then
     echo "Dataset $dataset_IPEX_path not found, Please download IPEX dataset."
+    wget -q -P $dataset_path https://intel-extension-for-pytorch.s3.amazonaws.com/miscellaneous/llm/prompt.json
 fi
 
 dataset_benchmark_num=1000

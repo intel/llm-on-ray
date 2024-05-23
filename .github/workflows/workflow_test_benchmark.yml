@@ -32,7 +32,7 @@ concurrency:
 jobs:
   setup-test:
 
-    name: setup-test-benchmark
+    name: benchmark
 
     runs-on: self-hosted
 
@@ -92,9 +92,6 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           # Additional libraries required  for pytest
           docker exec "${TARGET}" bash -c "pip install -r tests/requirements.txt"
-          # download datasets for benchmark
-          docker exec "${TARGET}" bash -c "wget -P ./dataset/ https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json"
-          docker exec "${TARGET}" bash -c "wget -P ./dataset/ https://intel-extension-for-pytorch.s3.amazonaws.com/miscellaneous/llm/prompt.json"
           docker exec "${TARGET}" bash -c "./tests/run-tests-benchmark.sh"
       - name: Stop Ray
         run: |
