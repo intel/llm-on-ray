@@ -63,9 +63,9 @@ def script_with_args(choice):
         assert os.path.exists(file_path)
 
 
-# @pytest.mark.parametrize(
-#     "choice",
-#     [(choice) for choice in [1, 2, 3, 4]],
-# )
-# def test_script(choice):
-#     script_with_args(choice)
+@pytest.mark.parametrize(
+    "choice",
+    [(choice) for choice in [1, 2, 3, 4]],
+)
+def test_script(choice):
+    script_with_args(choice)
