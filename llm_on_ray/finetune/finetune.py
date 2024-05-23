@@ -41,6 +41,7 @@ from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
 from llm_on_ray.finetune.data_process import DataProcessor
+from llm_on_ray.finetune.dpo_funetuing import DPOFuneTuning, GaudiDPOFuneTuning
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
 
@@ -285,22 +286,27 @@ def load_model(config: Dict):
     return model
 
 
-def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
+def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collator):
     device = config["Training"]["device"]
+    use_dpo = config["Training"].get("use_dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
         training_args = convert_to_training_args(TrainingArguments, config)
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=tokenized_dataset["train"],
-            eval_dataset=tokenized_dataset["validation"]
-            if tokenized_dataset.get("validation") is not None
-            else None,
-            tokenizer=tokenizer,
-            data_collator=data_collator,
-        )
+        if use_dpo == True:
+            trainer = DPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
+        else:
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=tokenized_datasets["train"],
+                eval_dataset=tokenized_datasets["validation"]
+                if tokenized_datasets.get("validation") is not None
+                else None,
+                tokenizer=tokenizer,
+                data_collator=data_collator,
+            )
+
         return training_args, trainer
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
@@ -317,20 +323,20 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             gaudi_config.use_fused_clip_norm = True
 
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
-        trainer = GaudiTrainer(
-            model=model,
-            args=training_args,
-            gaudi_config=gaudi_config,
-            train_dataset=tokenized_dataset["train"],
-            eval_dataset=tokenized_dataset["validation"]
-            if tokenized_dataset.get("validation") is not None
-            else None,
-            tokenizer=tokenizer,
-            data_collator=data_collator,
-        )
+        if use_dpo == True:
+            trainer = GaudiDPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
+        else:
+            trainer = GaudiTrainer(
+                model=model,
+                args=training_args,
+                train_dataset=tokenized_datasets["train"],
+                eval_dataset=tokenized_datasets["validation"]
+                if tokenized_datasets.get("validation") is not None
+                else None,
+                tokenizer=tokenizer,
+                data_collator=data_collator,
+            )
         return training_args, trainer
-    return None
-
 
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])
@@ -355,7 +361,6 @@ def train_func(config: Dict[str, Any]):
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
     trainer.save_model()
     common.logger.info("train finish")
-
 
 def get_finetune_config():
     parser = argparse.ArgumentParser(

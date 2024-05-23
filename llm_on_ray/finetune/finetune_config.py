@@ -105,6 +105,8 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
+    use_dpo: Optional[bool] = False
+    beta: Optional[float] = 0.1
 
     @validator("device")
     def check_device(cls, v: str):
