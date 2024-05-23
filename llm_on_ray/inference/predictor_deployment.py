@@ -335,7 +335,7 @@ class PredictorDeployment:
             HTTPException: If the input prompt format is invalid or not supported.
         """
 
-        if isinstance(input, str):
+        if isinstance(input, str) or (isinstance(input, List) and len(input) == 1):
             return input
         elif isinstance(input, List):
             prompts = []
