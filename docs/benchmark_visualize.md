@@ -2,7 +2,10 @@ The `benchmark_visualize.py` script is designed for visualizing benchmark result
 ### Command
 ```bash
 # step 1: start ray cluster
-numactl -N 0 -m 0 ray start --head --include-dashboard False
+# start head node on a machine
+numactl -N 0 -m 0 ray start --head --include-dashboard False --num-cpus 0
+# start worker node on another machine (please configure 27cores * 2replicas in config file accordingly)
+numactl -N 0 -m 0 -C 0-55 ray start --address='$HEAD_NODE_IP:PORT'
 # step 2: generate performance results
 bash benchmarks/run_benchmark.sh 1,2,3,4 "benchmark"
 # step 3: generate figure based on results
