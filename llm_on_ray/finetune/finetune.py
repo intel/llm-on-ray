@@ -274,10 +274,15 @@ def train_func(config: Dict[str, Any]):
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana.transformers import GaudiTrainingArguments
         from optimum.habana import GaudiConfig
-
-        gaudi_config = GaudiConfig()
-        gaudi_config.use_fused_adam = True
-        gaudi_config.use_fused_clip_norm = True
+        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
+        if config["general"].get("gaudi_config_name") is not None:
+            gaudi_config = GaudiConfig.from_pretrained(
+                config["general"].get("gaudi_config_name"),
+            )
+        else:
+            gaudi_config = GaudiConfig()
+            gaudi_config.use_fused_adam = True
+            gaudi_config.use_fused_clip_norm = True
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
