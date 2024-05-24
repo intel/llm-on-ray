@@ -112,11 +112,14 @@ def plot_latency_throughput(concurrency, num_replica, latency, throughput, save_
 def extract_metric_choice_1_2(bs_dirs, mark_name):
     bs = []
     metric_value = []
-    for bs_dir in os.listdir(bs_dirs):
+    bs_listdir = os.listdir(bs_dirs)
+    for bs_dir in bs_listdir.sort(key=len):
         bs.append(int(bs_dir.split("_")[-1]))
         res_path = os.path.join(bs_dirs, bs_dir)
         # get the latest summary log file
-        log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+        res_listdir = os.listdir(res_path)
+        res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
+        log_file = os.path.join(res_path, res_listdir.sort(key=len)[-1])
         with open(log_file) as f:
             log_content = json.load(f)
         metric_value.append(float(log_content[marks[mark_name]]))
@@ -128,14 +131,18 @@ def extract_metric_choice_3(iter_dirs):
     num_prompts = []
     latency_next_token = []
     output_throughput = []
-    for iter_dir in os.listdir(iter_dirs):
+    iter_listdir = os.listdir(iter_dirs)
+    for iter_dir in iter_listdir.sort(key=len):
         prompt_dirs = os.path.join(iter_dirs, iter_dir)
         iters.append(int(iter_dir.split("_")[-1]))
-        for prompt_dir in os.listdir(prompt_dirs):
+        prompt_listdir = os.listdir(prompt_dirs)
+        for prompt_dir in prompt_listdir.sort(key=len):
             num_prompts.append(int(prompt_dir.split("_")[-1]))
             res_path = os.path.join(prompt_dirs, prompt_dir)
             # get the latest summary log file
-            log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+            res_listdir = os.listdir(res_path)
+            res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
+            log_file = os.path.join(res_path, res_listdir.sort(key=len)[-1])
             with open(log_file) as f:
                 log_content = json.load(f)
             latency_next_token.append(float(log_content[marks["latency_next_token_mark"]]))
@@ -148,14 +155,17 @@ def extract_metric_choice_4(iter_dirs):
     input_tokens_length_li = []
     latency_first_token = []
     latency_next_token = []
-    for iter_dir in os.listdir(iter_dirs):
+    iter_listdir = os.listdir(iter_dirs)
+    for iter_dir in iter_listdir.sort(key=len):
         iters.append(int(iter_dir.split("_")[-1]))
         token_dirs = os.path.join(iter_dirs, iter_dir)
         for token_dir in os.listdir(token_dirs):
             input_tokens_length_li.append(int(token_dir.split("_")[-2]))
             res_path = os.path.join(token_dirs, token_dir)
             # get the latest summary log file
-            log_file = os.path.join(res_path, os.listdir(res_path)[-2])
+            res_listdir = os.listdir(res_path)
+            res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
+            log_file = os.path.join(res_path, res_listdir.sort(key=len)[-1])
             with open(log_file) as f:
                 log_content = json.load(f)
             latency_first_token.append(float(log_content[marks["latency_first_token_mark"]]))
