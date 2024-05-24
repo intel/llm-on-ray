@@ -53,6 +53,7 @@ class DeltatunerConfig(BaseModel):
 class General(BaseModel):
     base_model: str
     tokenizer_name: Optional[str] = None
+    gaudi_config_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
     resume_from_checkpoint: Optional[str] = None
