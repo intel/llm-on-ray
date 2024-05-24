@@ -113,14 +113,14 @@ def extract_metric_choice_1_2(bs_dirs, mark_name):
     bs = []
     metric_value = []
     bs_listdir = os.listdir(bs_dirs)
-    bs_listdir.sort(key=len)
+    bs_listdir.sort(key=lambda x: (len(x), x))
     for bs_dir in bs_listdir:
         bs.append(int(bs_dir.split("_")[-1]))
         res_path = os.path.join(bs_dirs, bs_dir)
         # get the latest summary log file
         res_listdir = os.listdir(res_path)
         res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
-        res_listdir.sort(key=len)
+        res_listdir.sort(key=lambda x: (len(x), x))
         log_file = os.path.join(res_path, res_listdir[-1])
         with open(log_file) as f:
             log_content = json.load(f)
@@ -134,19 +134,19 @@ def extract_metric_choice_3(iter_dirs):
     latency_next_token = []
     output_throughput = []
     iter_listdir = os.listdir(iter_dirs)
-    iter_listdir.sort(key=len)
+    iter_listdir.sort(key=lambda x: (len(x), x))
     for iter_dir in iter_listdir:
         prompt_dirs = os.path.join(iter_dirs, iter_dir)
         iters.append(int(iter_dir.split("_")[-1]))
         prompt_listdir = os.listdir(prompt_dirs)
-        prompt_listdir.sort(key=len)
+        prompt_listdir.sort(key=lambda x: (len(x), x))
         for prompt_dir in prompt_listdir:
             num_prompts.append(int(prompt_dir.split("_")[-1]))
             res_path = os.path.join(prompt_dirs, prompt_dir)
             # get the latest summary log file
             res_listdir = os.listdir(res_path)
             res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
-            res_listdir.sort(key=len)
+            res_listdir.sort(key=lambda x: (len(x), x))
             log_file = os.path.join(res_path, res_listdir[-1])
             with open(log_file) as f:
                 log_content = json.load(f)
@@ -161,7 +161,7 @@ def extract_metric_choice_4(iter_dirs):
     latency_first_token = []
     latency_next_token = []
     iter_listdir = os.listdir(iter_dirs)
-    iter_listdir.sort(key=len)
+    iter_listdir.sort(key=lambda x: (len(x), x))
     for iter_dir in iter_listdir:
         iters.append(int(iter_dir.split("_")[-1]))
         token_dirs = os.path.join(iter_dirs, iter_dir)
@@ -171,7 +171,7 @@ def extract_metric_choice_4(iter_dirs):
             # get the latest summary log file
             res_listdir = os.listdir(res_path)
             res_listdir = [res_i for res_i in res_listdir if "summary" in res_i]
-            res_listdir.sort(key=len)
+            res_listdir.sort(key=lambda x: (len(x), x))
             log_file = os.path.join(res_path, res_listdir[-1])
             with open(log_file) as f:
                 log_content = json.load(f)
