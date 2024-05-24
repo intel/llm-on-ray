@@ -176,7 +176,7 @@ class HPUPredictor(Predictor):
         config["lazy_mode"] = self.use_lazy_mode
         config["hpu_graphs"] = self.use_hpu_graphs
         # max_new_tokens is required for hpu
-        if "max_new_tokens" not in config:
+        if config.get("max_new_tokens", None) is None:
             config["max_new_tokens"] = 128
 
     def get_streamer(self):
@@ -203,9 +203,10 @@ class HPUPredictor(Predictor):
         else:
             input_ids, input_length = self.tokenize_inputs(prompt)
             gen_tokens = self.model.generate(
-                input_ids, stopping_criteria=self.stopping_criteria, **config
+                input_ids, stopping_criteria=self.stopping_criteria, ignore_eos=False, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+            # FIXME generate_length is not correct
             results = [
                 ModelGenerateResult(
                     text=decode_result[i],
@@ -228,6 +229,7 @@ class HPUPredictor(Predictor):
                 input_ids,
                 stopping_criteria=self.stopping_criteria,
                 streamer=streamer,
+                ignore_eos=False,
                 **config,
             )
 
@@ -373,6 +375,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         input_ids = self.tokenize(prompt)
         gen_tokens = self.model.generate(
             input_ids,
+            ignore_eos=False,
             **config,
         )
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
@@ -391,5 +394,6 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.model.generate(
             input_ids,
             streamer=streamer,
+            ignore_eos=False,
             **config,
         )

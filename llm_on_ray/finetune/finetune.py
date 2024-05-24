@@ -259,7 +259,9 @@ def train_func(config: Dict[str, Any]):
             model=model,
             args=training_args,
             train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
@@ -271,13 +273,26 @@ def train_func(config: Dict[str, Any]):
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana.transformers import GaudiTrainingArguments
+        from optimum.habana import GaudiConfig
 
+        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
+        if config["general"].get("gaudi_config_name") is not None:
+            gaudi_config = GaudiConfig.from_pretrained(
+                config["general"].get("gaudi_config_name"),
+            )
+        else:
+            gaudi_config = GaudiConfig()
+            gaudi_config.use_fused_adam = True
+            gaudi_config.use_fused_clip_norm = True
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
+            gaudi_config=gaudi_config,
             train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
