@@ -50,8 +50,9 @@ def router_application(deployments, model_list, max_ongoing_requests):
     total_num_replica = 0
     max_num_concurrent_query = 0
     for _, infer_conf in model_list.items():
-        config_num_replicas = infer_conf.autoscaling_config.max_replicas
-        if not config_num_replicas:
+        if infer_conf.autoscaling_config:
+            config_num_replicas = infer_conf.autoscaling_config.max_replicas
+        else:
             config_num_replicas = infer_conf.num_replicas if infer_conf.num_replicas else 1
         total_num_replica += config_num_replicas
         max_num_concurrent_query = max(
