@@ -104,7 +104,7 @@ def main(argv=None):
         "--max_ongoing_requests",
         default=None,
         type=int,
-        help="The max concurrent requests ray serve can process.",
+        help="The max concurrent requests ray serve can process for all models.",
     )
     parser.add_argument(
         "--serve_local_only",

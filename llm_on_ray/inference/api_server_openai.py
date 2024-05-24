@@ -46,23 +46,22 @@ def router_application(deployments, model_list, max_ongoing_requests):
     """
     merged_client = RouterQueryClient(deployments)
 
-    max_num_replica = 0
+    # get the value of max_ongoing_requests based on configuration of all models
+    total_num_replica = 0
     max_num_concurrent_query = 0
     for _, infer_conf in model_list.items():
-        config_num_replicas = (
-            infer_conf.num_replicas
-            if infer_conf.num_replicas
-            else infer_conf.autoscaling_config.max_replicas
-        )
-        max_num_replica = max(max_num_replica, config_num_replicas if config_num_replicas else 0)
+        config_num_replicas = infer_conf.autoscaling_config.max_replicas
+        if not config_num_replicas:
+            config_num_replicas = infer_conf.num_replicas if infer_conf.num_replicas else 1
+        total_num_replica += config_num_replicas
         max_num_concurrent_query = max(
             max_num_concurrent_query,
-            infer_conf.max_ongoing_requests if infer_conf.max_ongoing_requests else 0,
+            infer_conf.max_ongoing_requests if infer_conf.max_ongoing_requests else 100,
         )
 
     RouterDeployment = serve.deployment(
         route_prefix="/",
-        max_ongoing_requests=max_num_replica
+        max_ongoing_requests=total_num_replica
         * (
             (max_ongoing_requests if max_ongoing_requests else max_num_concurrent_query) + 1
         ),  # Maximum backlog for a single replica
