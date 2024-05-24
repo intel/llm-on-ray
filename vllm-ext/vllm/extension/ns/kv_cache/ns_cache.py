@@ -260,6 +260,9 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
             self.kv_cache_copy_waiting[parent_seq.seq_id] = (parent_seq, [child_seq])
 
     def free(self, seq: Sequence) -> None:
+        if seq.seq_id not in self.block_tables:
+            # Already freed or haven't been scheduled yet.
+            return
         # free native slot when no need to copy kv cache
         # otherwise, do actual native slot free in "can_append_slot" which is called in scheduling running seqs.
         if seq.seq_id not in self.kv_cache_copy_waiting:
