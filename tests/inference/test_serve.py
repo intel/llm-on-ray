@@ -29,11 +29,12 @@ import pytest
             simple,
             keep_serve_termimal,
         )
-        for config_file in ["../.github/workflows/config/gpt2-ci.yaml"]
-        for models in ["gpt2"]
+        for config_file in ["../.github/workflows/config/gpt2-ci.yaml", None]
+        for models in ["gpt2", "llama-2-7b-chat-hf"]
         for port in [8000]
         for simple in [False]
         for keep_serve_termimal in [False]
+        for list_model_ids in [False, True]
     ],
 )
 def test_script(
@@ -42,8 +43,9 @@ def test_script(
     port,
     simple,
     keep_serve_termimal,
+    list_model_ids,
 ):
-    cmd_serve = ["python", "../llm_on_ray/inference/serve.py"]
+    cmd_serve = ["llm_on_ray-serve"]
     if config_file is not None:
         cmd_serve.append("--config_file")
         cmd_serve.append(str(config_file))
@@ -57,8 +59,14 @@ def test_script(
         cmd_serve.append("--simple")
     if keep_serve_termimal:
         cmd_serve.append("--keep_serve_termimal")
+    if list_model_ids:
+        cmd_serve.append("--list_model_ids")
 
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+    if list_model_ids:
+        # Check if the model IDs are listed
+        assert "gpt2" in result_serve.stdout
+        assert "gpt2.yaml" in result_serve.stdout
 
     assert "Error" not in result_serve.stderr
     assert result_serve.returncode == 0

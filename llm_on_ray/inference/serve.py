@@ -83,7 +83,7 @@ def main(argv=None):
         help=f"Only used when config_file is None, valid values can be any items in {list(all_models.keys())}.",
     )
     parser.add_argument(
-        "--list-model-ids",
+        "--list_model_ids",
         action="store_true",
         help="List all supported model IDs with config file path",
     )
