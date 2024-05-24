@@ -255,7 +255,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
 
     return tokenized_dataset
 
-
 def prepare_data_collator(config: Dict, tokenizer):
     return transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
@@ -323,8 +322,10 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
             gaudi_config.use_fused_clip_norm = True
 
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
-        if use_dpo == True:
-            trainer = GaudiDPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
+        if use_dpo:
+            trainer = GaudiDPOFuneTuning(config).dpo_train(
+                training_args, tokenized_datasets, tokenizer
+            )
         else:
             trainer = GaudiTrainer(
                 model=model,
@@ -422,6 +423,9 @@ def main(external_config=None):
 
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
+
+        if config["Training"]["use_dpo"] and config["General"]["gpt_base_model"]:
+            raise ValueError("DPO is not supported for GPT models")
 
         if device == "gpu":
             num_cpus = (

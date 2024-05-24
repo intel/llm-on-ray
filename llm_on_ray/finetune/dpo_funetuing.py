@@ -1,3 +1,4 @@
+from peft import LoraConfig
 from transformers import AutoModelForCausalLM
 
 
@@ -11,7 +12,7 @@ class DPOFuneTuning:
             self.config["General"]["base_model"],
             config=self.config,
             low_cpu_mem_usage=True,
-            use_auth_token=True if self.config["config"]["base_model"] else None
+            use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
         )
         model.config.use_cache = False
         return model
@@ -22,40 +23,43 @@ class DPOFuneTuning:
             self.config["General"]["base_model"],
             config=self.config,
             low_cpu_mem_usage=True,
-            use_auth_token=True if self.config["config"]["base_model"] else None
+            use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
         )
         model_ref.config.use_cache = False
         return model_ref
 
-    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
-        from intel_extension_for_transformers.transformers.dpo_trainer import DPOTrainer
-        peft_config = self.config["General"].get("lora_config", None)
+    def dpo_train(self, training_args, train_datasets, validation_datasets, tokenizer):
+        from trl import DPOTrainer
+
+        lora_config = self.config["General"].get("lora_config", None)
+
         return DPOTrainer(
             self.get_model(),
-            self.get_model_ref() if peft_config is not None else None,
+            self.get_model_ref() if lora_config is not None else None,
             args=training_args,
             beta=self.config["Training"].get("beta"),
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            train_dataset=train_datasets,
+            eval_dataset=validation_datasets,
             tokenizer=tokenizer,
-            peft_config=peft_config,
+            peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
+            force_use_ref_model=True if lora_config is not None else False,
         )
 
 
 class GaudiDPOFuneTuning(DPOFuneTuning):
-    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
-        from intel_extension_for_transformers.transformers.dpo_trainer import GaudiDPOTrainer as DPOTrainer
+    def dpo_train(self, training_args, train_datasets, validation_datasets, tokenizer):
+        from optimum.habana.trl import GaudiDPOTrainer as DPOTrainer
 
-        peft_config = self.config["General"].get("lora_config", None)
+        lora_config = self.config["General"].get("lora_config", None)
         return DPOTrainer(
             self.get_model(),
-            self.get_model_ref() if peft_config is not None else None,
+            self.get_model_ref() if lora_config is not None else None,
             args=training_args,
             beta=self.config["Training"].get("beta"),
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            train_dataset=train_datasets,
+            eval_dataset=validation_datasets,
             tokenizer=tokenizer,
-            peft_config=peft_config,
+            peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
         )

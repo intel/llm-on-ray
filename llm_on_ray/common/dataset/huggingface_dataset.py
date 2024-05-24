@@ -53,6 +53,21 @@ class HuggingfaceDataset(Dataset):
         else:
             load_config = config.get("load_config", {})
             if load_from_disk:
-                return datasets.load_from_disk(name, **load_config)
+                raw_datasets = datasets.load_from_disk(name, **load_config)
+                if "validation" not in raw_datasets.keys():
+                    raw_datasets["validation"] = datasets.load_from_disk(
+                        name, split=f"train[:{validation_split_percentage}%]", **load_config
+                    )
+                    raw_datasets["train"] = datasets.load_from_disk(
+                        name, split=f"train[{validation_split_percentage}%:]", **load_config
+                    )
             else:
-                return datasets.load_dataset(name, **load_config)
+                raw_datasets = datasets.load_dataset(name, **load_config)
+                if "validation" not in raw_datasets.keys():
+                    raw_datasets["validation"] = datasets.load_dataset(
+                        name, split=f"train[:{validation_split_percentage}%]", **load_config
+                    )
+                    raw_datasets["train"] = datasets.load_dataset(
+                        name, split=f"train[{validation_split_percentage}%:]", **load_config
+                    )
+            return raw_datasets
