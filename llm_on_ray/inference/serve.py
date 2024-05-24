@@ -133,7 +133,7 @@ def main(argv=None):
         for model in model_ids:
             print(model)
             print(model_ids[model])
-        sys.exit(1)
+        sys.exit(0)
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)

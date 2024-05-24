@@ -20,7 +20,7 @@ import pytest
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
-    "config_file, models, port, simple, keep_serve_termimal",
+    "config_file, models, port, simple, keep_serve_termimal,list_model_ids",
     [
         (
             config_file,
@@ -28,6 +28,7 @@ import pytest
             port,
             simple,
             keep_serve_termimal,
+            list_model_ids,
         )
         for config_file in ["../.github/workflows/config/gpt2-ci.yaml", None]
         for models in ["gpt2", "llama-2-7b-chat-hf"]
@@ -46,22 +47,24 @@ def test_script(
     list_model_ids,
 ):
     cmd_serve = ["llm_on_ray-serve"]
-    if config_file is not None:
-        cmd_serve.append("--config_file")
-        cmd_serve.append(str(config_file))
-    if models is not None:
-        cmd_serve.append("--models")
-        cmd_serve.append(str(models))
-    if port is not None:
-        cmd_serve.append("--port")
-        cmd_serve.append(str(port))
-    if simple:
-        cmd_serve.append("--simple")
-    if keep_serve_termimal:
-        cmd_serve.append("--keep_serve_termimal")
     if list_model_ids:
         cmd_serve.append("--list_model_ids")
+    else:
+        if config_file is not None:
+            cmd_serve.append("--config_file")
+            cmd_serve.append(str(config_file))
+        elif models is not None:
+            cmd_serve.append("--models")
+            cmd_serve.append(str(models))
+        if port is not None:
+            cmd_serve.append("--port")
+            cmd_serve.append(str(port))
+        if simple:
+            cmd_serve.append("--simple")
+        if keep_serve_termimal:
+            cmd_serve.append("--keep_serve_termimal")
 
+    print(cmd_serve)
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
     if list_model_ids:
         # Check if the model IDs are listed
