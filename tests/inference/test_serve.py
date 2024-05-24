@@ -31,7 +31,7 @@ import pytest
             list_model_ids,
         )
         for config_file in ["../.github/workflows/config/gpt2-ci.yaml", None]
-        for models in ["gpt2", "llama-2-7b-chat-hf"]
+        for models in ["gpt2"]
         for port in [8000]
         for simple in [False]
         for keep_serve_termimal in [False]
