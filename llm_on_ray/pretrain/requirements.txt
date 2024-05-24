@@ -13,7 +13,7 @@ gradio
 gymnasium
 dm-tree
 scikit-image
-pydantic==1.10.11
+pydantic==1.10.13
 tensorboard
 einops
 gpustat==1.0.0

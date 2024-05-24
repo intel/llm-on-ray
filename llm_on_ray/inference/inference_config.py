@@ -57,6 +57,7 @@ class Ipex(BaseModel):
 class Vllm(BaseModel):
     enabled: bool = False
     precision: str = "bf16"
+    enforce_eager: bool = False
 
     @validator("precision")
     def _check_precision(cls, v: str):
@@ -65,8 +66,8 @@ class Vllm(BaseModel):
         return v
 
 
-# for bigdl model
-class BigDLModelConfig(BaseModel):
+# for IPEX-LLM model
+class IpexllmModelConfig(BaseModel):
     load_in_low_bit: str = ""
 
     @validator("load_in_low_bit")
@@ -76,8 +77,18 @@ class BigDLModelConfig(BaseModel):
         return v
 
 
+# for HPU model
+class HpuModelConfig(BaseModel):
+    # Enable HPU graph runtime
+    use_hpu_graphs: bool = True
+    # Enable Torch compile, only works for llama
+    torch_compile: bool = False
+    # Point to an HQT config json file
+    quant_config: Union[str, None] = None
+
+
 # for non-streaming response
-class GenerateResult(BaseModel):
+class ModelGenerateResult(BaseModel):
     text: Union[str, List[str]] = ""
     input_length: Union[int, None] = None
     generate_length: Union[int, None] = None
@@ -98,11 +109,8 @@ class ModelDescription(BaseModel):
     peft_model_id_or_path: Union[str, None] = None
     peft_type: Union[str, None] = None
 
-    bigdl: bool = False
-    bigdl_config: BigDLModelConfig = BigDLModelConfig()
-
-    # only effective when device is hpu
-    use_hpu_graphs: bool = True
+    ipexllm: bool = False
+    ipexllm_config: IpexllmModelConfig = IpexllmModelConfig()
 
     # prevent warning of protected namespaces
     # DO NOT TOUCH
@@ -111,6 +119,10 @@ class ModelDescription(BaseModel):
     # specify model_loader and input_processor
     input_processor: str = "AutoProcessor"
     model_loader: str = "AutoModel"
+
+    chat_model_with_image: bool = False
+    chat_template: Union[str, None] = None
+    default_chat_template: str = "llm_on_ray/inference/models/templates/default_template.jinja"
 
     @validator("quantization_type")
     def _check_quant_type(cls, v: str):
@@ -139,6 +151,7 @@ class InferenceConfig(BaseModel):
     workers_per_group: int = 2
     device: str = DEVICE_CPU
     ipex: Ipex = Ipex()
+    hpu_model_config: HpuModelConfig = HpuModelConfig()
     model_description: ModelDescription = ModelDescription()
 
     # prevent warning of protected namespaces

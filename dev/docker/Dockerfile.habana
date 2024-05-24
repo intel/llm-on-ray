@@ -1,4 +1,4 @@
-FROM vault.habana.ai/gaudi-docker/1.14.0/ubuntu22.04/habanalabs/pytorch-installer-2.1.1:latest
+FROM vault.habana.ai/gaudi-docker/1.15.1/ubuntu22.04/habanalabs/pytorch-installer-2.2.0:latest
 
 ENV LANG=en_US.UTF-8
 
@@ -12,7 +12,7 @@ RUN mkdir ./llm_on_ray
 
 RUN pip install -e . && \
     pip install --upgrade-strategy eager optimum[habana] && \
-    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.14.0
+    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.15.1
 
 # Optinal. Comment out if you are not using UI
 COPY ./dev/scripts/install-ui.sh /tmp
@@ -28,9 +28,5 @@ ENV no_proxy=localhost,127.0.0.1
 ENV RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES=1
 
 ENV PT_HPU_LAZY_ACC_PAR_MODE=0
-
-ENV PT_HPU_ENABLE_REFINE_DYNAMIC_SHAPES=0
-
-ENV PT_HPU_ENABLE_WEIGHT_CPU_PERMUTE=0
 
 ENV PT_HPU_ENABLE_LAZY_COLLECTIVES=true

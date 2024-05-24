@@ -15,16 +15,23 @@
 #
 
 import asyncio
+import os
 from typing import AsyncGenerator, List, Union
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
-from llm_on_ray.inference.predictor import Predictor
-from llm_on_ray.inference.inference_config import InferenceConfig, GenerateResult, PRECISION_BF16
+from llm_on_ray.inference.predictor import GenerateInput, GenerateOutput, Predictor
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    ModelGenerateResult,
+    PRECISION_BF16,
+)
 
 
 class VllmPredictor(Predictor):
+    VLLM_CPU_KVCACHE_SPACE_DEFAULT = 40
+
     def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         super().__init__(infer_conf)
 
@@ -32,14 +39,18 @@ class VllmPredictor(Predictor):
         model_config = model_desc.config
         dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"
 
+        # Set environment variable VLLM_CPU_KVCACHE_SPACE to control the size of the CPU key-value cache.
+        # The default value is 40GB.
+        os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
+
         args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
             dtype=dtype,
             disable_log_requests=True,
-            swap_space=40,
             max_num_seqs=max_num_seqs,
+            enforce_eager=infer_conf.vllm.enforce_eager,
         )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
@@ -57,14 +68,22 @@ class VllmPredictor(Predictor):
     async def _get_generator_output(self, results_generator):
         async for request_output in results_generator:
             if request_output.finished:
-                return GenerateResult(
+                return ModelGenerateResult(
                     text=request_output.outputs[0].text,
                     input_length=len(request_output.prompt_token_ids),
                     generate_length=len(request_output.outputs[0].token_ids),
                 )
         return None
 
-    async def generate_async(self, prompts: Union[str, List[str]], **config) -> GenerateResult:
+    def generate(
+        self,
+        input: GenerateInput,
+        **config,
+    ) -> GenerateOutput:
+        # This method is not used for VllmPredictor, used generate_async instead
+        pass
+
+    async def generate_async(self, prompts: Union[str, List[str]], **config) -> ModelGenerateResult:
         config = self.update_vllm_config(**config)
         sampling_params = SamplingParams(**config)
         if isinstance(prompts, str):
@@ -72,7 +91,7 @@ class VllmPredictor(Predictor):
             results_generator = self.engine.generate(prompts, sampling_params, request_id)
             async for request_output in results_generator:
                 if request_output.finished:
-                    return GenerateResult(
+                    return ModelGenerateResult(
                         text=request_output.outputs[0].text,
                         input_length=len(request_output.prompt_token_ids),
                         generate_length=len(request_output.outputs[0].token_ids),
@@ -87,7 +106,7 @@ class VllmPredictor(Predictor):
             ]
             return await asyncio.gather(*results)
 
-        return GenerateResult()
+        return ModelGenerateResult()
 
     async def streaming_generate_async(self, prompt, **config):
         config = self.update_vllm_config(**config)

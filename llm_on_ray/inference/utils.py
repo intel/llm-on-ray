@@ -13,13 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import os
+import pathlib
 from transformers import StoppingCriteria, TextStreamer
 from ray.util.queue import Queue
 import torch
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
-from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_CPU, DEVICE_HPU
+from llm_on_ray.inference.inference_config import (
+    InferenceConfig,
+    DEVICE_CPU,
+    DEVICE_HPU,
+    PRECISION_BF16,
+    PRECISION_FP32,
+)
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ChatMessage
 
 
@@ -89,7 +96,7 @@ class StoppingCriteriaSub(StoppingCriteria):
         super().__init__()
         self.stops = stops
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
         for stop in self.stops:
             length = 1 if len(stop.size()) == 0 else stop.size()[0]
             if torch.all((stop == input_ids[0][-length:])).item():
@@ -127,6 +134,10 @@ def decide_torch_dtype(infer_conf: InferenceConfig, hf_config=None):
 
     if infer_conf.model_description.config.torch_dtype:
         # respect user config
+        if infer_conf.model_description.config.torch_dtype == PRECISION_BF16:
+            infer_conf.model_description.config.torch_dtype = torch.bfloat16
+        elif infer_conf.model_description.config.torch_dtype == PRECISION_FP32:
+            infer_conf.model_description.config.torch_dtype = torch.float32
         return
     elif hf_config is None:
         # default to float32 if hf_config is not supplied
@@ -184,3 +195,28 @@ def module_import_and_init(module_name, clazz, **clazzs_kwargs):
     module = importlib.import_module(module_name)
     class_ = getattr(module, clazz)
     return class_(**clazzs_kwargs)
+
+
+def parse_jinja_file(chat_template: Union[str, None]):
+    if chat_template is None:
+        return None
+
+    try:
+        # Get the absolute path of the provided chat template
+        jinja_path = os.path.abspath(chat_template)
+
+        # If the user specifies a jinja file, the absolute path to jinja_path exists.
+        # If jinja_path does not exist, it means that the user did not specify jinja and the default jinja is used.
+        if not os.path.exists(jinja_path):
+            jinja_path = str(
+                pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent.parent
+                / chat_template
+            )
+
+        with open(jinja_path, "r") as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        raise FileNotFoundError(f"File {jinja_path} not found.")
+    except Exception as e:
+        raise Exception(f"An error occurred: {str(e)}")

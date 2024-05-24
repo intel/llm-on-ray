@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  inference:
+  finetune:
     name: finetune
     strategy:
       matrix:
@@ -70,122 +70,47 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile.cpu_and_deepspeed -t finetune:latest 
-          docker container prune -f
-          docker image prune -f
+          DF_SUFFIX=".cpu_and_deepspeed"
+          TARGET="finetune"
+          USE_PROXY="1"
+          source dev/scripts/ci-functions.sh
+          build_and_prune ${TARGET} ${DF_SUFFIX} ${USE_PROXY}
 
       - name: Start Docker Container
         run: |
-          cid=$(docker ps -q --filter "name=finetune")
-          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
-          # check and remove exited container
-          cid=$(docker ps -a -q --filter "name=finetune")
-          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
-          docker run -tid -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="finetune" --hostname="finetune-container" finetune:latest
+          TARGET="finetune"
+          code_checkout_path=${{ inputs.code_checkout_path }}
+          model_cache_path=${{ inputs.model_cache_path }}
+          USE_PROXY="1"
+          source dev/scripts/ci-functions.sh
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
 
       - name: Run Finetune Test
         run: |
-          docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
-          CMD=$(cat << EOF
-          import yaml
-          conf_path = "llm_on_ray/finetune/finetune.yaml"
-          with open(conf_path, encoding="utf-8") as reader:
-              result = yaml.load(reader, Loader=yaml.FullLoader)
-              result['General']['base_model'] = "${{ matrix.model }}"
-              if "${{ matrix.model }}" == "mosaicml/mpt-7b":
-                  result['General']['config']['trust_remote_code'] = True
-              else:
-                  result['General']['config']['trust_remote_code'] = False
-              if "${{ matrix.model }}" == "EleutherAI/gpt-j-6b" or "${{ matrix.model }}" == "gpt2":
-                  result['General']["gpt_base_model"] = True
-              else:
-                  result['General']["gpt_base_model"] = False
-              if "${{ matrix.model }}" == "meta-llama/Llama-2-7b-chat-hf" or "${{ matrix.model }}" == "google/gemma-2b":
-                  result['General']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              else:
-                  result['General']["config"]["use_auth_token"] = None
-              result['Training']['epochs'] = 1
-              if "${{ matrix.model }}" == "gpt2":
-                  # to verify oneccl
-                  result['Training']['num_training_workers'] = 2
-              else:
-                  result['Training']['num_training_workers'] = 1
-              result['General']['lora_config'] = None
-          with open(conf_path, 'w') as output:
-              yaml.dump(result, output, sort_keys=False)
-          EOF
-          )
-          docker exec "finetune" python -c "$CMD"
-          docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          finetune_test ${{ matrix.model }}
 
       - name: Run PEFT-LoRA Test
         run: |
-          docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
-          CMD=$(cat << EOF
-          import yaml
-          conf_path = "llm_on_ray/finetune/finetune.yaml"
-          with open(conf_path, encoding="utf-8") as reader:
-              result = yaml.load(reader, Loader=yaml.FullLoader)
-              result['General']['lora_config'] = {
-                  "task_type": "CAUSAL_LM",
-                  "r": 8,
-                  "lora_alpha": 32,
-                  "lora_dropout": 0.1
-              }
-              if "${{ matrix.model }}" == "mistralai/Mistral-7B-v0.1":
-                  result['General']['lora_config']['target_modules'] = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head",]
-              elif "${{ matrix.model }}" == "google/gemma-2b":
-                  result['General']['lora_config']['target_modules'] = ["k_proj", "v_proj"]
-              else:
-                  result['General']['lora_config']['target_modules'] = None
-          with open(conf_path, 'w') as output:
-              yaml.dump(result, output, sort_keys=False)
-          EOF
-          )
-          docker exec "finetune" python -c "$CMD"
-          docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
+          source dev/scripts/ci-functions.sh
+          peft_lora_test ${{ matrix.model }}
 
       - name: Run Deltatuner Test on DENAS-LoRA Model
         run: |
-          if [[ ${{ matrix.model }} =~ ^(mosaicml\/mpt-7b|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
-            echo ${{ matrix.model }} is not supported!
-          else
-            docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
-            CMD=$(cat << EOF
-          import os
-          import yaml
-          os.system("cp -r $(python -m pip show deltatuner | grep Location | cut -d: -f2)/deltatuner/conf/best_structure examples/")
-          conf_path = "llm_on_ray/finetune/finetune.yaml"
-          with open(conf_path, encoding="utf-8") as reader:
-              result = yaml.load(reader, Loader=yaml.FullLoader)
-              result['General']['lora_config'] = {
-                  "task_type": "CAUSAL_LM",
-                  "r": 8,
-                  "lora_alpha": 32,
-                  "lora_dropout": 0.1
-              }
-              result['General']['deltatuner_config'] = {
-                  "algo": "lora",
-                  "denas": True,
-                  "best_model_structure": f"examples/best_structure/${{ matrix.model }}-best_structure.jsonl",
-              }
-          with open(conf_path, 'w') as output:
-              yaml.dump(result, output, sort_keys=False)
-          EOF)
-            docker exec "finetune" python -c "$CMD"
-            docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
-          fi
+          source dev/scripts/ci-functions.sh
+          denas_lora_test ${{ matrix.model }}
 
       - name: Stop Ray
         run: |
-          cid=$(docker ps -q --filter "name=finetune")
-          if [[ ! -z "$cid" ]]; then
-            docker exec "finetune" bash -c "ray stop"
-          fi
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          stop_ray ${TARGET}
 
       - name: Stop Container
         if: success() || failure()
         run: |
-          cid=$(docker ps -q --filter "name=finetune")
-          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          stop_container ${TARGET}
 

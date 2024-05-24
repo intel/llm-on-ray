@@ -1,0 +1,13 @@
+port: 8000
+name: meta-llama-3-70b-instruct
+route_prefix: /meta-llama-3-70b-instruct
+cpus_per_worker: 8
+hpus_per_worker: 1
+deepspeed: true
+workers_per_group: 8
+device: hpu
+model_description:
+  model_id_or_path: meta-llama/Meta-Llama-3-70b-Instruct
+  tokenizer_name_or_path: meta-llama/Meta-Llama-3-70b-Instruct
+  config:
+    use_auth_token: ''
