@@ -259,7 +259,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
 
     return tokenized_dataset
 
-
 def prepare_data_collator(config: Dict, tokenizer):
     return transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
@@ -327,8 +326,10 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
             gaudi_config.use_fused_clip_norm = True
 
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
-        if use_dpo == True:
-            trainer = GaudiDPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
+        if use_dpo:
+            trainer = GaudiDPOFuneTuning(config).dpo_train(
+                training_args, tokenized_datasets, tokenizer
+            )
         else:
             trainer = GaudiTrainer(
                 model=model,
