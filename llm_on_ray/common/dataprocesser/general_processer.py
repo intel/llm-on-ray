@@ -24,10 +24,9 @@ import transformers
 from llm_on_ray.common.dataprocesser import DataProcesser
 
 INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-INSTRUCTION_KEY = "### Instruction:"
-INPUT_KEY = "Input:"
-RESPONSE_KEY = "### Response:"
-END_KEY = "### End"
+INSTRUCTION_KEY = "### Instruction: "
+INPUT_KEY = "Input: "
+RESPONSE_KEY = "### Response: "
 RESPONSE_KEY_NL = f"{RESPONSE_KEY}\n"
 
 PROMPT_NO_INPUT_FORMAT = """{intro}
@@ -36,15 +35,12 @@ PROMPT_NO_INPUT_FORMAT = """{intro}
 {instruction}
 
 {response_key}
-{response}
-
-{end_key}""".format(
+{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 
 PROMPT_WITH_INPUT_FORMAT = """{intro}
@@ -56,9 +52,7 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
 {input}
 
 {response_key}
-{response}
-
-{end_key}""".format(
+{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
@@ -66,9 +60,13 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
     input="{input}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 TEXT_COLUMN_NAME = "text"
+
+SLIMORCA_PROMPT_DICT = {
+    "prompt_with_input": ("### System: {system} \n" "### User: {user} \n### Assistant: {gpt}"),
+    "prompt_without_input": ("### System: {system} \n" "### Assistant: {gpt}"),
+}
 
 
 class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeling):
@@ -98,9 +96,74 @@ class DataCollatorForCompletionOnlyLM(transformers.DataCollatorForLanguageModeli
         return batch
 
 
-class GeneralProcesser(DataProcesser):
+class ChatDataPreprocess(DataProcesser):
+    base_template = """Below is an instruction that describes a task. Write a response that appropriately completes the request.\n"""
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.prompt_template = self.base_template
+        self.user = "### Instruction:\n"
+        self.assistant = "### Response:\n"
+        self.end = "### End\n"
+
+    def create_data(self, examples):
+        if self.config.get("gpt_base_model"):
+            instruction = examples["instruction"]
+            response = examples["response"]
+            context = examples.get("context")
+            if not instruction:
+                raise ValueError(f"Expected an instruction in: {examples}")
+            if not response:
+                raise ValueError(f"Expected a response in: {examples}")
+            if context:
+                new_messages = PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=instruction, response=response, input=context
+                )
+            else:
+                new_messages = PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=instruction, response=response
+                )
+        else:
+            new_messages = [
+                {
+                    "role": "system",
+                    "content": INTRO_BLURB + "\n",
+                },
+                {
+                    "role": "user",
+                    "content": examples["instruction"]
+                    + "\n"
+                    + INPUT_KEY
+                    + examples["context"]
+                    + "\n",
+                },
+                {"role": "assistant", "content": examples["response"] + "\n"},
+            ]
+
+        return new_messages
+
+    def tokenize_func(self, tokenizer, message):
+        if self.config.get("gpt_base_model"):
+            return tokenizer(
+                message, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
+        else:
+            if self.config.get("chat_template") is not None:
+                tokenizer.chat_template = self.config.get("chat_template")
+            elif tokenizer.chat_template is not None:
+                pass
+            else:
+                tokenizer.chat_template = self.config.get("default_chat_template")
+
+            new_tokenizer = tokenizer.apply_chat_template(
+                message,
+                tokenize=False,
+            )
+            return tokenizer(
+                new_tokenizer, add_special_tokens=False, max_length=self.config.get("max_length")
+            )
+
     def tokenize_dataset(self, tokenizer, dataset):
-        max_length = self.config.get("max_length")
         group = self.config.get("group")
         block_size = self.config.get("block_size")
         tokenizer.pad_token = tokenizer.eos_token
@@ -111,38 +174,8 @@ class GeneralProcesser(DataProcesser):
         if isinstance(dataset, datasets.DatasetDict):
             column_names = dataset["train"].column_names
 
-        if column_names and TEXT_COLUMN_NAME not in column_names:
-
-            def prompt(rec):
-                instruction = rec["instruction"]
-                response = rec["response"]
-                context = rec.get("context")
-                if not instruction:
-                    raise ValueError(f"Expected an instruction in: {rec}")
-                if not response:
-                    raise ValueError(f"Expected a response in: {rec}")
-                if context:
-                    rec["text"] = PROMPT_WITH_INPUT_FORMAT.format(
-                        instruction=instruction, response=response, input=context
-                    )
-                else:
-                    rec["text"] = PROMPT_NO_INPUT_FORMAT.format(
-                        instruction=instruction, response=response
-                    )
-                return rec
-
-            dataset = dataset.map(
-                prompt,
-                load_from_cache_file=False,
-                desc="Prompt",
-            )
-            column_names += [TEXT_COLUMN_NAME]
-
-        def tokenize_function(examples):
-            return tokenizer(examples[TEXT_COLUMN_NAME], max_length=max_length)
-
         tokenized_datasets = dataset.map(
-            tokenize_function,
+            lambda examples: self.tokenize_func(tokenizer, self.create_data(examples)),
             remove_columns=column_names,
             load_from_cache_file=False,
             desc="Tokenize dataset",
@@ -208,3 +241,94 @@ class GeneralProcesser(DataProcesser):
             }
             eval_dataloader = torch.utils.data.DataLoader(eval_dataset, **eval_dataloader_params)
         return train_dataloader, eval_dataloader
+
+
+class SlimOrcaDataPreprocess(ChatDataPreprocess):
+    chat_template = (
+        "{% for message in messages %}"
+        "{% if message['role'] == 'system' %}"
+        "{{ '### System: ' + message['content'] }}"
+        "{% elif message['role'] == 'user' %}"
+        "{{ '### User: ' + message['content'] }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Assistant: ' + message['content'] }}"
+        "{% endif %}"
+        "{% endfor %}"
+    )
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.config["chat_template"] = self.chat_template
+        self.default_system = "You are a helpful, respectful and honest assistant."
+
+    def create_data(self, data):
+        examples = {}
+        conv = data["conversations"]
+        # system
+        if conv[0]["from"] != "system":
+            examples["system"] = self.default_system
+            start = 0
+        elif conv[0]["from"] == "system" and conv[0]["value"] == "":
+            examples[conv[0]["from"]] = self.default_system
+            start = 1
+        else:
+            examples[conv[0]["from"]] = conv[0]["value"]
+            start = 1
+
+        for j in range(start, len(conv) - 1, 2):
+            examples[conv[j]["from"]] = conv[j]["value"]
+            examples[conv[j + 1]["from"]] = conv[j + 1]["value"]
+
+        if self.config.get("gpt_base_model"):
+            if examples["human"]:
+                return SLIMORCA_PROMPT_DICT["prompt_with_input"].format(
+                    instruction=examples["system"],
+                    response=examples["gpt"],
+                    input=examples["human"],
+                )
+            else:
+                return SLIMORCA_PROMPT_DICT["prompt_without_input"].format(
+                    instruction=examples["system"], response=examples["gpt"]
+                )
+        else:
+            new_messages = [
+                {"role": "system", "content": examples["system"] + "\n"},
+                {
+                    "role": "user",
+                    "content": examples["system"] + "\n" + INPUT_KEY + examples["human"] + "\n",
+                },
+                {"role": "assistant", "content": examples["gpt"] + "\n"},
+            ]
+            return new_messages
+
+
+class OpenOrcaDataPreprocess(ChatDataPreprocess):
+    def __init__(self, config):
+        super().__init__(config)
+        self.default_system = "You are an AI assistant. You will be given a task. You must generate a detailed and long answer."
+
+    def create_data(self, examples):
+        if self.config.get("gpt_base_model"):
+            if not examples["system"]:
+                examples["system"] = self.default_system
+
+            if examples["question"]:
+                return PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=examples["system"],
+                    response=examples["chosen"],
+                    input=examples["question"],
+                )
+            else:
+                return PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=examples["system"], response=examples["chosen"]
+                )
+        else:
+            new_messages = [
+                {"role": "system", "content": INTRO_BLURB + "\n"},
+                {
+                    "role": "user",
+                    "content": examples["system"] + "\n" + INPUT_KEY + examples["question"] + "\n",
+                },
+                {"role": "assistant", "content": examples["chosen"] + "\n"},
+            ]
+            return new_messages

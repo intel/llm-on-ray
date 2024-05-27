@@ -17,7 +17,6 @@
 from pydantic import BaseModel, validator
 from typing import Optional, List
 
-
 PRECISION_BF16 = "bf16"
 PRECISION_FP16 = "fp16"
 PRECISION_NO = "no"
@@ -62,9 +61,36 @@ class General(BaseModel):
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
+    chat_template: Optional[str] = None
+    default_chat_template: str = (
+        "{% if messages[0]['role'] == 'system' %}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}"
+        "{% set loop_messages = messages %}"
+        "{% set system_message = false %}"
+        "{% endif %}"
+        "{% for message in loop_messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if loop.index0 == 0 and system_message %}"
+        "{{ system_message }}"
+        "{ % endif %}"
+        "{ % if message['role'] == 'user' %}"
+        "{{ '### Instruction: ' + message['content'].strip() }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '### Response:' + message['content'].strip() }}"
+        "{% endif %}"
+        "{% endfor %}"
+        "{% if add_generation_prompt %}"
+        "{{ '### Response: '}}"
+        "{% endif %}"
+    )
 
 
 class Dataset(BaseModel):
+    type: str = "chat"
     train_file: str
     validation_file: Optional[str]
     validation_split_percentage: int
