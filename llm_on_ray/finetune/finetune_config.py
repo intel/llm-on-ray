@@ -15,7 +15,7 @@
 #
 
 from pydantic import BaseModel, validator
-from typing import Optional, List
+from typing import Optional, List, Union
 
 
 PRECISION_BF16 = "bf16"
@@ -56,6 +56,7 @@ class General(BaseModel):
     gaudi_config_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
+    report_to: Union[str, List[str]] = "none"
     resume_from_checkpoint: Optional[str] = None
     save_strategy: str = "no"
     config: GeneralConfig

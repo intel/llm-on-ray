@@ -65,7 +65,7 @@ def convert_to_training_args(cls, config):
 
     args = {
         "output_dir": config["General"]["output_dir"],
-        "report_to": ["tensorboard"],
+        "report_to": config["General"]["report_to"],
         "resume_from_checkpoint": config["General"]["resume_from_checkpoint"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
         "save_strategy": save_strategy if save_strategy != "False" else "no",
@@ -79,7 +79,14 @@ def convert_to_training_args(cls, config):
         "lr_scheduler_type": config["Training"]["lr_scheduler"],
         "weight_decay": config["Training"]["weight_decay"],
         "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
+        "do_train": True,
     }
+
+    # set attr do_eval
+    vf = config["Dataset"].get("validation_file", None)
+    vsp = config["Dataset"].get("validation_split_percentage", 0)
+    if vf is not None or (vsp / 100 > 0.0 and vsp / 100 < 1.0):
+        args.update({"do_eval": True})
 
     # set attr max_steps
     if config["Training"]["max_train_steps"] is not None:
