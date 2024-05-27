@@ -284,7 +284,7 @@ async def send_request(
 
     token_latencies_per_request: List[float] = []
 
-    timeout = aiohttp.ClientTimeout(total=3 * 3600)
+    timeout = aiohttp.ClientTimeout(total=5 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         while True:
             async with session.post(api_url, headers=headers, json=pload) as response:
@@ -466,6 +466,18 @@ def main(args: argparse.Namespace):
             args.output_len_stddev,
             args.num_prompts,
         )
+
+    # TODO remove
+    # filtered_requests: List[Tuple[str, int, int]] = []
+    
+    # for i, r in enumerate(input_requests):
+    #     if i > 850 and i < 863:
+    #         filtered_requests.append(r)
+    
+    # input_requests = filtered_requests
+    print("number of requests: " + str(len(input_requests)))
+
+
 
     config: Dict[str, Union[int, float]] = {}
 

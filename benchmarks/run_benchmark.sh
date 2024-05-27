@@ -8,7 +8,7 @@ model_endpoint="http://localhost:8000/llama-2-7b-chat-hf"
 model_name="llama-2-7b-chat-hf"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 benchmark_script=$SHELL_FOLDER"/benchmark_serving.py"
-with_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
+with_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml"
 wo_vllm_config_file=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
 dataset_ShareGPT_path=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
 dataset_IPEX_path=$SHELL_FOLDER"/../dataset/prompt.json"
@@ -70,21 +70,21 @@ metric_bs(){
         echo "RUN llm-on-ray with vllm"
         echo "RUN bs ${vllm_bs}"
         # server:
-        $numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $vllm_bs
+        # $numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $vllm_bs
         # client:
         $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_ShareGPT_path --num-prompts $num_prompts --dataset-format ShareGPT --vllm-engine --simple --results-dir $bs_dir_vllm
     done
-    for wo_vllm_bs in ${bs}
-    do
-        echo "RUN llm-on-ray"
-        echo "RUN bs ${wo_vllm_bs}"
-        bs_dir_wo_vllm=$choice_dir_wo_vllm"/bs_"$wo_vllm_bs
-        # server:
-        $numa_server_command llm_on_ray-serve --config_file $wo_vllm_config_file --simple --max_concurrent_queries $wo_vllm_bs
-        # client:
-        $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_ShareGPT_path --num-prompts $num_prompts --dataset-format ShareGPT --simple  --results-dir $bs_dir_wo_vllm
-    done
-    echo "choice 2 generation completed"
+#     for wo_vllm_bs in ${bs}
+#     do
+#         echo "RUN llm-on-ray"
+#         echo "RUN bs ${wo_vllm_bs}"
+#         bs_dir_wo_vllm=$choice_dir_wo_vllm"/bs_"$wo_vllm_bs
+#         # server:
+#         $numa_server_command llm_on_ray-serve --config_file $wo_vllm_config_file --simple --max_concurrent_queries $wo_vllm_bs
+#         # client:
+#         $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_ShareGPT_path --num-prompts $num_prompts --dataset-format ShareGPT --simple  --results-dir $bs_dir_wo_vllm
+#     done
+#     echo "choice 2 generation completed"
 }
 
 latency_throughput(){
@@ -147,7 +147,8 @@ then
     # get the results of choice1(the peak output throughput of llm-on-ray with vllm)
     if [ "$run_mode" == "benchmark" ]
     then
-        bs=(1 2 4 8 16 32 64 128 256 300 400 512)
+        # bs=(1 2 4 8 16 32 64 128 256 300 400 512)
+        bs=(1)
         prompt_num=$dataset_benchmark_num
     elif [ "$run_mode" == "test" ]
     then
@@ -165,7 +166,8 @@ then
     # get the results of choice2(compare output token throughput(average latency per token) between llm-on-ray with vllm and llm-on-ray)
     if [ "$run_mode" == "benchmark" ]
     then
-        bs=(1 2 4 8 16 32 64)
+        # bs=(1 2 4 8 16 32 64)
+        bs=(16)
         prompt_num=$dataset_compare_num
     elif [ "$run_mode" == "test" ]
     then
