@@ -66,6 +66,7 @@ def test_script(
 
     print(cmd_serve)
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
+    print(result_serve)
     if list_model_ids:
         # Check if the model IDs are listed
         assert "gpt2" in result_serve.stdout
