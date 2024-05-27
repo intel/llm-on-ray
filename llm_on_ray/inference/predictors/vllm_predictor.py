@@ -50,6 +50,7 @@ class VllmPredictor(Predictor):
             dtype=dtype,
             disable_log_requests=True,
             max_num_seqs=max_num_seqs,
+            enforce_eager=infer_conf.vllm.enforce_eager,
         )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)

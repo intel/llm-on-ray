@@ -11,8 +11,8 @@ RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 ENV CONDA_DIR /opt/conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge3-Linux-x86_64.sh -O ~/miniforge.sh && \
+    /bin/bash ~/miniforge.sh -b -p /opt/conda
 ENV PATH $CONDA_DIR/bin:$PATH
 
 # setup env
@@ -21,8 +21,8 @@ SHELL ["/bin/bash", "--login", "-c"]
 RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
-    conda config --add channels intel && \
-    conda install python==3.9
+    mamba config --add channels intel && \
+    mamba install python==3.9
 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .

@@ -63,7 +63,7 @@ class PredictorDeployment:
         # Used to determine if openai backend is used
         self.use_openai = False
 
-        if infer_conf.device == "hpu":
+        if infer_conf.device == "hpu" and not self.use_vllm:
             from llm_on_ray.inference.predictors.hpu_predictor import HPUPredictor
 
             self.predictor = HPUPredictor(infer_conf)
