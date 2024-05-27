@@ -72,13 +72,11 @@ jobs:
       - name: Determine Target
         id: "target"
         run: |
-          target="${target}_gaudi2"
-          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf" ]]; then
-            target="${target}_gaudi2"
-          elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf" ]]; then
-            target="${target}_gaudi2"
-          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+          target="inference"
+          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
             target="${target}_vllm_gaudi2"
+          else
+            target="${target}_gaudi2"
           fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
