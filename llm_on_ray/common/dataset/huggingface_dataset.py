@@ -17,6 +17,7 @@
 import os
 import datasets
 
+from llm_on_ray import common
 from llm_on_ray.common.dataset import Dataset
 
 
@@ -62,12 +63,17 @@ class HuggingfaceDataset(Dataset):
                         name, split=f"train[{validation_split_percentage}%:]", **load_config
                     )
             else:
+                common.logger.info("load dataset")
                 raw_datasets = datasets.load_dataset(name, **load_config)
+                common.logger.info(raw_datasets)
+
                 if "validation" not in raw_datasets.keys():
+                    common.logger.info("split")
                     raw_datasets["validation"] = datasets.load_dataset(
                         name, split=f"train[:{validation_split_percentage}%]", **load_config
                     )
                     raw_datasets["train"] = datasets.load_dataset(
                         name, split=f"train[{validation_split_percentage}%:]", **load_config
                     )
+                common.logger.info(raw_datasets)
             return raw_datasets
