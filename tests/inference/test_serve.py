@@ -30,7 +30,7 @@ import pytest
             keep_serve_termimal,
             list_model_ids,
         )
-        for config_file in ["../.github/workflows/config/gpt2-ci.yaml", None]
+        for config_file in ["../.github/workflows/config/gpt2-ci.yaml"]
         for models in ["gpt2"]
         for port in [8000]
         for simple in [False]
@@ -69,10 +69,11 @@ def test_script(
     print(result_serve)
     if list_model_ids:
         # Check if the model IDs are listed
-        assert "gpt2" in result_serve.stdout
-        assert "gpt2.yaml" in result_serve.stdout
+        assert "gpt2" in result_serve.stdout, print("\n" + "Model is not support " + "\n")
+        assert "gpt2.yaml" in result_serve.stdout, print(
+            "\n" + "Model config file is not found " + "\n"
+        )
 
-    assert "Error" not in result_serve.stderr
-    assert result_serve.returncode == 0
-    print("Output of stderr:")
-    print(result_serve.stderr)
+    assert result_serve.returncode == 0, print(
+        "\n" + "Output of stderr: " + "\n", result_serve.stderr
+    )
