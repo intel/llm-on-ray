@@ -21,6 +21,8 @@ import argparse
 import sys
 from typing import Any, Dict, Union, Optional
 
+from itertools import chain
+
 import torch
 import datasets
 import transformers
@@ -36,18 +38,24 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
+from llm_on_ray.finetune import template
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 from importlib import util
 
-use_habana = False
-if util.find_spec("habana_frameworks") is not None:
-    from optimum.habana.utils import set_seed
 
-    use_habana = True
-else:
-    from accelerate.utils import set_seed, is_xpu_available
+def set_seed(config):
+    seed = config["Training"].get("seed", None)
+    if seed is None:
+        return
+    device = config["Training"]["device"]
+    if device in ["cpu", "gpu"]:
+        from accelerate.utils import set_seed as _set_seed
 
-    use_habana = False
+        _set_seed(seed)
+    elif device in ["hpu"]:
+        from optimum.habana.utils import set_seed as _set_seed
+
+        _set_seed(seed)
 
 
 def convert_to_training_args(cls, config):
@@ -57,6 +65,7 @@ def convert_to_training_args(cls, config):
 
     args = {
         "output_dir": config["General"]["output_dir"],
+        "report_to": ["tensorboard"],
         "resume_from_checkpoint": config["General"]["resume_from_checkpoint"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
         "save_strategy": save_strategy if save_strategy != "False" else "no",
@@ -111,13 +120,16 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
 
 
 def load_tokenizer(config: Dict):
-    name = config.get("name")
-    load_config = config.get("config", {})
-    tokenizer = transformers.AutoTokenizer.from_pretrained(name, **load_config)
+    if config["General"].get("tokenizer_name") is not None:
+        tokenizer_name = config["General"].get("tokenizer_name")
+    else:
+        tokenizer_name = config["General"]["base_model"]
+    load_config = config["General"].get("config", {})
+    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name, **load_config)
     return tokenizer
 
 
-def load_datasets(config: Dict):
+def load_dataset(config: Dict):
     def local_load(name, **load_config):
         if os.path.isfile(name):
             file = os.path.basename(os.path.abspath(name))
@@ -127,13 +139,12 @@ def load_datasets(config: Dict):
             dataset = datasets.load_dataset(name, **load_config)
         return dataset["train"]
 
-    name = config.get("name")
-    load_from_disk = config.get("load_from_disk", False)
-    validation_file = config.get("validation_file", None)
-    validation_split_percentage = config.get("validation_split_percentage", 0)
+    dataset_file = config["Dataset"].get("train_file", None)
+    validation_file = config["Dataset"].get("validation_file", None)
+    validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
 
-    if name is not None and os.path.exists(name):
-        train_dataset = local_load(name)
+    if dataset_file is not None and os.path.exists(dataset_file):
+        train_dataset = local_load(dataset_file)
         if validation_file is not None:
             validation_dataset = local_load(validation_file)
             return datasets.DatasetDict({"train": train_dataset, "validation": validation_dataset})
@@ -145,31 +156,111 @@ def load_datasets(config: Dict):
             return datasets_dict
         return datasets.DatasetDict({"train": train_dataset})
     else:
-        load_config = config.get("load_config", {})
-        if load_from_disk:
-            return datasets.load_from_disk(name, **load_config)
-        else:
-            return datasets.load_dataset(name, **load_config)
+        load_config = config["General"].get("config", {})
+        return datasets.load_dataset(dataset_file, **load_config)
+
+
+def tokenize_dataset(config: Dict, tokenizer, dataset):
+    max_length = config["Dataset"].get("max_length", 512)
+    group = config["Dataset"].get("group", True)
+    block_size = config["Dataset"].get("block_size", 512)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    if isinstance(dataset, datasets.Dataset):
+        column_names = dataset.column_names
+
+    if isinstance(dataset, datasets.DatasetDict):
+        column_names = dataset["train"].column_names
+
+    if column_names and template.TEXT_COLUMN_NAME not in column_names:
+
+        def prompt(rec):
+            instruction = rec["instruction"]
+            response = rec["response"]
+            context = rec.get("context")
+            if not instruction:
+                raise ValueError(f"Expected an instruction in: {rec}")
+            if not response:
+                raise ValueError(f"Expected a response in: {rec}")
+            if context:
+                rec["text"] = template.PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=instruction, response=response, input=context
+                )
+            else:
+                rec["text"] = template.PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=instruction, response=response
+                )
+            return rec
+
+        dataset = dataset.map(
+            prompt,
+            load_from_cache_file=False,
+            desc="Prompt",
+        )
+        column_names += [template.TEXT_COLUMN_NAME]
+
+    def tokenize_function(examples):
+        return tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+
+    tokenized_dataset = dataset.map(
+        tokenize_function,
+        remove_columns=column_names,
+        load_from_cache_file=False,
+        desc="Tokenize dataset",
+    )
+
+    if group:
+
+        def group_texts(examples):
+            # Concatenate all texts.
+            concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
+            total_length = len(concatenated_examples[list(examples.keys())[0]])
+            # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
+            # customize this part to your needs.
+            if total_length >= block_size:
+                total_length = (total_length // block_size) * block_size
+            # Split by chunks of max_len.
+            result = {
+                k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                for k, t in concatenated_examples.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        tokenized_dataset = tokenized_dataset.map(
+            group_texts,
+            batched=True,
+            load_from_cache_file=False,
+            desc=f"Grouping texts in chunks of {block_size}",
+        )
+
+    return tokenized_dataset
+
+
+def prepare_data_collator(config: Dict, tokenizer):
+    return transformers.DataCollatorForLanguageModeling(
+        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
+    )
 
 
 def load_model(config: Dict):
-    name = config.get("name")
-    model_dtype = config.get("dtype")
-    model_config = config.get("config", {})
+    model_name = config["General"]["base_model"]
+    model_dtype = convert_dtype(config["Training"].get("mixed_precision", "no"))
+    model_config = config["General"].get("config", {})
     model = transformers.AutoModelForCausalLM.from_pretrained(
-        name, torch_dtype=model_dtype, **model_config
+        model_name, torch_dtype=model_dtype, **model_config
     )
 
-    lora_config = config.get("lora_config", None)
+    lora_config = config["General"].get("lora_config", None)
     if lora_config:
         peft_config = LoraConfig(**lora_config)
         model = get_peft_model(model, peft_config)
-        deltatuner_config = config.get("deltatuner_config", None)
+        deltatuner_config = config["General"].get("deltatuner_config", None)
         if deltatuner_config:
             model = deltatuner.optimize(model, **deltatuner_config)
 
-    enable_gradient_checkpointing = config.get("enable_gradient_checkpointing")
-    if enable_gradient_checkpointing:
+    egc = config["General"].get("enable_gradient_checkpointing", False)
+    if egc:
         model.enable_input_require_grads()
         model.gradient_checkpointing_enable()
         model.config.use_cache = False
@@ -182,59 +273,19 @@ def load_model(config: Dict):
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])
 
+    set_seed(config)
+
+    tokenizer = load_tokenizer(config)
+
+    dataset = load_dataset(config)
+
+    tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
+
+    data_collator = prepare_data_collator(config, tokenizer)
+
+    model = load_model(config)
+
     device = config["Training"]["device"]
-
-    base_model = config["General"]["base_model"]
-    if config["General"].get("tokenizer_name") is not None:
-        tokenizer_name = config["General"].get("tokenizer_name")
-    else:
-        tokenizer_name = base_model
-    dataset_file = config["Dataset"]["train_file"]
-
-    seed = config["Training"].get("seed")
-    if seed is not None:
-        set_seed(seed)
-
-    tokenizer = load_tokenizer({"name": tokenizer_name, "config": config["General"]["config"]})
-
-    datasets = load_datasets(
-        {
-            "name": dataset_file,
-            "validation_file": config["Dataset"]["validation_file"],
-            "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
-        }
-    )
-
-    dataprocesser = common.dataprocesser.DataProcesser.registory.get("GeneralProcesser")(
-        config={
-            "per_device_train_batch_size": config["Training"]["batch_size"],
-            "per_device_eval_batch_size": config["Training"]["batch_size"],
-            "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
-            "max_length": config["Dataset"].get("max_length", 512),
-            "group": config["Dataset"].get("group", True),
-            "block_size": config["Dataset"].get("block_size", 512),
-            "shuffle": config["Dataset"].get("shuffle", False),
-        }
-    )
-    tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
-
-    model = load_model(
-        {
-            "name": base_model,
-            "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
-            "device": torch.device(device),
-            "config": config["General"]["config"],
-            "enable_gradient_checkpointing": config["General"].get(
-                "enable_gradient_checkpointing", False
-            ),
-            "lora_config": config["General"].get("lora_config", None),
-        }
-    )
-
-    data_collator = common.dataprocesser.general_processer.DataCollatorForCompletionOnlyLM(
-        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
-    )
-
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
@@ -242,9 +293,9 @@ def train_func(config: Dict[str, Any]):
         trainer = Trainer(
             model=model,
             args=training_args,
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"]
-            if tokenized_datasets.get("validation") is not None
+            train_dataset=tokenized_dataset["train"],
+            eval_dataset=tokenized_dataset["validation"]
+            if tokenized_dataset.get("validation") is not None
             else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
@@ -273,9 +324,9 @@ def train_func(config: Dict[str, Any]):
             model=model,
             args=training_args,
             gaudi_config=gaudi_config,
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"]
-            if tokenized_datasets.get("validation") is not None
+            train_dataset=tokenized_dataset["train"],
+            eval_dataset=tokenized_dataset["validation"]
+            if tokenized_dataset.get("validation") is not None
             else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
@@ -367,8 +418,11 @@ def main(external_config=None):
 
     # if try to use Intel GPU, convert device to 'xpu'
     # due to accelerate internal use 'xpu' represent Intel GPU
-    if device == "gpu" and is_xpu_available():
-        device = "xpu"
+    if device == "gpu":
+        from accelerate.utils import is_xpu_available
+
+        if is_xpu_available():
+            device = "xpu"
 
     if config.get("torch_config", None) is None:
         backend = None
