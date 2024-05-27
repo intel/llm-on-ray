@@ -17,7 +17,7 @@ on:
         default: '/home/ci/actions-runner/_work/llm-on-ray/llm-on-ray'
       model_cache_path:
         type: string
-        default: '/mnt/DP_disk1/huggingface/cache'
+        default: '/scratch-2/huggingface/cache'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf-gaudi2
