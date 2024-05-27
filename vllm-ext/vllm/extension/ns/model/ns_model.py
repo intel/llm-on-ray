@@ -2,6 +2,7 @@ from typing import List, Optional
 import sys
 import ray
 import ctypes
+import ray.runtime_context
 import torch
 import numpy as np
 from torch import nn
@@ -67,11 +68,18 @@ class NSModel(nn.Module):
     
     def init_inference_engine(self, model_config: ModelConfig, parallel_config: ParallelConfig, scheduler_config: SchedulerConfig):
         # get available cores
-        threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
-        logger.info("Using %d threads for inference engine", threads)
-        self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
-                                 max_new_tokens=model_config.max_model_len,
-                                 threads=int(threads))
+        try:
+            # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
+            threads = 52
+            logger.info("Using %d threads inside ray worker for inference engine", threads)
+            self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
+                                    max_new_tokens=model_config.max_model_len,
+                                    threads=int(threads))
+        except AssertionError as e:
+            logger.warn("not inside ray worker, using default threads for inference engine")
+            self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
+                                    max_new_tokens=model_config.max_model_len)
+
         self.tokenizer = self.ie_model.tokenizer
 
     def load_weights(self, weights):
@@ -165,6 +173,9 @@ def set_more_metadata(attn_metadata, kv_cache: torch.Tensor, seq_group_metadata_
         attn_metadata.block_tables = attn_metadata.block_tables.squeeze(1) # we only have one block per sequence
         attn_metadata.seq_lens = prompt_lens
 
+# debug, TODO remove
+from time import perf_counter
+
 # modified execute_model in cpu_model_runner.py to pass sequence_id and convert tensor to int32 for now
 def execute_model(
         self,
@@ -173,8 +184,12 @@ def execute_model(
     ) -> Optional[SamplerOutput]:
         (input_tokens, input_positions, attn_metadata, sampling_metadata, multi_modal_input
          ) = self.prepare_input_tensors(seq_group_metadata_list)
-
+        t0 = perf_counter()
+        if ns._LAST_CALL > 0:
+            ns._PERF_STATS['non_execution'] = ns._PERF_STATS['non_execution'] + t0 - ns._LAST_CALL
         set_more_metadata(attn_metadata, kv_caches[0], seq_group_metadata_list)
+        t1 = perf_counter()
+        ns._PERF_STATS['set_metadata'] = ns._PERF_STATS['set_metadata'] + t1 - t0
 
         model_executable = self.model
         execute_model_kwargs = {
@@ -183,6 +198,8 @@ def execute_model(
             "kv_caches": kv_caches,
             "attn_metadata": attn_metadata,
         }
+        t2 = perf_counter()
+        ns._PERF_STATS['input_tokens_conversion'] = ns._PERF_STATS['input_tokens_conversion'] + t2 - t1
 
         if self.vision_language_config:
             execute_model_kwargs.update({"image_input": multi_modal_input})
@@ -190,13 +207,24 @@ def execute_model(
         hidden_states_ptr = model_executable(**execute_model_kwargs)
         if not hidden_states_ptr:
             raise RuntimeError("Failed to execute model. Details: " + model_executable.ie_model.get_last_error())
+        
+        t3 = perf_counter()
+        ns._PERF_STATS['model_execution'] = ns._PERF_STATS['model_execution'] + t3 - t2
 
         hidden_states = native_ptr_to_tensor(hidden_states_ptr, input_tokens.shape[0], self.model_config.hf_config.hidden_size)
 
+        t4 = perf_counter()
+        ns._PERF_STATS['native_ptr_to_tensor'] = ns._PERF_STATS['native_ptr_to_tensor'] + t4 - t3
+
         hidden_states = hidden_states.to(self.model_config.dtype)
+
+        t5 = perf_counter()
+        ns._PERF_STATS['hidden_states_conversion'] = ns._PERF_STATS['hidden_states_conversion'] + t5 - t4
 
         # Compute the logits.
         logits = self.model.compute_logits(hidden_states, sampling_metadata)
+        t6 = perf_counter()
+        ns._PERF_STATS['compute_logits'] = ns._PERF_STATS['compute_logits'] + t6 - t5
 
         # Only perform sampling in the driver worker.
         if not self.is_driver_worker:
@@ -207,5 +235,14 @@ def execute_model(
             logits=logits,
             sampling_metadata=sampling_metadata,
         )
+        t7 = perf_counter()
+        ns._PERF_STATS['sample'] = ns._PERF_STATS['sample'] + t7 - t6
+
+        ns._CALL_CNT = ns._CALL_CNT + 1
+        ns._LAST_CALL = perf_counter()
+
+        if ns._CALL_CNT % 1000 == 0:
+            benchmarks = {key : value / ns._CALL_CNT for key, value in ns._PERF_STATS.items()}
+            print(f"===execution_model: {benchmarks}")
 
         return output

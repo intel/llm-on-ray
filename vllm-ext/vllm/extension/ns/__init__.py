@@ -1,6 +1,6 @@
 # extension for integrate with neural-speed
 import importlib
-from typing import Optional
+from typing import Dict, Optional
 import os
 
 from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
@@ -25,6 +25,20 @@ _KV_CACHE_ELEMENT_USED      = 4
 _IE_MODEL: IE_Model = None
 
 # global request_id to internal
+
+# debug, TODO remove
+_PERF_STATS: Dict[str, int] = {
+    'non_execution': 0,
+    'set_metadata': 0,
+    'input_tokens_conversion': 0,
+    'model_execution': 0,
+    'native_ptr_to_tensor': 0,
+    'hidden_states_conversion': 0,
+    'compute_logits': 0,
+    'sample': 0
+}
+_LAST_CALL = 0
+_CALL_CNT = 0
 
 # allow ns quantization
 #==========================================================================================

@@ -51,6 +51,7 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
+        print(ray_actor_options)
         depolyment_config = {
             "ray_actor_options": ray_actor_options,
             "max_ongoing_requests": infer_conf.max_concurrent_queries

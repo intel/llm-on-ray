@@ -52,7 +52,7 @@
 inline int64_t ns_log_level() {
   static int64_t log_level = -1;
   if (log_level == -1) {
-    const char* log_level_env = getenv("NEURAL_SPEED_VERBOSE");
+    const char* log_level_env = getenv("IE_VERBOSE");
     if (log_level_env != nullptr)
       log_level = std::stoi(log_level_env);
     else
