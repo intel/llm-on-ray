@@ -140,7 +140,6 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
     }
     return supported_dtypes[dtype]
 
-
 def load_tokenizer(config: Dict):
     if config["General"].get("tokenizer_name") is not None:
         tokenizer_name = config["General"].get("tokenizer_name")

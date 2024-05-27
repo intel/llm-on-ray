@@ -1,6 +1,8 @@
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM
 
+from llm_on_ray.common.dataprocesser import DPOIntelOrcaProcesser
+
 
 class DPOFuneTuning:
     def __init__(self, config):
@@ -43,6 +45,7 @@ class DPOFuneTuning:
             tokenizer=tokenizer,
             peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
+            max_prompt_length=self.config["Dataset"].get("max_prompt_length"),
             force_use_ref_model=True if lora_config is not None else False,
         )
 
@@ -62,4 +65,5 @@ class GaudiDPOFuneTuning(DPOFuneTuning):
             tokenizer=tokenizer,
             peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
+            max_prompt_length=self.config["Dataset"].get("max_prompt_length"),
         )
