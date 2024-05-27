@@ -272,7 +272,7 @@ def load_model(config: Dict):
         model.gradient_checkpointing_enable()
         model.config.use_cache = False
 
-    model.to(dtype=model_dtype, device=config.get("device"))
+    model.to(dtype=model_dtype, device=torch.device(config["Training"]["device"]))
 
     return model
 
