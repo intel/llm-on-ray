@@ -56,6 +56,7 @@ RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; 
 #     ray start --head \
 #     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml \
 # fi"]
+ARG CACHEBUST=1
 RUN chmod +x ./dev/scripts/entrypoint_user.sh
 # ENTRYPOINT ["/bin/bash","-c","ray start --head && llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml"]
 ENTRYPOINT ["./dev/scripts/entrypoint_user.sh"]
