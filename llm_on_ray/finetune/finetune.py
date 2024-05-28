@@ -137,6 +137,10 @@ def load_tokenizer(config: Dict):
 
 
 def load_dataset(config: Dict):
+    dataset_file = config["Dataset"].get("train_file", None)
+    if dataset_file is None:
+        return
+
     def local_load(name, **load_config):
         if os.path.isfile(name):
             file = os.path.basename(os.path.abspath(name))
@@ -146,11 +150,10 @@ def load_dataset(config: Dict):
             dataset = datasets.load_dataset(name, **load_config)
         return dataset["train"]
 
-    dataset_file = config["Dataset"].get("train_file", None)
     validation_file = config["Dataset"].get("validation_file", None)
     validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
 
-    if dataset_file is not None and os.path.exists(dataset_file):
+    if os.path.exists(dataset_file):
         train_dataset = local_load(dataset_file)
         if validation_file is not None:
             validation_dataset = local_load(validation_file)
@@ -277,21 +280,7 @@ def load_model(config: Dict):
     return model
 
 
-def train_func(config: Dict[str, Any]):
-    os.chdir(config["cwd"])
-
-    set_seed(config)
-
-    tokenizer = load_tokenizer(config)
-
-    dataset = load_dataset(config)
-
-    tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
-
-    data_collator = prepare_data_collator(config, tokenizer)
-
-    model = load_model(config)
-
+def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
     device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
@@ -307,30 +296,15 @@ def train_func(config: Dict[str, Any]):
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
-
-        common.logger.info("train start")
-        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-        trainer.save_model()
-        common.logger.info("train finish")
+        return training_args, trainer
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana.transformers import GaudiTrainingArguments
-        from optimum.habana import GaudiConfig
 
-        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
-        if config["general"].get("gaudi_config_name") is not None:
-            gaudi_config = GaudiConfig.from_pretrained(
-                config["general"].get("gaudi_config_name"),
-            )
-        else:
-            gaudi_config = GaudiConfig()
-            gaudi_config.use_fused_adam = True
-            gaudi_config.use_fused_clip_norm = True
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
-            gaudi_config=gaudi_config,
             train_dataset=tokenized_dataset["train"],
             eval_dataset=tokenized_dataset["validation"]
             if tokenized_dataset.get("validation") is not None
@@ -338,11 +312,31 @@ def train_func(config: Dict[str, Any]):
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
+        return training_args, trainer
+    return None
 
-        common.logger.info("train start")
-        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-        trainer.save_model()
-        common.logger.info("train finish")
+
+def train_func(config: Dict[str, Any]):
+    os.chdir(config["cwd"])
+
+    set_seed(config)
+
+    tokenizer = load_tokenizer(config)
+
+    dataset = load_dataset(config)
+
+    tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
+
+    data_collator = prepare_data_collator(config, tokenizer)
+
+    model = load_model(config)
+
+    training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
+
+    common.logger.info("train start")
+    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+    trainer.save_model()
+    common.logger.info("train finish")
 
 
 def get_finetune_config():
