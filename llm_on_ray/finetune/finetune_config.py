@@ -16,7 +16,7 @@
 
 from pydantic import BaseModel, validator
 from typing import Optional, List
-from transformers.trainer_callback import TrainerCallback
+from transformers import TrainerCallback
 
 PRECISION_BF16 = "bf16"
 PRECISION_FP16 = "fp16"
