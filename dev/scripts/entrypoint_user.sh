@@ -28,3 +28,4 @@ else
     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml 
 fi
 
+tail -f /dev/null

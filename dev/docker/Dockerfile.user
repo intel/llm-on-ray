@@ -27,6 +27,9 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     mamba config --add channels intel && \
     mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
+# Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
+ARG CACHEBUST=1
+
 RUN git clone https://github.com/intel/llm-on-ray.git
 RUN if [ -d "llm-on-ray" ]; then echo "Clone successful"; else echo "Clone failed" && exit 1; fi
 WORKDIR /root/llm-on-ray
@@ -36,8 +39,7 @@ RUN git fetch origin pull/219/head:pr-219 && \
 
 RUN ls -la
 
-# Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
-ARG CACHEBUST=1
+
 
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
@@ -48,16 +50,6 @@ RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then ./dev/scripts/install-oneapi.sh;
 RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; fi
 
 
-
-# ENTRYPOINT ["/bin/bash", "-c", "\
-# if echo \"$@\" | grep -qE '(^| )(-e|-v)( |$)'; then \
-#     echo 'Additional parameters detected, no default command executed'; \
-# else \
-#     ray start --head \
-#     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml \
-# fi"]
-ARG CACHEBUST=1
 RUN chmod +x ./dev/scripts/entrypoint_user.sh
 # ENTRYPOINT ["/bin/bash","-c","ray start --head && llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml"]
 ENTRYPOINT ["./dev/scripts/entrypoint_user.sh"]
-# CMD [""]
