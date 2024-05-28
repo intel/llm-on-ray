@@ -251,6 +251,8 @@ def train_func(config: Dict[str, Any]):
         tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
     )
 
+    callbacks = config["Training"].get("callbacks", None)
+
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
@@ -264,6 +266,7 @@ def train_func(config: Dict[str, Any]):
             else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
+            callbacks=callbacks,
         )
 
         common.logger.info("train start")

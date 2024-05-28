@@ -16,7 +16,7 @@
 
 from pydantic import BaseModel, validator
 from typing import Optional, List
-
+from transformers.trainer_callback import TrainerCallback
 
 PRECISION_BF16 = "bf16"
 PRECISION_FP16 = "fp16"
@@ -97,6 +97,10 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
+    callbacks: Optional[List[TrainerCallback]] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @validator("device")
     def check_device(cls, v: str):
