@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, validator
 from typing import Optional, List
 from transformers import TrainerCallback
 
@@ -99,8 +99,7 @@ class Training(BaseModel):
     deepspeed_config_file: str = ""
     callbacks: Optional[List[TrainerCallback]] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @validator("device")
     def check_device(cls, v: str):
