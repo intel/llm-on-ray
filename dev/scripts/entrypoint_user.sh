@@ -20,7 +20,7 @@ else
     echo "Ray is already running."
 fi
 
-
+env
 if [ -n "$model_name" ]; then
     echo "Using User Model: $model_name"
     llm_on_ray-serve --models $model_name
