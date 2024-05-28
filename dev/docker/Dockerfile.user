@@ -6,7 +6,7 @@ ARG DOCKER_NAME=default
 ARG PYPJ=default
 ENV LANG C.UTF-8
 
-WORKDIR /root/llm-on-ray
+WORKDIR /root/
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
     && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
@@ -14,8 +14,8 @@ RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 ENV CONDA_DIR /opt/conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge3-Linux-x86_64.sh -O ~/miniforge.sh && \
+    /bin/bash ~/miniforge.sh -b -p /opt/conda
 ENV PATH $CONDA_DIR/bin:$PATH
 
 # setup env
@@ -24,17 +24,17 @@ SHELL ["/bin/bash", "--login", "-c"]
 RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
-    conda config --add channels intel && \
-    conda install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
+    mamba config --add channels intel && \
+    mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
-RUN git clone 
-COPY ./pyproject.toml .
-COPY ./MANIFEST.in .
-COPY ./dev/scripts/install-vllm-cpu.sh .
-COPY ./dev/scripts/install-oneapi.sh /tmp
+RUN git clone https://github.com/intel/llm-on-ray.git
+RUN if [ -d "llm-on-ray" ]; then echo "Clone successful"; else echo "Clone failed" && exit 1; fi
+WORKDIR /root/llm-on-ray
 
-# create llm_on_ray package directory to bypass the following 'pip install -e' command
-RUN mkdir ./llm_on_ray
+RUN git fetch origin pull/219/head:pr-219 && \
+    git checkout pr-219
+
+RUN ls -la
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
@@ -43,11 +43,20 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
 # Use shell scripting to conditionally install packages
-RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && /tmp/install-oneapi.sh;fi
-RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then /tmp/install-oneapi.sh; fi
-RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./install-vllm-cpu.sh; fi
+RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && ./dev/scripts/install-oneapi.sh;fi
+RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then ./dev/scripts/install-oneapi.sh; fi
+RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; fi
 
-COPY ./dev/scripts/entrypoint_user.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
+
+# ENTRYPOINT ["/bin/bash", "-c", "\
+# if echo \"$@\" | grep -qE '(^| )(-e|-v)( |$)'; then \
+#     echo 'Additional parameters detected, no default command executed'; \
+# else \
+#     ray start --head \
+#     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml \
+# fi"]
+RUN chmod +x ./dev/scripts/entrypoint.sh
+# ENTRYPOINT ["/bin/bash","-c","ray start --head && llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml"]
+ENTRYPOINT ["./dev/scripts/entrypoint.sh"]
+# CMD [""]
