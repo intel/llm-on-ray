@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-#!/bin/bash
 
 # Check if an environment variable exists and print its value
 if [ -n "$hf_token" ]; then
@@ -12,11 +11,19 @@ else
 fi
 
 # Default serve cmd
-ray start --head
+if ! pgrep -f 'ray'; then
+    echo "Ray is not running. Starting Ray..."
+    # 启动 Ray
+    ray start --head
+    echo "Ray started."
+else
+    echo "Ray is already running."
+fi
 
-if [ -n "$MODEL_NAME"]; then
-    echo "Using User Model: $MODEL_NAME"
-    llm_on_ray-serve --models $MODEL_NAME
+
+if [ -n "$model_name" ]; then
+    echo "Using User Model: $model_name"
+    llm_on_ray-serve --models $model_name
 else
     echo "Using Default Model: gpt2"
     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml 
