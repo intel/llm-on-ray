@@ -28,7 +28,6 @@ import datasets
 import transformers
 
 from peft import get_peft_model, LoraConfig
-import deltatuner
 
 import ray
 from ray.train.torch import TorchTrainer
@@ -281,9 +280,6 @@ def load_model(config: Dict):
     if lora_config:
         peft_config = LoraConfig(**lora_config)
         model = get_peft_model(model, peft_config)
-        deltatuner_config = config["General"].get("deltatuner_config", None)
-        if deltatuner_config:
-            model = deltatuner.optimize(model, **deltatuner_config)
 
     egc = config["General"].get("enable_gradient_checkpointing", False)
     if egc:
