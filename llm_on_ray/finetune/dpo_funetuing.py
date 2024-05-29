@@ -32,13 +32,9 @@ class DPOFuneTuning:
         return model_ref
 
     def dpo_train(self, training_args, tokenized_datasets, tokenizer):
-        common.logger.info("dpo_train")
-        common.logger.info(tokenized_datasets)
-
         from trl import DPOTrainer
 
         lora_config = self.config["General"].get("lora_config", None)
-
         return DPOTrainer(
             self.get_model(),
             self.get_model_ref() if lora_config is not None else None,

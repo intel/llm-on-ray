@@ -290,10 +290,9 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
-        common.logger.info("train cpu")
-
         training_args = convert_to_training_args(TrainingArguments, config)
-        if use_dpo == True:
+
+        if use_dpo:
             trainer = DPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
         else:
             trainer = Trainer(
