@@ -57,7 +57,7 @@ class DPOFuneTuning:
 
 
 class GaudiDPOFuneTuning(DPOFuneTuning):
-    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
+    def dpo_train(self, training_args, gaudi_config, tokenized_datasets, tokenizer):
         from optimum.habana.trl import GaudiDPOTrainer as DPOTrainer
 
         lora_config = self.config["General"].get("lora_config", None)
@@ -65,6 +65,7 @@ class GaudiDPOFuneTuning(DPOFuneTuning):
             self.get_model(),
             self.get_model_ref() if lora_config is not None else None,
             args=training_args,
+            gaudi_config=gaudi_config,
             beta=self.config["Training"].get("beta"),
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["validation"]
