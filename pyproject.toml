@@ -35,7 +35,8 @@ dependencies = [
     "pydantic-yaml",
     "async_timeout",
     "typer",
-    "matplotlib"
+    "matplotlib",
+    "trl==0.7.6"
 ]
 
 [project.optional-dependencies]
