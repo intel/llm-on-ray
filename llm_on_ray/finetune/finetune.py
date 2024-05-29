@@ -289,6 +289,7 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
     use_dpo = config["Training"].get("use_dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
+        common.logger.info("train cpu")
 
         training_args = convert_to_training_args(TrainingArguments, config)
         if use_dpo == True:

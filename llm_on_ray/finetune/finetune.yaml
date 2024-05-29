@@ -1,16 +1,22 @@
 General:
   trainer_type: "dpo"
-  base_model: mistralai/Mistral-7B-v0.1
+  base_model: mosaicml/mpt-7b
+  tokenizer_name: EleutherAI/gpt-neox-20b
   gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   save_strategy: no
   config:
     trust_remote_code: false
     use_auth_token: null
+  lora_config:
+    task_type: CAUSAL_LM
+    r: 8
+    lora_alpha: 32
+    lora_dropout: 0.1
   enable_gradient_checkpointing: false
 Dataset:
   data_type: "intel_orca"
-  train_file: "Intel/orca_dpo_pairs"
+  train_file: examples/data/sample_dpo_data.jsonl
   group: true
   max_length: 512
   block_size: 512
@@ -24,7 +30,7 @@ Training:
   batch_size: 1
   epochs: 3
   learning_rate: 1.0e-05
-  lr_scheduler: cosine
+  lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
   device: cpu
