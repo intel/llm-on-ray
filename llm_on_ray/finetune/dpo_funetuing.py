@@ -1,7 +1,8 @@
+import torch
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM
 
-from llm_on_ray.common.dataprocesser import DPOIntelOrcaProcesser
+from llm_on_ray import common
 
 
 class DPOFuneTuning:
@@ -30,7 +31,10 @@ class DPOFuneTuning:
         model_ref.config.use_cache = False
         return model_ref
 
-    def dpo_train(self, training_args, train_datasets, validation_datasets, tokenizer):
+    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
+        common.logger.info("dpo_train")
+        common.logger.info(tokenized_datasets)
+
         from trl import DPOTrainer
 
         lora_config = self.config["General"].get("lora_config", None)
@@ -40,8 +44,10 @@ class DPOFuneTuning:
             self.get_model_ref() if lora_config is not None else None,
             args=training_args,
             beta=self.config["Training"].get("beta"),
-            train_dataset=train_datasets,
-            eval_dataset=validation_datasets,
+            train_dataset=tokenized_datasets["train"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
@@ -51,7 +57,7 @@ class DPOFuneTuning:
 
 
 class GaudiDPOFuneTuning(DPOFuneTuning):
-    def dpo_train(self, training_args, train_datasets, validation_datasets, tokenizer):
+    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
         from optimum.habana.trl import GaudiDPOTrainer as DPOTrainer
 
         lora_config = self.config["General"].get("lora_config", None)
@@ -60,8 +66,10 @@ class GaudiDPOFuneTuning(DPOFuneTuning):
             self.get_model_ref() if lora_config is not None else None,
             args=training_args,
             beta=self.config["Training"].get("beta"),
-            train_dataset=train_datasets,
-            eval_dataset=validation_datasets,
+            train_dataset=tokenized_datasets["train"],
+            eval_dataset=tokenized_datasets["validation"]
+            if tokenized_datasets.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
