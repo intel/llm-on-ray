@@ -141,33 +141,49 @@ def load_dataset(config: Dict):
     if dataset_file is None:
         return
 
-    def local_load(name, **load_config):
-        if os.path.isfile(name):
-            file = os.path.basename(os.path.abspath(name))
-            path = os.path.dirname(os.path.abspath(name))
-            dataset = datasets.load_dataset(path, data_files=file, **load_config)
-        else:
-            dataset = datasets.load_dataset(name, **load_config)
-        return dataset["train"]
-
-    validation_file = config["Dataset"].get("validation_file", None)
-    validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
-
     if os.path.exists(dataset_file):
+        # load from local file
+        def local_load(name, **load_config):
+            if os.path.isfile(name):
+                file = os.path.basename(os.path.abspath(name))
+                path = os.path.dirname(os.path.abspath(name))
+                dataset = datasets.load_dataset(path, data_files=file, **load_config)
+            else:
+                dataset = datasets.load_dataset(name, **load_config)
+            return dataset["train"]
+
         train_dataset = local_load(dataset_file)
+        validation_file = config["Dataset"].get("validation_file", None)
         if validation_file is not None:
             validation_dataset = local_load(validation_file)
             return datasets.DatasetDict({"train": train_dataset, "validation": validation_dataset})
+
+        validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
         if validation_split_percentage / 100 > 0.0 and validation_split_percentage / 100 < 1.0:
-            datasets_dict = train_dataset.train_test_split(
+            dataset_dict = train_dataset.train_test_split(
                 test_size=validation_split_percentage / 100
             )
-            datasets_dict["validation"] = datasets_dict["test"]
-            return datasets_dict
+            dataset_dict["validation"] = dataset_dict["test"]
+            return dataset_dict
+
         return datasets.DatasetDict({"train": train_dataset})
     else:
+        # try to download and load dataset from huggingface.co
         load_config = config["General"].get("config", {})
-        return datasets.load_dataset(dataset_file, **load_config)
+        use_auth_token = load_config.get("use_auth_token", None)
+        raw_dataset = datasets.load_dataset(dataset_file, use_auth_token=use_auth_token)
+
+        validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
+        if "validation" not in raw_dataset.keys() and (
+            validation_split_percentage / 100 > 0.0 and validation_split_percentage / 100 < 1.0
+        ):
+            dataset_dict = raw_dataset["train"].train_test_split(
+                test_size=validation_split_percentage / 100
+            )
+            dataset_dict["validation"] = dataset_dict["test"]
+            return dataset_dict
+
+        return raw_dataset
 
 
 def tokenize_dataset(config: Dict, tokenizer, dataset):

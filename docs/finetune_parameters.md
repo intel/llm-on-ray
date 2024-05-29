@@ -10,7 +10,7 @@ The following are the parameters supported in the finetuning workflow.
 |tokenizer_name|None|Path to pretrained tokenizer from huggingface.co/models. If not provided, the tokenizer will be loaded from the `base_model`.|
 |gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model.|
-|report_to|none|The list of integrations to report the results and logs to.|
+|report_to|none|The list of integrations to report the results and logs to. Possible values are: "none", "tensorboard".|
 |resume_from_checkpoint|null|The path to a folder with a valid checkpoint for your model.|
 |save_strategy|no|The checkpoint save strategy to adopt during training. Possible values are: "no", "epoch", "steps".|
 |config|trust_remote_code: False<br> use_auth_token: None|Will be passed to the transformers `from_pretrained()` method|

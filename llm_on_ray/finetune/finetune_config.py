@@ -56,13 +56,18 @@ class General(BaseModel):
     gaudi_config_name: Optional[str] = None
     gpt_base_model: bool
     output_dir: str
-    report_to: Union[str, List[str]] = "none"
+    report_to: str = "none"
     resume_from_checkpoint: Optional[str] = None
     save_strategy: str = "no"
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
+
+    @validator("report_to")
+    def check_report_to(cls, v: str):
+        assert v in ["none", "tensorboard"]
+        return v
 
 
 class Dataset(BaseModel):
