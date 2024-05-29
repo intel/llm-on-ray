@@ -1,7 +1,8 @@
 General:
   trainer_type: "dpo"
-  base_model: EleutherAI/gpt-j-6b
-  gpt_base_model: true
+  base_model: mosaicml/mpt-7b
+  tokenizer_name: EleutherAI/gpt-neox-20b
+  gpt_base_model: false
   output_dir: /tmp/llm-ray/output
   save_strategy: no
   config:
@@ -21,7 +22,7 @@ Dataset:
 Training:
   optimizer: adamw_torch
   batch_size: 2
-  epochs: 3
+  epochs: 1
   learning_rate: 1.0e-05
   lr_scheduler: linear
   weight_decay: 0.0
