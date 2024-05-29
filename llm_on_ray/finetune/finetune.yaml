@@ -1,8 +1,6 @@
 General:
-  trainer_type: "dpo"
-  base_model: mosaicml/mpt-7b
-  tokenizer_name: EleutherAI/gpt-neox-20b
-  gpt_base_model: false
+  base_model: EleutherAI/gpt-j-6b
+  gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   save_strategy: no
   config:
@@ -15,26 +13,23 @@ General:
     lora_dropout: 0.1
   enable_gradient_checkpointing: false
 Dataset:
-  data_type: "intel_orca"
-  train_file: examples/data/sample_dpo_data.jsonl
+  train_file: examples/data/sample_finetune_data_small.jsonl
   group: true
   max_length: 512
   block_size: 512
   shuffle: false
   validation_file: null
   validation_split_percentage: 5
-  max_prompt_length: 512
-  pad_max: false
 Training:
-  optimizer: adamw_hf
-  batch_size: 1
+  optimizer: adamw_torch
+  batch_size: 2
   epochs: 3
   learning_rate: 1.0e-05
   lr_scheduler: linear
   weight_decay: 0.0
   mixed_precision: bf16
   device: cpu
-  num_training_workers: 1
+  num_training_workers: 2
   resources_per_worker:
     CPU: 32
   accelerate_mode: DDP

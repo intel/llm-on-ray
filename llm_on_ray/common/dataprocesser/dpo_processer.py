@@ -17,7 +17,6 @@ class DPOProcesser(DataProcesser):
 
 
 class DPOIntelOrcaProcesser(DPOProcesser):
-
     def return_prompt_and_responses(self, samples) -> Dict[str, str]:
         return {
             "prompt": " ".join(
@@ -31,17 +30,12 @@ class DPOIntelOrcaProcesser(DPOProcesser):
         }
 
     def tokenize_dataset(self, tokenizer, dataset):
-        common.logger.info("DPOIntelOrcaProcesser tokenize_dataset")
-
         tokenizer.pad_token = tokenizer.eos_token
         if isinstance(dataset, datasets.Dataset):
             column_names = dataset.column_names
 
         if isinstance(dataset, datasets.DatasetDict):
             column_names = dataset["train"].column_names
-        common.logger.info(dataset)
-        common.logger.info("column_names")
-        common.logger.info(column_names)
 
         raw_datasets = dataset.map(
             self.return_prompt_and_responses,
@@ -50,12 +44,12 @@ class DPOIntelOrcaProcesser(DPOProcesser):
             desc="Tokenize dataset",
         )
         train_dataset = raw_datasets["train"]
-        common.logger.info("raw_datasets train")
-        common.logger.info(train_dataset)
-
         column_names = train_dataset.column_names
-        common.logger.info("column_names 1")
-        common.logger.info(column_names)
+
+        """
+        Copied from https://github.com/intel/intel-extension-for-transformers/blob/5ba5fa8048b63bec8a3be8a7122a3db8344ad065/
+        intel_extension_for_transformers/neural_chat/examples/finetuning/dpo_pipeline/dpo_clm.py#L308
+        """
 
         def preprocess_function(examples):
             prompts = {p.strip() for p in examples["prompt"]}
@@ -75,7 +69,8 @@ class DPOIntelOrcaProcesser(DPOProcesser):
                 "rejected_attention_mask": [],
                 "rejected_labels": [],
                 "prompt_input_ids": [],
-                "prompt_attention_mask": []}
+                "prompt_attention_mask": [],
+            }
 
             for prompt, chosen, reject in zip(prompts, chosens, rejects):
                 prompt_tokens = tokenizer.tokenize(prompt, return_tensors="pt")
@@ -94,7 +89,7 @@ class DPOIntelOrcaProcesser(DPOProcesser):
                 chosen_mask = [1] * len(chosen_ids)
 
                 reject_tokens = tokenizer.tokenize(reject)
-                reject_tokens = reject_tokens[:max_resp - 1]
+                reject_tokens = reject_tokens[: max_resp - 1]
                 reject_tokens.append(tokenizer.eos_token)
                 reject_ids = tokenizer.convert_tokens_to_ids(reject_tokens)
                 reject_mask = [1] * len(reject_ids)
@@ -155,8 +150,6 @@ class DPOIntelOrcaProcesser(DPOProcesser):
         eval_dataset = raw_datasets["validation"]
         column_names = eval_dataset.column_names
 
-        common.logger.info("raw_datasets validation")
-        common.logger.info(eval_dataset)
         if eval_dataset is not None:
             eval_dataset = eval_dataset.map(
                 preprocess_function,
@@ -164,9 +157,6 @@ class DPOIntelOrcaProcesser(DPOProcesser):
                 remove_columns=column_names,
                 desc="Running tokenizer on validation dataset",
             )
-        common.logger.info("train_dataset")
-        common.logger.info(train_dataset)
-        common.logger.info("eval_dataset")
-        common.logger.info(eval_dataset)
         tokenized_datasets = {"train": train_dataset, "validation": eval_dataset}
+
         return tokenized_datasets

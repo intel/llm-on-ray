@@ -1,4 +1,5 @@
 General:
+  trainer_type: "dpo"
   base_model: EleutherAI/gpt-j-6b
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
@@ -13,7 +14,8 @@ General:
     lora_dropout: 0.1
   enable_gradient_checkpointing: false
 Dataset:
-  train_file: examples/data/sample_finetune_data_small.jsonl
+  data_type: "intel_orca"
+  train_file: examples/data/sample_dpo_data.jsonl
   validation_file: null
   validation_split_percentage: 5
 Training:
@@ -31,3 +33,5 @@ Training:
   accelerate_mode: DDP
   gradient_accumulation_steps: 1
   logging_steps: 10
+  use_dpo: True
+  beta: 0.1
