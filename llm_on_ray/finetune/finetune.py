@@ -289,6 +289,7 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
     use_dpo = config["Training"].get("use_dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
+
         common.logger.info("train cpu")
 
         training_args = convert_to_training_args(TrainingArguments, config)
@@ -324,12 +325,13 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         if use_dpo:
             trainer = GaudiDPOFuneTuning(config).dpo_train(
-                training_args, tokenized_datasets, tokenizer
+                training_args, gaudi_config, tokenized_datasets, tokenizer
             )
         else:
             trainer = GaudiTrainer(
                 model=model,
                 args=training_args,
+                gaudi_config=gaudi_config,
                 train_dataset=tokenized_datasets["train"],
                 eval_dataset=tokenized_datasets["validation"]
                 if tokenized_datasets.get("validation") is not None
