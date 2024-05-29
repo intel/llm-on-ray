@@ -4,6 +4,8 @@ route_prefix: /Qwen1.5-110B
 num_replicas: 1
 cpus_per_worker: 8
 hpus_per_worker: 1
+deepspeed: true
+workers_per_group: 8
 device: hpu
 model_description:
   model_id_or_path: Qwen/Qwen1.5-110B
