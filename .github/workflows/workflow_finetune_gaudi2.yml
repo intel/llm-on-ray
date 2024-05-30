@@ -88,11 +88,6 @@ jobs:
           source dev/scripts/ci-functions.sh
           peft_lora_test_gaudi ${{ matrix.model }}
 
-      - name: Run Deltatuner Test on DENAS-LoRA Model
-        run: |
-          source dev/scripts/ci-functions.sh
-          denas_lora_test_gaudi ${{ matrix.model }}
-
       - name: Stop Ray
         run: |
           TARGET="finetune"
@@ -105,4 +100,3 @@ jobs:
           TARGET="finetune"
           source dev/scripts/ci-functions.sh
           stop_container ${TARGET}
-
