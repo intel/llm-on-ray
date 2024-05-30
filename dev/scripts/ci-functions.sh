@@ -31,7 +31,27 @@ build_and_prune() {
     # Build Docker image and perform cleaning operation
     docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
     docker image prune -f
+}
 
+build_and_prune_gaudi() {
+    # Set TARGET and DF-SUFFIX using the passed in parameters
+    local TARGET=$1
+    local DF_SUFFIX=$2
+    local PYTHON_V=$3
+
+    docker_args=()
+    docker_args+=("--build-arg=CACHEBUST=1")
+
+    if [ -n "$PYTHON_V" ]; then
+        docker_args+=("--build-arg=python_v=${PYTHON_V}")
+    fi
+
+    echo "Build Docker image and perform cleaning operation"
+    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:habana && yes | docker container prune && yes | docker image prune -f"
+
+    # Build Docker image and perform cleaning operation
+    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:habana && yes | docker container prune && yes
+    docker image prune -f
 }
 
 start_docker() {
@@ -64,6 +84,41 @@ start_docker() {
         docker_args+=("-e=http_proxy=${HTTP_PROXY}")
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
+
+    echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
+    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
+    if [ -z "$HF_TOKEN" ]; then
+        echo "no hf token"
+    else
+        docker exec "${TARGET}" bash -c "huggingface-cli login --token ${HF_TOKEN}"
+    fi
+}
+
+start_docker_gaudi() {
+    local TARGET=$1
+    local code_checkout_path=$2
+    local model_cache_path=$3
+    local HF_TOKEN=$4
+
+    cid=$(docker ps -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+    # check and remove exited container
+    cid=$(docker ps -a -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+    docker ps -a
+
+    docker_args=()
+    docker_args+=("-v=${code_checkout_path}:${CODE_CHECKOUT_PATH_LOCAL}")
+
+    if [ -z "$model_cache_path" ];  then
+        echo "no cache path"
+    else
+        docker_args+=("-v=${model_cache_path}:${MODEL_CACHE_PATH_LOACL}")
+    fi
+
+    docker_args+=("--runtime=habana" )
+    docker_args+=("--name=${TARGET}" )
+    docker_args+=("--hostname=${TARGET}-container")
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
@@ -274,5 +329,37 @@ denas_lora_test(){
         docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
         echo Stert "${model}" peft lora finetune :
         docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
+    fi
+}
+
+finetune_test_gaudi(){
+    local model=$1
+    echo Set finetune source config :
+    docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
+    echo Set "${model}" patch_yaml_config :
+    docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune_gaudi.yaml" --models ${model} "
+    echo Stert "${model}" finetune :
+    docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune_gaudi.yaml"
+}
+
+peft_lora_test_gaudi(){
+    local model=$1
+    docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
+    echo Set "${model}" patch_yaml_config :
+    docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune_gaudi.yaml" --models ${model} --peft_lora"
+    echo Stert "${model}" peft lora finetune :
+    docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune_gaudi.yaml"
+}
+
+denas_lora_test_gaudi(){
+    local model=$1
+    if [[ ${model} =~ ^(mosaicml\/mpt-7b|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
+        echo ${model} is not supported!
+    else
+        docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
+        echo Set "${model}" patch_yaml_config :
+        docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune_gaudi.yaml" --models ${model} --peft_lora --denas_lora"
+        echo Stert "${model}" peft lora finetune :
+        docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune_gaudi.yaml"
     fi
 }
