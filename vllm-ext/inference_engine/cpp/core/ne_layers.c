@@ -10615,26 +10615,73 @@ static void ne_compute_backward(struct ne_context* ctx, struct ne_tensor* tensor
   }
 }
 
-static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
-  if (node->grad == NULL) {
-    // this usually happens when we generate intermediate nodes from constants in the backward pass
-    // it can also happen during forward pass, if the user performs computations with constants
-    if (node->op != NE_OP_NONE) {
-      // NE_PRINT_DEBUG("%s: warning: node %p has no grad, but op %d\n", __func__, (void *) node, node->op);
+// ne tensor hashing for quick lookup
+
+static size_t ne_hash_size(size_t min_sz) {
+    // next primes after powers of two
+    static const size_t primes[] = {
+        2, 3, 5, 11, 17, 37, 67, 131, 257, 521, 1031,
+        2053, 4099, 8209, 16411, 32771, 65537, 131101,
+        262147, 524309, 1048583, 2097169, 4194319, 8388617,
+        16777259, 33554467, 67108879, 134217757, 268435459,
+        536870923, 1073741827, 2147483659
+    };
+    static const size_t n_primes = sizeof(primes)/sizeof(primes[0]);
+
+    // find the smallest prime that is larger or equal to min_sz
+    size_t l = 0;
+    size_t r = n_primes;
+    while (l < r) {
+        size_t m = (l + r)/2;
+        if (primes[m] < min_sz) {
+            l = m + 1;
+        } else {
+            r = m;
+        }
     }
+    size_t sz = l < n_primes ? primes[l] : min_sz | 1;
+    return sz;
+}
+
+static size_t ne_hash(const void * p) {
+    return (size_t)p;
+}
+
+static size_t ne_hash_find(struct ne_tenser** hash_set, struct ne_tensor * key) {
+    size_t h = ne_hash(key) % NE_CGRAPH_HASHSET_SIZE;
+
+    // linear probing
+    size_t i = h;
+    while (hash_set[i] != NULL && hash_set[i] != key) {
+        i = (i + 1) % NE_CGRAPH_HASHSET_SIZE;
+        if (i == h) {
+            // visited all hash table entries -> not found
+            return NE_HASHTABLE_FULL;
+        }
+    }
+    return i;
+}
+
+static size_t ne_hash_insert(struct ne_tenser ** hash_set, struct ne_tensor * key) {
+  size_t i = ne_hash_find(hash_set, key);
+
+  NE_ASSERT(i != NE_HASHTABLE_FULL);
+
+  if (hash_set[i] == key) {
+      return NE_HASHTABLE_ALREADY_EXISTS;
   }
+
+  // insert
+  NE_ASSERT(hash_set[i] == NULL);
+  hash_set[i] = key;
+  return i;
+}
+
+static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
 
   // check if already visited
-  for (int i = 0; i < cgraph->n_nodes; i++) {
-    if (cgraph->nodes[i] == node) {
-      return;
-    }
-  }
-
-  for (int i = 0; i < cgraph->n_leafs; i++) {
-    if (cgraph->leafs[i] == node) {
-      return;
-    }
+  if (ne_hash_insert(&cgraph->visited_tensors_hashset, node) == NE_HASHTABLE_ALREADY_EXISTS) {
+    return;
   }
 
   if (node->src0) {
@@ -10651,7 +10698,7 @@ static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
     }
   }
 
-  if (node->op == NE_OP_NONE && node->grad == NULL) {
+  if (node->op == NE_OP_NONE) {
     // reached a leaf node, not part of the gradient graph (e.g. a constant)
     NE_ASSERT(cgraph->n_leafs < NE_MAX_NODES);
 
@@ -10661,7 +10708,6 @@ static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
     NE_ASSERT(cgraph->n_nodes < NE_MAX_NODES);
 
     cgraph->nodes[cgraph->n_nodes] = node;
-    cgraph->grads[cgraph->n_nodes] = node->grad;
     cgraph->n_nodes++;
   }
 }
@@ -10698,7 +10744,6 @@ struct ne_cgraph ne_build_forward(struct ne_tensor* tensor) {
       /*.work_size    =*/0,
       /*.work         =*/NULL,
       /*.nodes        =*/{NULL},
-      /*.grads        =*/{NULL},
       /*.leafs        =*/{NULL},
       /*.perf_runs    =*/0,
       /*.perf_cycles  =*/0,
@@ -10706,44 +10751,6 @@ struct ne_cgraph ne_build_forward(struct ne_tensor* tensor) {
   };
 
   ne_build_forward_impl(&result, tensor, false);
-
-  return result;
-}
-
-struct ne_cgraph ne_build_backward(struct ne_context* ctx, struct ne_cgraph* gf, bool keep) {
-  struct ne_cgraph result = *gf;
-
-  NE_ASSERT(gf->n_nodes > 0);
-
-  // if we are keeping the gradient graph, we have to detach the gradient nodes from the original graph
-  if (keep) {
-    for (int i = 0; i < gf->n_nodes; i++) {
-      struct ne_tensor* node = gf->nodes[i];
-
-      if (node->grad) {
-        node->grad = ne_dup_tensor(ctx, node);
-        gf->grads[i] = node->grad;
-      }
-    }
-  }
-
-  for (int i = gf->n_nodes - 1; i >= 0; i--) {
-    struct ne_tensor* node = gf->nodes[i];
-
-    // because we detached the grad nodes from the original graph, we can afford inplace operations
-    if (node->grad) {
-      ne_compute_backward(ctx, node, keep);
-    }
-  }
-
-  for (int i = gf->n_nodes - 1; i >= 0; i--) {
-    struct ne_tensor* node = gf->nodes[i];
-
-    if (node->is_param) {
-      NE_PRINT_DEBUG("%s: found root node %p\n", __func__, (void*)node);
-      ne_build_forward_impl(&result, node->grad, true);
-    }
-  }
 
   return result;
 }
@@ -10758,7 +10765,12 @@ struct ne_cgraph ne_build_backward(struct ne_context* ctx, struct ne_cgraph* gf,
 void ne_graph_compute(struct ne_context* ctx, struct ne_cgraph* cgraph) {
   int n_threads = cgraph->n_threads;
 
-  n_threads = bestla_set_threads(n_threads);
+  int set_threads_num = bestla_get_threads();
+  if (set_threads_num != n_threads) {
+    printf("%s: warning: n_threads changed from %d to %d\n", __func__, n_threads, set_threads_num);
+    n_threads = bestla_set_threads(n_threads);
+    printf("new number of thread: %d\n", n_threads);
+  }
   // initialize tasks + work buffer
   {
     size_t work_size = 0;
@@ -11138,16 +11150,6 @@ void ne_graph_profiling(const struct ne_cgraph* cgraph) {
 #endif
 }
 
-void ne_graph_reset(struct ne_cgraph* cgraph) {
-  for (int i = 0; i < cgraph->n_nodes; i++) {
-    struct ne_tensor* grad = cgraph->grads[i];
-
-    if (grad) {
-      ne_set_zero(grad);
-    }
-  }
-}
-
 void ne_graph_print(const struct ne_cgraph* cgraph) {
   int64_t perf_total_per_op_us[NE_OP_COUNT] = {0};
 
@@ -11336,655 +11338,6 @@ void ne_graph_dump_dot(const struct ne_cgraph* gb, const struct ne_cgraph* gf, c
   fclose(fp);
 
   NE_PRINT("%s: dot -Tpng %s -o %s.png && open %s.png\n", __func__, filename, filename, filename);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-static void ne_opt_set_params(int np, struct ne_tensor* const ps[], const float* x) {
-  int i = 0;
-  for (int p = 0; p < np; ++p) {
-    const int64_t ne = ne_nelements(ps[p]);
-    // TODO: add function to set tensor from array
-    for (int64_t j = 0; j < ne; ++j) {
-      ne_set_f32_1d(ps[p], j, x[i++]);
-    }
-  }
-}
-
-static void ne_opt_get_params(int np, struct ne_tensor* const ps[], float* x) {
-  int i = 0;
-  for (int p = 0; p < np; ++p) {
-    const int64_t ne = ne_nelements(ps[p]);
-    // TODO: add function to get all elements at once
-    for (int64_t j = 0; j < ne; ++j) {
-      x[i++] = ne_get_f32_1d(ps[p], j);
-    }
-  }
-}
-
-static void ne_opt_get_grad(int np, struct ne_tensor* const ps[], float* g) {
-  int i = 0;
-  for (int p = 0; p < np; ++p) {
-    const int64_t ne = ne_nelements(ps[p]);
-    // TODO: add function to get all elements at once
-    for (int64_t j = 0; j < ne; ++j) {
-      g[i++] = ne_get_f32_1d(ps[p]->grad, j);
-    }
-  }
-}
-
-//
-// ADAM
-//
-//   ref: https://arxiv.org/pdf/1412.6980.pdf
-//
-
-static enum ne_opt_result ne_opt_adam(struct ne_context* ctx, struct ne_opt_params params, struct ne_tensor* f,
-                                      struct ne_cgraph* gf, struct ne_cgraph* gb) {
-  NE_ASSERT(ne_is_scalar(f));
-
-  gf->n_threads = params.n_threads;
-  gb->n_threads = params.n_threads;
-
-  // these will store the parameters we want to optimize
-  struct ne_tensor* ps[NE_MAX_PARAMS];
-
-  int np = 0;
-  int nx = 0;
-  for (int i = 0; i < gf->n_nodes; ++i) {
-    if (gf->nodes[i]->is_param) {
-      NE_PRINT_DEBUG("found param %d: grad->op = %d\n", np, gf->nodes[i]->grad->op);
-
-      NE_ASSERT(np < NE_MAX_PARAMS);
-
-      ps[np++] = gf->nodes[i];
-      nx += ne_nelements(gf->nodes[i]);
-    }
-  }
-
-  // constants
-  const float alpha = params.adam.alpha;
-  const float beta1 = params.adam.beta1;
-  const float beta2 = params.adam.beta2;
-  const float eps = params.adam.eps;
-
-  float* x = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // view of the parameters
-  float* g1 = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // gradient
-  float* g2 = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // gradient squared
-  float* m = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // first moment
-  float* v = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // second moment
-  float* mh = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // first moment hat
-  float* vh = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // second moment hat
-
-  float* pf = params.past > 0 ? ne_new_tensor_1d(ctx, NE_TYPE_F32, params.past, NE_SIZE_CALC)->data
-                              : NULL;  // past function values
-
-  // initialize
-  ne_vec_set_f32(nx, m, 0.0f);
-  ne_vec_set_f32(nx, v, 0.0f);
-
-  // update view
-  ne_opt_get_params(np, ps, x);
-
-  // compute the function value
-  ne_graph_reset(gf);
-  ne_set_f32(f->grad, 1.0f);
-  ne_graph_compute(ctx, gb);
-
-  float fx_prev = ne_get_f32_1d(f, 0);
-  if (pf) {
-    pf[0] = fx_prev;
-  }
-
-  int n_no_improvement = 0;
-  float fx_best = fx_prev;
-
-  // run the optimizer
-  for (int t = 0; t < params.adam.n_iter; ++t) {
-    NE_PRINT_DEBUG("=== iter %d ===\n", t);
-
-    NE_PRINT_DEBUG("f      = %10.6f\n", ne_get_f32_1d(f, 0));
-    NE_PRINT_DEBUG_5("df/dx0 = %10.6f\n", ne_get_f32_1d(ps[0]->grad, 0));
-    NE_PRINT_DEBUG_5("df/dx1 = %10.6f\n", ne_get_f32_1d(ps[1]->grad, 0));
-
-    for (int i = 0; i < np; ++i) {
-      NE_PRINT_DEBUG("param %d: %10.6f, g = %10.6f\n", i, ne_get_f32_1d(ps[i], 0), ne_get_f32_1d(ps[i]->grad, 0));
-    }
-
-    const int64_t t_start_wall = ne_time_us();
-    const int64_t t_start_cpu = ne_cycles();
-    UNUSED(t_start_wall);
-    UNUSED(t_start_cpu);
-
-    {
-      // update the gradient
-      ne_opt_get_grad(np, ps, g1);
-
-      // m_t = beta1*m_t-1 + (1 - beta1)*g_t
-      ne_vec_scale_f32(nx, m, beta1);
-      ne_vec_mad_f32(nx, m, g1, 1.0f - beta1);
-
-      // g2 = g1^2
-      ne_vec_sqr_f32(nx, g2, g1);
-
-      // v_t = beta2*v_t-1 + (1 - beta2)*g_t^2
-      ne_vec_scale_f32(nx, v, beta2);
-      ne_vec_mad_f32(nx, v, g2, 1.0f - beta2);
-
-      // m^hat = m_t / (1 - beta1^t)
-      // v^hat = v_t / (1 - beta2^t)
-      // x_t = x_t-1 - alpha*m^hat/(sqrt(v^hat) + eps)
-      ne_vec_cpy_f32(nx, mh, m);
-      ne_vec_cpy_f32(nx, vh, v);
-
-      ne_vec_scale_f32(nx, mh, alpha / (1.0f - powf(beta1, t + 1)));
-      ne_vec_scale_f32(nx, vh, 1.0f / (1.0f - powf(beta2, t + 1)));
-
-      ne_vec_sqrt_f32(nx, vh, vh);
-      ne_vec_acc1_f32(nx, vh, eps);
-
-      ne_vec_div_f32(nx, mh, mh, vh);
-      ne_vec_sub_f32(nx, x, x, mh);
-
-      // update the parameters
-      ne_opt_set_params(np, ps, x);
-    }
-
-    ne_graph_reset(gf);
-    ne_set_f32(f->grad, 1.0f);
-    ne_graph_compute(ctx, gb);
-
-    const float fx = ne_get_f32_1d(f, 0);
-
-    // check convergence
-    if (fabsf(fx - fx_prev) / fx < params.adam.eps_f) {
-      NE_PRINT_DEBUG("converged\n");
-
-      return NE_OPT_OK;
-    }
-
-    // delta-based convergence test
-    if (pf != NULL) {
-      // need at least params.past iterations to start checking for convergence
-      if (params.past <= t) {
-        const float rate = (pf[t % params.past] - fx) / fx;
-
-        if (fabsf(rate) < params.delta) {
-          return NE_OPT_OK;
-        }
-      }
-
-      pf[t % params.past] = fx;
-    }
-
-    // check for improvement
-    if (params.max_no_improvement > 0) {
-      if (fx_best > fx) {
-        fx_best = fx;
-        n_no_improvement = 0;
-      } else {
-        ++n_no_improvement;
-
-        if (n_no_improvement >= params.max_no_improvement) {
-          return NE_OPT_OK;
-        }
-      }
-    }
-
-    fx_prev = fx;
-
-    {
-      const int64_t t_end_cpu = ne_cycles();
-      NE_PRINT_DEBUG("time iter:      %5.3f s\n", ((float)(t_end_cpu - t_start_cpu)) / CLOCKS_PER_SEC);
-      UNUSED(t_end_cpu);
-
-      const int64_t t_end_wall = ne_time_us();
-      NE_PRINT_DEBUG("wall time iter: %5.3f s\n", (t_end_wall - t_start_wall) / 1e6);
-      UNUSED(t_end_wall);
-    }
-  }
-
-  return NE_OPT_DID_NOT_CONVERGE;
-}
-
-//
-// L-BFGS
-//
-// the L-BFGS implementation below is based on the following implementation:
-//
-//   https://github.com/chokkan/liblbfgs
-//
-
-struct ne_lbfgs_iteration_data {
-  float alpha;
-  float ys;
-  float* s;
-  float* y;
-};
-
-static enum ne_opt_result linesearch_backtracking(struct ne_context* ctx, const struct ne_opt_params* params, int nx,
-                                                  float* x, float* fx, float* g, float* d, float* step, const float* xp,
-                                                  struct ne_tensor* f, struct ne_cgraph* gf, struct ne_cgraph* gb,
-                                                  const int np, struct ne_tensor* ps[]) {
-  int count = 0;
-
-  float width = 0.0f;
-  float dg = 0.0f;
-  float finit = 0.0f;
-  float dginit = 0.0f;
-  float dgtest = 0.0f;
-
-  const float dec = 0.5f;
-  const float inc = 2.1f;
-
-  if (*step <= 0.f) {
-    return NE_LINESEARCH_INVALID_PARAMETERS;
-  }
-
-  // compute the initial gradient in the search direction
-  ne_vec_dot_f32(nx, &dginit, g, d);
-
-  // make sure that d points to a descent direction
-  if (0 < dginit) {
-    return NE_LINESEARCH_FAIL;
-  }
-
-  // initialize local variables
-  finit = *fx;
-  dgtest = params->lbfgs.ftol * dginit;
-
-  while (true) {
-    ne_vec_cpy_f32(nx, x, xp);
-    ne_vec_mad_f32(nx, x, d, *step);
-
-    // evaluate the function and gradient values
-    {
-      ne_opt_set_params(np, ps, x);
-
-      ne_graph_reset(gf);
-      ne_set_f32(f->grad, 1.0f);
-      ne_graph_compute(ctx, gb);
-
-      ne_opt_get_grad(np, ps, g);
-
-      *fx = ne_get_f32_1d(f, 0);
-    }
-
-    ++count;
-
-    if (*fx > finit + (*step) * dgtest) {
-      width = dec;
-    } else {
-      // Armijo condition is satisfied
-      if (params->lbfgs.linesearch == NE_LINESEARCH_BACKTRACKING_ARMIJO) {
-        return count;
-      }
-
-      ne_vec_dot_f32(nx, &dg, g, d);
-
-      // check the Wolfe condition
-      if (dg < params->lbfgs.wolfe * dginit) {
-        width = inc;
-      } else {
-        if (params->lbfgs.linesearch == NE_LINESEARCH_BACKTRACKING_WOLFE) {
-          // regular Wolfe conditions
-          return count;
-        }
-
-        if (dg > -params->lbfgs.wolfe * dginit) {
-          width = dec;
-        } else {
-          // strong Wolfe condition (NE_LINESEARCH_BACKTRACKING_STRONG_WOLFE)
-          return count;
-        }
-        return count;
-      }
-    }
-
-    if (*step < params->lbfgs.min_step) {
-      return NE_LINESEARCH_MINIMUM_STEP;
-    }
-    if (*step > params->lbfgs.max_step) {
-      return NE_LINESEARCH_MAXIMUM_STEP;
-    }
-    if (params->lbfgs.max_linesearch <= count) {
-      return NE_LINESEARCH_MAXIMUM_ITERATIONS;
-    }
-
-    (*step) *= width;
-  }
-
-  return NE_LINESEARCH_FAIL;
-}
-
-static enum ne_opt_result ne_opt_lbfgs(struct ne_context* ctx, struct ne_opt_params params, struct ne_tensor* f,
-                                       struct ne_cgraph* gf, struct ne_cgraph* gb) {
-  if (params.lbfgs.linesearch == NE_LINESEARCH_BACKTRACKING_WOLFE ||
-      params.lbfgs.linesearch == NE_LINESEARCH_BACKTRACKING_STRONG_WOLFE) {
-    if (params.lbfgs.wolfe <= params.lbfgs.ftol || 1.f <= params.lbfgs.wolfe) {
-      return NE_OPT_INVALID_WOLFE;
-    }
-  }
-
-  gf->n_threads = params.n_threads;
-  gb->n_threads = params.n_threads;
-
-  const int m = params.lbfgs.m;
-
-  // these will store the parameters we want to optimize
-  struct ne_tensor* ps[NE_MAX_PARAMS];
-
-  int np = 0;
-  int nx = 0;
-  for (int i = 0; i < gf->n_nodes; ++i) {
-    if (gf->nodes[i]->is_param) {
-      NE_PRINT_DEBUG("found param %d: grad->op = %d\n", np, gf->nodes[i]->grad->op);
-
-      NE_ASSERT(np < NE_MAX_PARAMS);
-
-      ps[np++] = gf->nodes[i];
-      nx += ne_nelements(gf->nodes[i]);
-    }
-  }
-
-  float* x = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // current parameters
-  float* xp = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // previous parameters
-  float* g = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // current gradient
-  float* gp = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;  // previous gradient
-  float* d = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;   // search direction
-
-  float* pf = params.past > 0 ? ne_new_tensor_1d(ctx, NE_TYPE_F32, params.past, NE_SIZE_CALC)->data
-                              : NULL;  // past function values
-
-  float fx = 0.0f;     // cost function value
-  float xnorm = 0.0f;  // ||x||
-  float gnorm = 0.0f;  // ||g||
-  float step = 0.0f;
-
-  // initialize x from the graph nodes
-  ne_opt_get_params(np, ps, x);
-
-  // the L-BFGS memory
-  struct ne_lbfgs_iteration_data* lm = alloca(sizeof(struct ne_lbfgs_iteration_data) * m);
-
-  for (int i = 0; i < m; ++i) {
-    lm[i].alpha = 0.0f;
-    lm[i].ys = 0.0f;
-    lm[i].s = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;
-    lm[i].y = ne_new_tensor_1d(ctx, NE_TYPE_F32, nx, NE_SIZE_CALC)->data;
-  }
-
-  // evaluate the function value and its gradient
-  {
-    ne_opt_set_params(np, ps, x);
-
-    ne_graph_reset(gf);
-    ne_set_f32(f->grad, 1.0f);
-    ne_graph_compute(ctx, gb);
-
-    ne_opt_get_grad(np, ps, g);
-
-    fx = ne_get_f32_1d(f, 0);
-  }
-
-  if (pf) {
-    pf[0] = fx;
-  }
-
-  float fx_best = fx;
-
-  // search direction = -gradient
-  ne_vec_neg_f32(nx, d, g);
-
-  // ||x||, ||g||
-  ne_vec_norm_f32(nx, &xnorm, x);
-  ne_vec_norm_f32(nx, &gnorm, g);
-
-  if (xnorm < 1.0f) {
-    xnorm = 1.0f;
-  }
-
-  // already optimized
-  if (gnorm / xnorm <= params.lbfgs.eps) {
-    return NE_OPT_OK;
-  }
-
-  // initial step
-  ne_vec_norm_inv_f32(nx, &step, d);
-
-  int j = 0;
-  int k = 1;
-  int ls = 0;
-  int end = 0;
-  int bound = 0;
-  int n_no_improvement = 0;
-
-  float ys = 0.0f;
-  float yy = 0.0f;
-  float beta = 0.0f;
-
-  while (true) {
-    // store the current position and gradient vectors
-    ne_vec_cpy_f32(nx, xp, x);
-    ne_vec_cpy_f32(nx, gp, g);
-
-    ls = linesearch_backtracking(ctx, &params, nx, x, &fx, g, d, &step, xp, f, gf, gb, np, ps);
-
-    if (ls < 0) {
-      // linesearch failed - go back to the previous point and return
-      ne_vec_cpy_f32(nx, x, xp);
-      ne_vec_cpy_f32(nx, g, gp);
-
-      return ls;
-    }
-
-    ne_vec_norm_f32(nx, &xnorm, x);
-    ne_vec_norm_f32(nx, &gnorm, g);
-
-    NE_PRINT_DEBUG("f = %10.6f\n", ne_get_f32_1d(f, 0));
-
-    if (xnorm < 1.0f) {
-      xnorm = 1.0f;
-    }
-    if (gnorm / xnorm <= params.lbfgs.eps) {
-      // converged
-      return NE_OPT_OK;
-    }
-
-    // delta-based convergence test
-    if (pf != NULL) {
-      // need at least params.past iterations to start checking for convergence
-      if (params.past <= k) {
-        const float rate = (pf[k % params.past] - fx) / fx;
-
-        if (fabsf(rate) < params.delta) {
-          return NE_OPT_OK;
-        }
-      }
-
-      pf[k % params.past] = fx;
-    }
-
-    // check for improvement
-    if (params.max_no_improvement > 0) {
-      if (fx < fx_best) {
-        fx_best = fx;
-        n_no_improvement = 0;
-      } else {
-        n_no_improvement++;
-
-        if (n_no_improvement >= params.max_no_improvement) {
-          return NE_OPT_OK;
-        }
-      }
-    }
-
-    if (params.lbfgs.n_iter != 0 && params.lbfgs.n_iter < k + 1) {
-      // reached the maximum number of iterations
-      return NE_OPT_DID_NOT_CONVERGE;
-    }
-
-    // update vectors s and y:
-    //   s_{k+1} = x_{k+1} - x_{k} = \step * d_{k}.
-    //   y_{k+1} = g_{k+1} - g_{k}.
-    //
-    ne_vec_sub_f32(nx, lm[end].s, x, xp);
-    ne_vec_sub_f32(nx, lm[end].y, g, gp);
-
-    // compute scalars ys and yy:
-    //     ys = y^t \cdot s    -> 1 / \rho.
-    //     yy = y^t \cdot y.
-    //
-    ne_vec_dot_f32(nx, &ys, lm[end].y, lm[end].s);
-    ne_vec_dot_f32(nx, &yy, lm[end].y, lm[end].y);
-
-    lm[end].ys = ys;
-
-    // find new search direction
-    //   ref: https://en.wikipedia.org/wiki/Limited-memory_BFGS
-
-    bound = (m <= k) ? m : k;
-    k++;
-    end = (end + 1) % m;
-
-    // initialize search direction with -g
-    ne_vec_neg_f32(nx, d, g);
-
-    j = end;
-    for (int i = 0; i < bound; ++i) {
-      j = (j + m - 1) % m;
-      // \alpha_{j} = \rho_{j} s^{t}_{j} \cdot q_{k+1}
-      ne_vec_dot_f32(nx, &lm[j].alpha, lm[j].s, d);
-      lm[j].alpha /= lm[j].ys;
-      // q_{i} = q_{i+1} - \alpha_{i} y_{i}
-      ne_vec_mad_f32(nx, d, lm[j].y, -lm[j].alpha);
-    }
-
-    ne_vec_scale_f32(nx, d, ys / yy);
-
-    for (int i = 0; i < bound; ++i) {
-      // \beta_{j} = \rho_{j} y^t_{j} \cdot \gamma_{i}
-      ne_vec_dot_f32(nx, &beta, lm[j].y, d);
-      beta /= lm[j].ys;
-      // \gamma_{i+1} = \gamma_{i} + (\alpha_{j} - \beta_{j}) s_{j}
-      ne_vec_mad_f32(nx, d, lm[j].s, lm[j].alpha - beta);
-      j = (j + 1) % m;
-    }
-
-    step = 1.0;
-  }
-
-  return NE_OPT_DID_NOT_CONVERGE;
-}
-
-struct ne_opt_params ne_opt_default_params(enum ne_opt_type type) {
-  struct ne_opt_params result;
-
-  switch (type) {
-    case NE_OPT_ADAM: {
-      result = (struct ne_opt_params){
-          .type = NE_OPT_ADAM,
-          .n_threads = 1,
-          .past = 0,
-          .delta = 1e-5f,
-
-          .max_no_improvement = 100,
-
-          .print_forward_graph = true,
-          .print_backward_graph = true,
-
-          .adam =
-              {
-                  .n_iter = 10000,
-                  .alpha = 0.001f,
-                  .beta1 = 0.9f,
-                  .beta2 = 0.999f,
-                  .eps = 1e-8f,
-                  .eps_f = 1e-5f,
-                  .eps_g = 1e-3f,
-              },
-      };
-    } break;
-    case NE_OPT_LBFGS: {
-      result = (struct ne_opt_params){
-          .type = NE_OPT_LBFGS,
-          .n_threads = 1,
-          .past = 0,
-          .delta = 1e-5f,
-
-          .max_no_improvement = 0,
-
-          .print_forward_graph = true,
-          .print_backward_graph = true,
-
-          .lbfgs =
-              {
-                  .m = 6,
-                  .n_iter = 100,
-                  .max_linesearch = 20,
-
-                  .eps = 1e-5f,
-                  .ftol = 1e-4f,
-                  .wolfe = 0.9f,
-                  .min_step = 1e-20f,
-                  .max_step = 1e+20f,
-
-                  .linesearch = NE_LINESEARCH_DEFAULT,
-              },
-      };
-    } break;
-  }
-
-  return result;
-}
-
-enum ne_opt_result ne_opt(struct ne_context* ctx, struct ne_opt_params params, struct ne_tensor* f) {
-  bool free_ctx = false;
-  if (ctx == NULL) {
-    struct ne_init_params params_ctx = {
-        .mem_size = 16 * 1024 * 1024,
-        .mem_buffer = NULL,
-        .no_alloc = false,
-    };
-
-    ctx = ne_init(params_ctx);
-    if (ctx == NULL) {
-      return NE_OPT_NO_CONTEXT;
-    }
-
-    free_ctx = true;
-  }
-
-  enum ne_opt_result result = NE_OPT_OK;
-
-  // build forward + backward compute graphs
-  struct ne_cgraph gf = ne_build_forward(f);
-  struct ne_cgraph gb = ne_build_backward(ctx, &gf, true);
-
-  switch (params.type) {
-    case NE_OPT_ADAM: {
-      result = ne_opt_adam(ctx, params, f, &gf, &gb);
-    } break;
-    case NE_OPT_LBFGS: {
-      result = ne_opt_lbfgs(ctx, params, f, &gf, &gb);
-    } break;
-  }
-
-  if (params.print_forward_graph) {
-    ne_graph_print(&gf);
-    ne_graph_dump_dot(&gf, NULL, "opt-forward.dot");
-  }
-
-  if (params.print_backward_graph) {
-    ne_graph_print(&gb);
-    ne_graph_dump_dot(&gb, &gf, "opt-backward.dot");
-  }
-
-  if (free_ctx) {
-    ne_free(ctx);
-  }
-
-  return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -159,22 +159,36 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
     memcpy(static_cast<model_token*>(embd->data) + cpy_off, inputs[i].tokens, n_tokens[i] * ne_element_size(embd));
     cpy_off += n_tokens[i];
   }
+  
 
   struct ne_tensor* inpL = ne_get_rows(ctx0, model.others[0], embd);
+  int64_t t1 = ne_time_us();
+  printf("prepare time: %ld\n", t1 - t_start_us);
   for (int il = 0; il < n_layer; ++il) {
+    int64_t t00 = ne_time_us();
     struct ne_tensor* inpSA = inpL;
 
     struct ne_tensor* cur;
 
     lctx.use_buf(ctx0, 0);
 
+    int64_t t01 = ne_time_us();
+    printf("--------use buf time: %ld\n", t01 - t00);
+
     // norm
     {
       cur = ne_rms_norm(ctx0, inpL, hparams.norm_eps);
+      int64_t t02 = ne_time_us();
+      printf("--------rms norm time: %ld\n", t02 - t01);
 
       // cur = cur*attention_norm(broadcasted)
       cur = ne_mul(ctx0, cur, model.layers[il].norm[0]);
+      int64_t t03 = ne_time_us();
+      printf("--------mul time: %ld\n", t03 - t02);
     }
+    int64_t t2 = ne_time_us();
+    printf("========norm time: %ld\n", t2 - t01);
+    
     ne_tensor *Qcur, *Kcur, *Vcur;
     if (bestla_fusion_QKV_f32f32_support(model.layers[il].attn[0]->data, model.layers[il].attn[1]->data,
                                          model.layers[il].attn[2]->data, seq_len_sum, model.layers[il].attn[0]->ne[1],
@@ -196,6 +210,10 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
                            infer_bs);
       Vcur = ne_mul_mat(ctx0, model.layers[il].attn[2], cur);
     }
+
+    int64_t t3 = ne_time_us();
+    printf("QKV reshape time: %ld\n", t3 - t2);
+
     if (concat_multi_seqs) {
       size_t off_sl = 0;
       // per_request rope
@@ -207,14 +225,20 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
             ne_view_4d(ctx0, Qcur, head_size, n_head, qk_sl, qk_bs, ne_element_size(Qcur) * head_size,
                        ne_element_size(Qcur) * head_size * n_head, ne_element_size(Qcur) * head_size * n_head * qk_sl,
                        off_sl * n_head * ne_element_size(Qcur));
+        // int64_t t001 = ne_time_us();
         ne_build_forward_expand(
             &gf, ne_rope_inplace(ctx0, Qcur_req, qk_n_past, n_rot, 0, 0, hparams.freq_base, hparams.freq_scale));
+        int64_t t002 = ne_time_us();
+        // printf("+++++++++++build expand time qkv1: %ld\n", t002 - t001);
         struct ne_tensor* Kcur_req = ne_view_4d(
             ctx0, Kcur, head_size, n_head_kv, qk_sl, qk_bs, ne_element_size(Kcur) * head_size,
             ne_element_size(Kcur) * head_size * n_head_kv, ne_element_size(Kcur) * head_size * n_head_kv * qk_sl,
             off_sl * n_head_kv * ne_element_size(Kcur));
+        // int64_t t003 = ne_time_us();
         ne_build_forward_expand(
             &gf, ne_rope_inplace(ctx0, Kcur_req, qk_n_past, n_rot, 0, 0, hparams.freq_base, hparams.freq_scale));
+        // int64_t t004 = ne_time_us();
+        // printf("+++++++++++build expand time qkv2: %ld\n", t004 - t003);
         off_sl += head_size * qk_bs * qk_sl;
       }
     } else {
@@ -222,11 +246,15 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
                              hparams.freq_scale);
       Kcur = ne_rope_inplace(  // n_ctx exceeds but it will be shift-roped back with cached K
           ctx0, Kcur, n_past, n_rot, 0, 0, hparams.freq_base, hparams.freq_scale);
-      // Vcur = ne_transpose(ctx0, ne_reshape_2d(ctx0, Vcur, head_size * n_head_kv, N));
+    //   Vcur = ne_transpose(ctx0, ne_reshape_2d(ctx0, Vcur, head_size * n_head_kv, N));
     }
     ne_set_name(Qcur, "Qcur");
     ne_set_name(Kcur, "Kcur");
     ne_set_name(Vcur, "Vcur");
+
+    int64_t t4 = ne_time_us();
+    printf("seq concate time: %ld\n", t4 - t3);
+
     // self-attention
     const float attn_scale = 1.0f / sqrtf(static_cast<float>(head_size));
     struct ne_tensor* KQV_merged_contiguous =
@@ -436,6 +464,9 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
       cur = ne_mul_mat(ctx0, model.layers[il].attn[3], KQV_merged_contiguous);
     }
 
+    int64_t t5 = ne_time_us();
+    printf("self attention time: %ld\n", t5 - t4);
+
     lctx.use_buf(ctx0, 1);
 
     struct ne_tensor* inpFF = ne_add(ctx0, cur, inpSA);
@@ -532,11 +563,19 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
       }
     }
 
+    int64_t t6 = ne_time_us();
+    printf("feedforward time: %ld\n", t6 - t5);
+
     cur = ne_add(ctx0, cur, inpFF);
+
+    int64_t t7 = ne_time_us();
+    printf("add time: %ld\n", t7 - t6);
 
     // input for next layer
     inpL = cur;
   }
+  int64_t t8 = ne_time_us();
+  printf("all layers time: %ld\n", t8 - t1);
 
   lctx.use_buf(ctx0, 0);
 
@@ -552,6 +591,9 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
     // embeddings = inpL;
   }
 
+  int64_t t9 = ne_time_us();
+  printf("norm afterward time: %ld\n", t9 - t8);
+
   // lm_head
   // inpL = ne_mul_mat(ctx0, model.others[2], inpL);
 
@@ -560,9 +602,40 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   // logits -> probs
   // inpL = ne_soft_max_inplace(ctx0, inpL);
 
+  printf("graph time: %ld\n", ne_time_us() - t_start_us);
+
+
+  // DEBUG, TODO REMOVE
+  // int64_t tt = ne_time_us();
+  // int count = 0;
+  // struct ne_tensor* src = ne_new_tensor_1d(ctx0, NE_TYPE_F32, n_embd * seq_len_sum, NE_SIZE_CALC);
+  // for (ne_object* no = ctx0->objects_begin; no != ctx0->objects_end; no = no->next) {
+  //     struct ne_tensor* nt = (struct ne_tensor*)(ctx0->mem_buffer + no->offs);
+  //     memcpy(nt, src, sizeof(ne_tensor));
+  //     nt->ne[0] = 1;
+  //     nt->ne[1] = 1;
+  //     nt->ne[2] = 1;
+  //     nt->ne[3] = 1;
+  //     nt->nb[0] = 1;
+  //     nt->nb[1] = 1;
+  //     nt->nb[2] = 1;
+  //     nt->nb[3] = 1;
+  //     count++;
+  // }
+  // printf("copy %d objects time: %ld\n", count, ne_time_us() - tt);
+  // throw std::runtime_error("stop");
+
+  
   // run the computation
   ne_build_forward_expand(&gf, inpL);
+
+  int64_t t10 = ne_time_us();
+  printf("expand time: %ld\n", t10 - t9);
+
   ne_graph_compute(ctx0, &gf);
+
+  int64_t t11 = ne_time_us();
+  printf("compute time: %ld\n", t11 - t10);
 
   if (ns_log_level() == 0 || ns_log_level() == 2) {
     ne_graph_profiling(&gf);
@@ -574,7 +647,6 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   // extract last hidden states
   {
     auto& hidden_states_out = lctx.last_hidden_states;
-
     hidden_states_out.resize(n_embd * seq_len_sum);
     memcpy(hidden_states_out.data(), reinterpret_cast<float*>(ne_get_data(inpL)), sizeof(float) * n_embd * seq_len_sum);
   }

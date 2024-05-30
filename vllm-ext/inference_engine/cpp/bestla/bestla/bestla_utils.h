@@ -14,7 +14,7 @@
 #pragma once
 #include <type_traits>
 
-#if defined(_OPENMP) && defined(BTLA_USE_OPENMP)
+#if defined(_OPENMP) && defined(BTLA_ENABLE_OPENMP)
 #define BTLA_OPENMP 1
 #else
 #define BTLA_OPENMP 0

@@ -40,6 +40,9 @@ _PERF_STATS: Dict[str, int] = {
 _LAST_CALL = 0
 _CALL_CNT = 0
 
+# import torch
+# torch.set_num_threads(10)
+
 # allow ns quantization
 #==========================================================================================
 vllm_config = importlib.import_module('vllm.config')

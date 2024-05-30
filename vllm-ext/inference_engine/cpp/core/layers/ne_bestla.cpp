@@ -37,6 +37,10 @@ int bestla_set_threads(int _nth) {
   return ne_bestla::ne_threading::get()->num_threads();
 }
 
+int bestla_get_threads() {
+  return ne_bestla::ne_threading::get()->num_threads();
+}
+
 void* bestla_get_thread_handle() { return ne_bestla::ne_threading::get(); }
 
 void bestla_parallel_for(forward_compute_fptr fcomp, ne_compute_params* mainparams, ne_tensor* node) {

@@ -22,6 +22,8 @@ void bestla_timer(bool _init);
 
 int bestla_set_threads(int _nth);
 
+int bestla_get_threads();
+
 void* bestla_get_thread_handle();
 
 typedef void (*forward_compute_fptr)(struct ne_compute_params*, struct ne_tensor*);

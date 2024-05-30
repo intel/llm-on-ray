@@ -486,7 +486,6 @@ NE_API struct ne_cgraph ne_build_forward(struct ne_tensor* tensor);
 NE_API struct ne_cgraph ne_build_backward(struct ne_context* ctx, struct ne_cgraph* gf, bool keep);
 
 NE_API void ne_graph_compute(struct ne_context* ctx, struct ne_cgraph* cgraph);
-NE_API void ne_graph_reset(struct ne_cgraph* cgraph);
 
 // print info and performance information for the graph
 NE_API void ne_graph_print(const struct ne_cgraph* cgraph);
@@ -589,9 +588,6 @@ struct ne_opt_params {
 };
 
 NE_API struct ne_opt_params ne_opt_default_params(enum ne_opt_type type);
-
-// optimize the function defined by the tensor f
-NE_API enum ne_opt_result ne_opt(struct ne_context* ctx, struct ne_opt_params params, struct ne_tensor* f);
 
 //
 // quantization

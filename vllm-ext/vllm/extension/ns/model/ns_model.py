@@ -24,6 +24,8 @@ from vllm.logger import init_logger
 
 from vllm.extension import ns
 
+import threading
+
 logger = init_logger(__name__)
 
 class NSModel(nn.Module):
@@ -70,7 +72,7 @@ class NSModel(nn.Module):
         # get available cores
         try:
             # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
-            threads = 52
+            threads = 32
             logger.info("Using %d threads inside ray worker for inference engine", threads)
             self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
                                     max_new_tokens=model_config.max_model_len,
@@ -177,6 +179,7 @@ def set_more_metadata(attn_metadata, kv_cache: torch.Tensor, seq_group_metadata_
 from time import perf_counter
 
 # modified execute_model in cpu_model_runner.py to pass sequence_id and convert tensor to int32 for now
+@torch.inference_mode()
 def execute_model(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
@@ -184,7 +187,9 @@ def execute_model(
     ) -> Optional[SamplerOutput]:
         (input_tokens, input_positions, attn_metadata, sampling_metadata, multi_modal_input
          ) = self.prepare_input_tensors(seq_group_metadata_list)
+        # print("exe_model thread id: ", threading.get_native_id())
         t0 = perf_counter()
+
         if ns._LAST_CALL > 0:
             ns._PERF_STATS['non_execution'] = ns._PERF_STATS['non_execution'] + t0 - ns._LAST_CALL
         set_more_metadata(attn_metadata, kv_caches[0], seq_group_metadata_list)
@@ -241,7 +246,7 @@ def execute_model(
         ns._CALL_CNT = ns._CALL_CNT + 1
         ns._LAST_CALL = perf_counter()
 
-        if ns._CALL_CNT % 1000 == 0:
+        if ns._CALL_CNT % 100 == 0:
             benchmarks = {key : value / ns._CALL_CNT for key, value in ns._PERF_STATS.items()}
             print(f"===execution_model: {benchmarks}")
 

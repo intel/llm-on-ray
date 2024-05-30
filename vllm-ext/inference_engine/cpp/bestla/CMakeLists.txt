@@ -32,7 +32,7 @@ target_include_directories(
 
 if(BTLA_ENABLE_OPENMP)
   message(STATUS "BesTLA enable OpenMP ThreadPool")
-  target_compile_definitions(${PROJECT_NAME} INTERFACE BTLA_USE_OPENMP)
+  target_compile_definitions(${PROJECT_NAME} INTERFACE BTLA_ENABLE_OPENMP)
 endif(BTLA_ENABLE_OPENMP)
 
 if(WIN32)

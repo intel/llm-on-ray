@@ -38,6 +38,7 @@
 
 #define NE_MAX_DIMS 4
 #define NE_MAX_NODES 40960
+#define NE_CGRAPH_HASHSET_SIZE 131101 // ne_hash_size(NE_MAX_NODES * 2)
 #define NE_MAX_PARAMS 256
 #define NE_MAX_CONTEXTS 64
 #define NE_MAX_OPT 36
@@ -45,6 +46,9 @@
 #define NE_MAX_OP_PARAMS 32
 
 #define NE_SIZE_CALC -1
+
+#define NE_HASHTABLE_FULL ((size_t)-1)
+#define NE_HASHTABLE_ALREADY_EXISTS ((size_t)-2)
 
 #if __AVX512F__
 #define NE_ALIGNMENT 64
@@ -190,13 +194,15 @@ struct ne_cgraph {
   int n_nodes;
   int n_leafs;
   int n_threads;
+  int last_nthreads;
 
   size_t work_size;
   struct ne_tensor* work;
 
   struct ne_tensor* nodes[NE_MAX_NODES];
-  struct ne_tensor* grads[NE_MAX_NODES];
   struct ne_tensor* leafs[NE_MAX_NODES];
+
+  struct ne_tensor* visited_tensors_hashset[NE_CGRAPH_HASHSET_SIZE];
 
   // performance
   int perf_runs;
