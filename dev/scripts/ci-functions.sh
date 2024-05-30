@@ -120,8 +120,8 @@ start_docker_gaudi() {
     docker_args+=("--name=${TARGET}" )
     docker_args+=("--hostname=${TARGET}-container")
 
-    echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
-    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
+    echo "docker run -tid  "${docker_args[@]}" "${TARGET}:habana""
+    docker run -tid  "${docker_args[@]}" "${TARGET}:habana"
     if [ -z "$HF_TOKEN" ]; then
         echo "no hf token"
     else
