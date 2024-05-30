@@ -44,12 +44,6 @@ class LoraConfig(BaseModel):
     target_modules: Optional[List[str]] = None
 
 
-class DeltatunerConfig(BaseModel):
-    algo: str
-    denas: bool
-    best_model_structure: str
-
-
 class General(BaseModel):
     base_model: str
     tokenizer_name: Optional[str] = None
@@ -61,7 +55,6 @@ class General(BaseModel):
     save_strategy: str = "no"
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
-    deltatuner_config: Optional[DeltatunerConfig] = None
     enable_gradient_checkpointing: bool = False
 
     @validator("report_to")

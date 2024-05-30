@@ -133,7 +133,7 @@ class ModelDescription(BaseModel):
     @validator("peft_type")
     def _check_perftype(cls, v: str):
         if v:
-            assert v in ["lora", "adalora", "deltatuner"]
+            assert v in ["lora", "adalora"]
         return v
 
 
