@@ -10683,6 +10683,16 @@ static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
   if (ne_hash_insert(&cgraph->visited_tensors_hashset, node) == NE_HASHTABLE_ALREADY_EXISTS) {
     return;
   }
+  // for (int i = 0; i < cgraph->n_nodes; i++) {
+  //   if (cgraph->nodes[i] == node) {
+  //     return;
+  //   }
+  // }
+  // for (int i = 0; i < cgraph->n_leafs; i++) {
+  //   if (cgraph->leafs[i] == node) {
+  //     return;
+  //   }
+  // }
 
   if (node->src0) {
     ne_visit_parents(cgraph, node->src0);

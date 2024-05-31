@@ -163,31 +163,31 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
 
   struct ne_tensor* inpL = ne_get_rows(ctx0, model.others[0], embd);
   int64_t t1 = ne_time_us();
-  printf("prepare time: %ld\n", t1 - t_start_us);
+  // printf("prepare time: %ld\n", t1 - t_start_us);
   for (int il = 0; il < n_layer; ++il) {
-    int64_t t00 = ne_time_us();
+    // int64_t t00 = ne_time_us();
     struct ne_tensor* inpSA = inpL;
 
     struct ne_tensor* cur;
 
     lctx.use_buf(ctx0, 0);
 
-    int64_t t01 = ne_time_us();
-    printf("--------use buf time: %ld\n", t01 - t00);
+    // int64_t t01 = ne_time_us();
+    // printf("--------use buf time: %ld\n", t01 - t00);
 
     // norm
     {
       cur = ne_rms_norm(ctx0, inpL, hparams.norm_eps);
-      int64_t t02 = ne_time_us();
-      printf("--------rms norm time: %ld\n", t02 - t01);
+      // int64_t t02 = ne_time_us();
+      // printf("--------rms norm time: %ld\n", t02 - t01);
 
       // cur = cur*attention_norm(broadcasted)
       cur = ne_mul(ctx0, cur, model.layers[il].norm[0]);
-      int64_t t03 = ne_time_us();
-      printf("--------mul time: %ld\n", t03 - t02);
+      // int64_t t03 = ne_time_us();
+      // printf("--------mul time: %ld\n", t03 - t02);
     }
-    int64_t t2 = ne_time_us();
-    printf("========norm time: %ld\n", t2 - t01);
+    // int64_t t2 = ne_time_us();
+    // printf("========norm time: %ld\n", t2 - t01);
     
     ne_tensor *Qcur, *Kcur, *Vcur;
     if (bestla_fusion_QKV_f32f32_support(model.layers[il].attn[0]->data, model.layers[il].attn[1]->data,
@@ -211,8 +211,8 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
       Vcur = ne_mul_mat(ctx0, model.layers[il].attn[2], cur);
     }
 
-    int64_t t3 = ne_time_us();
-    printf("QKV reshape time: %ld\n", t3 - t2);
+    // int64_t t3 = ne_time_us();
+    // printf("QKV reshape time: %ld\n", t3 - t2);
 
     if (concat_multi_seqs) {
       size_t off_sl = 0;
@@ -252,8 +252,8 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
     ne_set_name(Kcur, "Kcur");
     ne_set_name(Vcur, "Vcur");
 
-    int64_t t4 = ne_time_us();
-    printf("seq concate time: %ld\n", t4 - t3);
+    // int64_t t4 = ne_time_us();
+    // printf("seq concate time: %ld\n", t4 - t3);
 
     // self-attention
     const float attn_scale = 1.0f / sqrtf(static_cast<float>(head_size));
@@ -464,8 +464,8 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
       cur = ne_mul_mat(ctx0, model.layers[il].attn[3], KQV_merged_contiguous);
     }
 
-    int64_t t5 = ne_time_us();
-    printf("self attention time: %ld\n", t5 - t4);
+    // int64_t t5 = ne_time_us();
+    // printf("self attention time: %ld\n", t5 - t4);
 
     lctx.use_buf(ctx0, 1);
 
@@ -563,19 +563,19 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
       }
     }
 
-    int64_t t6 = ne_time_us();
-    printf("feedforward time: %ld\n", t6 - t5);
+    // int64_t t6 = ne_time_us();
+    // printf("feedforward time: %ld\n", t6 - t5);
 
     cur = ne_add(ctx0, cur, inpFF);
 
-    int64_t t7 = ne_time_us();
-    printf("add time: %ld\n", t7 - t6);
+    // int64_t t7 = ne_time_us();
+    // printf("add time: %ld\n", t7 - t6);
 
     // input for next layer
     inpL = cur;
   }
-  int64_t t8 = ne_time_us();
-  printf("all layers time: %ld\n", t8 - t1);
+  // int64_t t8 = ne_time_us();
+  // printf("all layers time: %ld\n", t8 - t1);
 
   lctx.use_buf(ctx0, 0);
 
@@ -591,8 +591,8 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
     // embeddings = inpL;
   }
 
-  int64_t t9 = ne_time_us();
-  printf("norm afterward time: %ld\n", t9 - t8);
+  // int64_t t9 = ne_time_us();
+  // printf("norm afterward time: %ld\n", t9 - t8);
 
   // lm_head
   // inpL = ne_mul_mat(ctx0, model.others[2], inpL);
@@ -602,7 +602,7 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   // logits -> probs
   // inpL = ne_soft_max_inplace(ctx0, inpL);
 
-  printf("graph time: %ld\n", ne_time_us() - t_start_us);
+  // printf("graph time: %ld\n", ne_time_us() - t_start_us);
 
 
   // DEBUG, TODO REMOVE
@@ -629,13 +629,13 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   // run the computation
   ne_build_forward_expand(&gf, inpL);
 
-  int64_t t10 = ne_time_us();
-  printf("expand time: %ld\n", t10 - t9);
+  // int64_t t10 = ne_time_us();
+  // printf("expand time: %ld\n", t10 - t9);
 
   ne_graph_compute(ctx0, &gf);
 
-  int64_t t11 = ne_time_us();
-  printf("compute time: %ld\n", t11 - t10);
+  // int64_t t11 = ne_time_us();
+  // printf("compute time: %ld\n", t11 - t10);
 
   if (ns_log_level() == 0 || ns_log_level() == 2) {
     ne_graph_profiling(&gf);

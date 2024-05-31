@@ -27,9 +27,9 @@ class ne_threading {
  public:
   static bestla::parallel::IThreading* get() {
 #ifdef BTLA_ENABLE_OPENMP
-    static bestla::parallel::OMPThreading DefaultThreading(32);
+    static bestla::parallel::OMPThreading DefaultThreading(24);
 #else
-    static bestla::parallel::StdThreading DefaultThreading(32);
+    static bestla::parallel::StdThreading DefaultThreading(24);
 #endif  // _OPNEMP
     return &DefaultThreading;
   }

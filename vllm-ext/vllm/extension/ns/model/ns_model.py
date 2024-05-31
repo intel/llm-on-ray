@@ -72,7 +72,7 @@ class NSModel(nn.Module):
         # get available cores
         try:
             # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
-            threads = 32
+            threads = 24
             logger.info("Using %d threads inside ray worker for inference engine", threads)
             self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
                                     max_new_tokens=model_config.max_model_len,
