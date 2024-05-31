@@ -35,4 +35,3 @@ Training:
   accelerate_mode: DDP
   gradient_accumulation_steps: 1
   logging_steps: 10
-  deepspeed_config_file: finetune/ds_config_zero2.json
