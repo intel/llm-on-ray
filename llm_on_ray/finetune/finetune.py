@@ -140,6 +140,7 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
     }
     return supported_dtypes[dtype]
 
+
 def load_tokenizer(config: Dict):
     if config["General"].get("tokenizer_name") is not None:
         tokenizer_name = config["General"].get("tokenizer_name")
@@ -258,6 +259,7 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
 
     return tokenized_dataset
 
+
 def prepare_data_collator(config: Dict, tokenizer):
     return transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
@@ -344,6 +346,7 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
             )
         return training_args, trainer
 
+
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])
     from .finetuning import Finetuning
@@ -386,6 +389,7 @@ def train_func(config: Dict[str, Any]):
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
     trainer.save_model()
     common.logger.info("train finish")
+
 
 def get_finetune_config():
     parser = argparse.ArgumentParser(
