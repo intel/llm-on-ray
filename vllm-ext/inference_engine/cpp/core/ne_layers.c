@@ -10680,9 +10680,13 @@ static size_t ne_hash_insert(struct ne_tenser ** hash_set, struct ne_tensor * ke
 static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
 
   // check if already visited
-  if (ne_hash_insert(&cgraph->visited_tensors_hashset, node) == NE_HASHTABLE_ALREADY_EXISTS) {
+  // if (ne_hash_insert(&cgraph->visited_tensors_hashset, node) == NE_HASHTABLE_ALREADY_EXISTS) {
+  //   return;
+  // }
+  if (node->visited) {
     return;
   }
+  node->visited = true;
   // for (int i = 0; i < cgraph->n_nodes; i++) {
   //   if (cgraph->nodes[i] == node) {
   //     return;
@@ -10712,7 +10716,7 @@ static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
     // reached a leaf node, not part of the gradient graph (e.g. a constant)
     NE_ASSERT(cgraph->n_leafs < NE_MAX_NODES);
 
-    cgraph->leafs[cgraph->n_leafs] = node;
+    // cgraph->leafs[cgraph->n_leafs] = node;
     cgraph->n_leafs++;
   } else {
     NE_ASSERT(cgraph->n_nodes < NE_MAX_NODES);

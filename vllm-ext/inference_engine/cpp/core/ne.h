@@ -41,7 +41,7 @@
 #define NE_CGRAPH_HASHSET_SIZE 131101 // ne_hash_size(NE_MAX_NODES * 2)
 #define NE_MAX_PARAMS 256
 #define NE_MAX_CONTEXTS 64
-#define NE_MAX_OPT 36
+#define NE_MAX_OPT 28
 #define NE_DEFAULT_N_THREADS 4
 #define NE_MAX_OP_PARAMS 32
 
@@ -182,7 +182,11 @@ struct ne_tensor {
   void* data;
   size_t size;
 
-  char name[32];
+  char name[26];
+
+  // for quick cgraph visit
+  bool visited;
+  int opts_used;
 
   char padding[8];
 };
@@ -200,9 +204,9 @@ struct ne_cgraph {
   struct ne_tensor* work;
 
   struct ne_tensor* nodes[NE_MAX_NODES];
-  struct ne_tensor* leafs[NE_MAX_NODES];
+  struct ne_tensor* leafs[1];
 
-  struct ne_tensor* visited_tensors_hashset[NE_CGRAPH_HASHSET_SIZE];
+  // struct ne_tensor* visited_tensors_hashset[NE_CGRAPH_HASHSET_SIZE];
 
   // performance
   int perf_runs;
