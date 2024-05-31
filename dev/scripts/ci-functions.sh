@@ -289,6 +289,7 @@ peft_lora_test(){
 finetune_test_gaudi(){
     local model=$1
     echo Set finetune source config :
+    docker exec "finetune" bash -c "pip install --upgrade-strategy eager optimum[habana]"
     docker exec "finetune" bash -c "source \$(python -c 'import oneccl_bindings_for_pytorch as torch_ccl;print(torch_ccl.cwd)')/env/setvars.sh; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external; RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1  ray start --address='127.0.0.1:6379' --ray-debugger-external"
     echo Set "${model}" patch_yaml_config :
     docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune_gaudi.yaml" --models ${model} "
