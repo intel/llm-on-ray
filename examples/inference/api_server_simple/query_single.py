@@ -75,8 +75,35 @@ outputs = requests.post(
     json=sample_input,
     stream=args.streaming_response,
 )
+try:
+    outputs.raise_for_status()
+except requests.exceptions.HTTPError as err:
+    if "Internal Server Error" in str(err):
+        import os
 
-outputs.raise_for_status()
+        folder_path = "/tmp/ray/session_latest/logs/serve"
+        latest_file = None
+        latest_time = 0.0
+
+        for file_name in os.listdir(folder_path):
+            if file_name.startswith("replica") and file_name.endswith(".log"):
+                file_path = os.path.join(folder_path, file_name)
+                file_time = os.path.getmtime(file_path)
+                if file_time > latest_time:
+                    latest_time = file_time
+                    latest_file = file_path
+        if latest_file:
+            print("latest file:", latest_file)
+            with open(latest_file, "r") as file:
+                lines = file.readlines()
+                if lines:
+                    print("Latest Internal Server Error logs:", lines)
+                else:
+                    print("Internal Server Error logs: Empty")
+    else:
+        raise err
+
+
 if args.streaming_response:
     for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
         print(output, end="", flush=True)
