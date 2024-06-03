@@ -77,12 +77,7 @@ class DSPipeline:
                 model_desc.peft_model_id_or_path,
                 use_auth_token=infer_conf.model_description.config.use_auth_token,
             )
-            if model_desc.peft_type == "deltatuner":
-                from deltatuner import DeltaTunerModel
 
-                self.model = DeltaTunerModel.from_pretrained(
-                    self.model, model_desc.peft_model_id_or_path
-                )
             self.model = self.model.merge_and_unload()
 
         self.model = self.model.eval().to(self.device)

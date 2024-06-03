@@ -76,10 +76,7 @@ class TransformerPredictor(Predictor):
                 model_desc.peft_model_id_or_path,
                 use_auth_token=infer_conf.model_description.config.use_auth_token,
             )
-            if model_desc.peft_type == "deltatuner":
-                from deltatuner import DeltaTunerModel
 
-                model = DeltaTunerModel.from_pretrained(model, model_desc.peft_model_id_or_path)
             model = model.merge_and_unload()
 
         model = model.eval().to(self.device)

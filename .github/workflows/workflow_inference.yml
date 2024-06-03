@@ -47,8 +47,6 @@ jobs:
           - { model: "mpt-7b-ipex-llm"}
           - { model: "llama-2-7b-chat-hf-vllm"}
           - { model: "gemma-2b"}
-          - dtuner_model: nathan0/mpt-7b-deltatuner-model
-            model: mpt-7b
 
     runs-on: self-hosted
 
@@ -110,25 +108,11 @@ jobs:
           source dev/scripts/ci-functions.sh
           inference_test ${TARGET} ${{ matrix.model }}
 
-      - name: Run Inference Test with Deltatuner
-        if: ${{ matrix.dtuner_model }}
-        run: |
-          TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/ci-functions.sh
-          inference_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
-
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
           inference_deepspeed_test ${TARGET} ${{ matrix.model }}
-
-      - name: Run Inference Test with DeepSpeed and Deltatuner
-        if: ${{ matrix.dtuner_model }}
-        run: |
-          TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/ci-functions.sh
-          inference_deepspeed_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
 
       - name: Run Inference Test with REST API
         run: |
