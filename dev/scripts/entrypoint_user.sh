@@ -13,7 +13,7 @@ fi
 # Default serve cmd
 if ! pgrep -f 'ray'; then
     echo "Ray is not running. Starting Ray..."
-    # 启动 Ray
+    # start Ray
     ray start --head
     echo "Ray started."
 else
@@ -28,4 +28,5 @@ else
     llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml 
 fi
 
+#Keep the service not be exited
 tail -f /dev/null

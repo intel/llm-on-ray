@@ -111,16 +111,15 @@ Software requirement: Ubuntu and Docker
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
-## You can change any settings here 
+## If you need to use proxy, please change any settings in 'dev/scripts/start_with_docker.sh'
 source dev/scripts/start_with_docker.sh
-## Docker flie path is 'dev/docker/Dockerfile.{DOCKER_FILE_NAME}'.
-build_and_prune #{YOUR_CONTAINER_NAME} #{DOCKER_FILE_NAME}
-start_docker #{YOUR_CONTAINER_NAME} #{YOUR_SOURCE_CODE_PATH} #{YOUR_MODEL_CACHE_PATH}
+## Docker flie path is 'dev/docker/Dockerfile.user'.
+build_docker 
 ```
 
-#### 2. Start Ray
+#### 2. Start Docker
 ```bash
-docker exec #{YOUR_CONTAINER_NAME} bash -c "./dev/scripts/start-ray-cluster.sh"
+start_docker 
 ```
 
 #### 3. Start LLM-on-Ray

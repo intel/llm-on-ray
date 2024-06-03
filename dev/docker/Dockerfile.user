@@ -39,8 +39,6 @@ RUN git fetch origin pull/219/head:pr-219 && \
 
 RUN ls -la
 
-
-
 RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
@@ -51,5 +49,4 @@ RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; 
 
 
 RUN chmod +x ./dev/scripts/entrypoint_user.sh
-# ENTRYPOINT ["/bin/bash","-c","ray start --head && llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml"]
 ENTRYPOINT ["./dev/scripts/entrypoint_user.sh"]
