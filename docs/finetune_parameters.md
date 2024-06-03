@@ -10,11 +10,11 @@ The following are the parameters supported in the finetuning workflow.
 |tokenizer_name|None|Path to pretrained tokenizer from huggingface.co/models. If not provided, the tokenizer will be loaded from the `base_model`.|
 |gpt_base_model|True|This parameter is for [Transformers#22482](https://github.com/huggingface/transformers/issues/22482). It needs to be set to True when the pretrained model is realted to gpt, otherwise it is False.|
 |output_dir|/tmp/llm-ray/output|The output directory to store the finetuned model.|
+|report_to|none|The list of integrations to report the results and logs to. Possible values are: "none", "tensorboard".|
 |resume_from_checkpoint|null|The path to a folder with a valid checkpoint for your model.|
 |save_strategy|no|The checkpoint save strategy to adopt during training. Possible values are: "no", "epoch", "steps".|
 |config|trust_remote_code: False<br> use_auth_token: None|Will be passed to the transformers `from_pretrained()` method|
 |lora_config|task_type: CAUSAL_LM<br>r: 8<br>lora_alpha: 32<br>lora_dropout: 0.1|Will be passed to the LoraConfig `__init__()` method, then it'll be used as config to build Peft model object.|
-|deltatuner_config|"algo": "lora"<br>"denas": True<br>"best_model_structure": "/path/to/best_structure_of_deltatuner_model"|Will be passed to the DeltaTunerArguments `__init__()` method, then it'll be used as config to build [Deltatuner model](https://github.com/intel/e2eAIOK/tree/main/e2eAIOK/deltatuner) object.|
 |enable_gradient_checkpointing|False|enable gradient checkpointing to save GPU memory, but will cost more compute runtime|
 
 
