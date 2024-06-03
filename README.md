@@ -104,7 +104,7 @@ python examples/inference/api_server_simple/query_single.py --model_endpoint htt
 
 ## Getting Started With Docker
 This guide will assist you in setting up LLM-on-Ray on With Docker.
-Detailed guidelines for docker in dev/docker/README.md.
+Detailed guidelines for docker in dev/scripts/start_with_docker.sh.
 
 #### 1. Build Docker Image  
 Software requirement: Ubuntu and Docker
@@ -119,6 +119,7 @@ build_docker
 
 #### 2. Start Docker
 ```bash
+## If you don't change any settings
 start_docker 
 ```
 

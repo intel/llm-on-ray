@@ -35,9 +35,12 @@ start_docker() {
 
     docker_args=()
     docker_args+=("--name=serving" )
-    docker_args+=("--hostname=serving-container")
-
     docker_args+=("-e=hf_token=${HF_TOKEN}")
+    if [ -z "$MODEL_NAME" ];  then
+        echo "use default model"
+    else
+        docker_args+=("-e=model_name=${MODEL_NAME}")
+    fi
 
     # # If you need to use proxy,activate the following two lines
     # docker_args+=("-e=http_proxy=${HTTP_PROXY}")

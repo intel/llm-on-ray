@@ -12,11 +12,20 @@ CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
 
 build_docker() {
+    local DOCKER_NAME=$1
 
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
-    docker_args+=("--build-arg=DOCKER_NAME=".cpu_and_deepspeed"")
-    docker_args+=("--build-arg=PYPJ="cpu,deepspeed"")
+    if [ "$DOCKER_NAME" == "vllm" ]; then
+        docker_args+=("--build-arg=DOCKER_NAME=".vllm"")
+        docker_args+=("--build-arg=PYPJ="vllm"")
+    elif [ "$DOCKER_NAME" == "ipex-llm" ]; then
+        docker_args+=("--build-arg=DOCKER_NAME=".ipex-llm"")
+        docker_args+=("--build-arg=PYPJ="ipex-llm"")
+    else 
+        docker_args+=("--build-arg=DOCKER_NAME=".cpu_and_deepspeed"")
+        docker_args+=("--build-arg=PYPJ="cpu,deepspeed"")
+    fi
 
     # # If you need to use proxy,activate the following two lines
     docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
@@ -27,17 +36,22 @@ build_docker() {
     echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile.user -t serving:latest"
 
     # Build Docker image and perform cleaning operation
-    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile.user -t serving:latest 
+    # docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile.user -t serving:latest 
 
 }
 
 start_docker() {
+    local MODEL_NAME=$1
 
     docker_args=()
     docker_args+=("--name=serving" )
-    docker_args+=("--hostname=serving-container")
 
     docker_args+=("-e=hf_token=${HF_TOKEN}")
+    if [ -z "$MODEL_NAME" ];  then
+        echo "use default model"
+    else
+        docker_args+=("-e=model_name=${MODEL_NAME}")
+    fi
 
     # # If you need to use proxy,activate the following two lines
     docker_args+=("-e=http_proxy=${HTTP_PROXY}")
@@ -48,6 +62,6 @@ start_docker() {
     docker_args+=("-v=${model_cache_path}:${MODEL_CACHE_PATH_LOACL}")
 
     echo "docker run -tid  "${docker_args[@]}" "serving:latest""
-    # docker run -tid  "${docker_args[@]}" "serving:latest"
+    docker run -tid  "${docker_args[@]}" "serving:latest"
 
 }
