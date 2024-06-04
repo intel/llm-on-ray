@@ -337,8 +337,6 @@ class PredictorDeployment:
 
         if isinstance(input, str):
             return input
-        elif isinstance(input, List) and len(input) == 1:
-            return input[0]
         elif isinstance(input, List):
             prompts = []
             images = []

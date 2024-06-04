@@ -4,6 +4,8 @@ route_prefix: /Mixtral-7B
 num_replicas: 1
 cpus_per_worker: 8
 hpus_per_worker: 1
+deepspeed: true
+workers_per_group: 8
 device: hpu
 model_description:
   model_id_or_path: mistralai/Mixtral-8x7B-Instruct-v0.1
