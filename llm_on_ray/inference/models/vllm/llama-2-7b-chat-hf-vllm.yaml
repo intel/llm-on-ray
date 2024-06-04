@@ -7,6 +7,7 @@ gpus_per_worker: 0
 deepspeed: false
 vllm:
   enabled: true
+  max_num_seqs: 256
   precision: bf16
 workers_per_group: 2
 device: cpu

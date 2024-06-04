@@ -30,7 +30,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 * **Interactive Web UI for Enhanced Usability**: Except for command line, LLM-on-Ray introduces a Web UI, allowing users to easily finetune and deploy LLMs through a user-friendly interface. Additionally, the UI includes a chatbot application, enabling users to immediately test and refine the models.
 
 
-![llm-on-ray](https://github.com/intel/llm-on-ray/assets/9278199/68017c14-c0be-4b91-8d71-4b74ab89bd81)
+![llm-on-ray](./docs/assets/solution_technical_overview.png)
 
 
 ## Getting Started Locally With Source code  

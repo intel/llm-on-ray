@@ -21,19 +21,19 @@ You will get URL from the command line output (E.g. http://0.0.0.0:8080 for loca
 ## Finetune LLMs
 On the `Finetune` tab, you can configure the base model, finetuning parameters, the dataset path and the new model name. Click `Start To Finetune` to start finetuning.
 
-![webui1](https://github.com/intel/llm-on-ray/assets/9278199/895be765-13d3-455e-a00d-c9ba67ac6781)
+![webui_finetune](./assets/webui_finetune.png)
 
 
 
 ## Deploy and Serve LLM
 On the `Deployment` tab, you can choose a model to deploy, configure parameter `Model Replica Number`, `Cpus per Worker` and `Gpus per Worker`. Click `Deploy` and you will get a model endpoint.
 
-![webui2](https://github.com/intel/llm-on-ray/assets/9278199/2a1fb8f2-a2a8-4868-9d1c-418c5c2a6180)
+![webui_deployment](./assets/webui_deployment.png)
 
 
 ## Chatbot
 On the `Inference` tab, you can now test the model by asking questions.
 
-![webui3](https://github.com/intel/llm-on-ray/assets/9278199/f7b9dc79-92fe-4e75-85fa-2cf7f36bb58d)
+![webui_inference](./assets/webui_inference.png)
 
 
