@@ -1,6 +1,6 @@
 # extension for integrate with neural-speed
 import importlib
-from typing import Dict, Optional
+from typing import Optional
 import os
 
 from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
@@ -26,22 +26,6 @@ _IE_MODEL: IE_Model = None
 
 # global request_id to internal
 
-# debug, TODO remove
-_PERF_STATS: Dict[str, int] = {
-    'non_execution': 0,
-    'set_metadata': 0,
-    'input_tokens_conversion': 0,
-    'model_execution': 0,
-    'native_ptr_to_tensor': 0,
-    'hidden_states_conversion': 0,
-    'compute_logits': 0,
-    'sample': 0
-}
-_LAST_CALL = 0
-_CALL_CNT = 0
-
-# import torch
-# torch.set_num_threads(10)
 
 # allow ns quantization
 #==========================================================================================
@@ -56,26 +40,7 @@ def _verify_quntization(self):
 
 vllm_config.ModelConfig._verify_quantization = _verify_quntization
 
-## add new loadformat ns
-# FORMAT_DICT = {e.name : e.value for e in vllm_config.LoadFormat}
-# FORMAT_DICT.update({"NS": "ns"})
-# LF = enum.Enum("LoadFormat", FORMAT_DICT)
 
-# vllm_config.LoadFormat = LF
-
-# register ns quant config, 
-# TODO add quant_ns_config.json under huggingface cache folder like below,
-# {
-# "quantization_config": {
-#     "quant_method": "ns",
-#     "weight_dtype": "int4",
-#     "alg": "sym",
-#     "group_size": 128,
-#     "scale_dtype": "fp32",
-#     "compute_dtype": "int8",
-#     "version": "v1"
-# }
-# }
 quant = importlib.import_module('vllm.model_executor.layers.quantization')
 
 from vllm.extension.ns.quantization.cpu_ns_config import NSQuantConfig
@@ -90,6 +55,7 @@ vllm_loader = importlib.import_module('vllm.model_executor.model_loader.loader')
 old_get_model_loader = vllm_loader.get_model_loader
 
 from vllm.extension.ns.model.ns_loader import NSModelLoaderV2
+from vllm.extension.ns.quantization.cpu_ns_config import copy_quant_ns_config
 from vllm.config import LoadConfig, ModelConfig
 
 def get_model_loader_ns(load_config: LoadConfig) -> vllm_loader.BaseModelLoader:
@@ -110,11 +76,14 @@ def _get_linear_method_ns(model_config: vllm_config.ModelConfig,
 
 vllm_loader._get_linear_method = _get_linear_method_ns
 
+# bypass cuda capability check since vllm+cpu doesn't have cuda installed
 def _get_quantization_config(
     model_config: ModelConfig,
     load_config: LoadConfig) -> Optional[QuantizationConfig]:
     """Get the quantization config."""
     if model_config.quantization is not None:
+        # copy quant_ns_config.json to downloaded model directory
+        copy_quant_ns_config(model_config, load_config)
         return get_quant_config(model_config, load_config)
     return None
 
@@ -125,9 +94,6 @@ model_loader = importlib.import_module('vllm.model_executor.model_loader')
 importlib.reload(model_loader)
 
 logger.info("__ns extension: use ns model loader for ns model, %s", NSModelLoaderV2.__name__)
-
-# register ns model
-# from vllm.model_executor.models import ModelRegistry
 
 # replace LlamaModel in models/llama.py with our NSLLamaModel
 #==========================================================================================

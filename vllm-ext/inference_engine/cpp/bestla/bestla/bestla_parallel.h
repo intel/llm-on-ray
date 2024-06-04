@@ -16,7 +16,7 @@
 #include <functional>
 #include <thread>
 #include <vector>
-#include <stdexcept>
+// #include <stdexcept>
 #if BTLA_OPENMP
 #include <omp.h>
 #endif
@@ -47,7 +47,7 @@ class IThreading {
 class OMPThreading : public IThreading {
  public:
   explicit OMPThreading(int nthreads) : IThreading(nthreads, false) {
-    printf("Using OMP threads %d\n", nthreads);
+    // printf("Using OMP threads %d\n", nthreads);
     omp_set_num_threads(nthreads);
   }
   void parallel_for(const thread_func& func) override {
@@ -65,10 +65,10 @@ class OMPThreading : public IThreading {
   virtual void set_threads(int nthreads) override {
     
     mThreadNum = nthreads;
-    if (mThreadNum != nthreads)  {
-      printf("set OMP threads %d\n", nthreads);
-      omp_set_num_threads(nthreads);
-    }
+    // if (mThreadNum != nthreads)  {
+      // printf("set OMP threads %d\n", nthreads);
+    omp_set_num_threads(nthreads);
+    // }
   }
   virtual inline void sync(int tidx, int idx = 0) override {
     (void)(tidx);
@@ -88,50 +88,50 @@ class StdThreading : public IThreading {
     create_threads();
   }
   void parallel_for(const thread_func& func) override {
-    // time_per_p = 0;
-    // time_per_e = 0;
-    // Timer_T tm;
-    // if (mThreadNum > 1) {
-    //   running.store(mThreadNum - 1);
-    //   for (int i = 0; i < 10; i++) flag[i].store(mThreadNum);
-    //   if (cr->mHybrid) {
-    //     int time_p = 0, time_e = 0;
+    time_per_p = 0;
+    time_per_e = 0;
+    Timer_T tm;
+    if (mThreadNum > 1) {
+      running.store(mThreadNum - 1);
+      for (int i = 0; i < 10; i++) flag[i].store(mThreadNum);
+      if (cr->mHybrid) {
+        int time_p = 0, time_e = 0;
 
-    //     for (size_t i = 0; i < mThreadNum - 1; i++) func_[i] = &func;
-    //     thread_time[0] = 0;
-    //     tm.start();
-    //     func(0);
-    //     thread_time[0] += int(tm.stop());
-    //     while (true) {
-    //       if (running.load() == 0)
-    //         break;
-    //       else
-    //         _mm_pause();
-    //     }
-    //     for (int i = 0; i < mThreadNum; i++)
-    //       if (i >= cr->P_core_num && i < cr->P_core_num + cr->E_core_num)
-    //         time_e += thread_time[i];
-    //       else
-    //         time_p += thread_time[i];
-    //     time_per_p = (time_p) / (1.0 * (mThreadNum - cr->E_core_num));
-    //     time_per_e = (time_e) / (1.0 * cr->E_core_num);
-    //     // printf("%d %d %f %f\n", time_p, time_e, time_per_p, time_per_e);
-    //   } else {
-    //     for (size_t i = 0; i < mThreadNum - 1; i++) {
-    //       func_[i] = &func;
-    //     }
-    //     func(0);
-    //     while (true) {
-    //       if (running.load() == 0)
-    //         break;
-    //       else
-    //         _mm_pause();
-    //     }
-    //   }
-    // } else {
-    //   func(0);
-    // }
-    throw std::runtime_error("Not implemented");
+        for (size_t i = 0; i < mThreadNum - 1; i++) func_[i] = &func;
+        thread_time[0] = 0;
+        tm.start();
+        func(0);
+        thread_time[0] += int(tm.stop());
+        while (true) {
+          if (running.load() == 0)
+            break;
+          else
+            _mm_pause();
+        }
+        for (int i = 0; i < mThreadNum; i++)
+          if (i >= cr->P_core_num && i < cr->P_core_num + cr->E_core_num)
+            time_e += thread_time[i];
+          else
+            time_p += thread_time[i];
+        time_per_p = (time_p) / (1.0 * (mThreadNum - cr->E_core_num));
+        time_per_e = (time_e) / (1.0 * cr->E_core_num);
+        // printf("%d %d %f %f\n", time_p, time_e, time_per_p, time_per_e);
+      } else {
+        for (size_t i = 0; i < mThreadNum - 1; i++) {
+          func_[i] = &func;
+        }
+        func(0);
+        while (true) {
+          if (running.load() == 0)
+            break;
+          else
+            _mm_pause();
+        }
+      }
+    } else {
+      func(0);
+    }
+    // throw std::runtime_error("Not implemented");
   }
 
   void set_threads(int nthreads) override {

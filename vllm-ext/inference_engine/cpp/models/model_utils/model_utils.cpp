@@ -354,7 +354,8 @@ struct model_context* create_model_context_from_file(const struct model_params& 
   ctx->n_ctx = params.n_ctx;
   ctx->kv_n_ctx_block = ctx->max_batch_size;
 
-  ctx->scratch_size_ratio = params.scratch_size_ratio * ctx->max_batch_size;
+  // ctx->scratch_size_ratio = params.scratch_size_ratio * ctx->max_batch_size;
+  ctx->scratch_size_ratio = params.scratch_size_ratio * 1.2f;  // 1.2f to be protective
 
   const model_archs arch = params.model_arch;
 
