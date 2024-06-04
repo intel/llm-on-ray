@@ -12,11 +12,20 @@ CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
 
 build_docker() {
+    local DOCKER_NAME=$1
 
     docker_args=()
     docker_args+=("--build-arg=CACHEBUST=1")
-    docker_args+=("--build-arg=DOCKER_NAME=".cpu_and_deepspeed"")
-    docker_args+=("--build-arg=PYPJ="cpu,deepspeed"")
+    if [ "$DOCKER_NAME" == "vllm" ]; then
+        docker_args+=("--build-arg=DOCKER_NAME=".vllm"")
+        docker_args+=("--build-arg=PYPJ="vllm"")
+    elif [ "$DOCKER_NAME" == "ipex-llm" ]; then
+        docker_args+=("--build-arg=DOCKER_NAME=".ipex-llm"")
+        docker_args+=("--build-arg=PYPJ="ipex-llm"")
+    else 
+        docker_args+=("--build-arg=DOCKER_NAME=".cpu_and_deepspeed"")
+        docker_args+=("--build-arg=PYPJ="cpu,deepspeed"")
+    fi
 
     # # If you need to use proxy,activate the following two lines
     # docker_args+=("--build-arg=http_proxy=${HTTP_PROXY}")
@@ -32,6 +41,7 @@ build_docker() {
 }
 
 start_docker() {
+    local MODEL_NAME=$1
 
     docker_args=()
     docker_args+=("--name=serving" )
