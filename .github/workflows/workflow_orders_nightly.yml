@@ -20,6 +20,11 @@ jobs:
     uses: ./.github/workflows/workflow_finetune.yml
     with:
       ci_type: nightly
+  
+  call-benchmark:
+    uses: ./.github/workflows/workflow_test_benchmark.yml
+    with:
+      ci_type: nightly
 
   # call-finetune-on-intel-gpu:
   #  uses: ./.github/workflows/workflow_finetune_gpu.yml

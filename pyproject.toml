@@ -31,11 +31,11 @@ dependencies = [
     "scikit-image",
     "einops",
     "peft>=0.4.0",
-    "deltatuner==1.1.9",
     "py-cpuinfo",
     "pydantic-yaml",
     "async_timeout",
-    "typer"
+    "typer",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]

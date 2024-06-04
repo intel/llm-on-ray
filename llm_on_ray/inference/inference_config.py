@@ -56,7 +56,9 @@ class Ipex(BaseModel):
 
 class Vllm(BaseModel):
     enabled: bool = False
+    max_num_seqs: int = 256
     precision: str = "bf16"
+    enforce_eager: bool = False
 
     @validator("precision")
     def _check_precision(cls, v: str):
@@ -132,8 +134,22 @@ class ModelDescription(BaseModel):
     @validator("peft_type")
     def _check_perftype(cls, v: str):
         if v:
-            assert v in ["lora", "adalora", "deltatuner"]
+            assert v in ["lora", "adalora"]
         return v
+
+
+class AutoscalingConfig(BaseModel):
+    min_replicas: int = 1
+    initial_replicas: int = 1
+    max_replicas: int = 1
+    target_ongoing_requests: float = 1.0
+    metrics_interval_s: float = 10.0
+    look_back_period_s: float = 30.0
+    smoothing_factor: float = 1.0
+    upscaling_factor: Union[float, None] = None
+    downscaling_factor: Union[float, None] = None
+    downscale_delay_s: float = 600.0
+    upscale_delay_s: float = 30.0
 
 
 class InferenceConfig(BaseModel):
@@ -141,7 +157,10 @@ class InferenceConfig(BaseModel):
     port: int = 8000
     name: str = "default"
     route_prefix: Union[str, None] = None
-    num_replicas: int = 1
+    dynamic_max_batch_size: int = 8
+    num_replicas: Union[int, None] = None
+    max_ongoing_requests: int = 100
+    autoscaling_config: Union[AutoscalingConfig, None] = None
     cpus_per_worker: int = 24
     gpus_per_worker: int = 0
     hpus_per_worker: int = 0

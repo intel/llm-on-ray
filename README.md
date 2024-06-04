@@ -18,7 +18,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 
 * **Finetuning Workflow**: Supports refinement of pre-trained models with proprietary or specialized data, improving models' accuracy and applicability to various use cases.
     * **Ease of Customization**: Users can easily configure the base model and resource allocation for the training job, customize training parameters to fit their specific needs. This can be accomplished through a simple command line or via the Web UI.
-    * **Parameter Efficient Finetuning**: Supports various parameter efficient finetuning methods such as LoRA, deltatuner to accelerate the finetuning process.
+    * **Parameter Efficient Finetuning**: Supports various parameter efficient finetuning methods such as LoRA to accelerate the finetuning process.
     * **Reinforcement Learning with Human Feedback (RLHF)**: Users can further refine the model using RLHF, which leverages the proximal policy optimization (PPO).
 
 * **Serving Workflow**: Deploys a scalable and production-ready LLM serving endpoint.
@@ -30,7 +30,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 * **Interactive Web UI for Enhanced Usability**: Except for command line, LLM-on-Ray introduces a Web UI, allowing users to easily finetune and deploy LLMs through a user-friendly interface. Additionally, the UI includes a chatbot application, enabling users to immediately test and refine the models.
 
 
-![llm-on-ray](https://github.com/intel/llm-on-ray/assets/9278199/68017c14-c0be-4b91-8d71-4b74ab89bd81)
+![llm-on-ray](./docs/assets/solution_technical_overview.png)
 
 
 ## Getting Started
