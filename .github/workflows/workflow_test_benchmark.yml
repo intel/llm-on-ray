@@ -68,7 +68,7 @@ jobs:
         run: |
           DF_SUFFIX=".vllm"
           TARGET=${{steps.target.outputs.target}}
-          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/ci/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
           docker container prune -f
           docker image prune -f
 

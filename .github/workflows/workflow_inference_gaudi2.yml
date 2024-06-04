@@ -81,9 +81,9 @@ jobs:
           DF_SUFFIX=".gaudi2"
           TARGET=${{steps.target.outputs.target}}
           if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
-            dockerfile="dev/docker/Dockerfile.habana_vllm"
+            dockerfile="dev/docker/ci/Dockerfile.habana_vllm"
           else
-            dockerfile="dev/docker/Dockerfile.habana"
+            dockerfile="dev/docker/ci/Dockerfile.habana"
           fi
           docker build --build-arg CACHEBUST=1 -f ${dockerfile} -t ${TARGET}:habana .
           docker container prune -f
