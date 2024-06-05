@@ -26,7 +26,7 @@ dataset_benchmark_num=1000
 dataset_compare_num=128
 numa_server_command=""
 numa_client_command="numactl -N 1 -m 1"
-num_replica=4
+num_replica=1
 if [ $run_mode = "test" ]
 then
     save_dir=$SHELL_FOLDER"/results_test"
@@ -97,7 +97,7 @@ latency_throughput(){
     tokens_dir=$choice_dir"/tokens_"$input_tokens_length"_"$output_tokens_length
 
     # server
-    $numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+    #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
     for i in $(seq 1 $num_iter)
@@ -123,7 +123,7 @@ get_best_latency(){
     choice_dir=${4}
 
     # server
-    $numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+    #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
     for i in $(seq 1 $num_iter)
@@ -167,7 +167,7 @@ then
     if [ "$run_mode" == "benchmark" ]
     then
         # bs=(1 2 4 8 16 32 64)
-        bs=(16)
+        bs=(32)
         prompt_num=$dataset_compare_num
     elif [ "$run_mode" == "test" ]
     then
@@ -212,7 +212,7 @@ then
     # get the results of choice4(get the latency of llm-on-Ray with vllm)
     if [ "$run_mode" == "benchmark" ]
     then
-        iter=10
+        iter=2
         input_tokens_length=(32 128 1024 2016)
     elif [ "$run_mode" == "test" ]
     then
