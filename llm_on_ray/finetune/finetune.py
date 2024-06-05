@@ -41,7 +41,11 @@ from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
 from llm_on_ray.finetune.data_process import DataProcessor
-from llm_on_ray.finetune.dpo_funetuing import DPOFuneTuning, GaudiDPOFuneTuning
+from llm_on_ray.finetune.dpo_funetuing import (
+    DPOFuneTuning,
+    GaudiDPOFuneTuning,
+    DPOIntelOrcaProcesser,
+)
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
 
@@ -207,6 +211,9 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
+    use_dpo = config["Training"].get("use_dpo", False)
+    if use_dpo:
+        return DPOIntelOrcaProcesser.tokenize_dataset(config, tokenizer, dataset)
 
     processor = DataProcessor(config, tokenizer)
 
@@ -400,7 +407,6 @@ def main(external_config=None):
         config = external_config
 
     config["cwd"] = os.getcwd()
-
     num_training_workers = config["Training"].get("num_training_workers")
     resources_per_worker = config["Training"].get("resources_per_worker")
 
