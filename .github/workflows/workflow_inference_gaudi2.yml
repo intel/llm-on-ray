@@ -48,8 +48,6 @@ jobs:
           - { model: "meta-llama-3-8b-instruct"}
           - { model: "meta-llama-3-70b-instruct"}
           - { model: "mistral-7b-v0.1"}
-          - { model: "Qwen1.5-110B"}
-          - { model: "Mixtral-7B"}
           - { model: "mpt-7b"}
           - { model: "llama-2-7b-chat-hf-vllm"}
 
