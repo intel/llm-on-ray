@@ -7,8 +7,9 @@ Please follow [setup.md](setup.md) to setup the environment first.
 
 
 ## Configure Serving Parameters
-We provide preconfigured yaml files in [inference/models](../llm_on_ray/inference/models) for popular open source models. You can customize a few configurations such as the resource used for serving.
+We provide preconfigured yaml files in [inference/models](../llm_on_ray/inference/models) for popular open source models. You can customize a few configurations for serving.
 
+### Resource
 To deploy on CPU, please make sure `device` is set to CPU and `cpus_per_worker` is set to a correct number.
 ```
 cpus_per_worker: 24
@@ -25,6 +26,20 @@ hpus_per_worker: 1
 device: hpu
 ```
 LLM-on-Ray also supports serving with [Deepspeed](serve_deepspeed.md) for AutoTP and [IPEX-LLM](serve_ipex-llm.md) for INT4/FP4/INT8/FP8 to reduce latency. You can follow the corresponding documents to enable them.
+
+### Autoscaling
+LLM-on-Ray supports automatically scales up and down the number of serving replicas based on the resources of ray cluster and the requests traffic. You can adjust the autoscaling strategy through the following parameters in configuration file. You can follow the [guides-autoscaling-config-parameters](https://docs.ray.io/en/master/serve/advanced-guides/advanced-autoscaling.html#autoscaling-config-parameters) for more detailed explanation of these parameters.
+
+```
+max_ongoing_requests: 64
+autoscaling_config:
+    min_replicas: 1
+    initial_replicas: 1
+    max_replicas: 2
+    target_ongoing_requests: 24
+    downscale_delay_s: 30
+    upscale_delay_s: 10
+```
 
 ## Serving
 We support two methods to specify the models to be served, and they have the following priorities.

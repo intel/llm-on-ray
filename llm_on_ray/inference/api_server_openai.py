@@ -38,7 +38,7 @@ from llm_on_ray.inference.api_openai_backend.query_client import RouterQueryClie
 from llm_on_ray.inference.api_openai_backend.router_app import Router, router_app
 
 
-def router_application(deployments, max_concurrent_queries):
+def router_application(deployments, model_list, max_ongoing_requests):
     """Create a Router Deployment.
 
     Router Deployment will point to a Serve Deployment for each specified base model,
@@ -46,16 +46,33 @@ def router_application(deployments, max_concurrent_queries):
     """
     merged_client = RouterQueryClient(deployments)
 
+    # get the value of max_ongoing_requests based on configuration of all models
+    total_num_replica = 0
+    max_num_concurrent_query = 0
+    for _, infer_conf in model_list.items():
+        if infer_conf.autoscaling_config:
+            config_num_replicas = infer_conf.autoscaling_config.max_replicas
+        else:
+            config_num_replicas = infer_conf.num_replicas if infer_conf.num_replicas else 1
+        total_num_replica += config_num_replicas
+        max_num_concurrent_query = max(
+            max_num_concurrent_query,
+            infer_conf.max_ongoing_requests if infer_conf.max_ongoing_requests else 100,
+        )
+
     RouterDeployment = serve.deployment(
         route_prefix="/",
-        max_concurrent_queries=max_concurrent_queries,  # Maximum backlog for a single replica
+        max_ongoing_requests=total_num_replica
+        * (
+            (max_ongoing_requests if max_ongoing_requests else max_num_concurrent_query) + 1
+        ),  # Maximum backlog for a single replica
     )(serve.ingress(router_app)(Router))
 
     return RouterDeployment.bind(merged_client)
 
 
-def openai_serve_run(deployments, host, route_prefix, port, max_concurrent_queries):
-    router_app = router_application(deployments, max_concurrent_queries)
+def openai_serve_run(deployments, model_list, host, route_prefix, port, max_ongoing_requests):
+    router_app = router_application(deployments, model_list, max_ongoing_requests)
 
     serve.start(http_options={"host": host, "port": port})
     serve.run(
