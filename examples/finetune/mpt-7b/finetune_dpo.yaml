@@ -15,7 +15,6 @@ General:
     lora_dropout: 0.1
   enable_gradient_checkpointing: false
 Dataset:
-  data_type: "intel_orca"
   train_file: examples/data/sample_dpo_data.jsonl
   validation_file: null
   validation_split_percentage: 5
