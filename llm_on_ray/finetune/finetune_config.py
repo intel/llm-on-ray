@@ -65,7 +65,6 @@ class General(BaseModel):
 
 
 class Dataset(BaseModel):
-    data_type: str = ""
     train_file: str
     validation_file: Optional[str]
     validation_split_percentage: int
