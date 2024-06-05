@@ -16,8 +16,6 @@
 
 from llm_on_ray.common.dataprocesser.dataprocesser import DataProcesser
 from llm_on_ray.common.dataprocesser.general_processer import GeneralProcesser
-from llm_on_ray.common.dataprocesser.dpo_processer import DPOProcesser
-from llm_on_ray.common.dataprocesser.dpo_processer import DPOIntelOrcaProcesser
 from llm_on_ray.common.dataprocesser.rm_dataprocesser import RMDataProcesser
 
 
