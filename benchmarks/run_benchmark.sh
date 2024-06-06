@@ -61,7 +61,7 @@ get_peak_throughpt(){
         echo "RUN llm-on-ray with vllm"
         echo "RUN bs ${vllm_bs}"
         # server:
-        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $vllm_bs
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $VALUE_INF --vllm_max_num_seqs $vllm_bs
         # client:
         $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_SHAREGPT_PATH --num-prompts $num_prompts --dataset-format ShareGPT --vllm-engine --simple --results-dir $bs_dir_vllm
     done
@@ -80,7 +80,7 @@ metric_bs(){
         echo "RUN llm-on-ray with vllm"
         echo "RUN bs ${vllm_bs}"
         # server:
-        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $vllm_bs
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $VALUE_INF --vllm_max_num_seqs $vllm_bs
         # client:
         $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_SHAREGPT_PATH --num-prompts $num_prompts --dataset-format ShareGPT --vllm-engine --simple --results-dir $bs_dir_vllm
     done
@@ -90,7 +90,7 @@ metric_bs(){
         echo "RUN bs ${wo_vllm_bs}"
         bs_dir_wo_vllm=$choice_dir_wo_vllm"/bs_"$wo_vllm_bs
         # server:
-        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WO_VLLM_CONFIG_FILE --simple --max_concurrent_queries $wo_vllm_bs
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WO_VLLM_CONFIG_FILE --simple --max_ongoing_requests $wo_vllm_bs
         # client:
         $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_SHAREGPT_PATH --num-prompts $num_prompts --dataset-format ShareGPT --simple  --results-dir $bs_dir_wo_vllm
     done
@@ -107,7 +107,7 @@ latency_throughput(){
     tokens_dir=$choice_dir"/tokens_"$input_tokens_length"_"$output_tokens_length
 
     # server
-    $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+    $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
     for i in $(seq 1 $num_iter)
@@ -133,7 +133,7 @@ get_best_latency(){
     choice_dir=${4}
 
     # server
-    $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+    $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
     for i in $(seq 1 $num_iter)
