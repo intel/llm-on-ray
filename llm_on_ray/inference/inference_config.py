@@ -57,6 +57,7 @@ class Ipex(BaseModel):
 class Vllm(BaseModel):
     enabled: bool = False
     vllm_max_num_seqs: int = 256
+    vllm_max_batched_tokens: int = 4096
     precision: str = "bf16"
     extension: str = None
 
@@ -70,6 +71,18 @@ class Vllm(BaseModel):
     def _check_extension(cls, v: str):
         if v:
             assert v in ["ns"]
+        return v
+    
+    @validator("vllm_max_num_seqs")
+    def _check_vllm_max_num_seqs(cls, v: int):
+        if v:
+            assert v > 0
+        return v
+    
+    @validator("vllm_max_batched_tokens")
+    def _check_vllm_max_batched_tokens(cls, v: int):
+        if v:
+            assert v > 32
         return v
 
 

@@ -76,12 +76,13 @@ class NSModel(nn.Module):
     def init_inference_engine(self, model_config: ModelConfig, parallel_config: ParallelConfig, scheduler_config: SchedulerConfig):
         # get available cores
         try:
+            # cpus_per_work is set to 1 for better ns perf so it's inappropriate to use ray to get available cores
             # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
             threads = int(os.environ.get(_NS_NUM_THREADS, str(psutil.cpu_count(logical=False))))
             logger.info("Using %d threads for inference engine", threads)
             self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,
                                     max_new_tokens=model_config.max_model_len,
-                                    threads=int(threads))
+                                    threads=threads)
         except AssertionError as e:
             logger.warn("not inside ray worker, using default threads for inference engine")
             self.ie_model = IE_Model(self.config.name_or_path, max_batch_size=scheduler_config.max_num_seqs, ctx_size=model_config.max_model_len,

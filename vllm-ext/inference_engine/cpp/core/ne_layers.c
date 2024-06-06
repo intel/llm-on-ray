@@ -10615,88 +10615,11 @@ static void ne_compute_backward(struct ne_context* ctx, struct ne_tensor* tensor
   }
 }
 
-// ne tensor hashing for quick lookup
-
-// static size_t ne_hash_size(size_t min_sz) {
-//     // next primes after powers of two
-//     static const size_t primes[] = {
-//         2, 3, 5, 11, 17, 37, 67, 131, 257, 521, 1031,
-//         2053, 4099, 8209, 16411, 32771, 65537, 131101,
-//         262147, 524309, 1048583, 2097169, 4194319, 8388617,
-//         16777259, 33554467, 67108879, 134217757, 268435459,
-//         536870923, 1073741827, 2147483659
-//     };
-//     static const size_t n_primes = sizeof(primes)/sizeof(primes[0]);
-
-//     // find the smallest prime that is larger or equal to min_sz
-//     size_t l = 0;
-//     size_t r = n_primes;
-//     while (l < r) {
-//         size_t m = (l + r)/2;
-//         if (primes[m] < min_sz) {
-//             l = m + 1;
-//         } else {
-//             r = m;
-//         }
-//     }
-//     size_t sz = l < n_primes ? primes[l] : min_sz | 1;
-//     return sz;
-// }
-
-// static size_t ne_hash(const void * p) {
-//     return (size_t)p;
-// }
-
-// static size_t ne_hash_find(struct ne_tenser** hash_set, struct ne_tensor * key) {
-//     size_t h = ne_hash(key) % NE_CGRAPH_HASHSET_SIZE;
-
-//     // linear probing
-//     size_t i = h;
-//     while (hash_set[i] != NULL && hash_set[i] != key) {
-//         i = (i + 1) % NE_CGRAPH_HASHSET_SIZE;
-//         if (i == h) {
-//             // visited all hash table entries -> not found
-//             return NE_HASHTABLE_FULL;
-//         }
-//     }
-//     return i;
-// }
-
-// static size_t ne_hash_insert(struct ne_tenser ** hash_set, struct ne_tensor * key) {
-//   size_t i = ne_hash_find(hash_set, key);
-
-//   NE_ASSERT(i != NE_HASHTABLE_FULL);
-
-//   if (hash_set[i] == key) {
-//       return NE_HASHTABLE_ALREADY_EXISTS;
-//   }
-
-//   // insert
-//   NE_ASSERT(hash_set[i] == NULL);
-//   hash_set[i] = key;
-//   return i;
-// }
-
 static void ne_visit_parents(struct ne_cgraph* cgraph, struct ne_tensor* node) {
-
-  // check if already visited
-  // if (ne_hash_insert(&cgraph->visited_tensors_hashset, node) == NE_HASHTABLE_ALREADY_EXISTS) {
-  //   return;
-  // }
   if (node->visited) {
     return;
   }
   node->visited = true;
-  // for (int i = 0; i < cgraph->n_nodes; i++) {
-  //   if (cgraph->nodes[i] == node) {
-  //     return;
-  //   }
-  // }
-  // for (int i = 0; i < cgraph->n_leafs; i++) {
-  //   if (cgraph->leafs[i] == node) {
-  //     return;
-  //   }
-  // }
 
   if (node->src0) {
     ne_visit_parents(cgraph, node->src0);
@@ -10778,13 +10701,6 @@ struct ne_cgraph ne_build_forward(struct ne_tensor* tensor) {
 
 void ne_graph_compute(struct ne_context* ctx, struct ne_cgraph* cgraph) {
   int n_threads = cgraph->n_threads;
-
-  // int set_threads_num = bestla_get_threads();
-  // if (set_threads_num != n_threads) {
-  //   printf("%s: warning: n_threads changed from %d to %d\n", __func__, n_threads, set_threads_num);
-  //   n_threads = bestla_set_threads(n_threads);
-  //   printf("new number of thread: %d\n", n_threads);
-  // }
   n_threads = bestla_set_threads(n_threads);
   // initialize tasks + work buffer
   {
