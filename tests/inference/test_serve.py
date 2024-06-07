@@ -20,7 +20,7 @@ import pytest
 
 # Parametrize the test function with different combinations of parameters
 @pytest.mark.parametrize(
-    "config_file, models, port, simple, keep_serve_termimal,list_model_ids",
+    "config_file, models, port, simple, keep_serve_termimal, list_model_ids",
     [
         (
             config_file,
@@ -67,11 +67,17 @@ def test_script(
     print(cmd_serve)
     result_serve = subprocess.run(cmd_serve, capture_output=True, text=True)
     if list_model_ids:
+        output = result_serve.stdout.strip()
+        lines = output.split("\n")
+        assert len(lines) > 0, "No model IDs found in the output"
+
         # Check if the model IDs are listed
-        assert "gpt2" in result_serve.stdout, print("\n" + "Model is not support " + "\n")
-        assert "gpt2.yaml" in result_serve.stdout, print(
-            "\n" + "Model config file is not found " + "\n"
-        )
+        for line in lines:
+            parts = line.split()
+            assert len(parts) == 2, f"Invalid line format: {line}"
+            model_id, config_path = parts
+
+            assert config_path.endswith(".yaml"), f"Invalid config path format: {config_path}"
 
     assert result_serve.returncode == 0, print(
         "\n" + "Output of stderr: " + "\n", result_serve.stderr

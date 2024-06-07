@@ -77,7 +77,7 @@ llm_on_ray-serve --models gpt2
 ```
 List all support model_ids with config file path:
 ```bash
-llm_on_ray-serve --list-model-ids
+llm_on_ray-serve --list_model_ids
 ```
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
 ```bash

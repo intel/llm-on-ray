@@ -142,8 +142,7 @@ def main(argv=None):
     all_models_name = list(all_models.keys())
     if args.list_model_ids:
         for model in all_models_name:
-            print(model)
-            print("config_file_path:" + "llm_on_ray/inference/models/" + model + ".yaml")
+            print(f"{model}: \tllm_on_ray/inference/models/{model}.yaml")
         sys.exit(0)
 
     ray.init(address="auto")
