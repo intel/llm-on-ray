@@ -27,3 +27,7 @@ jobs:
   Finetune:
     needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml
+  
+  Benchmark:
+    needs: Lint
+    uses: ./.github/workflows/workflow_test_benchmark.yml

@@ -477,6 +477,7 @@ def main(args: argparse.Namespace):
         config["top_p"] = float(args.top_p)
     if args.top_k:
         config["top_k"] = float(args.top_k)
+    config["do_sample"] = args.do_sample
     # In order to align with vllm test parameters
     if args.vllm_engine:
         config["ignore_eos"] = True
@@ -733,6 +734,11 @@ if __name__ == "__main__":
         default=None,
         help="The number of highest probability vocabulary tokens to keep \
             for top-k-filtering.",
+    )
+    parser.add_argument(
+        "--do_sample",
+        action="store_true",
+        help="Whether or not to use sampling; use greedy decoding otherwise.",
     )
     parser.add_argument(
         "--vllm-engine",
