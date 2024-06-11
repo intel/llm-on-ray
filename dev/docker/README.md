@@ -1,6 +1,6 @@
 Dockerfiles for users to convenient build containers. 
 1.Dockerfile.user for user to build llm-on-ray with docker on Intel CPU.
-2.Dockerfile.habana for user to build llm-on-ray with docker on Intel GPU .
+2.Dockerfile.habana for user to build llm-on-ray with docker on Intel Habana Gaudi. 
 
 Dockerfiles for CI tests in 'ci/*'. 
 In CI, the environment required by different models is separated, and the dockerfiles with different functions are distinguished by different suffixes.
