@@ -28,16 +28,12 @@ PROMPT_NO_INPUT_FORMAT = """{intro}
 {instruction_key}
 {instruction}
 
-{response_key}
-{response}
-
-{end_key}""".format(
+{response_key}{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 
 PROMPT_WITH_INPUT_FORMAT = """{intro}
@@ -48,10 +44,7 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
 {input_key}
 {input}
 
-{response_key}
-{response}
-
-{end_key}""".format(
+{response_key}{response}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
@@ -59,6 +52,5 @@ PROMPT_WITH_INPUT_FORMAT = """{intro}
     input="{input}",
     response_key=RESPONSE_KEY,
     response="{response}",
-    end_key=END_KEY,
 )
 TEXT_COLUMN_NAME = "text"
