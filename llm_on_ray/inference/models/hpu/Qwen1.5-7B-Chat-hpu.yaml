@@ -1,0 +1,12 @@
+port: 8000
+name: Qwen1.5-7B-Chat
+route_prefix: /Qwen1.5-7B-Chat
+num_replicas: 1
+cpus_per_worker: 8
+hpus_per_worker: 1
+device: hpu
+model_description:
+  model_id_or_path: Qwen/Qwen1.5-7B-Chat
+  tokenizer_name_or_path: Qwen/Qwen1.5-7B-Chat
+  config:
+    use_auth_token: ''
