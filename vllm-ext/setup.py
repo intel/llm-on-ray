@@ -9,6 +9,7 @@ result = subprocess.Popen("../dev/scripts/check-vllm-cpu-build-env.sh", shell=Tr
 if result.wait():
     raise SystemExit("error in setup: check-vllm-cpu-build-env.sh failed")
 # install requirements (vllm+cpu and its dependencies)
+print("Installing packages, including vllm+cpu, listed in requirements.txt")
 result = subprocess.Popen("MAX_JOBS=8 VLLM_TARGET_DEVICE=cpu pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu", shell=True)
 if result.wait():
     raise SystemExit("error in setup: failed to install vllm+cpu and its dependencies")

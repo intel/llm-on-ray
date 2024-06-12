@@ -41,6 +41,14 @@ class VllmPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         super().__init__(infer_conf)
 
+        # TODO: remove debug
+        # print("os.environ: ======================")
+        # for k, v in os.environ.items():
+        #     print("%s : %s", k, v)
+
+        # import subprocess
+        # subprocess.run(["ldd", "/home/jiafuzha/work_dir/miniconda3/envs/llm-on-ray-vllm-ns/lib/python3.9/site-packages/inference_engine/libllama_vllm_cb_cpp.so"])
+
         model_desc = infer_conf.model_description
         model_config = model_desc.config
         dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"

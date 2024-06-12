@@ -1,4 +1,4 @@
-vllm @ git+https://github.com/vllm-project/vllm.git@c579b750a083931ad03ecac898aca5ad67c6c59c
+vllm @ git+https://github.com/vllm-project/vllm.git@v0.5.0
 accelerate
 cmake
 datasets

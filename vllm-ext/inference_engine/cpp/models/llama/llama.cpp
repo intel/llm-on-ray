@@ -585,16 +585,16 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
 
   ne_free(ctx0);
 
-  // measure the performance only for the single-token evals
-  int64_t time_interval = ne_time_us() - t_start_us;
-  if (N == 1) {
-    lctx.t_eval_us += time_interval;
-    lctx.n_eval++;
-  } else if (N > 1) {
-    lctx.t_p_eval_us += time_interval;
-    lctx.n_p_eval += N;
-  }
-  lctx.eval_times.push_back(time_interval);
+  // // measure the performance only for the single-token evals
+  // int64_t time_interval = ne_time_us() - t_start_us;
+  // if (N == 1) {
+  //   lctx.t_eval_us += time_interval;
+  //   lctx.n_eval++;
+  // } else if (N > 1) {
+  //   lctx.t_p_eval_us += time_interval;
+  //   lctx.n_p_eval += N;
+  // }
+  // lctx.eval_times.push_back(time_interval);
 
   return true;
 }

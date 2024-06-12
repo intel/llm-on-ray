@@ -47,7 +47,7 @@ cpu = [
     "oneccl_bind_pt==2.2.0"
 ]
 
-vllm_cpu = [
+vllm-cpu = [
     "transformers",
     "torch"
 ]
