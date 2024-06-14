@@ -16,15 +16,6 @@
 
 import ray
 from ray import serve
-import logging
-
-logger = logging.getLogger(__name__)
-from ray.experimental.state.api import get_log, list_logs, list_nodes, list_workers
-
-
-def custom_error_handler(request, exc):
-    logger.error("sss")
-    return {"error:": "Internal Server Error"}
 
 
 def serve_run(deployments, model_list):
@@ -32,14 +23,11 @@ def serve_run(deployments, model_list):
         print("deploy model: ", model_id)
         deployment = deployments[model_id]
 
-        serve.start(
-            http_options={"host": infer_conf.host, "port": infer_conf.port, "log_level": "DEBUG"}
-        )
+        serve.start(http_options={"host": infer_conf.host, "port": infer_conf.port})
         serve.run(
             deployment,
             name=infer_conf.name,
             route_prefix=infer_conf.route_prefix,
-            # error_handler= custom_error_handler
         )
         deployment_name = infer_conf.name
         if infer_conf.host == "0.0.0.0":
@@ -52,6 +40,5 @@ def serve_run(deployments, model_list):
             host_ip = infer_conf.host
         url = f"http://{host_ip}:{infer_conf.port}{infer_conf.route_prefix}"
         print(f"Deployment '{deployment_name}' is ready at `{url}`.")
-        for node1 in list_nodes():
-            list_logs(node_id=node1)
+
     return deployments
