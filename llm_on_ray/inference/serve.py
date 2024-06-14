@@ -15,6 +15,7 @@
 #
 import ray
 import sys
+import logging
 from pydantic_yaml import parse_yaml_raw_as
 from llm_on_ray.inference.utils import get_deployment_actor_options
 from llm_on_ray.inference.api_server_simple import serve_run
@@ -130,11 +131,13 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    ray.init(address="auto")
+    ray.init(address="auto", logging_level=logging.DEBUG)
     deployments, model_list = get_deployed_models(args)
     if args.simple:
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.
+        # from api_server_simple import serve_run
+
         serve_run(deployments, model_list)
     else:
         # provide OpenAI compatible api to run LLM models

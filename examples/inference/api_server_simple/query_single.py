@@ -55,7 +55,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-prompt = "Once upon a time,"
+prompt = "Once upon a time,ejfgaf help me !!"
 config: Dict[str, Union[int, float]] = {}
 if args.max_new_tokens:
     config["max_new_tokens"] = int(args.max_new_tokens)
@@ -76,9 +76,12 @@ outputs = requests.post(
     stream=args.streaming_response,
 )
 try:
+    print(1)
     outputs.raise_for_status()
+    print(outputs)
+    print(1)
 except requests.exceptions.HTTPError as err:
-    if "Internal Server Error" in str(err):
+    if "Client" in str(err):
         import os
 
         folder_path = "/tmp/ray/session_latest/logs/serve"
