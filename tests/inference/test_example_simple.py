@@ -53,16 +53,47 @@ def script_with_args(
     if top_k is not None:
         cmd_single.extend(["--top_k", str(top_k)])
 
-    result_query_single = subprocess.run(cmd_single, capture_output=True, text=True)
+    try:
+        result_query_single = subprocess.run(cmd_single, capture_output=True, text=True, check=True)
 
-    # Print the output of subprocess.run for checking if output is expected
-    print(result_query_single)
+        # Print the output of subprocess.run for checking if output is expected
+        print("\n" + "Model in simple output message: " + "\n", result_query_single.stdout)
 
-    # Ensure there are no errors in the OpenAI API query script execution
-    assert "Error" not in result_query_single.stderr
+        assert isinstance(result_query_single.stdout, str), print(
+            "\n" + "Simple output is nor string" + "\n"
+        )
 
-    # Returncode should be 0 when there is no exception
-    assert result_query_single.returncode == 0
+        assert len(result_query_single.stdout) > 0, print("\n" + "Simple output length is 0" + "\n")
+
+    except subprocess.CalledProcessError as e:
+        if "Internal Server Error" in e.stderr:
+            print(e.stderr)
+            # Find the latest Internal Server Error log file
+            folder_path = "/tmp/ray/session_latest/logs/serve"
+            latest_file = None
+            latest_time = 0.0
+
+            for file_name in os.listdir(folder_path):
+                if file_name.startswith("replica") and file_name.endswith(".log"):
+                    file_path = os.path.join(folder_path, file_name)
+                    file_time = os.path.getmtime(file_path)
+                    if file_time > latest_time:
+                        latest_time = file_time
+                        latest_file = file_path
+            if latest_file:
+                print("latest file:", latest_file)
+                with open(latest_file, "r") as file:
+                    lines = file.readlines()
+                    if lines:
+                        print("Latest Internal Server Error logs:", lines)
+                    else:
+                        print("Internal Server Error logs: Empty")
+            assert False, print("Internal Server Error")
+        else:
+            # Returncode should be 0 when there is no errors in exception
+            assert e.returncode == 0, print(
+                "\n" + "Simple query error stderr message: " + "\n", e.stderr
+            )
 
 
 executed_models = []

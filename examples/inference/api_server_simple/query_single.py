@@ -55,7 +55,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-prompt = "Once upon a time,ejfgaf help me !!"
+prompt = "Once upon a time,"
 config: Dict[str, Union[int, float]] = {}
 if args.max_new_tokens:
     config["max_new_tokens"] = int(args.max_new_tokens)
@@ -75,36 +75,13 @@ outputs = requests.post(
     json=sample_input,
     stream=args.streaming_response,
 )
-try:
-    print(1)
-    outputs.raise_for_status()
-    print(outputs)
-    print(1)
-except requests.exceptions.HTTPError as err:
-    if "Client" in str(err):
-        import os
 
-        folder_path = "/tmp/ray/session_latest/logs/serve"
-        latest_file = None
-        latest_time = 0.0
+outputs.raise_for_status()
 
-        for file_name in os.listdir(folder_path):
-            if file_name.startswith("replica") and file_name.endswith(".log"):
-                file_path = os.path.join(folder_path, file_name)
-                file_time = os.path.getmtime(file_path)
-                if file_time > latest_time:
-                    latest_time = file_time
-                    latest_file = file_path
-        if latest_file:
-            print("latest file:", latest_file)
-            with open(latest_file, "r") as file:
-                lines = file.readlines()
-                if lines:
-                    print("Latest Internal Server Error logs:", lines)
-                else:
-                    print("Internal Server Error logs: Empty")
-    else:
-        raise err
+from requests.exceptions import HTTPError
+
+http_error_msg = f"{500} Server Error: Internal Server Error for url: {args.model_endpoint}"
+raise HTTPError(http_error_msg)
 
 
 if args.streaming_response:
