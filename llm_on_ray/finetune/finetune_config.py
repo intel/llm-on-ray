@@ -56,6 +56,7 @@ class General(BaseModel):
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     enable_gradient_checkpointing: bool = False
+    padding_side: str = "right"
 
     @validator("report_to")
     def check_report_to(cls, v: str):
@@ -71,6 +72,9 @@ class Dataset(BaseModel):
     group: bool = True
     block_size: int = 512
     shuffle: bool = False
+    return_tensors: Optional[str] = None
+    padding: str = "Max_length"
+    truncation: bool = True
 
 
 class RayResourceConfig(BaseModel):

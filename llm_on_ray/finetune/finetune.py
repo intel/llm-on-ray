@@ -140,7 +140,10 @@ def load_tokenizer(config: Dict):
     else:
         tokenizer_name = config["General"]["base_model"]
     load_config = config["General"].get("config", {})
-    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name, **load_config)
+    padding_side = config["General"].get("padding_side")
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        tokenizer_name, padding_side, **load_config
+    )
     return tokenizer
 
 
@@ -198,6 +201,9 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     max_length = config["Dataset"].get("max_length", 512)
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
+    return_tensors = config["Dataset"].get("return_tensors", None)
+    padding = config["Dataset"].get("padding", "Max_length")
+    truncation = config["Dataset"].get("truncation", True)
     tokenizer.pad_token = tokenizer.eos_token
 
     if isinstance(dataset, datasets.Dataset):
@@ -234,7 +240,13 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
         column_names += [template.TEXT_COLUMN_NAME]
 
     def tokenize_function(examples):
-        return tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+        return tokenizer(
+            examples[template.TEXT_COLUMN_NAME],
+            padding=padding,
+            truncation=truncation,
+            return_tensors=return_tensors,
+            max_length=max_length,
+        )
 
     tokenized_dataset = dataset.map(
         tokenize_function,
