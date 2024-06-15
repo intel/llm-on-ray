@@ -213,6 +213,8 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     tokenizer.pad_token = tokenizer.eos_token
     use_dpo = config["Training"].get("use_dpo", False)
     if use_dpo:
+        from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
+
         return DPOIntelOrcaProcesser.tokenize_dataset(config, tokenizer, dataset)
 
     processor = DataProcessor(config, tokenizer)
@@ -302,6 +304,8 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
         training_args = convert_to_training_args(TrainingArguments, config)
 
         if use_dpo:
+            from llm_on_ray.finetune.dpo_funetuing import DPOFuneTuning
+
             trainer = DPOFuneTuning(config).dpo_train(training_args, tokenized_datasets, tokenizer)
         else:
             trainer = Trainer(
@@ -332,6 +336,8 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collato
 
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         if use_dpo:
+            from llm_on_ray.finetune.dpo_funetuing import GaudiDPOFuneTuning
+
             trainer = GaudiDPOFuneTuning(config).dpo_train(
                 training_args, gaudi_config, tokenized_datasets, tokenizer
             )
