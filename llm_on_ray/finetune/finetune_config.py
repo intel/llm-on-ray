@@ -83,6 +83,7 @@ class Dataset(BaseModel):
     data_preprocess_type: str = "neural_chat"
     pad_max: bool = False
     torch_dtype: str = "bfloat16"
+    max_prompt_length: Optional[int] = None
 
 class RayResourceConfig(BaseModel):
     CPU: int
