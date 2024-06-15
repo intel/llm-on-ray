@@ -82,7 +82,7 @@ class Dataset(BaseModel):
     mask_response: bool = True
     data_preprocess_type: str = "neural_chat"
     pad_max: bool = False
-    max_prompt_length: int = 512
+    max_prompt_length: Optional[int] = None
 
 
 class RayResourceConfig(BaseModel):
