@@ -27,8 +27,7 @@ PROMPT_NO_INPUT_FORMAT = """{intro}
 {instruction_key}
 {instruction}
 
-{response_key}
-{response}""".format(
+{response_key}""".format(
     intro=INTRO_BLURB,
     instruction_key=INSTRUCTION_KEY,
     instruction="{instruction}",
