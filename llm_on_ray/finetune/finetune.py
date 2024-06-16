@@ -144,9 +144,8 @@ def load_tokenizer(config: Dict):
     else:
         tokenizer_name = config["General"]["base_model"]
     load_config = config["General"].get("config", {})
-    padding_side = config["General"].get("padding_side")
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name, padding_side, **load_config
+        tokenizer_name,  **load_config
     )
     return tokenizer
 
@@ -205,6 +204,8 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     max_length = config["Dataset"].get("max_length", 512)
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
+    mask_input = config["Dataset"].get("mask_input", False)
+    mask_response = config["Dataset"].get("mask_response", False)
     tokenizer.pad_token = tokenizer.eos_token
 
     def prompt(rec, tokenizer):
@@ -237,8 +238,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
 
     def tokenize_function(examples):
         max_seq_length = max_length
-        mask_input = True
-        mask_response = False
         keys = list(examples.data.keys())
         if len(keys) != 2:
             raise ValueError("Unsupported dataset format")
