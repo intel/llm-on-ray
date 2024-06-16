@@ -144,9 +144,7 @@ def load_tokenizer(config: Dict):
     else:
         tokenizer_name = config["General"]["base_model"]
     load_config = config["General"].get("config", {})
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name,  **load_config
-    )
+    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name, **load_config)
     return tokenizer
 
 
@@ -266,7 +264,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
                 )
                 input_id_len = len(sources_tokenized["input_ids"])
                 labels[input_id_len:input_len] = [IGNORE_INDEX] * (input_len - input_id_len)
-
 
             # padding
             pad_len = max_seq_length - input_len
