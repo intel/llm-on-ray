@@ -83,7 +83,7 @@ class Dataset(BaseModel):
     data_preprocess_type: str = "neural_chat"
     pad_max: bool = False
     torch_dtype: str = "bfloat16"
-    max_prompt_length: Optional[int] = None
+    max_prompt_length: int = 512
 
 class RayResourceConfig(BaseModel):
     CPU: int
@@ -113,7 +113,7 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
-    finetuning_model: Optional[FinetuningModel] = None
+    FinetuningModel: FinetuningModel
     beta: Optional[float] = 0.1
 
     @validator("device")
