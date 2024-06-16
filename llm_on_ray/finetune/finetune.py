@@ -212,7 +212,7 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
-    use_dpo = config["Training"].get("use_dpo", False)
+    use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
     if use_dpo:
         from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
 
@@ -298,7 +298,7 @@ def load_model(config: Dict):
 
 def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collator):
     device = config["Training"]["device"]
-    use_dpo = config["Training"].get("use_dpo", False)
+    use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
@@ -442,7 +442,7 @@ def main(external_config=None):
         if config["General"]["gpt_base_model"] is True:
             runtime_env["pip"] = ["transformers==4.26.0"]
 
-        if config["Training"]["use_dpo"] and config["General"]["gpt_base_model"]:
+        if config["Training"]["FinetuningModel"]["dpo"] and config["General"]["gpt_base_model"]:
             raise ValueError("DPO is not supported for GPT models")
 
         if device == "gpu":

@@ -1,5 +1,4 @@
 General:
-  trainer_type: "dpo"
   base_model: mosaicml/mpt-7b
   tokenizer_name: EleutherAI/gpt-neox-20b
   gpt_base_model: false
@@ -33,5 +32,6 @@ Training:
   accelerate_mode: DDP
   gradient_accumulation_steps: 1
   logging_steps: 10
-  use_dpo: True
+  FinetuningModel:
+    dpo: True
   beta: 0.1
