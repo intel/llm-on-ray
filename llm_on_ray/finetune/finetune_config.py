@@ -45,7 +45,6 @@ class LoraConfig(BaseModel):
 
 
 class General(BaseModel):
-    trainer_type: str = "general"
     base_model: str
     tokenizer_name: Optional[str] = None
     gaudi_config_name: Optional[str] = None
@@ -92,9 +91,9 @@ class RayResourceConfig(BaseModel):
 
 
 class FinetuningModel(BaseModel):
-    dpo: Optional[bool] = False
-    ppo: Optional[bool] = False
-    sft: Optional[bool] = False
+    dpo: bool = False
+    ppo: bool = False
+    sft: bool = False
 
 
 class Training(BaseModel):

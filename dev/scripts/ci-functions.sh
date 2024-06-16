@@ -226,7 +226,6 @@ finetune_dpo_test(){
     docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
 
-
 peft_lora_test(){
     local model=$1
     docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
