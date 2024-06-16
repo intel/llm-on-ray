@@ -75,9 +75,9 @@ def patch_yaml_config():
             if args.models == "mistralai/Mistral-7B-v0.1":
                 result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
                 result["Training"]["beta"] = 0.1
-                result["Training"]["FinetuningModel"]["dpo"] = True
+                result["Training"]["finetuning_model"]["dpo"] = True
             else:
-                result["Training"]["FinetuningModel"]["dpo"] = False
+                result["Training"]["finetuning_model"]["dpo"] = False
 
     with open(conf_path, "w") as output:
         yaml.dump(result, output, sort_keys=False)
