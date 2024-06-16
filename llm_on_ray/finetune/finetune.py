@@ -19,6 +19,8 @@
 import os
 import argparse
 import sys
+import copy
+
 from typing import Any, Dict, Union, Optional
 
 from itertools import chain
@@ -40,6 +42,8 @@ from llm_on_ray import common
 from llm_on_ray.finetune import template
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 from importlib import util
+
+IGNORE_INDEX = -100
 
 
 def adapt_transformers_to_device(config: Dict):
@@ -201,53 +205,83 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     max_length = config["Dataset"].get("max_length", 512)
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
-    return_tensors = config["Dataset"].get("return_tensors", None)
-    padding = config["Dataset"].get("padding", "Max_length")
-    truncation = config["Dataset"].get("truncation", True)
     tokenizer.pad_token = tokenizer.eos_token
 
-    if isinstance(dataset, datasets.Dataset):
-        column_names = dataset.column_names
+    def prompt(rec, tokenizer):
+        instruction = rec["instruction"]
+        response = rec["response"]
+        context = rec.get("context")
+        end = tokenizer.eos_token
+        prompts = {}
+        prompts["prompt_sources"] = []
+        prompts["prompt_targets"] = []
+        if not instruction:
+            raise ValueError(f"Expected an instruction in: {rec}")
+        if not response:
+            raise ValueError(f"Expected a response in: {rec}")
+        if context:
+            prompts["prompt_sources"] = (
+                template.PROMPT_WITH_INPUT_FORMAT.format(instruction=instruction, input=context)
+                + end
+            )
+        else:
+            prompts["prompt_sources"] = (
+                template.PROMPT_NO_INPUT_FORMAT.format(instruction=instruction) + end
+            )
+        prompts["prompt_targets"] = template.RESPONSE_FORMAT.format(response=response) + end
+        return prompts
 
-    if isinstance(dataset, datasets.DatasetDict):
-        column_names = dataset["train"].column_names
-
-    if column_names and template.TEXT_COLUMN_NAME not in column_names:
-
-        def prompt(rec):
-            instruction = rec["instruction"]
-            response = rec["response"]
-            context = rec.get("context")
-            if not instruction:
-                raise ValueError(f"Expected an instruction in: {rec}")
-            if not response:
-                raise ValueError(f"Expected a response in: {rec}")
-            if context:
-                rec["text"] = template.PROMPT_WITH_INPUT_FORMAT.format(
-                    instruction=instruction, response=response, input=context
-                )
-            else:
-                rec["text"] = template.PROMPT_NO_INPUT_FORMAT.format(
-                    instruction=instruction, response=response
-                )
-            return rec
-
-        dataset = dataset.map(
-            prompt,
-            load_from_cache_file=False,
-            desc="Prompt",
-        )
-        column_names += [template.TEXT_COLUMN_NAME]
+    for key in dataset:
+        prompts = prompt(dataset[key], tokenizer)
+        dataset[key] = datasets.Dataset.from_dict(prompts)
 
     def tokenize_function(examples):
-        return tokenizer(
-            examples[template.TEXT_COLUMN_NAME],
-            padding=padding,
-            truncation=truncation,
-            return_tensors=return_tensors,
-            max_length=max_length,
-        )
+        max_seq_length = max_length
+        mask_input = False
+        mask_response = True
+        keys = list(examples.data.keys())
+        if len(keys) != 2:
+            raise ValueError("Unsupported dataset format")
 
+        examples["input_ids"] = []
+        examples["labels"] = []
+        examples["attention_mask"] = []
+        for s, t in zip(examples[keys[0]], examples[keys[1]]):
+            results = tokenizer(
+                s + t, padding=False, truncation=True, return_tensors=None, max_length=max_length
+            )
+            input_ids = results["input_ids"] + [tokenizer.eos_token_id]
+            input_len = len(input_ids)
+            labels = copy.deepcopy(input_ids)
+            # mask input
+            if mask_input:
+                sources_tokenized = tokenizer(
+                    s, padding=False, truncation=True, return_tensors=None, max_length=max_length
+                )
+                input_id_len = len(sources_tokenized["input_ids"])
+                labels[:input_id_len] = [IGNORE_INDEX] * input_id_len
+            # mask response
+            if mask_response:
+                sources_tokenized = tokenizer(
+                    s, padding=False, truncation=True, return_tensors=None, max_length=max_length
+                )
+                input_id_len = len(sources_tokenized["input_ids"])
+                labels[input_id_len + 1 : len(labels) - 1] = [IGNORE_INDEX] * (
+                    len(labels) - 1 - input_id_len
+                )
+
+            # padding
+            pad_len = max_seq_length - input_len
+            input_ids = input_ids + [tokenizer.eos_token_id] * pad_len
+            labels = labels + [IGNORE_INDEX] * pad_len
+            attention_mask = [1] * input_len + [0] * pad_len
+            examples["input_ids"].append(input_ids)
+            examples["labels"].append(labels)
+            examples["attention_mask"].append(attention_mask)
+
+        return examples
+
+    column_names = list(dataset["train"].features)
     tokenized_dataset = dataset.map(
         tokenize_function,
         remove_columns=column_names,
@@ -270,7 +304,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
                 k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
                 for k, t in concatenated_examples.items()
             }
-            result["labels"] = result["input_ids"].copy()
             return result
 
         tokenized_dataset = tokenized_dataset.map(
