@@ -32,6 +32,6 @@ Training:
   accelerate_mode: DDP
   gradient_accumulation_steps: 1
   logging_steps: 10
-  FinetuningModel:
+  finetuning_model:
     dpo: True
   beta: 0.1
