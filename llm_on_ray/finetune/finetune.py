@@ -211,7 +211,7 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
-    use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
+    use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
     if use_dpo:
         from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
 
