@@ -76,9 +76,8 @@ def patch_yaml_config():
                 result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
                 result["Training"]["beta"] = 0.1
                 result["Training"]["FinetuningModel"]["dpo"] = True
-            else :
+            else:
                 result["Training"]["FinetuningModel"]["dpo"] = False
-
 
     with open(conf_path, "w") as output:
         yaml.dump(result, output, sort_keys=False)
