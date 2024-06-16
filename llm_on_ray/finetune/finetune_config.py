@@ -113,7 +113,7 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
-    finetuning_model: FinetuningModel
+    finetuning_model: Optional[FinetuningModel] = None
     beta: Optional[float] = 0.1
 
     @validator("device")
