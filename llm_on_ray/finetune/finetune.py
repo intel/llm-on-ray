@@ -237,8 +237,8 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
 
     def tokenize_function(examples):
         max_seq_length = max_length
-        mask_input = False
-        mask_response = True
+        mask_input = True
+        mask_response = False
         keys = list(examples.data.keys())
         if len(keys) != 2:
             raise ValueError("Unsupported dataset format")
@@ -266,15 +266,18 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
                     s, padding=False, truncation=True, return_tensors=None, max_length=max_length
                 )
                 input_id_len = len(sources_tokenized["input_ids"])
-                labels[input_id_len + 1 : len(labels) - 1] = [IGNORE_INDEX] * (
-                    len(labels) - 1 - input_id_len
-                )
+                labels[input_id_len:input_len] = [IGNORE_INDEX] * (input_len - input_id_len)
+
 
             # padding
             pad_len = max_seq_length - input_len
             input_ids = input_ids + [tokenizer.eos_token_id] * pad_len
             labels = labels + [IGNORE_INDEX] * pad_len
             attention_mask = [1] * input_len + [0] * pad_len
+
+            assert len(input_ids) == max_seq_length
+            assert len(labels) == len(input_ids) == len(attention_mask)
+
             examples["input_ids"].append(input_ids)
             examples["labels"].append(labels)
             examples["attention_mask"].append(attention_mask)
