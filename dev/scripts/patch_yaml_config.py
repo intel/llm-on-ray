@@ -79,6 +79,7 @@ def patch_yaml_config():
             result["Training"]["beta"] = 0.1
             result["Training"]["finetuning_model"]["dpo"] = True
 
+
     with open(conf_path, "w") as output:
         yaml.dump(result, output, sort_keys=False)
 
