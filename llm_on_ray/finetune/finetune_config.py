@@ -71,8 +71,7 @@ class Dataset(BaseModel):
     group: bool = True
     block_size: int = 512
     shuffle: bool = False
-    mask_input: bool = True
-    mask_response: bool = False
+    max_source_length: int = 384
 
 
 class RayResourceConfig(BaseModel):
