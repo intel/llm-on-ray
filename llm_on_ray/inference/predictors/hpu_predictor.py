@@ -314,11 +314,15 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
                 model = AutoModelForCausalLM.from_config(config, torch_dtype=model_dtype)
 
             checkpoints_json = tempfile.NamedTemporaryFile(suffix=".json", mode="+w")
+            if model_desc.config.use_auth_token:
+                auth_token = model_desc.config.use_auth_token
+            else:
+                auth_token = None
             write_checkpoints_json(
                 model_desc.model_id_or_path,
                 self.local_rank,
                 checkpoints_json,
-                token=model_desc.config.use_auth_token,
+                token=auth_token,
             )
         else:
             with deepspeed.OnDevice(dtype=model_dtype, device="cpu"):

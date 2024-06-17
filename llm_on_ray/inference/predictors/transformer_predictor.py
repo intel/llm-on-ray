@@ -37,11 +37,15 @@ class TransformerPredictor(Predictor):
         super().__init__(infer_conf)
         model_desc = infer_conf.model_description
         model_config = model_desc.config
+        if infer_conf.model_description.config.use_auth_token:
+            auth_token = infer_conf.model_description.config.use_auth_token
+        else:
+            auth_token = None
         hf_config = AutoConfig.from_pretrained(
             model_desc.model_id_or_path,
             torchscript=True,
             trust_remote_code=model_config.trust_remote_code,
-            use_auth_token=infer_conf.model_description.config.use_auth_token,
+            use_auth_token=auth_token,
         )
 
         # decide correct torch type for loading HF model
@@ -74,7 +78,7 @@ class TransformerPredictor(Predictor):
             model = PeftModel.from_pretrained(
                 model,
                 model_desc.peft_model_id_or_path,
-                use_auth_token=infer_conf.model_description.config.use_auth_token,
+                use_auth_token=auth_token,
             )
 
             model = model.merge_and_unload()
