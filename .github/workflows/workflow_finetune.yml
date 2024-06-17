@@ -92,7 +92,7 @@ jobs:
         run: |
           TARGET="finetune"
           source dev/scripts/ci-functions.sh
-          finetune_dpo_test ${{ matrix.dpo_model }}
+          finetune_dpo_test ${{ matrix.model }}
 
       - name: Run PEFT-LoRA Test
         run: |
