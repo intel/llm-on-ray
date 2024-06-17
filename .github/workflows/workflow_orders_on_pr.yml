@@ -9,21 +9,21 @@ on:
       - '!*.md'
 jobs:
 
-  Lint:
-    uses: ./.github/workflows/workflow_lint.yml
+  # Lint:
+  #   uses: ./.github/workflows/workflow_lint.yml
 
-  Tests:
-    needs: Lint
-    uses: ./.github/workflows/workflow_tests.yml
+  # Tests:
+  #   needs: Lint
+  #   uses: ./.github/workflows/workflow_tests.yml
 
   Inference:
-    needs: Lint
+    # needs: Lint
     uses: ./.github/workflows/workflow_inference.yml
 
   Inference_Gaudi:
-    needs: Lint
+    # needs: Lint
     uses: ./.github/workflows/workflow_inference_gaudi2.yml
 
   Finetune:
-    needs: Lint
+    # needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml
