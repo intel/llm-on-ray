@@ -91,7 +91,7 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/ci-functions.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} /root/actions-runner-config
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{ inputs.runner_config_path }}
 
       - name: Start Ray Cluster
         run: |
