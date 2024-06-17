@@ -36,7 +36,7 @@ dependencies = [
     "async_timeout",
     "typer",
     "matplotlib",
-    "trl==0.8.6"
+    "trl>=0.8.6"
 ]
 
 [project.optional-dependencies]
