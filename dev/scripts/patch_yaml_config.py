@@ -72,6 +72,9 @@ def patch_yaml_config():
         else:
             result["General"]["lora_config"] = None
         if args.dpo:
+            if "finetuning_model" not in result["Training"]:
+                result["Training"]["finetuning_model"] = {}
+
             if args.models == "mistralai/Mistral-7B-v0.1":
                 result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
                 result["Training"]["beta"] = 0.1
