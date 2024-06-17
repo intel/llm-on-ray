@@ -51,7 +51,6 @@ jobs:
         SHELL: bash -eo pipefail
         http_proxy:
         https_proxy:
-        HF_TOKEN_PATH: ${{ inputs.runner_config_path }}/huggingface_token
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ${{ inputs.runner_config_path }}:/root/actions-runner-config
@@ -95,7 +94,7 @@ jobs:
           # check and remove exited container
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
-          docker run -tid --name="${TARGET}" --hostname="${TARGET}-container" --runtime=habana -v /home/yizhong/Model-References:/root/Model-References -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub/ -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --cap-add sys_ptrace --net=host --ipc=host ${TARGET}:habana
+          docker run -tid --name="${TARGET}" --hostname="${TARGET}-container" --runtime=habana -v /home/yizhong/Model-References:/root/Model-References -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub/ -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none -e HF_TOKEN_PATH=${{ inputs.runner_config_path }}/huggingface_token --cap-add=sys_nice --cap-add sys_ptrace --net=host --ipc=host ${TARGET}:habana
 
       - name: Start Ray Cluster
         run: |

@@ -59,7 +59,6 @@ jobs:
         http_proxy: ${{ inputs.http_proxy }}
         https_proxy: ${{ inputs.https_proxy }}
         SHELL: bash -eo pipefail
-        HF_TOKEN_PATH: ${{ inputs.runner_config_path }}/huggingface_token
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ${{ inputs.runner_config_path }}:/root/actions-runner-config
@@ -92,7 +91,7 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/ci-functions.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ""
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} "${{ inputs.runner_config_path }}/huggingface_token"
 
       - name: Start Ray Cluster
         run: |
