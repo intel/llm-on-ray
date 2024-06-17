@@ -39,7 +39,7 @@ start_docker() {
     local code_checkout_path=$2
     local model_cache_path=$3
     local USE_PROXY=$4
-    local HF_TOKEN_PATH=$5
+    local HF_TOKEN_DIR=$5
 
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
@@ -64,8 +64,10 @@ start_docker() {
         docker_args+=("-e=http_proxy=${HTTP_PROXY}")
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
-    if [ ! -z "$HF_TOKEN_PATH" ]; then
-        docker_args+=("-e=HF_TOKEN_PATH=${HF_TOKEN_PATH}")
+    if [ ! -z "$HF_TOKEN_DIR" ]; then
+        docker_args+=("-v=${HF_TOKEN_DIR}:${HF_TOKEN_DIR}")
+        docker_args+=("-e=HF_TOKEN_PATH=${HF_TOKEN_DIR}/huggingface_token")
+    fi
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   
