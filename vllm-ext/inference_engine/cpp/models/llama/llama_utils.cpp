@@ -42,7 +42,7 @@
 void load_model_internal(const struct model_params& params, model_context& ctx, model_progress_callback progress_callback,
                          void* progress_callback_user_data) {
   std::unique_ptr<Llama> ms(new Llama());
-  ms->init(params.model.c_str(), &ctx, 0, true, true, false);
+  ms->init(params.model.c_str(), &ctx, 0, false, true, false);
   ms->load(&ctx, progress_callback, progress_callback_user_data);
 
   model_context& lctx = ctx;

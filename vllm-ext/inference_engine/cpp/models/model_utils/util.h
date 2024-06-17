@@ -193,7 +193,8 @@ struct model_mmap {
   model_mmap(struct model_file* file, size_t prefetch = (size_t)-1 /* -1 = max value */) {
     size = file->size;
     int fd = fileno(file->fp);
-    int flags = MAP_SHARED;
+    // int flags = MAP_SHARED;
+    int flags = MAP_PRIVATE;
 #ifdef __linux__
     flags |= MAP_POPULATE;
 #endif
