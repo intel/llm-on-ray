@@ -64,10 +64,10 @@ start_docker() {
         docker_args+=("-e=http_proxy=${HTTP_PROXY}")
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
-    if [[ ! -z "$HF_TOKEN_DIR" ]]; then
-        docker_args+=("-v=${HF_TOKEN_DIR}:${HF_TOKEN_DIR}")
-        docker_args+=("-e=HF_TOKEN_PATH=${HF_TOKEN_DIR}/huggingface_token")
-    fi
+    # if [[ ! -z "$HF_TOKEN_DIR" ]]; then
+    #     docker_args+=("-v=${HF_TOKEN_DIR}:${HF_TOKEN_DIR}")
+    #     docker_args+=("-e=HF_TOKEN_PATH=${HF_TOKEN_DIR}/huggingface_token")
+    # fi
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   

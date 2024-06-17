@@ -18,7 +18,7 @@ jobs:
     name: finetune-gpu
     strategy:
       matrix:
-        model: [ meta-llama/Llama-2-7b-chat-hf ]
+        model: [ NousResearch/Llama-2-7b-chat-hf ]
     runs-on: self-hosted
 
     defaults:
