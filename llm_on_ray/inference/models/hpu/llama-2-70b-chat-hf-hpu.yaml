@@ -8,7 +8,7 @@ deepspeed: true
 workers_per_group: 8
 device: hpu
 model_description:
-  model_id_or_path: meta-llama/Llama-2-70b-chat-hf
-  tokenizer_name_or_path: meta-llama/Llama-2-70b-chat-hf
+  model_id_or_path: NousResearch/Llama-2-70b-chat-hf
+  tokenizer_name_or_path: NousResearch/Llama-2-70b-chat-hf
   config:
     use_auth_token: ''

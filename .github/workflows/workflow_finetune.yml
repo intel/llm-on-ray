@@ -34,7 +34,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, NousResearch/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, meta-llama/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
+        model: [ EleutherAI/gpt-j-6b, NousResearch/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, NousResearch/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -65,9 +65,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
-
       - name: Build Docker Image
         run: |
           DF_SUFFIX=".cpu_and_deepspeed"
@@ -83,7 +80,7 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/ci-functions.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{ inputs.runner_config_path }}
 
       - name: Run Finetune Test
         run: |
