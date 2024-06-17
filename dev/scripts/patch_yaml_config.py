@@ -74,7 +74,6 @@ def patch_yaml_config():
         if args.dpo:
             if "finetuning_model" not in result["Training"]:
                 result["Training"]["finetuning_model"] = {}
-
             result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
             result["Training"]["beta"] = 0.1
             result["Training"]["finetuning_model"]["dpo"] = True
