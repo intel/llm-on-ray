@@ -211,11 +211,12 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
-    use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
-    if use_dpo:
-        from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
+    if config["Training"]["finetuning_model"] is not None:
+        use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
+        if use_dpo:
+            from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
 
-        return DPOIntelOrcaProcesser.tokenize_dataset(config, tokenizer, dataset)
+            return DPOIntelOrcaProcesser.tokenize_dataset(config, tokenizer, dataset)
 
     processor = DataProcessor(config, tokenizer)
 
@@ -297,7 +298,9 @@ def load_model(config: Dict):
 
 def get_trainer(config: Dict, model, tokenizer, tokenized_datasets, data_collator):
     device = config["Training"]["device"]
-    use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
+    use_dpo = False
+    if config["Training"]["finetuning_model"] is not None:
+        use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
