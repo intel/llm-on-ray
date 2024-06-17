@@ -301,7 +301,7 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
     device = config["Training"]["device"]
     use_dpo = False
     if config["Training"]["finetuning_model"] is not None:
-        use_dpo = config["Training"]["FinetuningModel"].get("dpo", False)
+        use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
