@@ -6,7 +6,7 @@ cpus_per_worker: 8
 hpus_per_worker: 1
 device: hpu
 model_description:
-  model_id_or_path: meta-llama/Meta-Llama-3-8b-Instruct
-  tokenizer_name_or_path: meta-llama/Meta-Llama-3-8b-Instruct
+  model_id_or_path: NousResearch/Meta-Llama-3-8B-Instruct
+  tokenizer_name_or_path: NousResearch/Meta-Llama-3-8B-Instruct
   config:
     use_auth_token: ''
