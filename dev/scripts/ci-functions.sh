@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-HTTP_PROXY='http://10.24.221.169:911'
-HTTPS_PROXY='http://10.24.221.169:911'
+HTTP_PROXY='http://10.24.221.169:912'
+HTTPS_PROXY='http://10.24.221.169:912'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
@@ -39,7 +39,6 @@ start_docker() {
     local code_checkout_path=$2
     local model_cache_path=$3
     local USE_PROXY=$4
-    local HF_TOKEN=$5
 
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
@@ -66,12 +65,7 @@ start_docker() {
     fi
 
     echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
-    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
-    if [ -z "$HF_TOKEN" ]; then
-        echo "no hf token"
-    else
-        docker exec "${TARGET}" bash -c "huggingface-cli login --token ${HF_TOKEN}"
-    fi
+    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   
 }
 
 install_dependencies(){
