@@ -337,7 +337,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         engine = deepspeed.init_inference(model, **ds_inference_kwargs)
         self.model = engine.module
 
-        if self.model.config.model_type == "llama":
+        if self.model.config.model_type in ["llama", "falcon", "qwen2"]:
 
             def patch_scoped_linear_all_reduce(model):
                 from deepspeed.module_inject.layers import LinearAllreduce
