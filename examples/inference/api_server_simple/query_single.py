@@ -71,7 +71,7 @@ if args.top_k:
     config["top_k"] = float(args.top_k)
 
 sample_input = SimpleRequest(text=prompt, config=config, stream=args.streaming_response)
-print(args.streaming_response)
+
 proxies = {"http": None, "https": None}
 outputs = requests.post(
     args.model_endpoint,
