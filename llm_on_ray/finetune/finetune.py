@@ -40,7 +40,6 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
-from llm_on_ray.finetune import template
 from llm_on_ray.finetune.DataPreprocess import AlpacaDataPreprocess
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 from importlib import util
@@ -207,27 +206,22 @@ def load_dataset(config: Dict):
 
 
 def tokenize_dataset(config: Dict, tokenizer, dataset):
-    config["Dataset"].get("max_length", 512)
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
-    config["Dataset"].get("max_source_length", 384)
     tokenizer.pad_token = tokenizer.eos_token
 
     preprocess = AlpacaDataPreprocess(tokenizer.eos_token)
 
-    print(dataset)
     for key in dataset:
         prompts = preprocess.prompt(dataset[key])
         dataset[key] = datasets.Dataset.from_dict(prompts)
 
     column_names = list(dataset["train"].features)
-    print(dataset)
-
-    print(column_names)
     preprocess_fn = preprocess.tokenize_func(tokenizer, config)
     tokenized_dataset = dataset.map(
         preprocess_fn,
         remove_columns=column_names,
+        batched=True,
         load_from_cache_file=False,
         desc="Tokenize dataset",
     )

@@ -4,14 +4,16 @@ from itertools import chain
 
 import torch
 
-from llm_on_ray.finetune import template
-
 IGNORE_INDEX = -100
 
 
 class AlpacaDataPreprocess:
     def __init__(self, eos_token):
         self.end = eos_token
+        self.intro = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        self.instruction = "### Instruction:\n"
+        self.input = "### Input:\n"
+        self.response = "### Response:\n"
 
     def prompt(self, examples):
         prompts = {}
@@ -26,23 +28,18 @@ class AlpacaDataPreprocess:
             if not response:
                 raise ValueError(f"Expected a response in: {rec}")
             if context:
-                prompt = (
-                    template.PROMPT_WITH_INPUT_FORMAT.format(instruction=instruction, input=context)
-                    + self.end
-                )
+                prompt = self.intro + self.end + "\n" + self.instruction + instruction + self.input + context + self.end + "\n" + self.response
                 prompts["prompt_sources"].append(prompt)
             else:
-                prompt = template.PROMPT_NO_INPUT_FORMAT.format(instruction=instruction) + self.end
+                prompt = self.intro + self.end + "\n" + self.instruction + instruction + self.end + "\n" + self.response
                 prompts["prompt_sources"].append(prompt)
-            prompt_response = template.RESPONSE_FORMAT.format(response=response) + self.end
+            prompt_response = response + self.end
             prompts["prompt_targets"].append(prompt_response)
-            prompt += prompt_response + "\n"
-
         return prompts
 
     def tokenize_func(self, tokenizer, config):
         padding_side = config["Dataset"].get("padding_side", "right")
-        config["Dataset"].get("truncation_side", "right")
+        truncation_side = config["Dataset"].get("truncation_side", "right")
         max_length = max_source_length = config["Dataset"].get("max_length", 512)
         max_seq_length = config["Dataset"].get("max_seq_length", 1024)
         truncation = config["Dataset"].get("truncation", True)
@@ -61,7 +58,6 @@ class AlpacaDataPreprocess:
             while words_to_cut > 0 and len(sequences) > 0:
                 words_to_cut -= len(sequences[0])
                 sequences = sequences[1:]
-
             return sequences
 
         def preprocess_function_with_tokenize(examples):
@@ -70,43 +66,29 @@ class AlpacaDataPreprocess:
             The only differences are:
             - using our own prompt style
             """
-            print("preprocess_function_with_tokenize")
             keys = list(examples.data.keys())
             if len(keys) != 2:
                 raise ValueError("Unsupported dataset format")
-            assistant = "### Response:\n"
-            end = tokenizer.eos_token
-            assistant_tokens = tokenizer.tokenize(assistant)
+            assistant_tokens = tokenizer.tokenize(self.response)
             header = (
                 "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-                + end
+                + self.end
                 + "\n"
             )
-            print(examples["prompt_sources"])
-            instructions = [q.strip() for q in examples["prompt_sources"]]
-            print(instructions)
-            [q.strip() for q in examples["prompt_targets"]]
 
             examples["input_ids"] = []
             examples["labels"] = []
             examples["attention_mask"] = []
-
             for instruction, response in zip(examples[keys[0]], examples[keys[1]]):
-                print("instruction")
-                print(instruction)
                 convs = re.findall(
-                    r"### Instruction.*?{0}|### Response.*?{0}".format(end), instruction, re.DOTALL
+                    r"### Instruction.*?{0}|### Response.*?{0}".format(self.end), instruction, re.DOTALL
                 )
-                print(convs)
                 convs_tokens = [
                     tokenizer.tokenize(conv) + tokenizer.tokenize("\n") for conv in convs
                 ]
                 header_tokens = tokenizer.tokenize(header) + tokenizer.tokenize("\n")
-
                 max_input = max_source_length - len(header_tokens) - len(assistant_tokens)
-
                 truncated_convs = truncate_sequences(convs_tokens, max_input)
-
                 if len(truncated_convs) == 0:
                     truncated_convs = [convs_tokens[-1][: max_input - 3] + convs_tokens[-1][-3:]]
 
@@ -119,8 +101,12 @@ class AlpacaDataPreprocess:
                 resp_ids = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(response.strip()))
                 # keep last and eos_id
                 max_resp = max_seq_length - len(prompt_ids) - 1
+
                 if len(resp_ids) > max_resp:
-                    resp_ids = resp_ids[: max_resp - 1] + resp_ids[-1:]
+                    if truncation_side == "right":
+                        resp_ids = resp_ids[: max_resp - 1] + resp_ids[-1:]
+                    else:
+                        resp_ids = resp_ids[-max_resp:]
 
                 # masking
                 input_ids = prompt_ids + resp_ids + [tokenizer.eos_token_id]
