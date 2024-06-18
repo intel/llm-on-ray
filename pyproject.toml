@@ -20,7 +20,7 @@ classifiers = [
 dependencies = [
     "accelerate",
     "datasets>=2.14.6",
-    "numpy",
+    "numpy<2.0.0",
     "ray>=2.10",
     "ray[serve,tune]>=2.10",
     "typing>=3.7.4.3",
@@ -28,7 +28,7 @@ dependencies = [
     "gymnasium",
     "dm-tree",
     "tensorboard",
-    "scikit-image==0.24.0rc1",
+    "scikit-image",
     "einops",
     "peft>=0.4.0",
     "py-cpuinfo",
@@ -41,8 +41,8 @@ dependencies = [
 [project.optional-dependencies]
 cpu = [
     "transformers>=4.38.0, <=4.38.1",
-    "intel_extension_for_pytorch==2.3.0",
-    "torch==2.3.0",
+    "intel_extension_for_pytorch==2.2.0",
+    "torch==2.2.0",
     "oneccl_bind_pt==2.2.0"
 ]
 
