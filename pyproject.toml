@@ -28,7 +28,7 @@ dependencies = [
     "gymnasium",
     "dm-tree",
     "tensorboard",
-    "scikit-image",
+    "scikit-image==0.24.0rc1",
     "einops",
     "peft>=0.4.0",
     "py-cpuinfo",
