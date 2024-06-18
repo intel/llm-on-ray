@@ -20,7 +20,7 @@ from pydantic import BaseModel, ValidationError, validator
 
 class SimpleRequest(BaseModel):
     text: str
-    config: Dict[str, Union[int, float]]
+    config: Dict[str, Union[int, float]] = {}
     stream: Optional[bool] = False
 
     @validator("text")
@@ -32,7 +32,10 @@ class SimpleRequest(BaseModel):
     @validator("config", pre=True)
     def check_config_type(cls, value):
         allowed_keys = ["max_new_tokens", "temperature", "top_p", "top_k"]
-        config_keys = value.keys()
+        allowed_set = set(allowed_keys)
+        config_dict = value.keys()
+        config_keys = [key for key in config_dict]
+        config_set = set(config_keys)
 
         if not isinstance(value, dict):
             raise ValueError("Config must be a dictionary")
@@ -43,8 +46,8 @@ class SimpleRequest(BaseModel):
         if not all(isinstance(val, (int, float)) for val in value.values()):
             raise ValueError("All values in config must be integers or floats")
 
-        if config_keys not in allowed_keys:
-            invalid_keys = config_keys - allowed_keys
+        if not config_set.issubset(allowed_set):
+            invalid_keys = config_set - allowed_set
             raise ValueError(f'Invalid config keys: {", ".join(invalid_keys)}')
 
         return value

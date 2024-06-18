@@ -381,22 +381,19 @@ class PredictorDeployment:
         else:
             raise HTTPException(400, "Invalid prompt format.")
 
-    async def __call__(
-        self, http_request: SimpleRequest
-    ) -> Union[StreamingResponse, JSONResponse, str]:
+    async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
         self.use_openai = False
         try:
-            json_request: Dict[str, Any] = await http_request.json()
-            simple_request = SimpleRequest(**json_request)
+            request: Dict[str, Any] = await http_request.json()
         except ValueError:
             return JSONResponse(
                 status_code=400,
                 content="Invalid JSON format from http request.",
             )
 
-        input = simple_request.text
-        config = simple_request.config
-        streaming_response = simple_request.stream
+        streaming_response = request["stream"]
+        input = request["text"]
+        config = request["config"]
 
         prompts = self.preprocess_prompts(input)
 
