@@ -84,6 +84,7 @@ class Dataset(BaseModel):
     pad_max: bool = False
     torch_dtype: str = "bfloat16"
     max_prompt_length: int = 512
+    torch_dtype: str = "bfloat16"
 
 class RayResourceConfig(BaseModel):
     CPU: int
