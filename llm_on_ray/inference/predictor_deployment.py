@@ -396,8 +396,11 @@ class PredictorDeployment:
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
+        print("SSSSSS1:", config)
+        print("SSSSSS2:", input)
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
+        print("SSSSSS6:", prompts)
 
         # Handle streaming response
         if streaming_response:
@@ -416,8 +419,11 @@ class PredictorDeployment:
     ):
         self.use_openai = True
 
+        # TODO: print input inside preprocess_prompts later
+        print("SSSSSS5:", input)
         # return prompt or list of prompts preprocessed
         input = self.preprocess_prompts(input, tools, tool_choice)
+        print("SSSSSS7:", input)
 
         # Handle streaming response
         if streaming_response:

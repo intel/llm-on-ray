@@ -41,14 +41,14 @@ def get_deployed_models(args):
                 set(all_models_name)
             ), f"models must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {models}."
             model_list = {model: all_models[model] for model in models}
+            print("--config_file is not set while --models is set, serving model(s):", model_list)
         else:
             model_list = all_models
+            print("--config_file and --models is not set, serving all models:", model_list)
     else:
-        # config_file has precedence over others
-        if args.config_file:
-            print("Reading from config file, " + args.config_file)
-            with open(args.config_file, "r") as f:
-                infer_conf = parse_yaml_raw_as(InferenceConfig, f)
+        print("Reading from config file, " + args.config_file)
+        with open(args.config_file, "r") as f:
+            infer_conf = parse_yaml_raw_as(InferenceConfig, f)
         model_list = {}
         model_list[infer_conf.name] = infer_conf
 
@@ -147,6 +147,8 @@ def main(argv=None):
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
+    print("Service is running with deployments:" + str(deployments))
+    print("Service is running models:" + str(model_list))
     if args.simple:
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.
@@ -156,8 +158,6 @@ def main(argv=None):
         # all models are served under the same URL and then accessed
         # through model_id, so it needs to pass in a unified URL.
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
-        print("Service is running with deployments:" + str(deployments))
-        print("Service is running models:" + str(model_list))
         openai_serve_run(deployments, model_list, host, "/", args.port, args.max_ongoing_requests)
 
     msg = "Service is deployed successfully."

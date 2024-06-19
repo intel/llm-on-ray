@@ -54,10 +54,12 @@ class RouterQueryClient:
         top_p = request_config.get("top_p", 1.0)
         max_new_tokens = request_config.get("max_tokens", None)
         gen_config = {"max_new_tokens": max_new_tokens, "temperature": temperature, "top_p": top_p}
-        if temperature != 1.0 or top_p != 1.0:
-            gen_config.update({"do_sample": True})
-        if request_config.get("ignore_eos", False):
-            gen_config.update({"ignore_eos": True})
+        gen_config.update({"do_sample": temperature != 1.0 or top_p != 1.0})
+        gen_config.update({"ignore_eos": request_config.get("ignore_eos", False)})
+
+        print("SSSSSS3:", request_config)
+        print("SSSSSS4:", gen_config)  # no use
+        # TODO: set debug mode in request_config, add and set debug mode to gen_config, since gen_config is the config to be passed down
 
         async for x in handle_request(
             model=model,

@@ -79,8 +79,15 @@ class HPUPredictor(Predictor):
         # decide correct torch dtype for loading HF model
         decide_torch_dtype(infer_conf)
 
+        print("SSSSSS8:", infer_conf)
+
         self.use_lazy_mode = not infer_conf.hpu_model_config.torch_compile
         self.use_hpu_graphs = infer_conf.hpu_model_config.use_hpu_graphs
+
+        # optimize transformers for gaudi
+        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
+
+        adapt_transformers_to_gaudi()
 
         if infer_conf.deepspeed:
             # DeepSpeed is enabled, start worker group
@@ -104,13 +111,6 @@ class HPUPredictor(Predictor):
                 import habana_frameworks.torch.core as htcore
 
                 htcore.hpu_set_env()
-
-            # Tweak transformer to optimize performance on Gaudi
-            from optimum.habana.transformers.modeling_utils import (
-                adapt_transformers_to_gaudi,
-            )
-
-            adapt_transformers_to_gaudi()
 
             self.device = torch.device("hpu")
             model = AutoModelForCausalLM.from_pretrained(
@@ -181,6 +181,7 @@ class HPUPredictor(Predictor):
 
     def get_streamer(self):
         if self.infer_conf.deepspeed:
+            # Q2: Why always use the first worker?
             return ray.get(self.deepspeed_workers[0].get_streamer.remote())
         else:
             return TextIteratorStreamer(
@@ -196,6 +197,8 @@ class HPUPredictor(Predictor):
 
         self._process_config(config)
 
+        # TODO: Maybe we should get realtime load info of all cards, set a heathy usage ratio and pick the usable cards for serving.
+        #       So that some errors like OOM can be prevented, and the server will be more robust.
         if self.infer_conf.deepspeed:
             return ray.get(
                 [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
@@ -219,7 +222,9 @@ class HPUPredictor(Predictor):
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
+        # Q1: Why it is handled here when using both deepspeed and hpu?
         if self.infer_conf.deepspeed:
+            # Q2: Why always use the first worker?
             self.deepspeed_workers[0].streaming_generate.remote(prompt, streamer, **config)
             for worker in self.deepspeed_workers[1:]:
                 worker.streaming_generate.remote(prompt, self._create_dummy_streamer(), **config)
@@ -284,10 +289,6 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.world_size = int(os.environ["WORLD_SIZE"])
         self.local_rank = int(os.environ["LOCAL_RANK"])
         self.device = torch.device("hpu")
-        # optimize transformers for gaudi
-        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
-
-        adapt_transformers_to_gaudi()
         self.load_model()
         model_desc = self.infer_conf.model_description
         self.tokenizer = load_tokenizer(self.model, model_desc.tokenizer_name_or_path)
