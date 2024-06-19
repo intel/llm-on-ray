@@ -28,10 +28,30 @@ class AlpacaDataPreprocess:
             if not response:
                 raise ValueError(f"Expected a response in: {rec}")
             if context:
-                prompt = self.intro + self.end + "\n" + self.instruction + instruction + self.input + context + self.end + "\n" + self.response
+                prompt = (
+                    self.intro
+                    + self.end
+                    + "\n"
+                    + self.instruction
+                    + instruction
+                    + self.input
+                    + context
+                    + self.end
+                    + "\n"
+                    + self.response
+                )
                 prompts["prompt_sources"].append(prompt)
             else:
-                prompt = self.intro + self.end + "\n" + self.instruction + instruction + self.end + "\n" + self.response
+                prompt = (
+                    self.intro
+                    + self.end
+                    + "\n"
+                    + self.instruction
+                    + instruction
+                    + self.end
+                    + "\n"
+                    + self.response
+                )
                 prompts["prompt_sources"].append(prompt)
             prompt_response = response + self.end
             prompts["prompt_targets"].append(prompt_response)
@@ -65,6 +85,8 @@ class AlpacaDataPreprocess:
             Copied from https://github.com/intel/intel-extension-for-transformers/blob/ae54f698b73a66e5729427cb19f69c33e1a5c34d/intel_extension_for_transformers/transformers/llm/finetuning/data_utils.py#L225
             The only differences are:
             - using our own prompt style
+            - add left or right padding and truncation
+            - add mask_input and mask_response
             """
             keys = list(examples.data.keys())
             if len(keys) != 2:
@@ -81,7 +103,9 @@ class AlpacaDataPreprocess:
             examples["attention_mask"] = []
             for instruction, response in zip(examples[keys[0]], examples[keys[1]]):
                 convs = re.findall(
-                    r"### Instruction.*?{0}|### Response.*?{0}".format(self.end), instruction, re.DOTALL
+                    r"### Instruction.*?{0}|### Response.*?{0}".format(self.end),
+                    instruction,
+                    re.DOTALL,
                 )
                 convs_tokens = [
                     tokenizer.tokenize(conv) + tokenizer.tokenize("\n") for conv in convs
@@ -102,6 +126,7 @@ class AlpacaDataPreprocess:
                 # keep last and eos_id
                 max_resp = max_seq_length - len(prompt_ids) - 1
 
+                # truncating response
                 if len(resp_ids) > max_resp:
                     if truncation_side == "right":
                         resp_ids = resp_ids[: max_resp - 1] + resp_ids[-1:]
@@ -148,55 +173,37 @@ class AlpacaDataPreprocess:
             examples["labels"] = []
             examples["attention_mask"] = []
             for s, t in zip(examples[keys[0]], examples[keys[1]]):
-                if padding is False:
-                    results = tokenizer(
-                        s + t,
+                results = tokenizer(
+                    s + t,
+                    padding=padding,
+                    truncation=truncation,
+                    return_tensors=None,
+                    max_length=max_length,
+                )
+
+                input_ids = results["input_ids"]
+                input_len = len(input_ids)
+                labels = copy.deepcopy(input_ids)
+                if mask_input or mask_response:
+                    sources_tokenized = tokenizer(
+                        s,
                         padding=False,
                         truncation=True,
                         return_tensors=None,
                         max_length=max_length,
                     )
-                    input_ids = results["input_ids"]
-                    input_len = len(input_ids)
-                    labels = copy.deepcopy(input_ids)
+                    input_id_len = len(sources_tokenized["input_ids"])
                     # mask input
                     if mask_input:
-                        sources_tokenized = tokenizer(
-                            s,
-                            padding=False,
-                            truncation=True,
-                            return_tensors=None,
-                            max_length=max_length,
-                        )
-                        input_id_len = len(sources_tokenized["input_ids"])
                         labels[:input_id_len] = [IGNORE_INDEX] * input_id_len
+                    # mask response
                     if mask_response:
-                        sources_tokenized = tokenizer(
-                            s,
-                            padding=False,
-                            truncation=True,
-                            return_tensors=None,
-                            max_length=max_length,
-                        )
-                        input_id_len = len(sources_tokenized["input_ids"])
-
                         labels[input_id_len:input_len] = [IGNORE_INDEX] * (input_len - input_id_len)
-                else:
-                    results = tokenizer(
-                        s + t,
-                        padding=padding,
-                        truncation=truncation,
-                        return_tensors=None,
-                        max_length=max_length,
-                    )
-                    input_ids = results["input_ids"]
-                    labels = copy.deepcopy(input_ids)
 
-                attention_mask = results["attention_mask"]
-                examples["input_ids"].append(input_ids)
+                examples["input_ids"].append(results["input_ids"])
                 examples["labels"].append(labels)
-                examples["attention_mask"].append(attention_mask)
-
+                examples["attention_mask"].append(results["attention_mask"])
             return examples
+
 
         return preprocess_function_with_tokenize
