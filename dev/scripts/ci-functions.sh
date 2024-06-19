@@ -219,8 +219,8 @@ finetune_test(){
 finetune_dpo_test(){
     local model=$1
 
-    # Check if the model is 'gpt-j-6b' or 'gpt2'
-    if [ "$model" == "gpt-j-6b" ] || [ "$model" == "gpt2" ]; then
+    # Check if the model is 'EleutherAI/gpt-j-6b' or 'gpt2'
+    if [ "$model" == "EleutherAI/gpt-j-6b" ] || [ "$model" == "gpt2" ]; then
         echo "Model '$model' is not supported for this operation."
         return
     fi
