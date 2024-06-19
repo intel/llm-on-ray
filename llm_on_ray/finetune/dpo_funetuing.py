@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import datasets
+import torch
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM
 from typing import Dict
@@ -153,10 +154,10 @@ class DPOIntelOrcaProcesser:
                 desc="Running tokenizer on train dataset",
             )
 
-        eval_dataset = raw_datasets["validation"]
-        column_names = eval_dataset.column_names
+        eval_dataset = raw_datasets.get("validation")
 
         if eval_dataset is not None:
+            column_names = eval_dataset.column_names
             eval_dataset = eval_dataset.map(
                 preprocess_function,
                 batched=True,
@@ -171,6 +172,11 @@ class DPOIntelOrcaProcesser:
 class DPOFuneTuning:
     def __init__(self, config):
         self.config = config
+        self.torch_dtype = (
+            self.config["Dataset"]["torch_dtype"]
+            if self.config["Dataset"]["torch_dtype"] in ["auto", None]
+            else getattr(torch, self.config["Dataset"]["torch_dtype"])
+        )
 
     def get_model(self):
         # load policy model
@@ -178,6 +184,7 @@ class DPOFuneTuning:
             self.config["General"]["base_model"],
             config=self.config,
             low_cpu_mem_usage=True,
+            torch_dtype=self.torch_dtype,
             use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
         )
         model.config.use_cache = False
@@ -189,6 +196,7 @@ class DPOFuneTuning:
             self.config["General"]["base_model"],
             config=self.config,
             low_cpu_mem_usage=True,
+            torch_dtype=self.torch_dtype,
             use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
         )
         model_ref.config.use_cache = False
@@ -211,7 +219,6 @@ class DPOFuneTuning:
             peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
             max_length=self.config["Dataset"].get("max_length"),
             max_prompt_length=self.config["Dataset"].get("max_prompt_length"),
-            force_use_ref_model=True if lora_config is not None else False,
         )
 
 
