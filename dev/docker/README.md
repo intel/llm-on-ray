@@ -1,8 +1,6 @@
-Dockerfiles for users to convenient build containers. 
-1.Dockerfile.user for user to build llm-on-ray with docker on Intel CPU.
-2.Dockerfile.habana for user to build llm-on-ray with docker on Intel Habana Gaudi. 
+# Dockerfiles for Users
 
-Dockerfiles for CI tests in 'ci/*'. 
-In CI, the environment required by different models is separated, and the dockerfiles with different functions are distinguished by different suffixes.
+* `Dockerfile.user` to build llm-on-ray docker image for running on Intel CPU.
+* `Dockerfile.habana` to build llm-on-ray docker image for running on [Intel Gaudi AI accelerator](https://habana.ai/products/gaudi/). 
 
-There could be one Dockerfile with ARG declared to distinguish different pip extras. However, ARG will bust cache of 'pip install', which usually takes long time, when build docker image. Instead, we have two almost identical Dockerfiles here to improve CI efficiency. 
+__NOTICE:__ Dockerfiles in `ci/` are for CI tests only, are not intended for daily use.
