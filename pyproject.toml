@@ -30,13 +30,13 @@ dependencies = [
     "tensorboard",
     "scikit-image",
     "einops",
-    "peft>=0.4.0",
+    "peft==0.6.2",
     "py-cpuinfo",
     "pydantic-yaml",
     "async_timeout",
     "typer",
     "matplotlib",
-    "trl==0.8.6"
+    "trl==0.7.6"
 ]
 
 [project.optional-dependencies]
