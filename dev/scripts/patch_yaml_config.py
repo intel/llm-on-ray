@@ -75,12 +75,9 @@ def patch_yaml_config():
             if "finetuning_model" not in result["Training"]:
                 result["Training"]["finetuning_model"] = {}
 
-            if args.models == "mistralai/Mistral-7B-v0.1":
-                result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
-                result["Training"]["beta"] = 0.1
-                result["Training"]["finetuning_model"]["dpo"] = True
-            else:
-                result["Training"]["finetuning_model"]["dpo"] = False
+            result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
+            result["Training"]["beta"] = 0.1
+            result["Training"]["finetuning_model"]["dpo"] = True
 
     with open(conf_path, "w") as output:
         yaml.dump(result, output, sort_keys=False)
