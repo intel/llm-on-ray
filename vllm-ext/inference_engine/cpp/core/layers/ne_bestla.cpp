@@ -47,29 +47,37 @@ void bestla_parallel_for(forward_compute_fptr fcomp, ne_compute_params* mainpara
   auto threading = ne_bestla::ne_threading::get();
   if (mainparams->nth == 1) {
     struct ne_compute_params params = *mainparams;
-    params.type = NE_TASK_INIT;
-    fcomp(&params, node);
+    if (node->need_init) {
+      params.type = NE_TASK_INIT;
+      fcomp(&params, node);
+    }
     params.type = NE_TASK_COMPUTE;
     fcomp(&params, node);
-    params.type = NE_TASK_FINALIZE;
-    fcomp(&params, node);
+    if (node->need_finalize) {
+      params.type = NE_TASK_FINALIZE;
+      fcomp(&params, node);
+    }
   } else {
     threading->parallel_for([&](int tidx) {
       struct ne_compute_params params = *mainparams;
       params.ith = tidx;
-      params.type = NE_TASK_INIT;
-      if (tidx == 0) {
-        fcomp(&params, node);
+      if (node->need_init) {
+        params.type = NE_TASK_INIT;
+        if (tidx == 0) {
+          fcomp(&params, node);
+        }
+        threading->sync(tidx, 0);
       }
-      threading->sync(tidx, 0);
       params.type = NE_TASK_COMPUTE;
       if (params.ith < params.nth) {
         fcomp(&params, node);
       }
-      threading->sync(tidx, 1);
-      params.type = NE_TASK_FINALIZE;
-      if (params.ith < params.nth) {
-        fcomp(&params, node);
+      if (node->need_finalize) {
+        threading->sync(tidx, 1);
+        params.type = NE_TASK_FINALIZE;
+        if (params.ith < params.nth) {
+          fcomp(&params, node);
+        }
       }
     });
   }

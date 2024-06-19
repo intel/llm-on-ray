@@ -182,10 +182,12 @@ struct ne_tensor {
   void* data;
   size_t size;
 
-  char name[26];
+  char name[24];
 
-  // for quick cgraph visit
+  // for quick cgraph visit and graph compute
   bool visited;
+  bool need_init;
+  bool need_finalize;
   int opts_used;
 
   char padding[8];

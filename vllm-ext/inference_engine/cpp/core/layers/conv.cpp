@@ -49,6 +49,9 @@ static void ne_compute_forward_conv_1d_s1_ph_f16_f32(const struct ne_compute_par
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
 
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
+
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
 
@@ -102,10 +105,6 @@ static void ne_compute_forward_conv_1d_s1_ph_f16_f32(const struct ne_compute_par
     return;
   }
 
-  if (params->type == NE_TASK_FINALIZE) {
-    return;
-  }
-
   // total rows in dst
   const int nr = ne02;
 
@@ -136,6 +135,9 @@ static void ne_compute_forward_conv_1d_s1_ph_f32(const struct ne_compute_params*
   NE_ASSERT(src0->type == NE_TYPE_F32);
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
+
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
 
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
@@ -187,10 +189,6 @@ static void ne_compute_forward_conv_1d_s1_ph_f32(const struct ne_compute_params*
       }
     }
 
-    return;
-  }
-
-  if (params->type == NE_TASK_FINALIZE) {
     return;
   }
 
@@ -241,6 +239,9 @@ static void ne_compute_forward_conv_1d_s2_ph_f16_f32(const struct ne_compute_par
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
 
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
+
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
 
@@ -294,10 +295,6 @@ static void ne_compute_forward_conv_1d_s2_ph_f16_f32(const struct ne_compute_par
     return;
   }
 
-  if (params->type == NE_TASK_FINALIZE) {
-    return;
-  }
-
   // total rows in dst
   const int nr = ne02;
 
@@ -328,6 +325,9 @@ static void ne_compute_forward_conv_1d_s2_ph_f32(const struct ne_compute_params*
   NE_ASSERT(src0->type == NE_TYPE_F32);
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
+
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
 
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
@@ -379,10 +379,6 @@ static void ne_compute_forward_conv_1d_s2_ph_f32(const struct ne_compute_params*
       }
     }
 
-    return;
-  }
-
-  if (params->type == NE_TASK_FINALIZE) {
     return;
   }
 
@@ -451,6 +447,8 @@ static void ne_compute_forward_conv_1d_1s_f16_f32(const struct ne_compute_params
   NE_ASSERT(src0->type == NE_TYPE_F16);
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
 
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
@@ -534,10 +532,6 @@ static void ne_compute_forward_conv_1d_1s_f16_f32(const struct ne_compute_params
     return;
   }
 
-  if (params->type == NE_TASK_FINALIZE) {
-    return;
-  }
-
   // total rows in dst
   const int nr = ne02;
 
@@ -568,6 +562,9 @@ static void ne_compute_forward_conv_1d_1s_f32(const struct ne_compute_params* pa
   NE_ASSERT(src0->type == NE_TYPE_F32);
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
+
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
 
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
@@ -648,10 +645,6 @@ static void ne_compute_forward_conv_1d_1s_f32(const struct ne_compute_params* pa
       }
     }
 
-    return;
-  }
-
-  if (params->type == NE_TASK_FINALIZE) {
     return;
   }
 
@@ -703,6 +696,9 @@ static void ne_compute_forward_conv_1d_2s_f16_f32(const struct ne_compute_params
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
 
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
+
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
 
@@ -785,10 +781,6 @@ static void ne_compute_forward_conv_1d_2s_f16_f32(const struct ne_compute_params
     return;
   }
 
-  if (params->type == NE_TASK_FINALIZE) {
-    return;
-  }
-
   // total rows in dst
   const int nr = ne02;
 
@@ -819,6 +811,9 @@ static void ne_compute_forward_conv_1d_2s_f32(const struct ne_compute_params* pa
   NE_ASSERT(src0->type == NE_TYPE_F32);
   NE_ASSERT(src1->type == NE_TYPE_F32);
   NE_ASSERT(dst->type == NE_TYPE_F32);
+
+  NE_ASSERT(dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
 
   // int64_t t0 = ne_perf_time_us();
   // UNUSED(t0);
@@ -899,10 +894,6 @@ static void ne_compute_forward_conv_1d_2s_f32(const struct ne_compute_params* pa
       }
     }
 
-    return;
-  }
-
-  if (params->type == NE_TASK_FINALIZE) {
     return;
   }
 

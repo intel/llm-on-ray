@@ -18,9 +18,8 @@
 
 static void ne_compute_forward_argsort_f32(const struct ne_compute_params* params, const struct ne_tensor* src0,
                                            struct ne_tensor* dst) {
-  if (params->type == NE_TASK_INIT || params->type == NE_TASK_FINALIZE) {
-    return;
-  }
+  NE_ASSERT(!dst->need_init);
+  NE_ASSERT(!dst->need_finalize);
   const int64_t ne00 = src0->ne[0];
   const int64_t ne01 = src0->ne[1];
   const int64_t ne02 = src0->ne[2];
