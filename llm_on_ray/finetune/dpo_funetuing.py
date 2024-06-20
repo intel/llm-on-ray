@@ -82,8 +82,8 @@ class DPOIntelOrcaProcesser:
             for prompt, chosen, reject in zip(prompts, chosens, rejects):
                 prompt_tokens = tokenizer.tokenize(prompt, return_tensors="pt")
 
-                if len(prompt_tokens) > config["Dataset"]["max_prompt_length"]:
-                    prompt_tokens = prompt_tokens[: config["Dataset"]["max_prompt_length"]]
+                if len(prompt_tokens) > config["Dataset"]["max_source_length"]:
+                    prompt_tokens = prompt_tokens[: config["Dataset"]["max_source_length"]]
 
                 prompt_ids = tokenizer.convert_tokens_to_ids(prompt_tokens)
                 prompt_mask = [1] * len(prompt_ids)
