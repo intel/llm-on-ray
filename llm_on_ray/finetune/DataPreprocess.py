@@ -205,5 +205,4 @@ class AlpacaDataPreprocess:
                 examples["attention_mask"].append(results["attention_mask"])
             return examples
 
-
         return preprocess_function_with_tokenize
