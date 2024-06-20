@@ -49,7 +49,6 @@ from llm_on_ray.finetune.dpo_funetuing import (
 
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
-
 def adapt_transformers_to_device(config: Dict):
     device = config["Training"]["device"]
     if device in ["hpu"]:
@@ -296,88 +295,42 @@ def load_model(config: Dict):
 
     return model
 
-
-def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
-    device = config["Training"]["device"]
-    use_dpo = False
-    if config["Training"]["finetuning_model"] is not None:
-        use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
-    if device in ["cpu", "gpu"]:
-        from transformers import Trainer, TrainingArguments
-
-        training_args = convert_to_training_args(TrainingArguments, config)
-
-        if use_dpo:
-            from llm_on_ray.finetune.dpo_funetuing import DPOFuneTuning
-
-            trainer = DPOFuneTuning(config).dpo_train(training_args, tokenized_dataset, tokenizer)
-        else:
-            trainer = Trainer(
-                model=model,
-                args=training_args,
-                train_dataset=tokenized_dataset["train"],
-                eval_dataset=tokenized_dataset["validation"]
-                if tokenized_dataset.get("validation") is not None
-                else None,
-                tokenizer=tokenizer,
-                data_collator=data_collator,
-            )
-
-        return training_args, trainer
-    elif device in ["hpu"]:
-        from optimum.habana.transformers import GaudiTrainer
-        from optimum.habana.transformers import GaudiTrainingArguments
-        from optimum.habana import GaudiConfig
-
-        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
-        gaudi_config_name = config["General"].get("gaudi_config_name", None)
-        if gaudi_config_name is not None:
-            gaudi_config = GaudiConfig.from_pretrained(gaudi_config_name)
-        else:
-            gaudi_config = GaudiConfig()
-            gaudi_config.use_fused_adam = True
-            gaudi_config.use_fused_clip_norm = True
-
-        training_args = convert_to_training_args(GaudiTrainingArguments, config)
-        if use_dpo:
-            from llm_on_ray.finetune.dpo_funetuing import GaudiDPOFuneTuning
-
-            trainer = GaudiDPOFuneTuning(config).dpo_train(
-                training_args, gaudi_config, tokenized_dataset, tokenizer
-            )
-        else:
-            trainer = GaudiTrainer(
-                model=model,
-                args=training_args,
-                gaudi_config=gaudi_config,
-                train_dataset=tokenized_dataset["train"],
-                eval_dataset=tokenized_dataset["validation"]
-                if tokenized_dataset.get("validation") is not None
-                else None,
-                tokenizer=tokenizer,
-                data_collator=data_collator,
-            )
-        return training_args, trainer
-
-
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])
+    from .finetuning import Finetuning
+    finetuing = Finetuning()
+    if config["Training"]["finetuning_model"] is not None:
+        use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
+        use_ppo = config["Training"]["finetuning_model"].get("ppo", False)
+        if use_dpo:
+            from .dpo_finetuing import DPOFineTuning
 
-    adapt_transformers_to_device(config)
+            finetuing = DPOFineTuning()
+        elif use_ppo:
+            raise ValueError("PPO is not supported yet")
+        else:
+            raise ValueError("No finetuning model specified")
 
-    set_seed(config)
+    if finetuing is None:
+        raise ValueError("No finetuning model specified")
 
-    tokenizer = load_tokenizer(config)
+    finetuing.adapt_transformers_to_device(config)
 
-    dataset = load_dataset(config)
+    finetuing.set_seed(config)
 
-    tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
+    tokenizer = finetuing.load_tokenizer(config)
 
-    data_collator = prepare_data_collator(config, tokenizer)
+    dataset = finetuing.load_dataset(config)
 
-    model = load_model(config)
+    tokenized_dataset = finetuing.tokenize_dataset(config, tokenizer, dataset)
 
-    training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
+    data_collator = finetuing.prepare_data_collator(config, tokenizer)
+
+    model = finetuing.load_model(config)
+
+    training_args, trainer = finetuing.get_trainer(
+        config, model, tokenizer, tokenized_dataset, data_collator
+    )
 
     common.logger.info("train start")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
