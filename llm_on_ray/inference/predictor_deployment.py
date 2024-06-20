@@ -396,11 +396,13 @@ class PredictorDeployment:
                 content="Empty prompt is not supported.",
             )
         config = json_request["config"] if "config" in json_request else {}
-        print("SSSSSS1:", config)
-        print("SSSSSS2:", input)
+        if config.get("debug_mode", False):
+            print("DEBUG:predictor_deployment.py:print config received from json:", config)
+            print("DEBUG:predictor_deployment.py::print inputs for prompts:", input)
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
-        print("SSSSSS6:", prompts)
+        if config.get("debug_mode", False):
+            print("DEBUG:predictor_deployment.py::print prompts from inputs:", prompts)
 
         # Handle streaming response
         if streaming_response:
@@ -419,15 +421,18 @@ class PredictorDeployment:
     ):
         self.use_openai = True
 
-        # TODO: print input inside preprocess_prompts later
-        print("SSSSSS5:", input)
+        # TODO: Pass down config into preprocess_prompts for more logs.
+        if config.get("debug_mode", False):
+            print("DEBUG:predictor_deployment.py:print config received from query_client:", config)
+            print("DEBUG:predictor_deployment.py::print inputs for prompts:", input)
         # return prompt or list of prompts preprocessed
-        input = self.preprocess_prompts(input, tools, tool_choice)
-        print("SSSSSS7:", input)
+        prompts = self.preprocess_prompts(input, tools, tool_choice)
+        if config.get("debug_mode", False):
+            print("DEBUG:predictor_deployment.py::print prompts from inputs:", prompts)
 
         # Handle streaming response
         if streaming_response:
-            async for result in self.handle_streaming(input, config):
+            async for result in self.handle_streaming(prompts, config):
                 yield result
         else:
-            yield await self.handle_non_streaming(input, config)
+            yield await self.handle_non_streaming(prompts, config)

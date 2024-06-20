@@ -57,8 +57,8 @@ class RouterQueryClient:
         gen_config.update({"do_sample": temperature != 1.0 or top_p != 1.0})
         gen_config.update({"ignore_eos": request_config.get("ignore_eos", False)})
 
-        print("SSSSSS3:", request_config)
-        print("SSSSSS4:", gen_config)  # no use
+        if request_config.get("debug_mode", False):
+            print("DEBUG: print request_config:", request_config)
         # TODO: set debug mode in request_config, add and set debug mode to gen_config, since gen_config is the config to be passed down
 
         async for x in handle_request(

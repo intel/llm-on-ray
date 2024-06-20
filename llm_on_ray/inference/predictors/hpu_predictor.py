@@ -79,7 +79,10 @@ class HPUPredictor(Predictor):
         # decide correct torch dtype for loading HF model
         decide_torch_dtype(infer_conf)
 
-        print("SSSSSS8:", infer_conf)
+        debug_mode = infer_conf.debug_mode
+
+        if debug_mode:
+            print("DEBUG:hpu_predictor:print inference config:", infer_conf)
 
         self.use_lazy_mode = not infer_conf.hpu_model_config.torch_compile
         self.use_hpu_graphs = infer_conf.hpu_model_config.use_hpu_graphs
