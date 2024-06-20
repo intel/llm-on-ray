@@ -171,7 +171,8 @@ def load_dataset(config: Dict):
             dataset_dict = train_dataset.train_test_split(
                 test_size=validation_split_percentage / 100
             )
-            dataset_dict["validation"] = dataset_dict["test"]
+            test_dataset = dataset_dict.pop("test")
+            dataset_dict["validation"] = test_dataset
             return dataset_dict
 
         return datasets.DatasetDict({"train": train_dataset})
@@ -188,7 +189,8 @@ def load_dataset(config: Dict):
             dataset_dict = raw_dataset["train"].train_test_split(
                 test_size=validation_split_percentage / 100
             )
-            dataset_dict["validation"] = dataset_dict["test"]
+            test_dataset = dataset_dict.pop("test")
+            dataset_dict["validation"] = test_dataset
             return dataset_dict
 
         return raw_dataset
@@ -367,10 +369,20 @@ def train_func(config: Dict[str, Any]):
 
     training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
 
-    common.logger.info("train start")
-    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-    trainer.save_model()
-    common.logger.info("train finish")
+    if training_args.do_train:
+        common.logger.info("train start")
+        result = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+        trainer.save_model()
+        metrics = result.metrics
+        metrics["throughput"] = len(tokenized_dataset['train']) / metrics["train_runtime"]
+        trainer.log_metrics("train", metrics)
+        common.logger.info("train finish")
+
+    if training_args.do_eval:
+        common.logger.info("eval start")
+        metrics = trainer.evaluate()
+        trainer.log_metrics("eval", metrics)
+        common.logger.info("eval finish")
 
 
 def get_finetune_config():
