@@ -14,23 +14,15 @@
 # limitations under the License.
 #
 import datasets
-import torch
-from peft import LoraConfig
-from transformers import AutoModelForCausalLM
 from typing import Dict
 
 IGNORE_INDEX = -100
 
 
-class DPOIntelOrcaProcesser:
+class DPOIntelOrcaPreprocesser:
     @staticmethod
     def tokenize_dataset(config, tokenizer, dataset):
         tokenizer.pad_token = tokenizer.eos_token
-        if isinstance(dataset, datasets.Dataset):
-            column_names = dataset.column_names
-
-        if isinstance(dataset, datasets.DatasetDict):
-            column_names = dataset["train"].column_names
 
         def return_prompt_and_responses(samples) -> Dict[str, str]:
             return {
@@ -44,15 +36,11 @@ class DPOIntelOrcaProcesser:
                 "rejected": samples["rejected"],
             }
 
-        raw_datasets = dataset.map(
+        dataset = dataset.map(
             return_prompt_and_responses,
-            remove_columns=column_names,
             load_from_cache_file=False,
             desc="Tokenize dataset",
         )
-        train_dataset = raw_datasets["train"]
-        column_names = train_dataset.column_names
-
         """
         Copied from https://github.com/intel/intel-extension-for-transformers/blob/5ba5fa8048b63bec8a3be8a7122a3db8344ad065/
         intel_extension_for_transformers/neural_chat/examples/finetuning/dpo_pipeline/dpo_clm.py#L308
@@ -145,6 +133,8 @@ class DPOIntelOrcaProcesser:
 
             return examples
 
+        train_dataset = dataset["train"]
+        column_names = list(train_dataset.features)
         if train_dataset is not None:
             # Create train feature from dataset
             train_dataset = train_dataset.map(
@@ -154,7 +144,7 @@ class DPOIntelOrcaProcesser:
                 desc="Running tokenizer on train dataset",
             )
 
-        eval_dataset = raw_datasets.get("validation")
+        eval_dataset = dataset.get("validation")
 
         if eval_dataset is not None:
             column_names = eval_dataset.column_names
@@ -167,78 +157,3 @@ class DPOIntelOrcaProcesser:
         tokenized_datasets = {"train": train_dataset, "validation": eval_dataset}
 
         return tokenized_datasets
-
-
-class DPOFuneTuning:
-    def __init__(self, config):
-        self.config = config
-        self.torch_dtype = (
-            self.config["Dataset"]["torch_dtype"]
-            if self.config["Dataset"]["torch_dtype"] in ["auto", None]
-            else getattr(torch, self.config["Dataset"]["torch_dtype"])
-        )
-
-    def get_model(self):
-        # load policy model
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["General"]["base_model"],
-            config=self.config,
-            low_cpu_mem_usage=True,
-            torch_dtype=self.torch_dtype,
-            use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
-        )
-        model.config.use_cache = False
-        return model
-
-    def get_model_ref(self):
-        # load reference model
-        model_ref = AutoModelForCausalLM.from_pretrained(
-            self.config["General"]["base_model"],
-            config=self.config,
-            low_cpu_mem_usage=True,
-            torch_dtype=self.torch_dtype,
-            use_auth_token=True if self.config["General"]["config"]["use_auth_token"] else None,
-        )
-        model_ref.config.use_cache = False
-        return model_ref
-
-    def dpo_train(self, training_args, tokenized_datasets, tokenizer):
-        from trl import DPOTrainer
-
-        lora_config = self.config["General"].get("lora_config", None)
-        return DPOTrainer(
-            self.get_model(),
-            self.get_model_ref() if lora_config is not None else None,
-            args=training_args,
-            beta=self.config["Training"].get("beta"),
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"]
-            if tokenized_datasets.get("validation") is not None
-            else None,
-            tokenizer=tokenizer,
-            peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
-            max_length=self.config["Dataset"].get("max_length"),
-            max_prompt_length=self.config["Dataset"].get("max_prompt_length"),
-        )
-
-
-class GaudiDPOFuneTuning(DPOFuneTuning):
-    def dpo_train(self, training_args, gaudi_config, tokenized_datasets, tokenizer):
-        from optimum.habana.trl import GaudiDPOTrainer as DPOTrainer
-
-        lora_config = self.config["General"].get("lora_config", None)
-        return DPOTrainer(
-            self.get_model(),
-            self.get_model_ref() if lora_config is not None else None,
-            args=training_args,
-            gaudi_config=gaudi_config,
-            beta=self.config["Training"].get("beta"),
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"]
-            if tokenized_datasets.get("validation") is not None
-            else None,
-            tokenizer=tokenizer,
-            peft_config=LoraConfig(**lora_config) if lora_config is not None else None,
-            max_length=self.config["Dataset"].get("max_length"),
-            max_prompt_length=self.config["Dataset"].get("max_prompt_length"),
-        )
