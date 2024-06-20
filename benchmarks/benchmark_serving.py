@@ -37,7 +37,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-import random
+import secrets
 import time
 from tqdm import tqdm
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
@@ -187,9 +187,10 @@ def sample_requests_synthesis(
 
         # generate random id list for the prompt having length prompt_len
         def gen_prompt_ids(prompt_len):
+            vocab = list(tokenizer.get_vocab().values())
             ids = []
             for _ in range(prompt_len):
-                ids.append(random.choice(list(tokenizer.get_vocab().values())).value)
+                ids.append(secrets.choice(vocab).value)
             return ids
 
         # Generte random prompt from tokenizer's vocabulary
