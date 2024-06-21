@@ -374,7 +374,7 @@ def train_func(config: Dict[str, Any]):
         result = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
         trainer.save_model()
         metrics = result.metrics
-        metrics["throughput"] = len(tokenized_dataset['train']) / metrics["train_runtime"]
+        metrics["throughput"] = len(tokenized_dataset["train"]) / metrics["train_runtime"]
         trainer.log_metrics("train", metrics)
         common.logger.info("train finish")
 
