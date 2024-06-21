@@ -20,7 +20,11 @@ from llm_on_ray.inference.utils import get_deployment_actor_options
 from llm_on_ray.inference.api_server_simple import serve_run
 from llm_on_ray.inference.api_server_openai import openai_serve_run
 from llm_on_ray.inference.predictor_deployment import PredictorDeployment
-from llm_on_ray.inference.inference_config import ModelDescription, InferenceConfig, all_models
+from llm_on_ray.inference.inference_config import (
+    ModelDescription,
+    InferenceConfig,
+    all_models,
+)
 
 
 def get_deployed_models(args):
@@ -91,6 +95,11 @@ def main(argv=None):
         help=f"Only used when config_file is None, valid values can be any items in {list(all_models.keys())}.",
     )
     parser.add_argument(
+        "--list_model_ids",
+        action="store_true",
+        help="List all supported model IDs with config file path",
+    )
+    parser.add_argument(
         "--simple",
         action="store_true",
         help="Whether to serve OpenAI-compatible API for all models or serve simple endpoint based on model conf files.",
@@ -129,6 +138,12 @@ def main(argv=None):
         sys.exit(1)
 
     args = parser.parse_args(argv)
+
+    all_models_name = list(all_models.keys())
+    if args.list_model_ids:
+        for model in all_models_name:
+            print(f"{model}: \tllm_on_ray/inference/models/{model}.yaml")
+        sys.exit(0)
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
