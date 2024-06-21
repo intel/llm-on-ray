@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-##Set Your proxy and cache path here
+## Set Your proxy and cache path here
 HTTP_PROXY='Your proxy'
 HTTPS_PROXY='Your proxy'
-HF_TOKEN='Your hf_token'
+## If your model needs HF_TOKEN. Please modify the "model_description.config.use_auth_token" in the config file such as "llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml" 
+## And mount your own llm-on-ray directory here
 code_checkout_path='If you need to use the modified llm-on-ray repository, define your path here'
 model_cache_path='If you need to use huggingface model cache, define your path here'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
@@ -45,7 +46,6 @@ start_docker() {
 
     docker_args=()
     docker_args+=("--name=serving" )
-    docker_args+=("-e=hf_token=${HF_TOKEN}")
     if [ -z "$MODEL_NAME" ];  then
         echo "use default model"
     else
