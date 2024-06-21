@@ -34,6 +34,10 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ErrorResponse,
     ModelResponse,
 )
+from llm_on_ray.inference.api_simple_backend.simple_protocol import (
+    SimpleRequest,
+    SimpleModelResponse,
+)
 from llm_on_ray.inference.predictor import GenerateInput
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
 from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, ChatPromptCapture
@@ -379,24 +383,18 @@ class PredictorDeployment:
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
         self.use_openai = False
-
         try:
-            json_request: Dict[str, Any] = await http_request.json()
+            request: Dict[str, Any] = await http_request.json()
         except ValueError:
             return JSONResponse(
                 status_code=400,
                 content="Invalid JSON format from http request.",
             )
-        streaming_response = json_request["stream"] if "stream" in json_request else False
-        input = json_request["text"] if "text" in json_request else ""
 
-        if input == "":
-            return JSONResponse(
-                status_code=400,
-                content="Empty prompt is not supported.",
-            )
-        config = json_request["config"] if "config" in json_request else {}
-        # return prompt or list of prompts preprocessed
+        streaming_response = request["stream"]
+        input = request["text"]
+        config = request["config"]
+
         prompts = self.preprocess_prompts(input)
 
         # Handle streaming response
