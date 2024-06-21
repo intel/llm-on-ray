@@ -19,16 +19,25 @@ The following are the parameters supported in the finetuning workflow.
 
 
 ## Dataset Parameters
-|Configuration Name| Default|Meaning|
-|-|-|-|
-|train_file|examples/data/sample_finetune_data.jsonl|A json file containing the training data.|
-|validation_file|None|A json file containing the validation data.|
-|validation_split_percentage|5|The percentage of the train set used as validation set in case there's no validation split|
-|preprocessing_num_workers|None|The number of processes to use for the preprocessing.|
-|max_length|512|Padding sequential data to max length of a batch|
-|group|True|Whether to concatenate the sentence for more efficient training|
-|block_size|512|The block size of concatenated sentence|
-|shuffle|False|Whether shuffle the data at every epoch|
+| Configuration Name          | Default| Meaning                                                                                                                                  |
+|-----------------------------|-|------------------------------------------------------------------------------------------------------------------------------------------|
+| train_file                  |examples/data/sample_finetune_data.jsonl| A json file containing the training data.                                                                                                |
+| validation_file             |None| A json file containing the validation data.                                                                                              |
+| validation_split_percentage |5| The percentage of the train set used as validation set in case there's no validation split                                               |
+| preprocessing_num_workers   |None| The number of processes to use for the preprocessing.                                                                                    |
+| max_length                  |512| Padding sequential data to max length of a batch                                                                                         |
+| group                       |True| Whether to concatenate the sentence for more efficient training                                                                          |
+| block_size                  |512| The block size of concatenated sentence                                                                                                  |
+| shuffle                     |False| Whether shuffle the data at every epoch                                                                                                  |
+| max_source_length           |384| The maximum total input sequence length after tokenization. Sequences longer than this will be truncated, sequences shorter will be padded. |
+| padding_side                |right| The side on which the model should have padding applied. Should be selected between ['right', 'left'].                                   |
+| truncation_side             |right| The side on which the model should have truncation applied. Should be selected between ['right', 'left'].                                |
+| max_seq_length              |max_length| The maximum total input sequence length after tokenization.                                                                              |
+| truncation                  |True| truncation strategy. Should be selected between ['only_first', 'only_second', 'longest_first/True', 'do_not_truncate/False'].            |
+| padding                     |True| padding strategy. Should be selected between ['longest/True', 'do_not_pad/False', 'max_length']                                          
+| mask_input                  |True| mask the input part in lables                                                                                                                                         |
+| mask_response               |True| mask the response part in lables                                                                                                                                         |
+| data_preprocess_type        |neural_chat| The type of the encode input                                                                                                                              |
 
 
 ## Training Parameters

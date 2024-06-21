@@ -23,8 +23,10 @@ import torch
 IGNORE_INDEX = -100
 
 
-class AlpacaDataPreprocess:
-    def __init__(self, eos_token):
+class DataPreprocess:
+    # We used the following prompts for fine-tuning the Alpaca model. You can find reference doc form this URL(https://github.com/tatsu-lab/stanford_alpaca/blob/main/README.md#data-release)
+    def __init__(self, config, eos_token):
+        self.config = config
         self.end = eos_token
         self.intro = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
         self.instruction = "### Instruction:\n"
@@ -73,15 +75,15 @@ class AlpacaDataPreprocess:
             prompts["prompt_targets"].append(prompt_response)
         return prompts
 
-    def tokenize_func(self, tokenizer, config):
-        padding_side = config["Dataset"].get("padding_side", "right")
-        truncation_side = config["Dataset"].get("truncation_side", "right")
-        max_length = max_source_length = config["Dataset"].get("max_length", 512)
-        max_seq_length = config["Dataset"].get("max_seq_length", 1024)
-        truncation = config["Dataset"].get("truncation", True)
-        padding = config["Dataset"].get("padding", True)
-        mask_input = config["Dataset"].get("mask_input", True)
-        mask_response = config["Dataset"].get("mask_response", True)
+    def tokenize(self, tokenizer):
+        padding_side = self.config["Dataset"].get("padding_side", "right")
+        truncation_side = self.config["Dataset"].get("truncation_side", "right")
+        max_length = max_seq_length = self.config["Dataset"].get("max_length", 512)
+        max_source_length = self.config["Dataset"].get("max_source_length", 384)
+        truncation = self.config["Dataset"].get("truncation", True)
+        padding = self.config["Dataset"].get("padding", True)
+        mask_input = self.config["Dataset"].get("mask_input", True)
+        mask_response = self.config["Dataset"].get("mask_response", True)
 
         def truncate_sequences(sequences, max_length):
             """
@@ -96,7 +98,7 @@ class AlpacaDataPreprocess:
                 sequences = sequences[1:]
             return sequences
 
-        def preprocess_function_with_tokenize(examples):
+        def preprocess_function_with_neural_chat(examples):
             """
             Copied from https://github.com/intel/intel-extension-for-transformers/blob/ae54f698b73a66e5729427cb19f69c33e1a5c34d/intel_extension_for_transformers/transformers/llm/finetuning/data_utils.py#L225
             The only differences are:
@@ -180,7 +182,7 @@ class AlpacaDataPreprocess:
 
             return examples
 
-        def preprocess_function_with_tokenizer(examples):
+        def preprocess_function_encode_inputs(examples):
             keys = list(examples.data.keys())
             if len(keys) != 2:
                 raise ValueError("Unsupported dataset format")
@@ -221,4 +223,7 @@ class AlpacaDataPreprocess:
                 examples["attention_mask"].append(results["attention_mask"])
             return examples
 
-        return preprocess_function_with_tokenize
+        if self.config["Dataset"].get("data_preprocess_type", "neural_chat") == "neural_chat":
+            return preprocess_function_with_neural_chat
+
+        return preprocess_function_encode_inputs

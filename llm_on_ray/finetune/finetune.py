@@ -40,11 +40,8 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
-from llm_on_ray.finetune.DataPreprocess import AlpacaDataPreprocess
+from llm_on_ray.finetune.data_preprocess import DataPreprocess
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
-from importlib import util
-
-IGNORE_INDEX = -100
 
 
 def adapt_transformers_to_device(config: Dict):
@@ -210,14 +207,14 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
 
-    preprocess = AlpacaDataPreprocess(tokenizer.eos_token)
+    preprocess = DataPreprocess(config, tokenizer.eos_token)
 
     for key in dataset:
         prompts = preprocess.prompt(dataset[key])
         dataset[key] = datasets.Dataset.from_dict(prompts)
 
     column_names = list(dataset["train"].features)
-    preprocess_fn = preprocess.tokenize_func(tokenizer, config)
+    preprocess_fn = preprocess.tokenize(tokenizer)
     tokenized_dataset = dataset.map(
         preprocess_fn,
         remove_columns=column_names,

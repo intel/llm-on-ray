@@ -74,11 +74,12 @@ class Dataset(BaseModel):
     max_source_length: int = 384
     padding_side: str = "right"
     truncation_side: str = "right"
-    max_seq_length: int = 1024
+    max_seq_length: int = 512
     truncation: bool = True
     padding: bool = True
     mask_input: bool = True
     mask_response: bool = True
+    data_preprocess_type: str = "neural_chat"
 
 
 class RayResourceConfig(BaseModel):
