@@ -22,7 +22,9 @@ import numpy as np
 import struct
 import json
 import warnings
-from typing import Dict, Iterable, Optional, Tuple
+import gguf
+from typing import (IO, TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Sequence, Tuple, TypeVar,
+                    Union)
 from sentencepiece import SentencePieceProcessor  # type: ignore
 
 GGML_QK8_0 = 32
@@ -137,6 +139,81 @@ def quantize_q5_1(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+ADDED_TOKENS_FILE = 'added_tokens.json'
+FAST_TOKENIZER_FILE = 'tokenizer.json'
+
+
+class BpeVocab:
+    tokenizer_model = "gpt2"
+    name = "bpe"
+
+    def __init__(self, base_path: Path):
+        added_tokens: dict[str, int] = {}
+
+        if (fname_tokenizer := base_path / 'vocab.json').exists():
+            # "slow" tokenizer
+            with open(fname_tokenizer, encoding="utf-8") as f:
+                self.vocab = json.load(f)
+
+            try:
+                # FIXME: Verify that added tokens here _cannot_ overlap with the main vocab.
+                with open(base_path / ADDED_TOKENS_FILE, encoding="utf-8") as f:
+                    added_tokens = json.load(f)
+            except FileNotFoundError:
+                pass
+        else:
+            # "fast" tokenizer
+            fname_tokenizer = base_path / FAST_TOKENIZER_FILE
+
+            # if this fails, FileNotFoundError propagates to caller
+            with open(fname_tokenizer, encoding="utf-8") as f:
+                tokenizer_json = json.load(f)
+
+            tokenizer_model: dict[str, Any] = tokenizer_json['model']
+            if (tokenizer_model['type'] != 'BPE' or tokenizer_model.get('byte_fallback', False)
+                    or tokenizer_json['decoder']['type'] != 'ByteLevel'):
+                raise FileNotFoundError('Cannot find GPT-2 BPE tokenizer')
+
+            self.vocab = tokenizer_model["vocab"]
+
+            if (added := tokenizer_json.get('added_tokens')) is not None:
+                # Added tokens here can be duplicates of the main vocabulary.
+                added_tokens = {item['content']: item['id'] for item in added if item['content'] not in self.vocab}
+
+        vocab_size = len(self.vocab)
+        expected_ids = list(range(vocab_size, vocab_size + len(added_tokens)))
+        actual_ids = sorted(added_tokens.values())
+        if expected_ids != actual_ids:
+            expected_end_id = vocab_size + len(actual_ids) - 1
+            raise ValueError(f"Expected the {len(actual_ids)} added token ID(s) to be sequential in the range "
+                             f"{vocab_size} - {expected_end_id}; got {actual_ids}")
+
+        items = sorted(added_tokens.items(), key=lambda text_idx: text_idx[1])
+        self.added_tokens_dict = added_tokens
+        self.added_tokens_list = [text for (text, idx) in items]
+        self.vocab_size_base = vocab_size
+        self.vocab_size = self.vocab_size_base + len(self.added_tokens_list)
+        self.fname_tokenizer = fname_tokenizer
+
+    def bpe_tokens(self) -> Iterable[Tuple[bytes, float]]:
+        reverse_vocab = {id: encoded_tok for encoded_tok, id in self.vocab.items()}
+
+        for i, _ in enumerate(self.vocab):
+            yield reverse_vocab[i], 0.0
+
+    def added_tokens(self) -> Iterable[Tuple[bytes, float]]:
+        for text in self.added_tokens_list:
+            score = -1000.0
+            yield text.encode("utf-8"), score
+
+    def all_tokens(self) -> Iterable[Tuple[bytes, float]]:
+        yield from self.bpe_tokens()
+        yield from self.added_tokens()
+
+    def __repr__(self) -> str:
+        return f"<BpeVocab with {self.vocab_size_base} base tokens and {len(self.added_tokens_list)} added tokens>"
+
+
 class SentencePieceVocab:
 
     def __init__(self, fname_tokenizer: Path, fname_added_tokens: Optional[Path]) -> None:
@@ -199,9 +276,10 @@ def load_vocab(path: Path) -> SentencePieceVocab:
     local_path = path
     if not local_path.exists():
         from huggingface_hub import snapshot_download
-        local_path = snapshot_download(repo_id=str(path.parent),
-                                             allow_patterns=["*.model"],
-                                             )
+        local_path = snapshot_download(
+            repo_id=str(path.parent),
+            allow_patterns=["*.model"],
+        )
         local_path = Path(local_path)
     if local_path.is_dir():
         path2 = local_path / "tokenizer.model"
@@ -294,7 +372,7 @@ def unpack_gptq_weight_8bits(qweight, scales, qzeros, q_config):
     except:
         # zeros and scales have different item numbers.
         # remove 1 (due to 0 + 1 in line 68)
-        zeros = zeros[zeros !=1]
+        zeros = zeros[zeros != 1]
         zeros = zeros.reshape(scales.shape)
 
     if not sym and bits == 8:
@@ -414,9 +492,10 @@ def load_quantized_safetensors(model_path):
     local_model_path = model_path
     if not os.path.exists(local_model_path):
         from huggingface_hub import snapshot_download
-        local_model_path = snapshot_download(repo_id=model_path,
-                                             allow_patterns=["*.safetensors"],
-                                             )
+        local_model_path = snapshot_download(
+            repo_id=model_path,
+            allow_patterns=["*.safetensors"],
+        )
     for m_file in os.listdir(local_model_path):
         if m_file.endswith(".safetensors"):
             safetensors.append(m_file)
@@ -441,9 +520,10 @@ def load_quantized_model(model_path):
     local_model_path = model_path
     if not os.path.exists(local_model_path):
         from huggingface_hub import snapshot_download
-        local_model_path = snapshot_download(repo_id=model_path,
-                                             allow_patterns=["*.pt", "*.safetensors", "*.json"],
-                                             )
+        local_model_path = snapshot_download(
+            repo_id=model_path,
+            allow_patterns=["*.pt", "*.safetensors", "*.json"],
+        )
     input_path = find_quantized_model_file(local_model_path)
     model = None
     if input_path.endswith('pt'):
@@ -604,9 +684,9 @@ def convert_q4_bestla_tensor(src_name, dst_name, model, fout, q_config, n_head, 
     write_header(fout, shape[::-1], dst_name, GGML_QJBLAS_TYPE)
 
     if q_config['bits'] == 4:
-        int_weight = (int_weight - 8) * 16
-        gptq_scales = gptq_scales / 16
-        gptq_zeros = (gptq_zeros - 8) * 16
+        int_weight = (int_weight - 8)
+        gptq_scales = gptq_scales
+        gptq_zeros = (gptq_zeros - 8)
     dst = np.zeros((int_weight.shape[0], int_weight.shape[1] * 4), dtype=np.int8)
     int_weight = np.ascontiguousarray(int_weight.numpy())
     gptq_scales = np.ascontiguousarray((gptq_scales.float()).numpy())
@@ -678,14 +758,14 @@ def convert_to_qx_bestla_tensor(src_name, dst_name, model, fout, q_config):
     # Int3 is the same as int4, but offset=4, mul scale==32.
     weight_dtype = "int8"
     if q_config['bits'] == 4:
-        int_weight = (int_weight - 8) * 16
-        gptq_scales = gptq_scales / 16
-        gptq_zeros = (gptq_zeros - 8) * 16
+        int_weight = (int_weight - 8)
+        gptq_scales = gptq_scales
+        gptq_zeros = (gptq_zeros - 8)
         weight_dtype = "int4"
     elif q_config['bits'] == 3:
-        int_weight = (int_weight - 4) * 32
-        gptq_scales = gptq_scales / 32
-        gptq_zeros = (gptq_zeros - 4) * 32
+        int_weight = (int_weight - 4)
+        gptq_scales = gptq_scales
+        gptq_zeros = (gptq_zeros - 4)
         weight_dtype = "int3"
     else:
         ValueError(f"Unsupported q_config[bits]: {q_config['bits']}")

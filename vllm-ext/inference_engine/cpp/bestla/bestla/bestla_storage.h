@@ -628,6 +628,11 @@ class StorageQuantActivation : public IActivationKBlockBase {
     return mQBuf.get<QT_T>();
   }
 
+  template <typename T>
+  inline constexpr size_t ASize() {
+    return mQBuf.size<T>();
+  }
+
   template <typename QT_T>
   inline constexpr QT_T* ZPtr() {
     return mCorrection.mZpBuf.get<QT_T>();

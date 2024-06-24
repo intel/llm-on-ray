@@ -37,10 +37,15 @@ class AccumulatorWriteBack {
   using DType = _DST_T;
   using Param = ParamAccumulatorWriteBack<DType>;
 
-  BTLA_CODE forward(const _SRC_T* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const _SRC_T* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto COffset = M_offset * _param.ldc + N_offset;
     auto cptr = _param.C + COffset;
+    if constexpr (std::is_same_v<_SRC_T, DType>) {
+      if (cacheptr == cptr) {
+        return BTLA_CODE::Success;
+      }
+    }
     return kernel::wrapper::Memcpy2D::template forward<ISA_T, SType, DType>(cacheptr, cptr, M, N, cachestep, _param.ldc,
                                                                             _param.elt_const_v);
   }
@@ -50,7 +55,7 @@ template <BTLA_ISA ISA_T, typename _SRC_T, typename _DST_T, BTLA_ELTWISEOP _OP>
 class CustomAccumulatorWriteBackWithEltop {
  public:
   using Param = ParamAccumulatorWriteBack<_DST_T>;
-  BTLA_CODE forward(const _SRC_T* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const _SRC_T* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto COffset = M_offset * _param.ldc + N_offset;
     auto cptr = _param.C + COffset;
@@ -95,7 +100,7 @@ class AlphaBetaProcessFp32 {
  public:
   using Param = ParamAlphaBetaProcess<float>;
 
-  BTLA_CODE forward(const float* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const float* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto DOffset = M_offset * _param.ldd + N_offset;
     auto COffset = M_offset * _param.ldc + N_offset;
@@ -169,7 +174,7 @@ template <BTLA_ISA ISA_T>
 class DequantInt32ToFp32 {
  public:
   using Param = ParamDequantInt32ToFp32;
-  BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto COffset = M_offset * _param.ldc + N_offset;
     auto cptr = _param.C + COffset;
@@ -198,7 +203,7 @@ template <BTLA_ISA ISA_T>
 class CompInt8BlockEpilogue {
  public:
   using Param = ParamCompInt8BlockEpilogue;
-  BTLA_CODE forward(const int32_t* srcptr, float* dstptr, const int cachestep, const int M_offset, const int N_offset,
+  static BTLA_CODE forward(const int32_t* srcptr, float* dstptr, const int cachestep, const int M_offset, const int N_offset,
                     const int K_offset, const int M, const int N, const Param& _param, void* tmpcache,
                     size_t cachesize) {
     BTLA_CODE ret = BTLA_CODE::NotSupport;
@@ -280,7 +285,7 @@ template <BTLA_ISA ISA_T>
 class ZpDequantInt32ToFp32 {
  public:
   using Param = ParamZpDequantInt32ToFp32;
-  BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto COffset = M_offset * _param.ldc + N_offset;
     auto cptr = _param.C + COffset;
@@ -321,7 +326,7 @@ template <BTLA_ISA ISA_T>
 class AlphaBetaProcessS32U8 {
  public:
   using Param = ParamAlphaBetaProcessS32U8;
-  BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
+  static BTLA_CODE forward(const int32_t* cacheptr, const int cachestep, const int M_offset, const int N_offset, const int M,
                     const int N, const Param& _param, void* tmpcache, size_t cachesize) {
     auto COffset = M_offset * _param.ldc + N_offset;
     auto cptr = _param.C + COffset;

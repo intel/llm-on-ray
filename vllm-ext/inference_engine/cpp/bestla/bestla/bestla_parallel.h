@@ -30,7 +30,7 @@ using thread_func = std::function<void(int tid)>;
 
 class IThreading {
  public:
-  explicit IThreading(int nthreads, bool supportPE) : mThreadNum(nthreads), isSupportPE(supportPE) {}
+  explicit IThreading(bool supportPE) : isSupportPE(supportPE) {}
   virtual void parallel_for(const thread_func& func) = 0;
   virtual inline void sync(int tidx, int idx = 0) = 0;
   virtual int num_threads() const { return mThreadNum; };
@@ -46,10 +46,7 @@ class IThreading {
 #if BTLA_OPENMP
 class OMPThreading : public IThreading {
  public:
-  explicit OMPThreading(int nthreads) : IThreading(nthreads, false) {
-    // printf("Using OMP threads %d\n", nthreads);
-    omp_set_num_threads(nthreads);
-  }
+  explicit OMPThreading() : IThreading(false) {}
   void parallel_for(const thread_func& func) override {
     if (mThreadNum > 1) {
 #pragma omp parallel
@@ -82,11 +79,8 @@ class OMPThreading : public IThreading {
 class StdThreading : public IThreading {
  public:
   using Timer_T = utils::timer<utils::microseconds>;
-  explicit StdThreading(int nthreads) : IThreading(nthreads, true) {
-    printf("Using Std\n");
-    cr = &device::CpuRuntime::getInstance(nthreads);
-    create_threads();
-  }
+  explicit StdThreading() : IThreading(true) { cr = nullptr; }
+
   void parallel_for(const thread_func& func) override {
     time_per_p = 0;
     time_per_e = 0;
@@ -254,7 +248,7 @@ class StdThreading : public IThreading {
 
 class SingleThread : public IThreading {
  public:
-  SingleThread() : IThreading(1, false) {}
+  SingleThread() : IThreading(false) { mThreadNum = 1; }
 
   void set_threads(int nthreads) override {
     assert(0);
@@ -755,9 +749,9 @@ class SchedulerKBlockS : public SchedulerBase<_GemmCore_T> {
     this->mL2Use += static_cast<size_t>(blks) * (this->mBlock[1] + this->mStep[0]) *
                     (sizeof(float) + sizeof(int8_t) + sizeof(float));  // scale+zp+reduce
     assert(this->mL2Use <= this->mL2Size - ReservedSize);
-    assert(this->mBlock[0] > 0);
-    assert(this->mBlock[1] > 0);
-    assert(this->mBlock[2] > 0);
+    assert(this->mBlock[0] >= 0);
+    assert(this->mBlock[1] >= 0);
+    assert(this->mBlock[2] >= 0);
     assert(this->mBlock[2] % _GemmCore_T::KTILE == 0);
   }
 
@@ -859,14 +853,14 @@ class SchedulerDispatcher {
   SchedulerDispatcher() = default;
   ~SchedulerDispatcher() {
     std::pair<float, float> PEtime = th_->get_PEtime();
-    if (needDispach && int(PEtime.first) > 0 && int(PEtime.second) > 0)
+    if (needDispatch && int(PEtime.first) > 0 && int(PEtime.second) > 0)
       cr->adjustPE(Scheduler::gemm_ISA(), PEtime.second / PEtime.first);
   }
   SchedulerDispatcher(const IThreading* th, const utils::GemmProblem& problem) {
     th_ = th;
     cr = &device::CpuRuntime::getInstance(th->num_threads());
-    needDispach = cr->mHybrid && th->is_support_PE();
-    if (!needDispach) {
+    needDispatch = cr->mHybrid && th->is_support_PE();
+    if (!needDispatch) {
       Scheduler_P = std::move(Scheduler({th->num_threads(), problem, {0, 0}, cr->mL2Cache, cr->mL1Cache}));
     } else {
       Pcore_num = cr->P_core_num;
@@ -874,7 +868,8 @@ class SchedulerDispatcher {
       utils::GemmProblem problem_P = problem, problem_E = problem;
       const int N = problem.dims[2];
       auto PE_Ratio = cr->getPE(Scheduler::gemm_ISA());
-      const int N_offset = utils::padto(N - int(N / (1 + PE_Ratio)), Scheduler::mStep[1]);
+      int N_offset = utils::padto(N - int(N / (1 + PE_Ratio)), Scheduler::mStep[1]);
+      N_offset = N_offset <= N ? N_offset : N;
       problem_P.dims[2] = N_offset;
       Scheduler_P =
           std::move(Scheduler({th->num_threads() - cr->E_core_num, problem_P, {0, 0}, cr->mL2Cache_P, cr->mL1Cache_P}));
@@ -884,7 +879,7 @@ class SchedulerDispatcher {
   }
 
   void getIndex(ThreadProblem& problem) {
-    if (!needDispach) {
+    if (!needDispatch) {
       Scheduler_P.getIndex(problem);
     } else {
       if (problem.tid >= Pcore_num + Ecore_num) {
@@ -900,16 +895,16 @@ class SchedulerDispatcher {
   }
 
   void print() {
-    printf("dispatch to hybrid:%d\n", needDispach);
+    printf("dispatch to hybrid:%d\n", needDispatch);
     Scheduler_P.print();
-    if (needDispach) Scheduler_E.print();
+    if (needDispatch) Scheduler_E.print();
   }
 
  private:
   Scheduler Scheduler_P, Scheduler_E;
   const IThreading* th_;
   device::CpuRuntime* cr;
-  bool needDispach = false;
+  bool needDispatch = false;
   int Pcore_num = 0, Ecore_num = 0;
 };
 
