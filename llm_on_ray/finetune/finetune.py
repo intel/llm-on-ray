@@ -114,7 +114,7 @@ def convert_to_training_args(cls, config: Dict):
 
     # set attr for FSDP
     # if accelerate_mode == "FSDP":
-    #     args.updatwe({})
+    #     args.update({})
 
     # set attr for Intel Gaudi
     if device == "hpu":
