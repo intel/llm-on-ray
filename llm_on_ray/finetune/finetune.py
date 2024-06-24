@@ -207,16 +207,21 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
 
-    processor = DataProcessor(config, tokenizer.eos_token)
+    processor = DataProcessor(config, tokenizer)
 
     for key in dataset:
         prompts = processor.make_prompt(dataset[key])
         dataset[key] = datasets.Dataset.from_dict(prompts)
 
     column_names = list(dataset["train"].features)
-    processor_fn = processor.tokenize(tokenizer)
+    tokenize_fn = (
+        processor.tokenize_by_neural_chat
+        if config["Dataset"].get("data_preprocess_type", "neural_chat") == "neural_chat"
+        else processor.tokenize
+    )
+
     tokenized_dataset = dataset.map(
-        processor_fn,
+        tokenize_fn,
         remove_columns=column_names,
         batched=True,
         load_from_cache_file=False,
