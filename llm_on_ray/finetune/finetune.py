@@ -234,7 +234,10 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
         column_names += [template.TEXT_COLUMN_NAME]
 
     def tokenize_function(examples):
-        return tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+        results = tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+        results["input_ids"].append(tokenizer.eos_token_id)
+        results["attention_mask"].append(1)
+        return results
 
     tokenized_dataset = dataset.map(
         tokenize_function,
