@@ -23,7 +23,7 @@ import torch
 IGNORE_INDEX = -100
 
 
-class DataPreprocess:
+class DataProcessor:
     # We used the following prompts for fine-tuning the Alpaca model. You can find reference doc form this URL(https://github.com/tatsu-lab/stanford_alpaca/blob/main/README.md#data-release)
     def __init__(self, config, eos_token):
         self.config = config
@@ -33,7 +33,7 @@ class DataPreprocess:
         self.input = "### Input:\n"
         self.response = "### Response:\n"
 
-    def prompt(self, examples):
+    def make_prompt(self, examples):
         prompts = {}
         prompts["prompt_sources"] = []
         prompts["prompt_targets"] = []
@@ -110,18 +110,14 @@ class DataPreprocess:
             if len(keys) != 2:
                 raise ValueError("Unsupported dataset format")
             assistant_tokens = tokenizer.tokenize(self.response)
-            header = (
-                "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-                + self.end
-                + "\n"
-            )
+            header = self.intro + self.end + "\n"
 
             examples["input_ids"] = []
             examples["labels"] = []
             examples["attention_mask"] = []
             for instruction, response in zip(examples[keys[0]], examples[keys[1]]):
                 convs = re.findall(
-                    r"### Instruction.*?{0}|### Response.*?{0}".format(self.end),
+                    r"{0}.*?{2}|{1}.*?{2}".format(self.instruction, self.response, self.end),
                     instruction,
                     re.DOTALL,
                 )

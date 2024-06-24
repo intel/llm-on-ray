@@ -40,7 +40,7 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
-from llm_on_ray.finetune.data_preprocess import DataPreprocess
+from llm_on_ray.finetune.data_process import DataProcessor
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
 
@@ -207,16 +207,16 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
 
-    preprocess = DataPreprocess(config, tokenizer.eos_token)
+    processor = DataProcessor(config, tokenizer.eos_token)
 
     for key in dataset:
-        prompts = preprocess.prompt(dataset[key])
+        prompts = processor.make_prompt(dataset[key])
         dataset[key] = datasets.Dataset.from_dict(prompts)
 
     column_names = list(dataset["train"].features)
-    preprocess_fn = preprocess.tokenize(tokenizer)
+    processor_fn = processor.tokenize(tokenizer)
     tokenized_dataset = dataset.map(
-        preprocess_fn,
+        processor_fn,
         remove_columns=column_names,
         batched=True,
         load_from_cache_file=False,
