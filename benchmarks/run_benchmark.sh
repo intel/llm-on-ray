@@ -26,7 +26,7 @@ dataset_benchmark_num=1000
 dataset_compare_num=128
 numa_server_command=""
 numa_client_command="numactl -N 1 -m 1"
-num_replica=1
+num_replica=2
 if [ $run_mode = "test" ]
 then
     save_dir=$SHELL_FOLDER"/results_test"
@@ -100,16 +100,34 @@ latency_throughput(){
     #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
-    for i in $(seq 1 $num_iter)
+    #for i in $(seq 1 $num_iter)
+    #do
+    #    echo "Run iter $i"
+    #    iter_dir=$tokens_dir"/iter_"$i
+    #    for num_prompts in ${query_num}
+    #    do
+    #        results_dir=$iter_dir"/num_prompts_"$num_prompts
+    #        echo "Run num_prompts ${num_prompts}"
+    #        echo "results_dir: ${results_dir}"
+    #        $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
+    #    done
+    #done
+    for num_prompts in ${query_num}
     do
-        echo "Run iter $i"
-        iter_dir=$tokens_dir"/iter_"$i
-        for num_prompts in ${query_num}
+        echo "Run num_prompts ${num_prompts}"
+        for i in $(seq 1 $num_iter)
         do
+	    if [ $i = 0 ]; then
+		iter_dir="$tokens_dir/warmup"
+		echo "Run warmup"
+	    else
+            	iter_dir=$tokens_dir"/iter_"$i
+		echo "Run iter $i"
+	    fi
             results_dir=$iter_dir"/num_prompts_"$num_prompts
-            echo "Run num_prompts ${num_prompts}"
             echo "results_dir: ${results_dir}"
-            $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
+            #$numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
+            $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --track-token-latency --max-new-tokens  $output_tokens_length --vllm-engine --simple --results-dir $results_dir
         done
     done
     echo "choice 3 generation completed"
@@ -184,18 +202,19 @@ then
     if [ "$run_mode" == "benchmark" ]
     then
         iter=10
-        concurrent_query_num=(1 2 4 8 16 32 64)
+        #concurrent_query_num=(1 2 4 8 16 32 64)
+	concurrent_query_num=(1)
         for i in "${!concurrent_query_num[@]}"; do
             concurrent_query_num[$i]=$[${concurrent_query_num[$i]}*$num_replica]
         done
         # 32/64
         input_tokens_length=32
-        output_tokens_length=64
-        latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
-        # 1024/128
-        input_tokens_length=1024
         output_tokens_length=128
         latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
+        # 1024/128
+        #input_tokens_length=1024
+        #output_tokens_length=128
+        #latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
     elif [ "$run_mode" == "test" ]
     then
         iter=2
