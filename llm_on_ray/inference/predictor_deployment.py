@@ -383,17 +383,24 @@ class PredictorDeployment:
 
     async def __call__(self, http_request: Request) -> Union[StreamingResponse, JSONResponse, str]:
         self.use_openai = False
+
         try:
-            request: Dict[str, Any] = await http_request.json()
+            json_request: Dict[str, Any] = await http_request.json()
         except ValueError:
             return JSONResponse(
                 status_code=400,
                 content="Invalid JSON format from http request.",
             )
+        streaming_response = json_request["stream"] if "stream" in json_request else False
+        input = json_request["text"] if "text" in json_request else ""
 
-        streaming_response = request["stream"]
-        input = request["text"]
-        config = request["config"]
+        if input == "":
+            return JSONResponse(
+                status_code=400,
+                content="Empty prompt is not supported.",
+            )
+        config = json_request["config"] if "config" in json_request else {}
+        # return prompt or list of prompts preprocessed
 
         prompts = self.preprocess_prompts(input)
 
