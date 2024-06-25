@@ -24,6 +24,8 @@ from llm_on_ray.inference.inference_config import (
     ModelDescription,
     InferenceConfig,
     all_models,
+    DEVICE_HPU,
+    DEVICE_GPU,
 )
 
 
@@ -69,6 +71,24 @@ def get_deployed_models(args):
         dynamic_max_batch_size = (
             infer_conf.dynamic_max_batch_size if not args.max_batch_size else args.max_batch_size
         )
+        device = infer_conf.device
+        if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_GPU]:
+            tp = infer_conf.vllm.tensor_parallel_size
+            pg_resources = []
+            pg_resources.append({"CPU": infer_conf.cpus_per_worker})  # for the deployment replica
+            for i in range(tp):
+                if device == DEVICE_HPU:
+                    # for the vLLM actors on HPU
+                    pg_resources.append(
+                        {"CPU": infer_conf.cpus_per_worker, "HPU": infer_conf.hpus_per_worker}
+                    )
+                else:
+                    # for the vLLM actors on GPU
+                    pg_resources.append(
+                        {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
+                    )
+            depolyment_config["placement_group_bundles"] = pg_resources
+            depolyment_config["placement_group_strategy"] = "STRICT_PACK"
         deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
             infer_conf, max_num_seqs, dynamic_max_batch_size
         )

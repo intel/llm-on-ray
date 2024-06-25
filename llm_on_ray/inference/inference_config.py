@@ -59,6 +59,9 @@ class Vllm(BaseModel):
     max_num_seqs: int = 256
     precision: str = "bf16"
     enforce_eager: bool = False
+    tensor_parallel_size: int = 1
+    response_role: str = "assistant"
+    lora_modules: Union[str, None] = None
 
     @validator("precision")
     def _check_precision(cls, v: str):

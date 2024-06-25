@@ -26,6 +26,8 @@ from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     ModelGenerateResult,
     PRECISION_BF16,
+    DEVICE_HPU,
+    DEVICE_GPU,
 )
 
 
@@ -43,7 +45,7 @@ class VllmPredictor(Predictor):
         # The default value is 40GB.
         os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
 
-        args = AsyncEngineArgs(
+        engine_args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
@@ -52,8 +54,9 @@ class VllmPredictor(Predictor):
             max_num_seqs=max_num_seqs,
             enforce_eager=infer_conf.vllm.enforce_eager,
         )
-
-        self.engine = AsyncLLMEngine.from_engine_args(args)
+        if infer_conf.device in [DEVICE_HPU, DEVICE_GPU]:
+            engine_args.worker_use_ray = True
+        self.engine = AsyncLLMEngine.from_engine_args(engine_args)
 
     def update_vllm_config(self, **config):
         # need to update the keys of config if vllm engine is used
