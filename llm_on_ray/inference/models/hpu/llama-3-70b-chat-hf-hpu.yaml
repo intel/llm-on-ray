@@ -7,7 +7,7 @@ deepspeed: true
 workers_per_group: 8
 device: hpu
 model_description:
-  model_id_or_path: meta-llama/Meta-Llama-3-70b-Instruct
-  tokenizer_name_or_path: meta-llama/Meta-Llama-3-70b-Instruct
+  model_id_or_path: NousResearch/Meta-Llama-3-70B-Instruct
+  tokenizer_name_or_path: NousResearch/Meta-Llama-3-70B-Instruct
   config:
     use_auth_token: ''
