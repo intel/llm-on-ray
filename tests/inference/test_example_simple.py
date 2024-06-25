@@ -71,7 +71,7 @@ def script_with_args(
             # Find the latest Internal Server Error log file
             folder_path = "/tmp/ray/session_latest/logs/serve"
             latest_file = None
-            latest_time = 0.0
+            latest_time = 0.00
 
             for file_name in os.listdir(folder_path):
                 if file_name.startswith("replica") and file_name.endswith(".log"):
