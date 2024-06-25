@@ -78,11 +78,6 @@ outputs = requests.post(
 
 outputs.raise_for_status()
 
-# from requests.exceptions import HTTPError
-
-# http_error_msg = f"{500} Server Error: Internal Server Error for url: {args.model_endpoint}"
-# raise HTTPError(http_error_msg)
-
 
 if args.streaming_response:
     for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
