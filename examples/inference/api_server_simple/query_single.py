@@ -78,7 +78,6 @@ outputs = requests.post(
 
 outputs.raise_for_status()
 
-
 if args.streaming_response:
     for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
         print(output, end="", flush=True)
