@@ -4,7 +4,8 @@ set -eo pipefail
 
 # Setup oneapi envs before starting Ray
 if [[ -e "/opt/intel/oneapi/setvars.sh" ]]; then
-  source /opt/intel/oneapi/setvars.sh
+  # source /opt/intel/oneapi/setvars.sh
+  source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
   export CCL_ZE_IPC_EXCHANGE=sockets
 else
   echo "/opt/intel/oneapi/setvars.sh doesn't exist, not loading."
