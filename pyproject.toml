@@ -61,7 +61,7 @@ deepspeed = [
     "psutil",
     "tqdm",
     # 0.10.2 is required to support bloom
-    "deepspeed>=0.10.2, <0.11.2"
+    "deepspeed"
 ]
 
 ipex-llm = [
