@@ -2,14 +2,10 @@ port: 8000
 name: gpt-j-6b
 route_prefix: /gpt-j-6b
 num_replicas: 1
-cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
-workers_per_group: 2
 device: cpu
-ipex:
-  # false here for ci coverage
-  enabled: false
+cpus_per_worker: 24
+vllm:
+  enabled: true
   precision: bf16
 model_description:
   model_id_or_path: EleutherAI/gpt-j-6b
