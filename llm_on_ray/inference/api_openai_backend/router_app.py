@@ -34,7 +34,7 @@
 #
 
 import os
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List
 import uuid
 import async_timeout
 from fastapi import FastAPI, status
@@ -335,7 +335,6 @@ class Router:
         self,
         body: ChatCompletionRequest,
         response: FastAPIResponse,
-        raw_request: Optional[Request] = None,
     ):
         """Given a prompt, the model will return one or more predicted completions,
         and can also return the probabilities of alternative tokens at each position.
@@ -352,7 +351,7 @@ class Router:
             API reference:
                 - https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
             """
-            generator = await vllm_openai_serving_chat.create_chat_completion(body, raw_request)
+            generator = await vllm_openai_serving_chat.create_chat_completion(body)
             if body.stream:
                 return StreamingResponse(content=generator, media_type="text/event-stream")
             else:
