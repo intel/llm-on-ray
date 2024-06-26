@@ -4,6 +4,17 @@ set -eo pipefail
 choice=${1}
 run_mode=${2}   # "test" or "benchmark", where "test" will only use a small part of the dataset
 VALUE_INF=2000
+MAX_NUM_SEQS=$VALUE_INF
+DYNAMIC_BATCH_SIZE=0
+if [ "$#" -gt 2 ]
+then
+    MAX_NUM_SEQS=${3}
+fi
+if [ "$#" -gt 3 ]
+then
+    DYNAMIC_BATCH_SIZE=${4}
+fi
+
 model_endpoint="http://localhost:8000/llama-2-7b-chat-hf"
 model_name="llama-2-7b-chat-hf"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
@@ -100,33 +111,33 @@ latency_throughput(){
     #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
-    #for i in $(seq 1 $num_iter)
-    #do
-    #    echo "Run iter $i"
-    #    iter_dir=$tokens_dir"/iter_"$i
-    #    for num_prompts in ${query_num}
-    #    do
-    #        results_dir=$iter_dir"/num_prompts_"$num_prompts
-    #        echo "Run num_prompts ${num_prompts}"
-    #        echo "results_dir: ${results_dir}"
-    #        $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
-    #    done
-    #done
     for num_prompts in ${query_num}
     do
-        echo "Run num_prompts ${num_prompts}"
-        for i in $(seq 1 $num_iter)
+	max_con_q=$VALUE_INF
+	if [ ! "$DYNAMIC_BATCH_SIZE" = "0" ]
+        then
+	    if [ "$num_prompts" -lt "$num_replica" ] || [ "$num_prompts" -eq "$num_replica" ]
+            then
+		max_con_q=1
+	    else
+		max_con_q=$((num_prompts/num_replica))
+            fi
+	fi
+	echo "Run num_prompts ${num_prompts} ======================="
+	echo "deploying model with --max_concurrent_queries $max_con_q --vllm_max_num_seqs $MAX_NUM_SEQS ..."
+	$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $max_con_q --vllm_max_num_seqs $MAX_NUM_SEQS
+	sleep 1
+        for i in $(seq 0 $num_iter)
         do
 	    if [ $i = 0 ]; then
 		iter_dir="$tokens_dir/warmup"
 		echo "Run warmup"
 	    else
-            	iter_dir=$tokens_dir"/iter_"$i
-		echo "Run iter $i"
+                iter_dir=$tokens_dir"/iter_"$i
+                echo "Run iter $i"
 	    fi
             results_dir=$iter_dir"/num_prompts_"$num_prompts
             echo "results_dir: ${results_dir}"
-            #$numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
             $numa_client_command python $benchmark_script --model-endpoint-base $model_endpoint --model-name $model_name --dataset $dataset_IPEX_path --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --track-token-latency --max-new-tokens  $output_tokens_length --vllm-engine --simple --results-dir $results_dir
         done
     done
@@ -141,7 +152,7 @@ get_best_latency(){
     choice_dir=${4}
 
     # server
-    #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+    $numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
     for i in $(seq 1 $num_iter)
@@ -207,8 +218,12 @@ then
         for i in "${!concurrent_query_num[@]}"; do
             concurrent_query_num[$i]=$[${concurrent_query_num[$i]}*$num_replica]
         done
-        # 32/64
+        # 32/128
         input_tokens_length=32
+        output_tokens_length=128
+        latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
+        # 1024/128
+        input_tokens_length=1024
         output_tokens_length=128
         latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
         # 1024/128
@@ -241,3 +256,4 @@ then
     output_tokens_length=32
     get_best_latency $iter "${input_tokens_length[*]}" $output_tokens_length $benchmark_dir
 fi
+
