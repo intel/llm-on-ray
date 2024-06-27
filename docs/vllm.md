@@ -57,10 +57,11 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-
 In the above example, `vllm` property is set to `true` in the config file for enabling vLLM.
 
 * vLLM Extension
-To serve model with vLLM extension with Intel inference engine, run with following:
+To serve model with vLLM extension with Intel inference engine, run with following (Note: only Llama-2-7b-chat-hf is supported for now):
 
 ```bash
 # copy quantization config file to your specific snapshot dir, for example .../snapshots/f5db02db7.../
+# the quant_ns_config.json will be copied from llm_on_ray package with default config if you don't copy your desired one manually.
 cp llm_on_ray/inference/models/vllm/quantization/quant_ns_config.json <your model snapshot dir>
 # deploy model serving. Note: It includes quantizing the model on the fly based on the quant_ns_config.json if it has not been quantized.
 llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml --simple --keep_serve_terminal --max_num_seqs 64
