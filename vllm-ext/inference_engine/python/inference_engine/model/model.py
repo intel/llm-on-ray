@@ -1,9 +1,9 @@
 import os
+from filelock import FileLock
 from typing import List
 from pathlib import Path
 import ctypes
 from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizer, PretrainedConfig
-import inference_engine
 from inference_engine.quant import convert_model
 
 _VOCAB_SIZE_MAP = {"llama3": 128256}
@@ -101,21 +101,26 @@ class Model:
         quant_dir = quant_kwargs.get("quant_dir", _DEFAULT_QUANT_DIR)
         if quant_dir == _DEFAULT_QUANT_DIR:
             os.makedirs(quant_dir, exist_ok=True)
-        quant_path = self._get_model_target_path(quant_dir, for_quantized=True, **quant_kwargs)
-        parent_path = Path(quant_path).parent
+        self.quantized_model_path = self._get_model_target_path(quant_dir, for_quantized=True, **quant_kwargs)
+        parent_path = Path(self.quantized_model_path).parent
         os.makedirs(parent_path, exist_ok=True) # in case model id is ***/***, e.g., "meta-llama/Llama-7b.."
-        self.quantized_model_path = quant_path
-        if os.path.exists(quant_path): # existed?
+        if os.path.exists(self.quantized_model_path): # existed?
             return
         # check if intermediate fp32 model exists, convert on the fly if not existed
-        fp32_path = self._get_model_target_path(quant_dir, for_quantized=False, **quant_kwargs)
-        self.fp32_model_path = fp32_path
-        if not os.path.exists(fp32_path):
-            convert_model(self.model_id, fp32_path, "f32", model_hub="huggingface")
-            assert os.path.exists(fp32_path), "Failed to convert model to intermediate fp32 model"
+        self.fp32_model_path = self._get_model_target_path(quant_dir, for_quantized=False, **quant_kwargs)
+        if not os.path.exists(self.fp32_model_path):
+            # lock to prevent being messed up with mutiple processes
+            fp32_lock_path = self.fp32_model_path + ".lock"
+            with FileLock(fp32_lock_path):
+                if not os.path.exists(self.fp32_model_path): # converted by other process already?
+                    fp32_path_tmp =  self.fp32_model_path + ".tmp"
+                    convert_model(self.model_id, fp32_path_tmp, "f32", model_hub="huggingface")
+                    os.rename(fp32_path_tmp, self.fp32_model_path)
+                    assert os.path.exists(self.fp32_model_path), "Failed to convert model to intermediate fp32 model"
         # quantize
+        quant_output_tmp = self.quantized_model_path + ".tmp"
         fp32_model_path = self.fp32_model_path.encode(_CTYPES_STR_ENCODE)
-        quantized_model_path = self.quantized_model_path.encode(_CTYPES_STR_ENCODE)
+        quant_output_path = quant_output_tmp.encode(_CTYPES_STR_ENCODE)
         weight_dtype = quant_kwargs.get("weight_dtype", "int4").encode(_CTYPES_STR_ENCODE)
         alg = quant_kwargs.get("alg", "sym").encode(_CTYPES_STR_ENCODE)
         group_size = quant_kwargs.get("group_size", 32)
@@ -124,7 +129,13 @@ class Model:
         use_ggml = ctypes.c_bool(quant_kwargs.get("use_ggml", False))
         threads = quant_kwargs.get("threads", 8)
 
-        self.cpp_module.quantize_model(fp32_model_path, quantized_model_path, weight_dtype, alg, group_size, scale_dtype, compute_dtype, use_ggml, threads)
+        # lock to prevent being messed up with mutiple processes
+        quant_lock_path = self.quantized_model_path + ".lock"
+        with FileLock(quant_lock_path):
+            if not os.path.exists(self.quantized_model_path): # quantized by other process already?      
+                self.cpp_module.quantize_model(fp32_model_path, quant_output_path, weight_dtype, alg, group_size, scale_dtype, compute_dtype, use_ggml, threads)
+                os.rename(quant_output_tmp, self.quantized_model_path)
+
         assert os.path.exists(self.quantized_model_path), "Failed to quantize model"
 
     def load_model(self):

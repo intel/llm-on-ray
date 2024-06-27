@@ -24,7 +24,7 @@ Then please run the following script to install vLLM for CPU into your LLM-on-Ra
 dev/scripts/install-vllm-cpu.sh
 ```
 
-## Install vLLM Extension (Optional)
+## Install vLLM Extension for Quantization (Optional)
 To further speed up quantized model inference on Intel CPU, we extend vLLM to run the model decoding in own own inference engine, which is based on [https://github.com/intel/neural-speed](neural-speed).
 Neural Speed is an innovative library designed to support the efficient inference of large language models (LLMs) on Intel platforms through the state-of-the-art (SOTA) low-bit quantization powered by
 [https://github.com/intel/neural-compressor](Intel Neural Compressor). The work is inspired by [https://github.com/ggerganov/llama.cpp](llama.cpp) and further optimized for Intel platforms with our
@@ -60,7 +60,10 @@ In the above example, `vllm` property is set to `true` in the config file for en
 To serve model with vLLM extension with Intel inference engine, run with following:
 
 ```bash
-llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml --simple --keep_serve_terminal --vllm_max_num_seqs 64
+# copy quantization config file to your specific snapshot dir, for example .../snapshots/f5db02db7.../
+cp llm_on_ray/inference/models/vllm/quantization/quant_ns_config.json <your model snapshot dir>
+# deploy model serving. Note: It includes quantizing the model on the fly based on the quant_ns_config.json if it has not been quantized.
+llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml --simple --keep_serve_terminal --max_num_seqs 64
 ```
 
 For now, only Llama2 model is supported.
