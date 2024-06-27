@@ -17,6 +17,10 @@
 import requests
 import argparse
 from typing import Dict, Union
+from llm_on_ray.inference.api_simple_backend.simple_protocol import (
+    SimpleRequest,
+    SimpleModelResponse,
+)
 
 parser = argparse.ArgumentParser(
     description="Example script to query with single request", add_help=True
@@ -66,20 +70,22 @@ if args.top_p:
 if args.top_k:
     config["top_k"] = float(args.top_k)
 
-sample_input = {"text": prompt, "config": config, "stream": args.streaming_response}
+sample_input = SimpleRequest(text=prompt, config=config, stream=args.streaming_response)
 
 proxies = {"http": None, "https": None}
 outputs = requests.post(
     args.model_endpoint,
     proxies=proxies,  # type: ignore
-    json=sample_input,
+    json=sample_input.dict(),
     stream=args.streaming_response,
 )
 
 outputs.raise_for_status()
+
+simple_response = SimpleModelResponse.from_requests_response(outputs)
 if args.streaming_response:
-    for output in outputs.iter_content(chunk_size=None, decode_unicode=True):
+    for output in simple_response.iter_content(chunk_size=1, decode_unicode=True):
         print(output, end="", flush=True)
     print()
 else:
-    print(outputs.text, flush=True)
+    print(simple_response.text, flush=True)

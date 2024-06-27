@@ -203,9 +203,10 @@ class HPUPredictor(Predictor):
         else:
             input_ids, input_length = self.tokenize_inputs(prompt)
             gen_tokens = self.model.generate(
-                input_ids, stopping_criteria=self.stopping_criteria, **config
+                input_ids, stopping_criteria=self.stopping_criteria, ignore_eos=False, **config
             )
             decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
+            # FIXME generate_length is not correct
             results = [
                 ModelGenerateResult(
                     text=decode_result[i],
@@ -228,6 +229,7 @@ class HPUPredictor(Predictor):
                 input_ids,
                 stopping_criteria=self.stopping_criteria,
                 streamer=streamer,
+                ignore_eos=False,
                 **config,
             )
 
@@ -312,11 +314,15 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
                 model = AutoModelForCausalLM.from_config(config, torch_dtype=model_dtype)
 
             checkpoints_json = tempfile.NamedTemporaryFile(suffix=".json", mode="+w")
+            if model_desc.config.use_auth_token:
+                auth_token = model_desc.config.use_auth_token
+            else:
+                auth_token = None
             write_checkpoints_json(
                 model_desc.model_id_or_path,
                 self.local_rank,
                 checkpoints_json,
-                token=model_desc.config.use_auth_token,
+                token=auth_token,
             )
         else:
             with deepspeed.OnDevice(dtype=model_dtype, device="cpu"):
@@ -373,6 +379,7 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         input_ids = self.tokenize(prompt)
         gen_tokens = self.model.generate(
             input_ids,
+            ignore_eos=False,
             **config,
         )
         decode_result = self.tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
@@ -391,5 +398,6 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.model.generate(
             input_ids,
             streamer=streamer,
+            ignore_eos=False,
             **config,
         )

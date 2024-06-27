@@ -28,7 +28,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ llama-2-7b-chat-hf, llama-2-70b-chat-hf ]
+        model: [ llama-2-7b-chat-hf, llama-2-70b-chat-hf, llama-2-7b-chat-hf-vllm ]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -38,6 +38,7 @@ jobs:
         include:
           - { model: "llama-2-7b-chat-hf"}
           - { model: "llama-2-70b-chat-hf"}
+          - { model: "llama-2-7b-chat-hf-vllm"}
 
     runs-on: gaudi2
 
@@ -63,6 +64,8 @@ jobs:
             target="${target}_gaudi2"
           elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf" ]]; then
             target="${target}_gaudi2"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            target="${target}_vllm_gaudi2"
           fi
           echo "target is ${target}"
           echo "target=$target" >> $GITHUB_OUTPUT
@@ -70,14 +73,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
-
       - name: Build Docker Image
         run: |
           DF_SUFFIX=".gaudi2"
           TARGET=${{steps.target.outputs.target}}
-          docker build --build-arg CACHEBUST=1 -f dev/docker/Dockerfile.habana -t ${TARGET}:habana .
+          if [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            dockerfile="dev/docker/Dockerfile.habana_vllm"
+          else
+            dockerfile="dev/docker/Dockerfile.habana"
+          fi
+          docker build --build-arg CACHEBUST=1 -f ${dockerfile} -t ${TARGET}:habana .
           docker container prune -f
           docker image prune -f
 
@@ -90,7 +95,6 @@ jobs:
           cid=$(docker ps -a -q --filter "name=${TARGET}")
           if [[ ! -z "$cid" ]]; then docker rm $cid; fi
           docker run -tid --name="${TARGET}" --hostname="${TARGET}-container" --runtime=habana -v /home/yizhong/Model-References:/root/Model-References -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub/ -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --cap-add sys_ptrace --net=host --ipc=host ${TARGET}:habana
-
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
@@ -103,18 +107,14 @@ jobs:
           import yaml
           if ("${{ matrix.model }}" == "llama-2-7b-chat-hf"):
               conf_path = "llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
           elif ("${{ matrix.model }}" == "llama-2-70b-chat-hf"):
               conf_path = "llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml"
-              with open(conf_path, encoding="utf-8") as reader:
-                  result = yaml.load(reader, Loader=yaml.FullLoader)
-                  result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-              with open(conf_path, 'w') as output:
-                  yaml.dump(result, output, sort_keys=False)
+          elif ("${{ matrix.model }}" == "llama-2-7b-chat-hf-vllm"):   
+              conf_path = "llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-vllm-hpu.yaml"
+          with open(conf_path, encoding="utf-8") as reader:
+              result = yaml.load(reader, Loader=yaml.FullLoader)
+          with open(conf_path, 'w') as output:
+              yaml.dump(result, output, sort_keys=False)
           EOF
           )
           docker exec "${TARGET}" python -c "$CMD"
@@ -122,6 +122,8 @@ jobs:
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-hpu.yaml --keep_serve_terminal"
           elif [[ ${{ matrix.model }} == "llama-2-70b-chat-hf" ]]; then
             docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-70b-chat-hf-hpu.yaml --keep_serve_terminal"
+          elif [[ ${{ matrix.model }} == "llama-2-7b-chat-hf-vllm" ]]; then
+            docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/hpu/llama-2-7b-chat-hf-vllm-hpu.yaml --keep_serve_terminal" 
           fi
           echo Streaming query:
           docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${{ matrix.model }} --streaming_response"

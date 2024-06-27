@@ -113,7 +113,7 @@ cpus_per_worker: 24
 ```
 3. Deploy server
 ```cmd
-OMP_NUM_THREAD=24 numactl -N 0 -m 0 -C 0-47 python -u inference/serve.py --config_file inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml --keep_serve_terminal --max_concurrent_queries 1000 --vllm_max_num_seqs 256 --simple
+OMP_NUM_THREAD=24 numactl -N 0 -m 0 -C 0-47 python -u inference/serve.py --config_file inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml --keep_serve_terminal --max_ongoing_requests 1000 --max_num_seqs 256 --simple
 ```
 4. Send requests
 ```cmd

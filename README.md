@@ -18,7 +18,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 
 * **Finetuning Workflow**: Supports refinement of pre-trained models with proprietary or specialized data, improving models' accuracy and applicability to various use cases.
     * **Ease of Customization**: Users can easily configure the base model and resource allocation for the training job, customize training parameters to fit their specific needs. This can be accomplished through a simple command line or via the Web UI.
-    * **Parameter Efficient Finetuning**: Supports various parameter efficient finetuning methods such as LoRA, deltatuner to accelerate the finetuning process.
+    * **Parameter Efficient Finetuning**: Supports various parameter efficient finetuning methods such as LoRA to accelerate the finetuning process.
     * **Reinforcement Learning with Human Feedback (RLHF)**: Users can further refine the model using RLHF, which leverages the proximal policy optimization (PPO).
 
 * **Serving Workflow**: Deploys a scalable and production-ready LLM serving endpoint.
@@ -71,7 +71,14 @@ Deploy a model on Ray and expose an endpoint for serving. This command uses GPT2
 ```bash
 llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml
 ```
-
+You can also use model_ids to serve directly through:
+```bash
+llm_on_ray-serve --models gpt2
+```
+List all support model_ids with config file path:
+```bash
+llm_on_ray-serve --list_model_ids
+```
 The default served method is to provide an OpenAI-compatible API server ([OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat)), you can access and test it in many ways:
 ```bash
 # using curl

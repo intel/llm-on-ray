@@ -53,11 +53,15 @@ class DSPipeline:
 
         model_desc = infer_conf.model_description
         model_config = model_desc.config
+        if infer_conf.model_description.config.use_auth_token:
+            auth_token = infer_conf.model_description.config.use_auth_token
+        else:
+            auth_token = None
         hf_config = AutoConfig.from_pretrained(
             model_desc.model_id_or_path,
             torchscript=True,
             trust_remote_code=model_config.trust_remote_code,
-            use_auth_token=infer_conf.model_description.config.use_auth_token,
+            use_auth_token=auth_token,
         )
 
         # decide correct torch type for loading HF model
@@ -75,14 +79,9 @@ class DSPipeline:
             self.model = PeftModel.from_pretrained(
                 self.model,
                 model_desc.peft_model_id_or_path,
-                use_auth_token=infer_conf.model_description.config.use_auth_token,
+                use_auth_token=auth_token,
             )
-            if model_desc.peft_type == "deltatuner":
-                from deltatuner import DeltaTunerModel
 
-                self.model = DeltaTunerModel.from_pretrained(
-                    self.model, model_desc.peft_model_id_or_path
-                )
             self.model = self.model.merge_and_unload()
 
         self.model = self.model.eval().to(self.device)

@@ -18,7 +18,6 @@ import transformers
 
 from llm_on_ray.common.model import Model
 from peft import get_peft_model, LoraConfig
-import deltatuner
 
 
 class HuggingFaceModelForCausalLM(Model):
@@ -34,9 +33,6 @@ class HuggingFaceModelForCausalLM(Model):
         if lora_config:
             peft_config = LoraConfig(**lora_config)
             model = get_peft_model(model, peft_config)
-            deltatuner_config = config.get("deltatuner_config", None)
-            if deltatuner_config:
-                model = deltatuner.optimize(model, **deltatuner_config)
 
         enable_gradient_checkpointing = config.get("enable_gradient_checkpointing")
         if enable_gradient_checkpointing:

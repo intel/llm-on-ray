@@ -176,14 +176,14 @@ class HuggingFacePreTrainer(RayTrainer):
         model_config = self.config.get("model")
         model_config["deepspeed_zero_stage"] = training_args.deepspeed_plugin.zero_stage
         if model_config:
-            self.model = common.load_model(model_config)
+            self.model = common.load.load_model(model_config)
         else:
             common.logger.warn("No internal model plugin provided")
         self.model.train()
 
         tokenizer_config = self.config.get("tokenizer")
         if tokenizer_config:
-            self.tokenizer = common.load_tokenizer(tokenizer_config)
+            self.tokenizer = common.load.load_tokenizer(tokenizer_config)
         else:
             common.logger.warn("No internal tokenizer plugin provided")
 

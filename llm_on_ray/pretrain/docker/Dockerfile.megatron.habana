@@ -1,7 +1,7 @@
 FROM vault.habana.ai/gaudi-docker/1.13.0/ubuntu20.04/habanalabs/pytorch-installer-2.1.0:latest
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /home/user
-RUN pip install lz4 numpy==1.24.4 tensorboard gpustat==1.0.0 sentencepiece accelerate datasets==2.12.0 gymnasium transformers dm-tree scikit-image peft deltatuner==1.1.9
+RUN pip install lz4 numpy==1.24.4 tensorboard gpustat==1.0.0 sentencepiece accelerate datasets==2.12.0 gymnasium transformers dm-tree scikit-image peft
 RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 RUN pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.13.0
 COPY pretrain/patch/hpu/0001-Init-megatron-deepspeed-with-Ray-cluster.patch .

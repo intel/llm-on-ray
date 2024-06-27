@@ -18,6 +18,10 @@ import asyncio
 import aiohttp
 import argparse
 from typing import Dict, Union
+from llm_on_ray.inference.api_simple_backend.simple_protocol import (
+    SimpleRequest,
+    SimpleModelResponse,
+)
 
 parser = argparse.ArgumentParser(
     description="Example script to query with multiple requests", add_help=True
@@ -63,9 +67,8 @@ if args.top_k:
     config["top_k"] = float(args.top_k)
 
 
-async def send_query(session, endpoint, prompt, config):
-    json_request = {"text": prompt, "config": config}
-    async with session.post(endpoint, json=json_request) as resp:
+async def send_query(session, endpoint, req):
+    async with session.post(endpoint, json=req.dict()) as resp:
         return await resp.text()
 
 
@@ -86,16 +89,15 @@ config2 = {"max_new_tokens": 10}
 
 configs = [config1] * 5 + [config2] * (len(prompts) - 5)
 
+reqs = [SimpleRequest(text=prompt, config=config) for prompt, config in zip(prompts, configs)]
 
-async def send_all_query(endpoint, prompts, configs):
+
+async def send_all_query(endpoint, reqs):
     async with aiohttp.ClientSession() as session:
-        tasks = [
-            send_query(session, endpoint, prompt, config)
-            for prompt, config in zip(prompts, configs)
-        ]
+        tasks = [send_query(session, endpoint, req) for req in reqs]
         responses = await asyncio.gather(*tasks)
         print("\n--------------\n".join(responses))
         print("\nTotal responses:", len(responses))
 
 
-asyncio.run(send_all_query(args.model_endpoint, prompts, configs))
+asyncio.run(send_all_query(args.model_endpoint, reqs))

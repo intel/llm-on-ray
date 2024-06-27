@@ -1,5 +1,6 @@
 General:
   base_model: EleutherAI/gpt-j-6b
+  gaudi_config_name: Habana/gpt2
   gpt_base_model: true
   output_dir: /tmp/llm-ray/output
   save_strategy: no

@@ -21,9 +21,13 @@ import argparse
 import sys
 from typing import Any, Dict, Union, Optional
 
-import torch
+from itertools import chain
 
+import torch
+import datasets
 import transformers
+
+from peft import get_peft_model, LoraConfig
 
 import ray
 from ray.train.torch import TorchTrainer
@@ -33,101 +37,43 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
+from llm_on_ray.finetune import template
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 from importlib import util
 
-use_habana = False
-if util.find_spec("habana_frameworks") is not None:
-    from optimum.habana.utils import set_seed
 
-    use_habana = True
-else:
-    from accelerate.utils import set_seed, is_xpu_available
-
-    use_habana = False
-
-
-def get_accelerate_environment_variable(config: Dict[str, Any]) -> dict:
+def adapt_transformers_to_device(config: Dict):
     device = config["Training"]["device"]
-    accelerate_mode = config["Training"]["accelerate_mode"]
-    mixed_precision = config["Training"]["mixed_precision"]
-    mode_env_vars = {
-        "cpu": {
-            "DDP": {
-                "ACCELERATE_USE_CPU": "true",
-                "ACCELERATE_USE_IPEX": "true",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            }
-        },
-        "gpu": {
-            "DDP": {
-                "ACCELERATE_USE_CPU": "false",
-                "ACCELERATE_USE_XPU": "true",
-                "ACCELERATE_USE_IPEX": "true",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            },
-            "FSDP": {
-                "ACCELERATE_USE_CPU": "false",
-                "ACCELERATE_USE_XPU": "true",
-                "ACCELERATE_USE_IPEX": "true",
-                "ACCELERATE_USE_FSDP": "true",
-                "FSDP_SHARDING_STRATEGY": "1",
-                "FSDP_OFFLOAD_PARAMS": "false",
-                "FSDP_AUTO_WRAP_POLICY": "NO_WRAP",
-                "FSDP_BACKWARD_PREFETCH": "BACKWARD_PRE",
-                "FSDP_STATE_DICT_TYPE": "SHARDED_STATE_DICT",
-                "FSDP_FORWARD_PREFETCH": "false",
-                "FSDP_USE_ORIG_PARAMS": "false",
-                "FSDP_SYNC_MODULE_STATES": "true",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            },
-            "DEEPSPEED": {
-                "ACCELERATE_USE_CPU": "false",
-                "ACCELERATE_USE_XPU": "true",
-                "ACCELERATE_USE_IPEX": "true",
-                "ACCELERATE_USE_DEEPSPEED": "true",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            },
-        },
-        "hpu": {
-            "DDP": {
-                "ACCELERATE_USE_CPU": "false",
-                "ACCELERATE_USE_XPU": "false",
-                "ACCELERATE_USE_IPEX": "false",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            },
-            "DEEPSPEED": {
-                "ACCELERATE_USE_CPU": "false",
-                "ACCELERATE_USE_XPU": "false",
-                "ACCELERATE_USE_IPEX": "false",
-                "ACCELERATE_USE_DEEPSPEED": "true",
-                "ACCELERATE_MIXED_PRECISION": mixed_precision,
-            },
-        },
-    }
-    if device not in mode_env_vars or accelerate_mode not in mode_env_vars[device]:
-        supported_mode_info = ""
-        for k in mode_env_vars.keys():
-            supported_mode_info += k + ":["
-            for m in mode_env_vars[k]:
-                supported_mode_info += m + ","
-            supported_mode_info = supported_mode_info[:-1]
-            supported_mode_info += "],"
-        supported_mode_info = supported_mode_info[:-1]
+    if device in ["hpu"]:
+        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
 
-        raise ValueError(
-            f"device {device} and accelerate mode {accelerate_mode} not supported. supported device and accelerate mode is {supported_mode_info}"
-        )
-    return mode_env_vars[device][accelerate_mode]
+        # adapt transformers to gaudi
+        adapt_transformers_to_gaudi()
 
 
-def convert_to_training_args(cls, config):
+def set_seed(config: Dict):
+    seed = config["Training"].get("seed", None)
+    if seed is None:
+        return
+    device = config["Training"]["device"]
+    if device in ["cpu", "gpu"]:
+        from accelerate.utils import set_seed as _set_seed
+
+        _set_seed(seed)
+    elif device in ["hpu"]:
+        from optimum.habana.utils import set_seed as _set_seed
+
+        _set_seed(seed)
+
+
+def convert_to_training_args(cls, config: Dict):
     device = config["Training"]["device"]
     accelerate_mode = config["Training"]["accelerate_mode"]
     save_strategy = config["General"]["save_strategy"]
 
     args = {
         "output_dir": config["General"]["output_dir"],
+        "report_to": config["General"]["report_to"],
         "resume_from_checkpoint": config["General"]["resume_from_checkpoint"],
         "gradient_checkpointing": config["General"]["enable_gradient_checkpointing"],
         "save_strategy": save_strategy if save_strategy != "False" else "no",
@@ -141,7 +87,14 @@ def convert_to_training_args(cls, config):
         "lr_scheduler_type": config["Training"]["lr_scheduler"],
         "weight_decay": config["Training"]["weight_decay"],
         "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
+        "do_train": True,
     }
+
+    # set attr do_eval
+    vf = config["Dataset"].get("validation_file", None)
+    vsp = config["Dataset"].get("validation_split_percentage", 0)
+    if vf is not None or (vsp / 100 > 0.0 and vsp / 100 < 1.0):
+        args.update({"do_eval": True})
 
     # set attr max_steps
     if config["Training"]["max_train_steps"] is not None:
@@ -172,15 +125,6 @@ def convert_to_training_args(cls, config):
     return cls(**args)
 
 
-def get_device_environment_variable(device):
-    if device == "hpu":
-        return {
-            "HABANA_VISIBLE_DEVICES": "all",
-            "RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES": "true",
-        }
-    return {}
-
-
 def convert_dtype(dtype: str) -> Optional[torch.dtype]:
     supported_dtypes = {
         "fp16": torch.float16,
@@ -190,67 +134,175 @@ def convert_dtype(dtype: str) -> Optional[torch.dtype]:
     return supported_dtypes[dtype]
 
 
-def train_func(config: Dict[str, Any]):
-    os.chdir(config["cwd"])
-
-    device = config["Training"]["device"]
-
-    base_model = config["General"]["base_model"]
+def load_tokenizer(config: Dict):
     if config["General"].get("tokenizer_name") is not None:
         tokenizer_name = config["General"].get("tokenizer_name")
     else:
-        tokenizer_name = base_model
-    dataset_file = config["Dataset"]["train_file"]
+        tokenizer_name = config["General"]["base_model"]
+    load_config = config["General"].get("config", {})
+    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name, **load_config)
+    return tokenizer
 
-    seed = config["Training"].get("seed")
-    if seed is not None:
-        set_seed(seed)
 
-    tokenizer = common.tokenizer.Tokenizer.registory.get("HuggingFaceTokenizer")()(
-        config={
-            "name": tokenizer_name,
-            "config": config["General"]["config"],
-        }
+def load_dataset(config: Dict):
+    dataset_file = config["Dataset"].get("train_file", None)
+    if dataset_file is None:
+        return
+
+    if os.path.exists(dataset_file):
+        # load from local file
+        def local_load(name, **load_config):
+            if os.path.isfile(name):
+                file = os.path.basename(os.path.abspath(name))
+                path = os.path.dirname(os.path.abspath(name))
+                dataset = datasets.load_dataset(path, data_files=file, **load_config)
+            else:
+                dataset = datasets.load_dataset(name, **load_config)
+            return dataset["train"]
+
+        train_dataset = local_load(dataset_file)
+        validation_file = config["Dataset"].get("validation_file", None)
+        if validation_file is not None:
+            validation_dataset = local_load(validation_file)
+            return datasets.DatasetDict({"train": train_dataset, "validation": validation_dataset})
+
+        validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
+        if validation_split_percentage / 100 > 0.0 and validation_split_percentage / 100 < 1.0:
+            dataset_dict = train_dataset.train_test_split(
+                test_size=validation_split_percentage / 100
+            )
+            dataset_dict["validation"] = dataset_dict["test"]
+            return dataset_dict
+
+        return datasets.DatasetDict({"train": train_dataset})
+    else:
+        # try to download and load dataset from huggingface.co
+        load_config = config["General"].get("config", {})
+        use_auth_token = load_config.get("use_auth_token", None)
+        raw_dataset = datasets.load_dataset(dataset_file, use_auth_token=use_auth_token)
+
+        validation_split_percentage = config["Dataset"].get("validation_split_percentage", 0)
+        if "validation" not in raw_dataset.keys() and (
+            validation_split_percentage / 100 > 0.0 and validation_split_percentage / 100 < 1.0
+        ):
+            dataset_dict = raw_dataset["train"].train_test_split(
+                test_size=validation_split_percentage / 100
+            )
+            dataset_dict["validation"] = dataset_dict["test"]
+            return dataset_dict
+
+        return raw_dataset
+
+
+def tokenize_dataset(config: Dict, tokenizer, dataset):
+    max_length = config["Dataset"].get("max_length", 512)
+    group = config["Dataset"].get("group", True)
+    block_size = config["Dataset"].get("block_size", 512)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    if isinstance(dataset, datasets.Dataset):
+        column_names = dataset.column_names
+
+    if isinstance(dataset, datasets.DatasetDict):
+        column_names = dataset["train"].column_names
+
+    if column_names and template.TEXT_COLUMN_NAME not in column_names:
+
+        def prompt(rec):
+            instruction = rec["instruction"]
+            response = rec["response"]
+            context = rec.get("context")
+            if not instruction:
+                raise ValueError(f"Expected an instruction in: {rec}")
+            if not response:
+                raise ValueError(f"Expected a response in: {rec}")
+            if context:
+                rec["text"] = template.PROMPT_WITH_INPUT_FORMAT.format(
+                    instruction=instruction, response=response, input=context
+                )
+            else:
+                rec["text"] = template.PROMPT_NO_INPUT_FORMAT.format(
+                    instruction=instruction, response=response
+                )
+            return rec
+
+        dataset = dataset.map(
+            prompt,
+            load_from_cache_file=False,
+            desc="Prompt",
+        )
+        column_names += [template.TEXT_COLUMN_NAME]
+
+    def tokenize_function(examples):
+        return tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+
+    tokenized_dataset = dataset.map(
+        tokenize_function,
+        remove_columns=column_names,
+        load_from_cache_file=False,
+        desc="Tokenize dataset",
     )
 
-    datasets = common.dataset.Dataset.registory.get("HuggingfaceDataset")()(
-        config={
-            "name": dataset_file,
-            "validation_file": config["Dataset"]["validation_file"],
-            "validation_split_percentage": config["Dataset"]["validation_split_percentage"],
-        }
-    )
+    if group:
 
-    dataprocesser = common.dataprocesser.DataProcesser.registory.get("GeneralProcesser")(
-        config={
-            "per_device_train_batch_size": config["Training"]["batch_size"],
-            "per_device_eval_batch_size": config["Training"]["batch_size"],
-            "preprocessing_num_workers": config["Dataset"].get("preprocessing_num_workers", 1),
-            "max_length": config["Dataset"].get("max_length", 512),
-            "group": config["Dataset"].get("group", True),
-            "block_size": config["Dataset"].get("block_size", 512),
-            "shuffle": config["Dataset"].get("shuffle", False),
-        }
-    )
-    tokenized_datasets = dataprocesser.tokenize_dataset(tokenizer, datasets)
+        def group_texts(examples):
+            # Concatenate all texts.
+            concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
+            total_length = len(concatenated_examples[list(examples.keys())[0]])
+            # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
+            # customize this part to your needs.
+            if total_length >= block_size:
+                total_length = (total_length // block_size) * block_size
+            # Split by chunks of max_len.
+            result = {
+                k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                for k, t in concatenated_examples.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
 
-    model = common.model.Model.registory.get("HuggingFaceModelForCausalLM")()(
-        config={
-            "name": base_model,
-            "dtype": convert_dtype(config["Training"].get("mixed_precision", "no")),
-            "device": torch.device(device),
-            "config": config["General"]["config"],
-            "enable_gradient_checkpointing": config["General"].get(
-                "enable_gradient_checkpointing", False
-            ),
-            "lora_config": config["General"].get("lora_config", None),
-        }
-    )
+        tokenized_dataset = tokenized_dataset.map(
+            group_texts,
+            batched=True,
+            load_from_cache_file=False,
+            desc=f"Grouping texts in chunks of {block_size}",
+        )
 
-    data_collator = common.dataprocesser.general_processer.DataCollatorForCompletionOnlyLM(
+    return tokenized_dataset
+
+
+def prepare_data_collator(config: Dict, tokenizer):
+    return transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
     )
 
+
+def load_model(config: Dict):
+    model_name = config["General"]["base_model"]
+    model_dtype = convert_dtype(config["Training"].get("mixed_precision", "no"))
+    model_config = config["General"].get("config", {})
+    model = transformers.AutoModelForCausalLM.from_pretrained(
+        model_name, torch_dtype=model_dtype, **model_config
+    )
+
+    lora_config = config["General"].get("lora_config", None)
+    if lora_config:
+        peft_config = LoraConfig(**lora_config)
+        model = get_peft_model(model, peft_config)
+
+    egc = config["General"].get("enable_gradient_checkpointing", False)
+    if egc:
+        model.enable_input_require_grads()
+        model.gradient_checkpointing_enable()
+        model.config.use_cache = False
+
+    model.to(dtype=model_dtype, device=torch.device(config["Training"]["device"]))
+
+    return model
+
+
+def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
+    device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
         from transformers import Trainer, TrainingArguments
 
@@ -258,34 +310,67 @@ def train_func(config: Dict[str, Any]):
         trainer = Trainer(
             model=model,
             args=training_args,
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            train_dataset=tokenized_dataset["train"],
+            eval_dataset=tokenized_dataset["validation"]
+            if tokenized_dataset.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
-
-        common.logger.info("train start")
-        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-        trainer.save_model()
-        common.logger.info("train finish")
+        return training_args, trainer
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana.transformers import GaudiTrainingArguments
+        from optimum.habana import GaudiConfig
+
+        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
+        gaudi_config_name = config["General"].get("gaudi_config_name", None)
+        if gaudi_config_name is not None:
+            gaudi_config = GaudiConfig.from_pretrained(gaudi_config_name)
+        else:
+            gaudi_config = GaudiConfig()
+            gaudi_config.use_fused_adam = True
+            gaudi_config.use_fused_clip_norm = True
 
         training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
-            train_dataset=tokenized_datasets["train"],
-            eval_dataset=tokenized_datasets["validation"],
+            gaudi_config=gaudi_config,
+            train_dataset=tokenized_dataset["train"],
+            eval_dataset=tokenized_dataset["validation"]
+            if tokenized_dataset.get("validation") is not None
+            else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
+        return training_args, trainer
+    return None
 
-        common.logger.info("train start")
-        trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-        trainer.save_model()
-        common.logger.info("train finish")
+
+def train_func(config: Dict[str, Any]):
+    os.chdir(config["cwd"])
+
+    adapt_transformers_to_device(config)
+
+    set_seed(config)
+
+    tokenizer = load_tokenizer(config)
+
+    dataset = load_dataset(config)
+
+    tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
+
+    data_collator = prepare_data_collator(config, tokenizer)
+
+    model = load_model(config)
+
+    training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
+
+    common.logger.info("train start")
+    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+    trainer.save_model()
+    common.logger.info("train finish")
 
 
 def get_finetune_config():
@@ -341,7 +426,6 @@ def main(external_config=None):
                 "CCL_ZE_IPC_EXCHANGE": "sockets",
                 "CCL_WORKER_COUNT": str(ccl_worker_count),
                 "CCL_LOG_LEVEL": "info",
-                "WORLD_SIZE": str(num_training_workers),
                 "FI_TCP_IFACE": "lo",
                 "FI_PROVIDER": "tcp",
             }
@@ -369,8 +453,11 @@ def main(external_config=None):
 
     # if try to use Intel GPU, convert device to 'xpu'
     # due to accelerate internal use 'xpu' represent Intel GPU
-    if device == "gpu" and is_xpu_available():
-        device = "xpu"
+    if device == "gpu":
+        from accelerate.utils import is_xpu_available
+
+        if is_xpu_available():
+            device = "xpu"
 
     if config.get("torch_config", None) is None:
         backend = None
