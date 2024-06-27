@@ -28,7 +28,7 @@ MODEL_ENDPOINT="http://localhost:8000/llama-2-7b-chat-hf"
 MODEL_NAME="llama-2-7b-chat-hf"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 BENCHMARK_SCRIPT=$SHELL_FOLDER"/benchmark_serving.py"
-WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
+WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml"
 WO_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
 DATASET_PATH=$SHELL_FOLDER"/../dataset"
 DATASET_SHAREGPT_PATH=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
@@ -126,12 +126,12 @@ latency_throughput(){
     do
         max_con_q=$VALUE_INF
         if [ ! "$DYNAMIC_BATCH_SIZE" = "0" ]
-            then
-            if [ "$num_prompts" -lt "$num_replica" ] || [ "$num_prompts" -eq "$num_replica" ]
+        then
+            if [ "$num_prompts" -lt "$NUM_REPLICA" ] || [ "$num_prompts" -eq "$NUM_REPLICA" ]
             then
                 max_con_q=1
             else
-                max_con_q=$((num_prompts/num_replica))
+                max_con_q=$((num_prompts/NUM_REPLICA))
             fi
         fi
         echo "Run num_prompts ${num_prompts} ======================="
