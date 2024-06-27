@@ -16,6 +16,7 @@ _base_path = pathlib.Path(__file__).parent.parent.parent.resolve()
 #     _base_path = _base_path.parent.resolve()
 _base_path = f"{str(_base_path)}/inference_engine"
 
+
 def load_engine_lib(model_type: str):
     native_lib = None
     if model_type == "llama" or model_type == "llama2":
@@ -27,13 +28,43 @@ def load_engine_lib(model_type: str):
         native_lib.destroy_model.argtypes = [c_void_p]
         native_lib.destroy_model.restype = None
 
-        native_lib.init_model.argtypes = [c_void_p, c_char_p, c_int, c_int, c_int, c_int32, c_char_p, c_float, c_int, c_int]
+        native_lib.init_model.argtypes = [
+            c_void_p,
+            c_char_p,
+            c_int,
+            c_int,
+            c_int,
+            c_int32,
+            c_char_p,
+            c_float,
+            c_int,
+            c_int,
+        ]
         native_lib.init_model.restype = c_bool
 
-        native_lib.quantize_model.argtypes = [c_char_p, c_char_p, c_char_p, c_char_p, c_int, c_char_p, c_char_p, c_bool, c_int]
+        native_lib.quantize_model.argtypes = [
+            c_char_p,
+            c_char_p,
+            c_char_p,
+            c_char_p,
+            c_int,
+            c_char_p,
+            c_char_p,
+            c_bool,
+            c_int,
+        ]
         native_lib.quantize_model.restype = c_int
 
-        native_lib.generate.argtypes = [c_void_p, c_void_p, c_void_p, c_bool, c_void_p, c_void_p, POINTER(c_int), c_int]
+        native_lib.generate.argtypes = [
+            c_void_p,
+            c_void_p,
+            c_void_p,
+            c_bool,
+            c_void_p,
+            c_void_p,
+            POINTER(c_int),
+            c_int,
+        ]
         native_lib.generate.restype = c_void_p
 
         native_lib.set_block_size.argtypes = [c_void_p, c_int64]

@@ -67,19 +67,19 @@ class Vllm(BaseModel):
         if v:
             assert v in [PRECISION_BF16, PRECISION_FP32]
         return v
-    
+
     @validator("extension")
     def _check_extension(cls, v: str):
         if v:
             assert v in ["ns"]
         return v
-    
+
     @validator("max_num_seqs")
     def _check_max_num_seqs(cls, v: int):
         if v:
             assert v > 0
         return v
-    
+
     @validator("max_batched_tokens")
     def _check_max_batched_tokens(cls, v: int):
         if v:

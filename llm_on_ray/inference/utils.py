@@ -47,7 +47,7 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
     # if infer_conf.vllm.enabled:
     #     runtime_env[_ray_env_key]["OMP_PROC_BIND"] = "true"
-        # runtime_env[_ray_env_key]["OMP_NUM_THREADS"] = "10"
+    # runtime_env[_ray_env_key]["OMP_NUM_THREADS"] = "10"
     # now PredictorDeployment itself is a worker, we should require resources for it
     ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
@@ -62,30 +62,31 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         pass
     return ray_actor_options
 
+
 def get_max_seq_length(config: AutoConfig):
     config = config.to_dict()
     # chatglm2, bloom, chatglm3
-    if 'seq_length' in config:
-        return config['seq_length']
+    if "seq_length" in config:
+        return config["seq_length"]
     # qwen2, llama-2, llama, dolly, gptneox, qwen, qwen1.5, opt, phi
-    if 'max_position_embeddings' in config:
-        return config['max_position_embeddings']
+    if "max_position_embeddings" in config:
+        return config["max_position_embeddings"]
     # baichuan, baichuan2
-    if 'model_max_length' in config:
-        return config['model_max_length']
+    if "model_max_length" in config:
+        return config["model_max_length"]
     # gptj
-    if 'n_positions' in config:
-        return config['n_positions']
+    if "n_positions" in config:
+        return config["n_positions"]
     # mpt
-    if 'max_seq_len' in config:
-        return config['max_seq_len']
+    if "max_seq_len" in config:
+        return config["max_seq_len"]
     # chatglm
-    if 'max_sequence_length' in config:
-        return config['max_sequence_length']
+    if "max_sequence_length" in config:
+        return config["max_sequence_length"]
     # whisper
-    if 'max_length' in config:
-        return config['max_length']
-    
+    if "max_length" in config:
+        return config["max_length"]
+
     print("Not found max seq length, setting to default 512")
     return 512
 

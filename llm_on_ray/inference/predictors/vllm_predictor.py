@@ -61,13 +61,17 @@ class VllmPredictor(Predictor):
             logger.warn("applying neural speed extension to vllm ...")
             try:
                 from vllm.extension import ns as ns
+
                 logger.warn("neural speed extension applied to vllm successfully!")
             except Exception as e:
                 logger.error(f"failed to apply neural speed extension to vllm: {e}")
                 raise e
             # get context size from HF
-            hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, trust_remote_code=True,
-                                                   use_auth_token=model_config.use_auth_token)
+            hf_config = AutoConfig.from_pretrained(
+                model_desc.model_id_or_path,
+                trust_remote_code=True,
+                use_auth_token=model_config.use_auth_token,
+            )
             ctx_size = utils.get_max_seq_length(hf_config)
             args = AsyncEngineArgs(
                 model=model_desc.model_id_or_path,
@@ -79,7 +83,7 @@ class VllmPredictor(Predictor):
                 max_num_batched_tokens=infer_conf.vllm.max_batched_tokens,
                 quantization="ns",
                 block_size=ctx_size,
-                max_model_len=ctx_size
+                max_model_len=ctx_size,
             )
         else:
             args = AsyncEngineArgs(

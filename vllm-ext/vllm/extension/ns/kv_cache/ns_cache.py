@@ -16,6 +16,7 @@ logger = init_logger(__name__)
 
 _KV_CACHES: List[torch.Tensor] = None
 
+
 class NSCPUCacheEngine:
     """Origin:
     Manages the KV cache for CPU backend.
@@ -26,12 +27,16 @@ class NSCPUCacheEngine:
 
     New:
     ======Change to map vllm seq_id to native KV cache slot_id======
-    KV cache is managed in native. 
+    KV cache is managed in native.
     """
 
-    def __init__(self, cache_config: CacheConfig, model_config: ModelConfig,
-                 parallel_config: ParallelConfig,
-                 device_config: DeviceConfig) -> None:
+    def __init__(
+        self,
+        cache_config: CacheConfig,
+        model_config: ModelConfig,
+        parallel_config: ParallelConfig,
+        device_config: DeviceConfig,
+    ) -> None:
         assert device_config.device_type == "cpu"
         self.cache_config = cache_config
         self.model_config = model_config
@@ -41,7 +46,7 @@ class NSCPUCacheEngine:
         self.num_layers = model_config.get_num_layers(parallel_config)
         self.num_heads = model_config.get_num_kv_heads(parallel_config)
 
-        # set 
+        # set
         self.block_size = cache_config.block_size
         # Note: In CacheConfig, num_gpu_blocks actual is num_cpu_blocks
         # for CPU backend, because we want to reuse KV cache management
@@ -78,8 +83,7 @@ class NSCPUCacheEngine:
         kv_cache_shape = (num_blocks, self.block_size, ns._KV_CACHE_LAST_DIM)
         kv_cache: List[torch.Tensor] = []
         # for _ in range(self.num_layers):
-        kv_cache.append(
-            torch.empty(kv_cache_shape, dtype=self.dtype, device="cpu"))
+        kv_cache.append(torch.empty(kv_cache_shape, dtype=self.dtype, device="cpu"))
 
         return kv_cache
 
@@ -98,7 +102,7 @@ class NSCPUCacheEngine:
         cache_config: CacheConfig,
         model_config: ModelConfig,
         parallel_config: ParallelConfig,
-        scheduler_config: SchedulerConfig
+        scheduler_config: SchedulerConfig,
     ) -> int:
         # head_size = model_config.get_head_size()
         # num_heads = model_config.get_num_kv_heads(parallel_config)
@@ -116,13 +120,15 @@ class NSCPUCacheEngine:
         # may be adjusted to meet the requirement.
         _GB = 1 << 30
         block_size = cache_config.block_size
-        assert block_size >= model_config.max_model_len, "kv cache block size should be equal to max_model_len"
+        assert (
+            block_size >= model_config.max_model_len
+        ), "kv cache block size should be equal to max_model_len"
         space_key = "VLLM_CPU_KVCACHE_SPACE"
-        space_value = block_size * scheduler_config.max_num_seqs * 4 # int32
+        space_value = block_size * scheduler_config.max_num_seqs * 4  # int32
         cache_config.cpu_kvcache_space_bytes = space_value
-        os.environ[space_key] = str(float(space_value)/_GB)
+        os.environ[space_key] = str(float(space_value) / _GB)
         logger.info("reset cache_config.cpu_kvcache_space_bytes to %s GB", os.environ[space_key])
-        
+
         total = block_size
         # if cache_dtype == "auto":
         #     dtype = model_config.dtype
@@ -132,29 +138,34 @@ class NSCPUCacheEngine:
 
         # we use int32 to store native kv cache slot_id
         return 4 * total
-    
+
 
 class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
-    def __init__(self,
+    def __init__(
+        self,
         block_size: int,
         num_gpu_blocks: int,
         num_cpu_blocks: int,
         watermark: float = 0.01,
         sliding_window: Optional[int] = None,
-        enable_caching: bool = False):
-        super().__init__(block_size, num_gpu_blocks, num_cpu_blocks, watermark, sliding_window, enable_caching)
+        enable_caching: bool = False,
+    ):
+        super().__init__(
+            block_size, num_gpu_blocks, num_cpu_blocks, watermark, sliding_window, enable_caching
+        )
 
         global _KV_CACHES
         if _KV_CACHES is None:
             raise ValueError("KV cache should be set in " + NSCPUCacheEngine.__name__)
 
         from vllm.extension import ns
+
         if ns._IE_MODEL is None:
             raise ValueError("vllm.extension.ns._IE_model should not be empty")
         self.ie_model = ns._IE_MODEL
         self.ie_model.set_block_size(block_size)
         self.ie_model.set_kv_caches_ptr(_KV_CACHES[0].data_ptr())
-        
+
         # corresponding kv cache to be copied from. parent_seq_id -> (parent_seq, [child_seq])
         self.kv_cache_copy_waiting: Dict[int, Tuple[Sequence, List[Sequence]]] = {}
         # for quick lookup
@@ -170,9 +181,7 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
 
     # always return true since we use native slots which are preallocated
     # also do some bookkeeping for block table assignment and kv cache copy and free native slot of deferred parent seqs
-    def can_append_slots(self,
-                         seq_group: SequenceGroup,
-                         num_lookahead_slots: int = 0) -> bool:
+    def can_append_slots(self, seq_group: SequenceGroup, num_lookahead_slots: int = 0) -> bool:
         # collect all parent seq ids
         parent_seq_ids: Set[int] = set()
         for seq_id in seq_group.seqs_dict.keys():
@@ -199,7 +208,7 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
             parent_block_nbr = None
             parent_slot_id = None
             for child_seq in child_seqs:
-                if child_seq.seq_id not in self.block_tables: # make sure child seq is still valid
+                if child_seq.seq_id not in self.block_tables:  # make sure child seq is still valid
                     continue
                 # reuse parent block nbr and slot id if prarent seq's native slot going to be freed
                 # otherwise, get new block table
@@ -215,7 +224,7 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
                     # reuse parent_block_nbr, no copy needed
                     kv_cache[child_block_nbr][0][1] = parent_slot_id
                     kv_cache[child_block_nbr][2][0] = ns._KV_CACHE_MARK_YES
-                else: # assign new block nbr and copy kv cache
+                else:  # assign new block nbr and copy kv cache
                     # call parent class's free since it's new child sequence without native slot associated
                     super().free(child_seq)
                     # allocate new one
@@ -228,15 +237,17 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
                 kv_cache[child_block_nbr][0][0] = child_seq.seq_id
                 kv_cache[child_block_nbr][1][0] = ns._KV_CACHE_MARK_YES
                 kv_cache[child_block_nbr][1][1] = parent_seq_id
-                kv_cache[child_block_nbr][2][1] = parent_slot_id # need to copy kv cache in native
+                kv_cache[child_block_nbr][2][1] = parent_slot_id  # need to copy kv cache in native
             # cannot reset kv cache here since the blocks may be already used by child seqs
             # it's ok not resetting kv cache since all control elements are set specifically in above logic and in execute_model (beam size and vllm group request idx)
         return True
-    
+
     # return empty dict since no slot to append
     def append_slots(self, seq: Sequence, num_lookahead_slots: int = 0) -> Dict[int, List[int]]:
         if seq.seq_id in self.cp_child_id_to_parent_id or seq.seq_id in self.kv_cache_copy_waiting:
-            raise ValueError("seq should not be in cp_child_id_to_parent_id or kv_cache_copy_waiting")
+            raise ValueError(
+                "seq should not be in cp_child_id_to_parent_id or kv_cache_copy_waiting"
+            )
         return {}
 
     def remove_seq_from_block_tables(self, seq_id):
@@ -250,7 +261,9 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
         # one block per sequence
         parent_block_nbr = self.block_tables[parent_seq.seq_id][0].block_number
         child_block_nbr = self.block_tables[child_seq.seq_id][0].block_number
-        assert parent_block_nbr == child_block_nbr, "child block nbr should be equal to parent block nbr"
+        assert (
+            parent_block_nbr == child_block_nbr
+        ), "child block nbr should be equal to parent block nbr"
 
         # add to kv cache copy waiting which will be copied in "can_append_slots"
         self.cp_child_id_to_parent_id[child_seq.seq_id] = parent_seq.seq_id
@@ -272,9 +285,9 @@ class NSBlockSpaceManagerV1(BlockSpaceManagerV1):
             # free native slot
             if not self.ie_model.free_slots([seq.seq_id, kv_cache[block_nbr][3][1]]):
                 raise ValueError("cannot free slot for seq")
-            kv_cache[block_nbr][0:ns._KV_CACHE_ELEMENT_USED][:] = 0 # other elements are not used
+            kv_cache[block_nbr][0 : ns._KV_CACHE_ELEMENT_USED][:] = 0  # other elements are not used
         else:
             self.free_native_waiting.append(seq.seq_id)
-        
+
         # free block table
         super().free(seq)
