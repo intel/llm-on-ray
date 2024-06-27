@@ -342,9 +342,8 @@ class Router:
         Returns:
             A response object with completions.
         """
-        vllm_openai_serving_chat = self.query_client.serve_deployments[
-            body.model
-        ].vllm_openai_serving_chat
+        deploy_handle = self.query_client.serve_deployments[body.model]
+        vllm_openai_serving_chat = await deploy_handle.get_vllm_openai_serving_chat.remote()
         if vllm_openai_serving_chat:
             """OpenAI-compatible HTTP endpoint.
 

@@ -101,6 +101,9 @@ class PredictorDeployment:
         self.loop = asyncio.get_running_loop()
         self.process_tool = ChatTemplatePreprocess(self.predictor)
 
+    def get_vllm_openai_serving_chat(self):
+        return self.vllm_openai_serving_chat
+
     def consume_streamer(self, streamer):
         for text in streamer:
             yield text

@@ -44,7 +44,7 @@ class ModelConfig(BaseModel):
 
 
 class Ipex(BaseModel):
-    enabled: bool = True
+    enabled: bool = False
     precision: str = "bf16"
 
     @validator("precision")
