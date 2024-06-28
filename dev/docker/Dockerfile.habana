@@ -1,6 +1,6 @@
 FROM vault.habana.ai/gaudi-docker/1.15.1/ubuntu22.04/habanalabs/pytorch-installer-2.2.0:latest
 
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8
 
 WORKDIR /root/llm-on-ray
 
@@ -22,7 +22,7 @@ RUN /tmp/install-ui.sh
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     service ssh restart
 
-ENV no_proxy localhost,127.0.0.1
+ENV no_proxy=localhost,127.0.0.1
 
 # Required by DeepSpeed
 ENV RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES=1
