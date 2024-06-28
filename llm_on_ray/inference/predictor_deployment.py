@@ -42,7 +42,6 @@ from llm_on_ray.inference.predictor import GenerateInput
 from llm_on_ray.inference.utils import get_prompt_format, PromptFormat
 from llm_on_ray.inference.api_openai_backend.tools import OpenAIToolsPrompter, ChatPromptCapture
 from llm_on_ray.inference.logger import get_logger
-from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
 logger = get_logger(__name__)
 
@@ -79,6 +78,7 @@ class PredictorDeployment:
             self.predictor = DeepSpeedPredictor(infer_conf)
         elif self.use_vllm:
             from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
+            from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
             self.predictor = VllmPredictor(infer_conf, max_num_seqs)
             if infer_conf.device in [DEVICE_HPU, DEVICE_GPU]:
