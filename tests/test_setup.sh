@@ -31,7 +31,7 @@ case $(echo $1 | tr 'a-z' 'A-Z') in
         ;;
 esac
 
-# Check if it neesd deepspeed
+# Check if it needs deepspeed
 if [ $(echo $2 | tr 'A-Z' 'a-z') == "true" ]
 then
     deepspeed=true

@@ -44,7 +44,7 @@ class ModelConfig(BaseModel):
 
 
 class Ipex(BaseModel):
-    enabled: bool = True
+    enabled: bool = False
     precision: str = "bf16"
 
     @validator("precision")
@@ -59,6 +59,12 @@ class Vllm(BaseModel):
     max_num_seqs: int = 256
     precision: str = "bf16"
     enforce_eager: bool = False
+    tensor_parallel_size: int = 1
+    gpu_memory_utilization: float = 0.90
+    block_size: int = 16
+    max_seq_len_to_capture: int = 8192
+    response_role: str = "assistant"
+    lora_modules: Union[str, None] = None
 
     @validator("precision")
     def _check_precision(cls, v: str):

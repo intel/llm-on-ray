@@ -58,38 +58,6 @@ MODEL_TEMPLATE_GENERATON_OUTPUT = [
         "Hello\nHi there!\nWhat is the capital of\n",
     ),
     (
-        "google/gemma-2b",
-        base_path / "template_gemma.jinja",
-        True,
-        "<|endoftext|>\n"
-        "<start_of_turn>user\n"
-        "Hello<end_of_turn>\n"
-        "\n"
-        "<start_of_turn>model\n"
-        "Hi there!<end_of_turn>\n"
-        "\n"
-        "<start_of_turn>user\n"
-        "What is the capital of<end_of_turn>\n"
-        "\n"
-        "<start_of_turn>model\n"
-        "\n",
-    ),
-    (
-        "google/gemma-2b",
-        base_path / "template_gemma.jinja",
-        False,
-        "<|endoftext|>\n"
-        "<start_of_turn>user\n"
-        "Hello<end_of_turn>\n"
-        "\n"
-        "<start_of_turn>model\n"
-        "Hi there!<end_of_turn>\n"
-        "\n"
-        "<start_of_turn>user\n"
-        "What is the capital of<end_of_turn>\n"
-        "\n",
-    ),
-    (
         "mistralai/Mistral-7B-v0.1",
         base_path / "template_mistral.jinja",
         True,

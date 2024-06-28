@@ -28,7 +28,7 @@ from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
 
 from llm_on_ray.inference.chat_template_process import ChatTemplatePreprocess
-from llm_on_ray.inference.inference_config import InferenceConfig
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_HPU, DEVICE_GPU
 from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ChatMessage,
     ErrorResponse,
@@ -66,6 +66,7 @@ class PredictorDeployment:
 
         # Used to determine if openai backend is used
         self.use_openai = False
+        self.vllm_openai_serving_chat = None
 
         if infer_conf.device == "hpu" and not self.use_vllm:
             from llm_on_ray.inference.predictors.hpu_predictor import HPUPredictor
@@ -77,8 +78,17 @@ class PredictorDeployment:
             self.predictor = DeepSpeedPredictor(infer_conf)
         elif self.use_vllm:
             from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
+            from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 
             self.predictor = VllmPredictor(infer_conf, max_num_seqs)
+            if infer_conf.device in [DEVICE_HPU, DEVICE_GPU]:
+                self.vllm_openai_serving_chat = OpenAIServingChat(
+                    self.predictor.engine,
+                    infer_conf.model_description.model_id_or_path,
+                    infer_conf.vllm.response_role,
+                    infer_conf.vllm.lora_modules,
+                    infer_conf.model_description.chat_template,
+                )
         elif self.is_mllm:
             from llm_on_ray.inference.predictors.mllm_predictor import MllmPredictor
 
@@ -90,6 +100,9 @@ class PredictorDeployment:
 
         self.loop = asyncio.get_running_loop()
         self.process_tool = ChatTemplatePreprocess(self.predictor)
+
+    def get_vllm_openai_serving_chat(self):
+        return self.vllm_openai_serving_chat
 
     def consume_streamer(self, streamer):
         for text in streamer:
