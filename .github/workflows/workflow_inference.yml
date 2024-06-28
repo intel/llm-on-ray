@@ -97,7 +97,11 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          strat_ray ${TARGET}
+          if [[ "$TARGET" == *ns ]]; then
+            start_ray ${TARGET} 1
+          else
+            start_ray ${TARGET}
+          fi
 
       - name: Run Inference Test
         run: |

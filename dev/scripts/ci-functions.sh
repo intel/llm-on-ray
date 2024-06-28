@@ -75,11 +75,19 @@ install_dependencies(){
     docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
 }
 
-strat_ray(){
+start_ray(){
     local TARGET=$1
+    local UNLIMITED_MAXLOCKMEM=0
+    if [ "$2" == "1" ]; then
+        UNLIMITED_MAXLOCKMEM=1
+    fi
 
     # Start Ray Cluster
-    docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+    if [ "$UNLIMITED_MAXLOCKMEM" == "1" ]; then
+        docker exec "${TARGET}" bash -c "ulimit -l unlimited; ./dev/scripts/start-ray-cluster.sh"
+    else
+        docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+    fi
 }
 
 stop_ray(){
