@@ -74,22 +74,25 @@ def get_deployed_models(args):
         device = infer_conf.device
         if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_GPU]:
             tp = infer_conf.vllm.tensor_parallel_size
-            pg_resources = []
-            pg_resources.append({"CPU": infer_conf.cpus_per_worker})  # for the deployment replica
-            for i in range(tp):
-                if device == DEVICE_HPU:
-                    # for the vLLM actors on HPU
-                    pg_resources.append(
-                        {"CPU": infer_conf.cpus_per_worker, "HPU": infer_conf.hpus_per_worker}
-                    )
-                else:
-                    # for the vLLM actors on GPU
-                    pg_resources.append(
-                        {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
-                    )
-            depolyment_config["placement_group_bundles"] = pg_resources
-            depolyment_config["placement_group_strategy"] = "STRICT_PACK"
-            depolyment_config["ray_actor_options"].pop("resources", None)
+            if tp > 1:
+                pg_resources = []
+                pg_resources.append(
+                    {"CPU": infer_conf.cpus_per_worker}
+                )  # for the deployment replica
+                for i in range(tp):
+                    if device == DEVICE_HPU:
+                        # for the vLLM actors on HPU
+                        pg_resources.append(
+                            {"CPU": infer_conf.cpus_per_worker, "HPU": infer_conf.hpus_per_worker}
+                        )
+                    else:
+                        # for the vLLM actors on GPU
+                        pg_resources.append(
+                            {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
+                        )
+                depolyment_config["placement_group_bundles"] = pg_resources
+                depolyment_config["placement_group_strategy"] = "STRICT_PACK"
+                depolyment_config["ray_actor_options"].pop("resources", None)
 
         deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
             infer_conf, max_num_seqs, dynamic_max_batch_size

@@ -60,6 +60,9 @@ class Vllm(BaseModel):
     precision: str = "bf16"
     enforce_eager: bool = False
     tensor_parallel_size: int = 1
+    gpu_memory_utilization: float = 0.90
+    block_size: int = 16
+    max_seq_len_to_capture: int = 8192
     response_role: str = "assistant"
     lora_modules: Union[str, None] = None
 

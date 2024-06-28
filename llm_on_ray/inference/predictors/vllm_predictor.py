@@ -52,6 +52,9 @@ class VllmPredictor(Predictor):
             dtype=dtype,
             disable_log_requests=True,
             max_num_seqs=max_num_seqs,
+            gpu_memory_utilization=infer_conf.vllm.gpu_memory_utilization,
+            block_size=infer_conf.vllm.block_size,
+            max_seq_len_to_capture=infer_conf.vllm.max_seq_len_to_capture,
             enforce_eager=infer_conf.vllm.enforce_eager,
         )
         if infer_conf.device in [DEVICE_HPU, DEVICE_GPU]:
