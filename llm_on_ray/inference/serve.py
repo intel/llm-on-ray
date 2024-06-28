@@ -75,18 +75,14 @@ def get_deployed_models(args):
         if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_GPU]:
             tp = infer_conf.vllm.tensor_parallel_size
             pg_resources = []
-            pg_resources.append({"CPU": infer_conf.cpus_per_worker})  # for the deployment replica
+            pg_resources.append({"CPU": 1})  # for the deployment replica
             for i in range(tp):
                 if device == DEVICE_HPU:
                     # for the vLLM actors on HPU
-                    pg_resources.append(
-                        {"CPU": infer_conf.cpus_per_worker, "HPU": infer_conf.hpus_per_worker}
-                    )
+                    pg_resources.append({"CPU": 1, "HPU": 1})
                 else:
                     # for the vLLM actors on GPU
-                    pg_resources.append(
-                        {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
-                    )
+                    pg_resources.append({"CPU": 1, "GPU": 1})
             depolyment_config["placement_group_bundles"] = pg_resources
             depolyment_config["placement_group_strategy"] = "STRICT_PACK"
         deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(

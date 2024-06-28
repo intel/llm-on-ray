@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
     mamba config --add channels intel && \
-    mamba install python==${python_v}
+    mamba install -y -c conda-forge python==${python_v} gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
