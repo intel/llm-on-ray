@@ -30,10 +30,10 @@ Neural Speed is an innovative library designed to support the efficient inferenc
 [https://github.com/intel/neural-compressor](Intel Neural Compressor). The work is inspired by [https://github.com/ggerganov/llama.cpp](llama.cpp) and further optimized for Intel platforms with our
 innovations in [https://arxiv.org/abs/2311.00502](NeurIPS' 2023).
 
-You need to first install llm-on-ray with "vllm_cpu" extra.
+You need to first install llm-on-ray with "vllm-cpu" extra.
 
 ```bash
-pip install .[vllm_cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+pip install .[vllm-cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 ```
 
 Then, install the vLLM extension and the inference engine.

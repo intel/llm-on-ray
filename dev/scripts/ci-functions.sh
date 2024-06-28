@@ -64,7 +64,7 @@ start_docker() {
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
 
-    echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
+    echo "docker run -tid --privileged "${docker_args[@]}" "${TARGET}:latest""
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   
 }
 
@@ -111,6 +111,7 @@ declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]=".ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]=".vllm"
+    ["llama-2-7b-chat-hf-vllm-ns"]=".vllm_ns"
     ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
 )
 
@@ -128,6 +129,7 @@ declare -A TARGET_SUFFIX_MAPPER
 TARGET_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]="_vllm"
+    ["llama-2-7b-chat-hf-vllm-ns"]="_vllm-ns"
 )
 
 get_TARGET_SUFFIX() {
@@ -143,6 +145,7 @@ declare -A INFERENCE_MAPPER
 INFERENCE_MAPPER=(
     ["mpt-7b-ipex-llm"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
     ["llama-2-7b-chat-hf-vllm"]="llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
+    ["llama-2-7b-chat-hf-vllm-ns"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama2-7b-chat-hf-vllm-ns.yaml --simple --max_ongoing_requests 1 --max_num_seqs 1"
     ["default"]="llm_on_ray-serve --simple --models ${model}"
 )
 
