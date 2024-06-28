@@ -52,7 +52,7 @@ def train_func(config: Dict[str, Any]):
     initializer_config = config.get("initializer")
     if initializer_config:
         try:
-            initializer = common.get_initializer(initializer_config)
+            initializer = common.load.get_initializer(initializer_config)
             initializer.init()
         except Exception as e:
             common.logger.critical(e, exc_info=True)
@@ -77,32 +77,32 @@ def train_func(config: Dict[str, Any]):
 
     datasets_config = config.get("datasets")
     if datasets_config:
-        datasets = common.load_dataset(datasets_config)
+        datasets = common.load.load_dataset(datasets_config)
         common.logger.info(" ")
     else:
         common.logger.warn("No datasets plugin provided, use the built-in datasets of trainer")
 
     tokenizer_config = config.get("tokenizer")
     if tokenizer_config:
-        tokenizer = common.load_tokenizer(tokenizer_config)
+        tokenizer = common.load.load_tokenizer(tokenizer_config)
     else:
         common.logger.warn("No tokenizer plugin provided, use the built-in tokenizer of trainer")
 
     model_config = config.get("model")
     if model_config:
-        model = common.load_model(model_config)
+        model = common.load.load_model(model_config)
     else:
         common.logger.warn("No model plugin provided, use the built-in model of trainer")
 
     optimizer_config = config.get("optimizer")
     if optimizer_config:
-        optimizer = common.load_optimizer(model, config.get("optimizer"))
+        optimizer = common.load.load_optimizer(model, config.get("optimizer"))
     else:
         common.logger.warn("No optimizer plugin provided, use the built-in optimizer of trainer")
 
     trainer_config = config.get("trainer")
     if trainer_config:
-        trainer = common.get_trainer(config.get("trainer"))
+        trainer = common.load.get_trainer(config.get("trainer"))
 
         try:
             trainer.prepare(model, tokenizer, datasets, optimizer, accelerator)

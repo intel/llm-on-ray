@@ -26,15 +26,17 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
 
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
-COPY ./dev/scripts/install-vllm-cpu.sh .
+
 
 # Install llm_on_ray
 # Create llm_on_ray package directory to bypass the following 'pip install -e' command
 RUN mkdir ./llm_on_ray
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[vllm-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
-# Install vllm-cpu
-# Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
+# Install vllm-ext
+# We cannot make empty folder here like './llm_on_ray' since vllm-ext has cpp files to be compiled
+COPY ./vllm-ext ./vllm-ext
+COPY ./dev/scripts/check-vllm-cpu-build-env.sh ./dev/scripts/check-vllm-cpu-build-env.sh
 RUN --mount=type=cache,target=/root/.cache/pip \
-    source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
+    source /opt/conda/bin/activate base && cd vllm-ext && pip install . && pip install --upgrade protobuf

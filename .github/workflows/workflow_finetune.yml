@@ -11,10 +11,10 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
       https_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -34,7 +34,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, meta-llama/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
+        model: [ EleutherAI/gpt-j-6b, NousResearch/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, NousResearch/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -42,7 +42,7 @@ jobs:
           - { isPR: true }
         include:
           - { model: "EleutherAI/gpt-j-6b"}
-          - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          - { model: "NousResearch/Llama-2-7b-chat-hf"}
           - { model: "mistralai/Mistral-7B-v0.1"}
           - { model: "google/gemma-2b"}
 
@@ -65,9 +65,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
-
       - name: Build Docker Image
         run: |
           DF_SUFFIX=".cpu_and_deepspeed"
@@ -83,7 +80,7 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/ci-functions.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY}
 
       - name: Run Finetune Test
         run: |
@@ -95,11 +92,6 @@ jobs:
         run: |
           source dev/scripts/ci-functions.sh
           peft_lora_test ${{ matrix.model }}
-
-      - name: Run Deltatuner Test on DENAS-LoRA Model
-        run: |
-          source dev/scripts/ci-functions.sh
-          denas_lora_test ${{ matrix.model }}
 
       - name: Stop Ray
         run: |

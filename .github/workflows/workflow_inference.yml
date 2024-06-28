@@ -11,10 +11,10 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
       https_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
       runner_config_path:
         type: string
         default: '/home/ci/llm-ray-actions-runner'
@@ -34,7 +34,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm, gemma-2b, deepseek-coder-33b-instruct]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm, llama-2-7b-chat-hf-vllm-ns, gemma-2b, deepseek-coder-33b-instruct]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -47,8 +47,6 @@ jobs:
           - { model: "mpt-7b-ipex-llm"}
           - { model: "llama-2-7b-chat-hf-vllm"}
           - { model: "gemma-2b"}
-          - dtuner_model: nathan0/mpt-7b-deltatuner-model
-            model: mpt-7b
 
     runs-on: self-hosted
 
@@ -68,9 +66,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Load environment variables
-        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
 
       - name: Determine Target
         id: "target"
@@ -96,13 +91,17 @@ jobs:
           model_cache_path=${{ inputs.model_cache_path }}
           USE_PROXY="1"
           source dev/scripts/ci-functions.sh
-          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY} ${{env.HF_ACCESS_TOKEN}}
+          start_docker ${TARGET} ${code_checkout_path} ${model_cache_path} ${USE_PROXY}
 
       - name: Start Ray Cluster
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          strat_ray ${TARGET}
+          if [[ "$TARGET" == *ns ]]; then
+            start_ray ${TARGET} 1
+          else
+            start_ray ${TARGET}
+          fi
 
       - name: Run Inference Test
         run: |
@@ -110,25 +109,11 @@ jobs:
           source dev/scripts/ci-functions.sh
           inference_test ${TARGET} ${{ matrix.model }}
 
-      - name: Run Inference Test with Deltatuner
-        if: ${{ matrix.dtuner_model }}
-        run: |
-          TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/ci-functions.sh
-          inference_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
-
       - name: Run Inference Test with DeepSpeed
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
           inference_deepspeed_test ${TARGET} ${{ matrix.model }}
-
-      - name: Run Inference Test with DeepSpeed and Deltatuner
-        if: ${{ matrix.dtuner_model }}
-        run: |
-          TARGET=${{steps.target.outputs.target}}
-          source dev/scripts/ci-functions.sh
-          inference_deepspeed_deltatuner_test ${TARGET} ${{ matrix.dtuner_model }} ${{ matrix.model }}
 
       - name: Run Inference Test with REST API
         run: |

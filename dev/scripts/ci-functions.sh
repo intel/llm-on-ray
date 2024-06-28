@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-HTTP_PROXY='http://10.24.221.169:911'
-HTTPS_PROXY='http://10.24.221.169:911'
+HTTP_PROXY='http://10.24.221.169:912'
+HTTPS_PROXY='http://10.24.221.169:912'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
@@ -39,7 +39,6 @@ start_docker() {
     local code_checkout_path=$2
     local model_cache_path=$3
     local USE_PROXY=$4
-    local HF_TOKEN=$5
 
     cid=$(docker ps -q --filter "name=${TARGET}")
     if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
@@ -65,13 +64,8 @@ start_docker() {
         docker_args+=("-e=https_proxy=${HTTPS_PROXY}")
     fi
 
-    echo "docker run -tid  "${docker_args[@]}" "${TARGET}:latest""
-    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"
-    if [ -z "$HF_TOKEN" ]; then
-        echo "no hf token"
-    else
-        docker exec "${TARGET}" bash -c "huggingface-cli login --token ${HF_TOKEN}"
-    fi
+    echo "docker run -tid --privileged "${docker_args[@]}" "${TARGET}:latest""
+    docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   
 }
 
 install_dependencies(){
@@ -81,11 +75,19 @@ install_dependencies(){
     docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
 }
 
-strat_ray(){
+start_ray(){
     local TARGET=$1
+    local UNLIMITED_MAXLOCKMEM=0
+    if [ "$2" == "1" ]; then
+        UNLIMITED_MAXLOCKMEM=1
+    fi
 
     # Start Ray Cluster
-    docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+    if [ "$UNLIMITED_MAXLOCKMEM" == "1" ]; then
+        docker exec "${TARGET}" bash -c "ulimit -l unlimited; ./dev/scripts/start-ray-cluster.sh"
+    else
+        docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+    fi
 }
 
 stop_ray(){
@@ -117,6 +119,7 @@ declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]=".ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]=".vllm"
+    ["llama-2-7b-chat-hf-vllm-ns"]=".vllm_ns"
     ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
 )
 
@@ -134,6 +137,7 @@ declare -A TARGET_SUFFIX_MAPPER
 TARGET_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
     ["llama-2-7b-chat-hf-vllm"]="_vllm"
+    ["llama-2-7b-chat-hf-vllm-ns"]="_vllm-ns"
 )
 
 get_TARGET_SUFFIX() {
@@ -149,6 +153,7 @@ declare -A INFERENCE_MAPPER
 INFERENCE_MAPPER=(
     ["mpt-7b-ipex-llm"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml --simple"
     ["llama-2-7b-chat-hf-vllm"]="llm_on_ray-serve --config_file .github/workflows/config/llama-2-7b-chat-hf-vllm-fp32.yaml --simple"
+    ["llama-2-7b-chat-hf-vllm-ns"]="llm_on_ray-serve --config_file llm_on_ray/inference/models/vllm/llama2-7b-chat-hf-vllm-ns.yaml --simple --max_ongoing_requests 1 --max_num_seqs 1"
     ["default"]="llm_on_ray-serve --simple --models ${model}"
 )
 
@@ -170,22 +175,6 @@ inference_test(){
     docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
 }
 
-inference_deltatuner_test(){
-    local TARGET=$1
-    local dtuner_model=$2
-    local model=$3
-    echo "${dtuner_model}"
-    echo inference test with dtuner:
-    if [ "${dtuner_model}" ];then
-        echo Start mpt_deltatuner simple serve :
-        docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner.yaml --simple"
-        echo Non-streaming query:
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
-        echo Streaming query:
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
-    fi
-}
-
 inference_deepspeed_test(){
     local TARGET=$1
     local model=$2
@@ -196,22 +185,6 @@ inference_deepspeed_test(){
         docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${model}\".yaml --output_file \"${model}\".yaml.deepspeed --deepspeed"
         echo Start deepspeed simple serve :
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file \"${model}\".yaml.deepspeed --simple"
-        echo Non-streaming query:
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
-        echo Streaming query:
-        docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model} --streaming_response"
-    fi
-}
-
-inference_deepspeed_deltatuner_test(){
-    local TARGET=$1
-    local dtuner_model=$2
-    local model=$3
-    if [[ ${model} =~ ^(gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
-        echo ${model} is not supported!
-    else
-        echo Start mpt_deltatuner_deepspeed simple serve :
-        docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file .github/workflows/config/mpt_deltatuner_deepspeed.yaml --simple"
         echo Non-streaming query:
         docker exec "${TARGET}" bash -c "python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/${model}"
         echo Streaming query:
@@ -232,7 +205,6 @@ inference_restapi_test(){
         docker exec "${TARGET}" bash -c "python examples/inference/api_server_openai/query_http_requests.py --model_name ${model}"
     fi
 }
-
 
 inference_agent_restapi_test(){
     local TARGET=$1
@@ -264,15 +236,3 @@ peft_lora_test(){
     docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
 }
 
-denas_lora_test(){
-    local model=$1
-    if [[ ${model} =~ ^(mosaicml\/mpt-7b|huggyllama\/llama-7b|meta-llama\/Llama-2-7b-chat-hf|mistralai\/Mistral-7B-v0.1|google\/gemma-2b)$ ]]; then
-        echo ${model} is not supported!
-    else
-        docker exec "finetune" bash -c "rm -rf /tmp/llm-ray/*"
-        echo Set "${model}" patch_yaml_config :
-        docker exec "finetune" bash -c "python dev/scripts/patch_yaml_config.py --conf_path "llm_on_ray/finetune/finetune.yaml" --models ${model} --peft_lora --denas_lora"
-        echo Stert "${model}" peft lora finetune :
-        docker exec "finetune" bash -c "llm_on_ray-finetune --config_file llm_on_ray/finetune/finetune.yaml"
-    fi
-}

@@ -41,14 +41,6 @@ class VllmPredictor(Predictor):
     def __init__(self, infer_conf: InferenceConfig, max_num_seqs):
         super().__init__(infer_conf)
 
-        # TODO: remove debug
-        # print("os.environ: ======================")
-        # for k, v in os.environ.items():
-        #     print("%s : %s", k, v)
-
-        # import subprocess
-        # subprocess.run(["ldd", "/home/jiafuzha/work_dir/miniconda3/envs/llm-on-ray-vllm-ns/lib/python3.9/site-packages/inference_engine/libllama_vllm_cb_cpp.so"])
-
         model_desc = infer_conf.model_description
         model_config = model_desc.config
         dtype = "bfloat16" if infer_conf.vllm.precision == PRECISION_BF16 else "float32"
@@ -61,13 +53,17 @@ class VllmPredictor(Predictor):
             logger.warn("applying neural speed extension to vllm ...")
             try:
                 from vllm.extension import ns as ns
+
                 logger.warn("neural speed extension applied to vllm successfully!")
             except Exception as e:
                 logger.error(f"failed to apply neural speed extension to vllm: {e}")
                 raise e
             # get context size from HF
-            hf_config = AutoConfig.from_pretrained(model_desc.model_id_or_path, trust_remote_code=True,
-                                                   use_auth_token=model_config.use_auth_token)
+            hf_config = AutoConfig.from_pretrained(
+                model_desc.model_id_or_path,
+                trust_remote_code=True,
+                use_auth_token=model_config.use_auth_token,
+            )
             ctx_size = utils.get_max_seq_length(hf_config)
             args = AsyncEngineArgs(
                 model=model_desc.model_id_or_path,
@@ -76,10 +72,10 @@ class VllmPredictor(Predictor):
                 dtype=dtype,
                 disable_log_requests=True,
                 max_num_seqs=max_num_seqs,
-                max_num_batched_tokens=infer_conf.vllm.vllm_max_batched_tokens,
+                max_num_batched_tokens=infer_conf.vllm.max_batched_tokens,
                 quantization="ns",
                 block_size=ctx_size,
-                max_model_len=ctx_size
+                max_model_len=ctx_size,
             )
         else:
             args = AsyncEngineArgs(
@@ -89,6 +85,7 @@ class VllmPredictor(Predictor):
                 dtype=dtype,
                 disable_log_requests=True,
                 max_num_seqs=max_num_seqs,
+                enforce_eager=infer_conf.vllm.enforce_eager,
             )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)

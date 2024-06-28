@@ -1,0 +1,109 @@
+name: Benchmark
+
+on:
+  workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
+      runner_container_image:
+        type: string
+        default: '10.1.2.13:5000/llmray-build'
+      http_proxy:
+        type: string
+        default: 'http://10.24.221.169:912'
+      https_proxy:
+        type: string
+        default: 'http://10.24.221.169:912'
+      runner_config_path:
+        type: string
+        default: '/home/ci/llm-ray-actions-runner'
+      code_checkout_path:
+        type: string
+        default: '/home/ci/actions-runner/_work/llm-on-ray/llm-on-ray'
+      model_cache_path:
+        type: string
+        default: '/mnt/DP_disk1/huggingface/cache'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-bench
+  cancel-in-progress: true
+
+jobs:
+  setup-test:
+
+    name: benchmark
+
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ${{ inputs.runner_container_image }}
+      env:
+        http_proxy: ${{ inputs.http_proxy }}
+        https_proxy: ${{ inputs.https_proxy }}
+        SHELL: bash -eo pipefail
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - ${{ inputs.runner_config_path }}:/root/actions-runner-config
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load environment variables
+        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
+
+      - name: Determine Target
+        id: "target"
+        run: |
+          target="benchmark"
+          target="${target}_vllm"
+          echo "target is ${target}"
+          echo "target=$target" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image
+        run: |
+          DF_SUFFIX=".vllm"
+          TARGET=${{steps.target.outputs.target}}
+          docker build ./ --build-arg CACHEBUST=1 --build-arg http_proxy=${{ inputs.http_proxy }} --build-arg https_proxy=${{ inputs.https_proxy }} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest 
+          docker container prune -f
+          docker image prune -f
+
+      - name: Start Docker Container
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+          # check and remove exited container
+          cid=$(docker ps -a -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+          docker run -tid --privileged -v ${{ inputs.model_cache_path }}:/root/.cache/huggingface/hub -v ${{ inputs.code_checkout_path }}:/root/llm-on-ray -e http_proxy=${{ inputs.http_proxy }} -e https_proxy=${{ inputs.https_proxy }} --name="${TARGET}" --hostname="${TARGET}-container" ${TARGET}:latest
+
+      - name: Start Ray Cluster
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          docker exec "${TARGET}" bash -c "./dev/scripts/start-ray-cluster.sh"
+
+      - name: Run Benchmark Test
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          # Additional libraries required  for pytest
+          docker exec "${TARGET}" bash -c "pip install -r tests/requirements.txt"
+          docker exec "${TARGET}" bash -c "./tests/run-tests-benchmark.sh"
+      - name: Stop Ray
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then
+            docker exec "${TARGET}" bash -c "ray stop"
+          fi
+
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET=${{steps.target.outputs.target}}
+          cid=$(docker ps -q --filter "name=${TARGET}")
+          if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi

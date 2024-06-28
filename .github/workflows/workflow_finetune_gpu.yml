@@ -8,17 +8,17 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
       https_proxy:
         type: string
-        default: 'http://10.24.221.169:911'
+        default: 'http://10.24.221.169:912'
 
 jobs:
   finetune-gpu:
     name: finetune-gpu
     strategy:
       matrix:
-        model: [ meta-llama/Llama-2-7b-chat-hf ]
+        model: [ NousResearch/Llama-2-7b-chat-hf ]
     runs-on: self-hosted
 
     defaults:
