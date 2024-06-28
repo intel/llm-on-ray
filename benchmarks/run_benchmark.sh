@@ -152,7 +152,7 @@ latency_throughput(){
             $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_IPEX_PATH --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --track-token-latency --max-new-tokens  $output_tokens_length --vllm-engine --simple --results-dir $results_dir
         done
     done
-    echo "choice 3 generation completed"
+    echo "CHOICE 3 generation completed"
 }
 
 get_best_latency(){

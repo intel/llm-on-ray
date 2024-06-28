@@ -467,16 +467,6 @@ def main(args: argparse.Namespace):
             args.num_prompts,
         )
 
-    # TODO remove
-    # filtered_requests: List[Tuple[str, int, int]] = []
-
-    # for i, r in enumerate(input_requests):
-    #     if i > 850 and i < 863:
-    #         filtered_requests.append(r)
-
-    # input_requests = filtered_requests
-    print("number of requests: " + str(len(input_requests)))
-
     config: Dict[str, Union[int, float]] = {}
 
     if args.max_new_tokens:
