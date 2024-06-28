@@ -5,3 +5,9 @@ build/lib/
 *.json
 *.txt
 *.egg-info
+.eggs
+*.log
+*.so
+*.ninja_log
+build/
+runtime_outs/

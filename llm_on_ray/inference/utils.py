@@ -15,7 +15,7 @@
 #
 import os
 import pathlib
-from transformers import StoppingCriteria, TextStreamer
+from transformers import StoppingCriteria, TextStreamer, AutoConfig
 from ray.util.queue import Queue
 import torch
 from typing import Dict, Any, List, Optional, Union
@@ -60,6 +60,34 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         # TODO add xpu
         pass
     return ray_actor_options
+
+
+def get_max_seq_length(config: AutoConfig):
+    config = config.to_dict()
+    # chatglm2, bloom, chatglm3
+    if "seq_length" in config:
+        return config["seq_length"]
+    # qwen2, llama-2, llama, dolly, gptneox, qwen, qwen1.5, opt, phi
+    if "max_position_embeddings" in config:
+        return config["max_position_embeddings"]
+    # baichuan, baichuan2
+    if "model_max_length" in config:
+        return config["model_max_length"]
+    # gptj
+    if "n_positions" in config:
+        return config["n_positions"]
+    # mpt
+    if "max_seq_len" in config:
+        return config["max_seq_len"]
+    # chatglm
+    if "max_sequence_length" in config:
+        return config["max_sequence_length"]
+    # whisper
+    if "max_length" in config:
+        return config["max_length"]
+
+    print("Not found max seq length, setting to default 512")
+    return 512
 
 
 class RayTextIteratorStreamer(TextStreamer):

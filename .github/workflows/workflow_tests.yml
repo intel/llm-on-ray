@@ -176,7 +176,7 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          strat_ray ${TARGET}
+          start_ray ${TARGET}
 
       - name: Run Tests
         run: |

@@ -12,11 +12,23 @@ then
     echo "Please pass in the value of parameter RUN_MODE, which can be 'test' or 'benchmark'."
 fi
 VALUE_INF=2000
+
+MAX_NUM_SEQS=$VALUE_INF
+DYNAMIC_BATCH_SIZE=0
+if [ "$#" -gt 2 ]
+then
+    MAX_NUM_SEQS=${3}
+fi
+if [ "$#" -gt 3 ]
+then
+    DYNAMIC_BATCH_SIZE=${4}
+fi
+
 MODEL_ENDPOINT="http://localhost:8000/llama-2-7b-chat-hf"
 MODEL_NAME="llama-2-7b-chat-hf"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 BENCHMARK_SCRIPT=$SHELL_FOLDER"/benchmark_serving.py"
-WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
+WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml"
 WO_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
 DATASET_PATH=$SHELL_FOLDER"/../dataset"
 DATASET_SHAREGPT_PATH=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
@@ -107,19 +119,37 @@ latency_throughput(){
     tokens_dir=$choice_dir"/tokens_"$input_tokens_length"_"$output_tokens_length
 
     # server
-    $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $VALUE_INF --max_num_seqs $VALUE_INF
+    #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
 
     # client
-    for i in $(seq 1 $num_iter)
+    for num_prompts in ${query_num}
     do
-        echo "Run iter $i"
-        iter_dir=$tokens_dir"/iter_"$i
-        for num_prompts in ${query_num}
+        max_con_q=$VALUE_INF
+        if [ ! "$DYNAMIC_BATCH_SIZE" = "0" ]
+        then
+            if [ "$num_prompts" -lt "$NUM_REPLICA" ] || [ "$num_prompts" -eq "$NUM_REPLICA" ]
+            then
+                max_con_q=1
+            else
+                max_con_q=$((num_prompts/NUM_REPLICA))
+            fi
+        fi
+        echo "Run num_prompts ${num_prompts} ======================="
+        echo "deploying model with --max_concurrent_queries $max_con_q --vllm_max_num_seqs $MAX_NUM_SEQS ..."
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests $max_con_q --max_num_seqs $MAX_NUM_SEQS
+        sleep 1
+        for i in $(seq 0 $num_iter)
         do
+            if [ $i = 0 ]; then
+                iter_dir="$tokens_dir/warmup"
+                echo "Run warmup"
+            else
+                iter_dir=$tokens_dir"/iter_"$i
+                echo "Run iter $i"
+            fi
             results_dir=$iter_dir"/num_prompts_"$num_prompts
-            echo "Run num_prompts ${num_prompts}"
             echo "results_dir: ${results_dir}"
-            $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_IPEX_PATH --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --max-new-tokens $output_tokens_length --track-token-latency --vllm-engine --simple --results-dir $results_dir
+            $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset $DATASET_IPEX_PATH --num-prompts $num_prompts  --dataset-format IPEX --input-tokens $input_tokens_length --track-token-latency --max-new-tokens  $output_tokens_length --vllm-engine --simple --results-dir $results_dir
         done
     done
     echo "CHOICE 3 generation completed"

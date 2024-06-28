@@ -1,0 +1,11 @@
+{
+    "quantization_config": {
+        "quant_method": "ns",
+        "weight_dtype": "int4",
+        "alg": "sym",
+        "group_size": 128,
+        "scale_dtype": "fp32",
+        "compute_dtype": "int8",
+        "version": "v1"
+    }
+}

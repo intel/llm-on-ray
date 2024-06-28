@@ -17,6 +17,8 @@
 import asyncio
 import os
 from typing import AsyncGenerator, List, Union
+from transformers import AutoConfig
+import ray
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
@@ -27,6 +29,10 @@ from llm_on_ray.inference.inference_config import (
     ModelGenerateResult,
     PRECISION_BF16,
 )
+from llm_on_ray.inference import utils
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class VllmPredictor(Predictor):
@@ -43,15 +49,44 @@ class VllmPredictor(Predictor):
         # The default value is 40GB.
         os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(self.VLLM_CPU_KVCACHE_SPACE_DEFAULT)
 
-        args = AsyncEngineArgs(
-            model=model_desc.model_id_or_path,
-            trust_remote_code=model_config.trust_remote_code,
-            device=infer_conf.device,
-            dtype=dtype,
-            disable_log_requests=True,
-            max_num_seqs=max_num_seqs,
-            enforce_eager=infer_conf.vllm.enforce_eager,
-        )
+        if infer_conf.vllm.extension == "ns":
+            logger.warn("applying neural speed extension to vllm ...")
+            try:
+                from vllm.extension import ns as ns
+
+                logger.warn("neural speed extension applied to vllm successfully!")
+            except Exception as e:
+                logger.error(f"failed to apply neural speed extension to vllm: {e}")
+                raise e
+            # get context size from HF
+            hf_config = AutoConfig.from_pretrained(
+                model_desc.model_id_or_path,
+                trust_remote_code=True,
+                use_auth_token=model_config.use_auth_token,
+            )
+            ctx_size = utils.get_max_seq_length(hf_config)
+            args = AsyncEngineArgs(
+                model=model_desc.model_id_or_path,
+                trust_remote_code=model_config.trust_remote_code,
+                device=infer_conf.device,
+                dtype=dtype,
+                disable_log_requests=True,
+                max_num_seqs=max_num_seqs,
+                max_num_batched_tokens=infer_conf.vllm.max_batched_tokens,
+                quantization="ns",
+                block_size=ctx_size,
+                max_model_len=ctx_size,
+            )
+        else:
+            args = AsyncEngineArgs(
+                model=model_desc.model_id_or_path,
+                trust_remote_code=model_config.trust_remote_code,
+                device=infer_conf.device,
+                dtype=dtype,
+                disable_log_requests=True,
+                max_num_seqs=max_num_seqs,
+                enforce_eager=infer_conf.vllm.enforce_eager,
+            )
 
         self.engine = AsyncLLMEngine.from_engine_args(args)
 
