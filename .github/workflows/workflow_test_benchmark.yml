@@ -92,24 +92,6 @@ jobs:
           TARGET=${{steps.target.outputs.target}}
           # Additional libraries required  for pytest
           docker exec "${TARGET}" bash -c "pip install -r tests/requirements.txt"
-          CMD=$(cat << EOF
-          import yaml
-          conf_path = "llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
-          with open(conf_path, encoding="utf-8") as reader:
-              result = yaml.load(reader, Loader=yaml.FullLoader)
-              result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-          with open(conf_path, 'w') as output:
-              yaml.dump(result, output, sort_keys=False)
-          conf_path = "llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm.yaml"
-          with open(conf_path, encoding="utf-8") as reader:
-              result = yaml.load(reader, Loader=yaml.FullLoader)
-              result['model_description']["config"]["use_auth_token"] = "${{ env.HF_ACCESS_TOKEN }}"
-          with open(conf_path, 'w') as output:
-              yaml.dump(result, output, sort_keys=False)
-          EOF
-          )
-          docker exec "${TARGET}" python -c "$CMD"
-          docker exec "${TARGET}" bash -c "huggingface-cli login --token ${{ env.HF_ACCESS_TOKEN }}"
           docker exec "${TARGET}" bash -c "./tests/run-tests-benchmark.sh"
       - name: Stop Ray
         run: |
