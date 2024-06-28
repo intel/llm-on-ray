@@ -1,1 +1,6 @@
-Dockerfiles for CI tests. There could be one Dockerfile with ARG declared to distinguish different pip extras. However, ARG will bust cache of 'pip install', which usually takes long time, when build docker image. Instead, we have two almost identical Dockerfiles here to improve CI efficiency. 
+# Dockerfiles for Users
+
+* `Dockerfile.user` to build llm-on-ray docker image for running on Intel CPU.
+* `Dockerfile.habana` to build llm-on-ray docker image for running on [Intel Gaudi AI accelerator](https://habana.ai/products/gaudi/). 
+
+__NOTICE:__ Dockerfiles in `ci/` are for CI tests only and not intended for daily use.

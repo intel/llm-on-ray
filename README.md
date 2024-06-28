@@ -33,7 +33,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 ![llm-on-ray](./docs/assets/solution_technical_overview.png)
 
 
-## Getting Started
+## Getting Started Locally With Source code  
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
@@ -107,6 +107,62 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
 python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+```
+
+## Getting Started With Docker
+This guide will assist you in setting up LLM-on-Ray on With Docker.
+```bash
+git clone https://github.com/intel/llm-on-ray.git
+cd llm-on-ray
+```
+The dockerfile for user is in dev/docker/Dockerfile.user.
+Detailed parameter can be set up for docker in dev/scripts/start_with_docker.sh.
+```bash
+## Set Your proxy and cache path here
+HTTP_PROXY='Your proxy'
+HTTPS_PROXY='Your proxy'
+## If your model needs HF_TOKEN. Please modify the "model_description.config.use_auth_token" in the config file such as "llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml" 
+## And mount your own llm-on-ray directory here
+code_checkout_path='If you need to use the modified llm-on-ray repository, define your path here, such as "/home/users/llm-on-ray "'
+model_cache_path='If you need to use huggingface model cache, define your path here, such as "/home/user/.cache/huggingface/hub "'
+```
+
+#### 1. Build Docker Image  
+Software requirement: Ubuntu and Docker
+```bash
+## If you need to use proxy, please change any settings in 'dev/scripts/start_with_docker.sh'
+source dev/scripts/start_with_docker.sh
+## Docker flie path is 'dev/docker/Dockerfile.user'.
+build_docker ## Use default cpu and deepspeed for llm serving
+```
+
+Change build_docker fuction's args for different environment
+```bash
+build_docker vllm ## use vllm for llm serving
+build_docker ipex-llm ## use ipex-vllm for llm serving
+```
+
+#### 2. Start Docker
+```bash
+## If you need to use the modified llm-on-ray repository or model cache path
+## please change any settings in 'dev/scripts/start_with_docker.sh'
+
+start_docker ## Run docker with default-model(gpt2) serving
+start_docker {Supported models,gpt-j-6b/llama-2-7b-chat-hf/gemma-2b,etc.} ## Run docker with other model serving
+
+## You can mount your own repositories and modify the model config file to support more models
+```
+
+#### 3. Start LLM-on-Ray
+```bash
+## Access and test model Same as start with source code
+# using requests library
+docker exec serving bash -c "python examples/inference/api_server_openai/query_http_requests.py"
+# using OpenAI SDK
+docker exec serving bash -c "pip install openai>=1.0"
+docker exec serving bash -c "export OPENAI_BASE_URL=http://localhost:8000/v1"
+docker exec serving bash -c "export OPENAI_API_KEY="not_a_real_key""
+docker exec serving bash -c "python examples/inference/api_server_openai/query_openai_sdk.py"
 ```
 
 ## Documents

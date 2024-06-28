@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:22.04
+
+# Define build arguments
+ARG DOCKER_NAME=default
+ARG PYPJ=default
+ENV LANG C.UTF-8
+
+WORKDIR /root/
+
+RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
+    && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge3-Linux-x86_64.sh -O ~/miniforge.sh && \
+    /bin/bash ~/miniforge.sh -b -p /opt/conda
+ENV PATH $CONDA_DIR/bin:$PATH
+
+# setup env
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
+    unset -f conda && \
+    export PATH=$CONDA_DIR/bin/:${PATH} && \
+    mamba config --add channels intel && \
+    mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
+
+# Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
+ARG CACHEBUST=1
+
+RUN git clone https://github.com/intel/llm-on-ray.git
+RUN if [ -d "llm-on-ray" ]; then echo "Clone successful"; else echo "Clone failed" && exit 1; fi
+WORKDIR /root/llm-on-ray
+
+RUN git fetch origin pull/219/head:pr-219 && \
+    git checkout pr-219
+
+RUN ls -la
+
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra-index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+
+# Use shell scripting to conditionally install packages
+RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && ./dev/scripts/install-oneapi.sh;fi
+RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then ./dev/scripts/install-oneapi.sh; fi
+RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; fi
+
+
+RUN chmod +x ./dev/scripts/entrypoint_user.sh
+ENTRYPOINT ["./dev/scripts/entrypoint_user.sh"]
