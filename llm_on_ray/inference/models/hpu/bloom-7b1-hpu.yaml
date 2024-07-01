@@ -1,0 +1,12 @@
+port: 8000
+name: bloom-7b1
+route_prefix: /bloom-7b1
+num_replicas: 1
+cpus_per_worker: 8
+hpus_per_worker: 1
+device: hpu
+model_description:
+  model_id_or_path: bigscience/bloom-7b1
+  tokenizer_name_or_path: bigscience/bloom-7b1
+  config:
+    use_auth_token: ''
