@@ -27,6 +27,10 @@ jobs:
   Finetune:
     needs: Lint
     uses: ./.github/workflows/workflow_finetune.yml
+
+  Finetune_Gaudi:
+    needs: Lint
+    uses: ./.github/workflows/workflow_finetune_gaudi2.yml
   
   Benchmark:
     needs: Lint
