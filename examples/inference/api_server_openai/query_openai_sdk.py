@@ -40,6 +40,12 @@ parser.add_argument(
     help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to`Top p` or higher are kept for generation",
 )
 
+parser.add_argument(
+    "--debug_mode",
+    action="store_true",
+    help="If debug mode is enabled, debug logs will be printed",
+)
+
 args = parser.parse_args()
 
 if "OPENAI_API_KEY" in os.environ:
@@ -65,6 +71,7 @@ def stream_chat():
         max_tokens=args.max_new_tokens,
         temperature=args.temperature,
         top_p=args.top_p,
+        debug_mode=args.debug_mode,
     ):
         content = chunk.choices[0].delta.content
         if content is not None:
@@ -81,6 +88,7 @@ def chunk_chat():
         max_tokens=args.max_new_tokens,
         temperature=args.temperature,
         top_p=args.top_p,
+        debug_mode=args.debug_mode,
     )
     for chunk in [output]:
         try:
