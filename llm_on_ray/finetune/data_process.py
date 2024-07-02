@@ -19,6 +19,7 @@ import re
 from itertools import chain
 
 import torch
+from typing import Dict
 
 IGNORE_INDEX = -100
 
@@ -217,4 +218,115 @@ class DataProcessor:
             examples["input_ids"].append(results["input_ids"])
             examples["labels"].append(labels)
             examples["attention_mask"].append(results["attention_mask"])
+        return examples
+
+
+class DPOIntelOrcaProcessor(DataProcessor):
+    def __init__(self, config, tokenizer):
+        self.tokenizer = tokenizer
+        self.end = tokenizer.eos_token
+        self.config = config
+
+    def make_prompt(self, examples):
+        return {
+            "prompt": " ".join(
+                [
+                    system + question
+                    for system, question in zip(examples["system"], examples["question"])
+                ]
+            ),
+            "chosen": examples["chosen"],
+            "rejected": examples["rejected"],
+        }
+
+    """
+    Copied from https://github.com/intel/intel-extension-for-transformers/blob/5ba5fa8048b63bec8a3be8a7122a3db8344ad065/
+    intel_extension_for_transformers/neural_chat/examples/finetuning/dpo_pipeline/dpo_clm.py#L308
+    """
+
+    def tokenize(self, examples):
+        prompts = {p.strip() for p in examples["prompt"]}
+        chosens = {c.strip() for c in examples["chosen"]}
+        rejects = {r.strip() for r in examples["rejected"]}
+
+        examples = {
+            "prompt": [],
+            "chosen": [],
+            "rejected": [],
+            "chosen_response_only": [],
+            "rejected_response_only": [],
+            "chosen_input_ids": [],
+            "chosen_attention_mask": [],
+            "chosen_labels": [],
+            "rejected_input_ids": [],
+            "rejected_attention_mask": [],
+            "rejected_labels": [],
+            "prompt_input_ids": [],
+            "prompt_attention_mask": [],
+        }
+
+        for prompt, chosen, reject in zip(prompts, chosens, rejects):
+            prompt_tokens = self.tokenizer.tokenize(prompt, return_tensors="pt")
+
+            if len(prompt_tokens) > self.config["Dataset"]["max_source_length"]:
+                prompt_tokens = prompt_tokens[: self.config["Dataset"]["max_source_length"]]
+
+            prompt_ids = self.tokenizer.convert_tokens_to_ids(prompt_tokens)
+            prompt_mask = [1] * len(prompt_ids)
+
+            max_resp = self.config["Dataset"]["max_length"] - len(prompt_ids)
+            chosen_tokens = self.tokenizer.tokenize(chosen)
+            chosen_tokens = chosen_tokens[: max_resp - 1]
+            chosen_tokens.append(self.end)
+            chosen_ids = self.tokenizer.convert_tokens_to_ids(chosen_tokens)
+            chosen_mask = [1] * len(chosen_ids)
+
+            reject_tokens = self.tokenizer.tokenize(reject)
+            reject_tokens = reject_tokens[: max_resp - 1]
+            reject_tokens.append(self.end)
+            reject_ids = self.tokenizer.convert_tokens_to_ids(reject_tokens)
+            reject_mask = [1] * len(reject_ids)
+
+            chosen_input_ids = prompt_ids + chosen_ids
+            chosen_attention_mask = prompt_mask + chosen_mask
+            chosen_labels = [IGNORE_INDEX] * len(prompt_ids) + chosen_ids
+
+            reject_input_ids = prompt_ids + reject_ids
+            reject_attention_mask = prompt_mask + reject_mask
+            reject_labels = [IGNORE_INDEX] * len(prompt_ids) + reject_ids
+
+            # padding
+            input_len = len(chosen_input_ids)
+            if self.config["Dataset"]["pad_max"]:
+                pad_len = self.config["Dataset"]["max_length"] - input_len
+                chosen_input_ids = chosen_input_ids + [0] * pad_len
+                chosen_labels = chosen_labels + [-100] * pad_len
+                chosen_attention_mask = chosen_attention_mask + [0] * pad_len
+                assert len(chosen_input_ids) == self.config["Dataset"]["max_length"]
+
+            input_len = len(reject_input_ids)
+            if self.config["Dataset"]["pad_max"]:
+                pad_len = self.config["Dataset"]["max_length"] - input_len
+                reject_input_ids = reject_input_ids + [0] * pad_len
+                reject_labels = reject_labels + [-100] * pad_len
+                reject_attention_mask = reject_attention_mask + [0] * pad_len
+                assert len(reject_input_ids) == self.config["Dataset"]["max_length"]
+
+            examples["prompt"].append(prompt)
+            examples["chosen"].append(prompt + chosen)
+            examples["rejected"].append(prompt + reject)
+            examples["chosen_response_only"].append(chosen)
+            examples["rejected_response_only"].append(reject)
+
+            examples["chosen_input_ids"].append(chosen_input_ids)
+            examples["chosen_attention_mask"].append(chosen_attention_mask)
+            examples["chosen_labels"].append(chosen_labels)
+
+            examples["rejected_input_ids"].append(reject_input_ids)
+            examples["rejected_attention_mask"].append(reject_attention_mask)
+            examples["rejected_labels"].append(reject_labels)
+
+            examples["prompt_input_ids"].append(prompt_ids)
+            examples["prompt_attention_mask"].append(prompt_mask)
+
         return examples

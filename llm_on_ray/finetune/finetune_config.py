@@ -81,7 +81,6 @@ class Dataset(BaseModel):
     mask_response: bool = True
     data_preprocess_type: str = "neural_chat"
     pad_max: bool = False
-    max_source_length: int = 512
     torch_dtype: str = "bfloat16"
 
 

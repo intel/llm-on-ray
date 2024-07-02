@@ -49,6 +49,7 @@ from llm_on_ray.finetune.dpo_funetuing import (
 
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
 
+
 def adapt_transformers_to_device(config: Dict):
     device = config["Training"]["device"]
     if device in ["hpu"]:
@@ -211,12 +212,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
-    if config["Training"]["finetuning_model"] is not None:
-        use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
-        if use_dpo:
-            from llm_on_ray.finetune.dpo_funetuing import DPOIntelOrcaProcesser
-
-            return DPOIntelOrcaProcesser.tokenize_dataset(config, tokenizer, dataset)
 
     processor = DataProcessor(config, tokenizer)
 
@@ -295,9 +290,11 @@ def load_model(config: Dict):
 
     return model
 
+
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])
     from .finetuning import Finetuning
+
     finetuing = Finetuning()
     if config["Training"]["finetuning_model"] is not None:
         use_dpo = config["Training"]["finetuning_model"].get("dpo", False)
