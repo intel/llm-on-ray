@@ -29,9 +29,22 @@ IGNORE_INDEX = -100
 
 
 class DPOFineTuning(Finetuning):
+    def load_tokenizer(self, config: Dict):
+        if config["General"].get("tokenizer_name") is not None:
+            tokenizer_name = config["General"].get("tokenizer_name")
+        else:
+            tokenizer_name = config["General"]["base_model"]
+        load_config = config["General"].get("config", {})
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            tokenizer_name,
+            **load_config,
+        )
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        return tokenizer
+
     def tokenize_dataset(self, config: Dict, tokenizer, dataset):
         processor = DPOIntelOrcaProcessor(config, tokenizer)
-        print(dataset)
         for key in dataset:
             prompts = processor.make_prompt(dataset[key])
             dataset[key] = datasets.Dataset.from_dict(prompts)
