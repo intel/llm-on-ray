@@ -40,13 +40,8 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
-from llm_on_ray.finetune.data_process import DataProcessor
-from llm_on_ray.finetune.dpo_funetuing import (
-    DPOFuneTuning,
-    GaudiDPOFuneTuning,
-)
-
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
+
 
 def train_func(config: Dict[str, Any]):
     os.chdir(config["cwd"])

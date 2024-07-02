@@ -228,16 +228,20 @@ class DPOIntelOrcaProcessor(DataProcessor):
         self.config = config
 
     def make_prompt(self, examples):
-        return {
-            "prompt": " ".join(
-                [
-                    system + question
-                    for system, question in zip(examples["system"], examples["question"])
-                ]
-            ),
-            "chosen": examples["chosen"],
-            "rejected": examples["rejected"],
-        }
+        prompts = {}
+        prompts["prompt"] = []
+        prompts["chosen"] = []
+        prompts["rejected"] = []
+
+        for rec in examples:
+            prompts["prompt"].append(
+                " ".join(
+                    [system + question for system, question in zip(rec["system"], rec["question"])]
+                )
+            )
+            prompts["chosen"].append(rec["chosen"])
+            prompts["rejected"].append(rec["rejected"])
+        return prompts
 
     """
     Copied from https://github.com/intel/intel-extension-for-transformers/blob/5ba5fa8048b63bec8a3be8a7122a3db8344ad065/

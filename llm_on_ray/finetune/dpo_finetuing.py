@@ -31,18 +31,13 @@ IGNORE_INDEX = -100
 class DPOFineTuning(Finetuning):
     def tokenize_dataset(self, config: Dict, tokenizer, dataset):
         processor = DPOIntelOrcaProcessor(config, tokenizer)
-
+        print(dataset)
         for key in dataset:
             prompts = processor.make_prompt(dataset[key])
             dataset[key] = datasets.Dataset.from_dict(prompts)
 
         train_dataset = dataset["train"]
         column_names = list(train_dataset.features)
-        (
-            processor.tokenize_by_neural_chat
-            if config["Dataset"].get("data_preprocess_type", "neural_chat") == "neural_chat"
-            else processor.tokenize
-        )
         if train_dataset is not None:
             # Create train feature from dataset
             train_dataset = train_dataset.map(
