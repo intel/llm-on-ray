@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datasets
 import torch
 import transformers
 from peft import LoraConfig
 from transformers import AutoModelForCausalLM
 from typing import Dict
 
-from llm_on_ray.finetune.data_preprocess import DPOIntelOrcaPreprocesser
 from itertools import chain
 
+from llm_on_ray.finetune.data_process import DPOIntelOrcaProcessor
 from llm_on_ray.finetune.finetuning import Finetuning
 
 IGNORE_INDEX = -100
@@ -29,14 +30,41 @@ IGNORE_INDEX = -100
 
 class DPOFineTuning(Finetuning):
     def tokenize_dataset(self, config: Dict, tokenizer, dataset):
-        print("tokenize_dataset")
-        print(dataset)
-        config["Dataset"].get("group", True)
-        config["Dataset"].get("block_size", 512)
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenized_dataset = DPOIntelOrcaPreprocesser.tokenize_dataset(config, tokenizer, dataset)
-        print(tokenized_dataset)
-        return tokenized_dataset
+        processor = DPOIntelOrcaProcessor(config, tokenizer)
+
+        for key in dataset:
+            prompts = processor.make_prompt(dataset[key])
+            dataset[key] = datasets.Dataset.from_dict(prompts)
+
+        train_dataset = dataset["train"]
+        column_names = list(train_dataset.features)
+        (
+            processor.tokenize_by_neural_chat
+            if config["Dataset"].get("data_preprocess_type", "neural_chat") == "neural_chat"
+            else processor.tokenize
+        )
+        if train_dataset is not None:
+            # Create train feature from dataset
+            train_dataset = train_dataset.map(
+                processor.tokenize,
+                batched=True,
+                remove_columns=column_names,
+                desc="Running tokenizer on train dataset",
+            )
+
+        eval_dataset = dataset.get("validation")
+
+        if eval_dataset is not None:
+            column_names = eval_dataset.column_names
+            eval_dataset = eval_dataset.map(
+                processor.tokenize,
+                batched=True,
+                remove_columns=column_names,
+                desc="Running tokenizer on validation dataset",
+            )
+        tokenized_datasets = {"train": train_dataset, "validation": eval_dataset}
+
+        return tokenized_datasets
 
     def load_model(self, config: Dict):
         model_name = config["General"]["base_model"]
