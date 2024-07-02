@@ -1608,8 +1608,14 @@ def main(args_in: Optional[List[str]] = None) -> None:
                 str(args.model), low_cpu_mem_usage=True, trust_remote_code=True
             )
             tokenizer = AutoTokenizer.from_pretrained(str(args.model), trust_remote_code=True)
-            cache_path = Path(tokenizer.vocab_file).parent
-            args.model = cache_path
+            if hasattr(tokenizer, "vocab_file"):
+                cache_path = Path(tokenizer.vocab_file).parent
+                args.model = cache_path
+            else:
+                from transformers.utils import cached_file
+
+                tokenizer_path = cached_file(args.model, "tokenizer.json")
+                args.model = Path(tokenizer_path).parent
 
         model_plus = load_some_model(args.model)
         if args.dump:
@@ -1630,7 +1636,6 @@ def main(args_in: Optional[List[str]] = None) -> None:
             else:
                 vocab_dir = args.vocab_dir if args.vocab_dir else model_plus.paths[0].parent
                 vocab = load_vocab(vocab_dir, params.n_vocab)
-
         model = do_necessary_conversions(model, params)
         output_type = pick_output_type(model, args.outtype)
         model = convert_to_output_type(model, output_type)

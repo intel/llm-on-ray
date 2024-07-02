@@ -39,7 +39,7 @@ pip install .[vllm-cpu] --extra-index-url https://download.pytorch.org/whl/cpu -
 Then, install the vLLM extension and the inference engine.
 ```bash
 cd vllm-ext
-pip install .
+pip install . && pip install --upgrade protobuf
 
 ```
 
