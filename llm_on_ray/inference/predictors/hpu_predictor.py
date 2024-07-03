@@ -184,7 +184,6 @@ class HPUPredictor(Predictor):
 
     def get_streamer(self):
         if self.infer_conf.deepspeed:
-            # Q2: Why always use the first worker?
             return ray.get(self.deepspeed_workers[0].get_streamer.remote())
         else:
             return TextIteratorStreamer(
@@ -200,8 +199,6 @@ class HPUPredictor(Predictor):
 
         self._process_config(config)
 
-        # TODO: Maybe we should get realtime load info of all cards, set a heathy usage ratio and pick the usable cards for serving.
-        #       So that some errors like OOM can be prevented, and the server will be more robust.
         if self.infer_conf.deepspeed:
             return ray.get(
                 [worker.generate.remote(prompt, **config) for worker in self.deepspeed_workers]
@@ -227,7 +224,6 @@ class HPUPredictor(Predictor):
         self._process_config(config)
         # Q1: Why it is handled here when using both deepspeed and hpu?
         if self.infer_conf.deepspeed:
-            # Q2: Why always use the first worker?
             self.deepspeed_workers[0].streaming_generate.remote(prompt, streamer, **config)
             for worker in self.deepspeed_workers[1:]:
                 worker.streaming_generate.remote(prompt, self._create_dummy_streamer(), **config)

@@ -37,6 +37,9 @@ from typing import Dict
 from fastapi import HTTPException
 from llm_on_ray.inference.api_openai_backend.openai_protocol import ModelCard, Prompt
 from llm_on_ray.inference.api_openai_backend.request_handler import handle_request
+from llm_on_ray.inference.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class RouterQueryClient:
@@ -58,7 +61,7 @@ class RouterQueryClient:
         gen_config.update({"ignore_eos": request_config.get("ignore_eos", False)})
 
         if request_config.get("debug_mode", False):
-            print("DEBUG: print request_config:", request_config)
+            logger.debug(f"Print request_config: {request_config}")
         # TODO: set debug mode in request_config, add and set debug mode to gen_config, since gen_config is the config to be passed down
 
         async for x in handle_request(
