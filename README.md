@@ -125,19 +125,19 @@ source dev/scripts/docker-functions.sh
 ```
 
 #### 2. Build Docker Image  
-Default cpu and deepspeed for llm serving
+Default cpu and deepspeed for llm serving.
 ```bash
 build_docker 
 ```
 
 Change build_docker fuction's args for different environment.
 
-Use vllm for llm serving
+Use vllm for llm serving.
 ```bash
 build_docker vllm 
 ```
 
-Use ipex-vllm for llm serving
+Use ipex-vllm for llm serving.
 ```bash
 build_docker ipex-llm 
 ```
@@ -145,25 +145,25 @@ build_docker ipex-llm
 #### 3. Start Docker
 Change any settings in `dev/scripts/docker-functions.sh`.
 
-Run docker with cpu and gpt2 serving
+Run docker with cpu and gpt2 serving.
 ```bash
 start_docker
 ```
 
-Run docker with cpu and other models serving such as {gpt-j-6b/llama-2-7b-chat-hf/gemma-2b,etc.} 
+Run docker with cpu and other support models serving.
 ```bash
 start_docker llama-2-7b-chat-hf
 ```
 
-Run docker with different environment and other models  `start_docker {None/vllm/ipex-llm} {None/llama-2-7b-chat-hf}`
+Run docker with different environment and other models  `start_docker {environment} {models}` like:
 ```bash
 start_docker vllm llama-2-7b-chat-hf
 ```
 
 #### 4. Start LLM-on-Ray
-The model serving port in docker container has map to local
+The model serving port in docker container has been mapped to local.
 
-Using requests library 
+Using requests library.
 ```bash
 python examples/inference/api_server_openai/query_http_requests.py
 ```
