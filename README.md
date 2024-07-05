@@ -119,9 +119,9 @@ cd llm-on-ray
 The dockerfile for user is in `dev/docker/Dockerfile.user`.
 
 #### 1. Source Docker Functions  
-Detailed parameter can be set up for docker in `dev/scripts/start_with_docker.sh`.
+Detailed parameter can be set up for docker in `dev/scripts/docker-functions.sh`.
 ```bash
-source dev/scripts/start_with_docker.sh
+source dev/scripts/docker-functions.sh
 ```
 
 #### 2. Build Docker Image  
@@ -142,7 +142,7 @@ build_docker ipex-llm
 ```
 
 #### 3. Start Docker
-Change any settings in `dev/scripts/start_with_docker.sh`.
+Change any settings in `dev/scripts/docker-functions.sh`.
 Run docker with cpu and gpt2 serving
 ```bash
 start_docker
