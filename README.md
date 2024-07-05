@@ -112,7 +112,6 @@ python examples/inference/api_server_simple/query_single.py --model_endpoint htt
 ## Getting Started With Docker
 This guide will assist you in setting up LLM-on-Ray on With Docker.
 
-Software requirement: Ubuntu and Docker
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
 cd llm-on-ray
@@ -131,7 +130,7 @@ Default cpu and deepspeed for llm serving
 build_docker 
 ```
 
-Change build_docker fuction's args for different environment
+Change build_docker fuction's args for different environment.
 
 Use vllm for llm serving
 ```bash
