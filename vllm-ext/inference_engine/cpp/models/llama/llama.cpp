@@ -84,8 +84,7 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   }
   const int seq_len_sum = std::accumulate(n_tokens.begin(), n_tokens.end(), 0);
   const int infer_bs = 1;
-  // const int kv_n_ctx_block = lctx.kv_n_ctx_block;
-  const int kv_n_ctx_block = batch_size;
+  const int kv_n_ctx_block = lctx.kv_n_ctx_block;
   const std::vector<std::vector<int>> infer_groups = split_inputs_into_groups(inputs, n_input);
 
   const auto& model = lctx.model;

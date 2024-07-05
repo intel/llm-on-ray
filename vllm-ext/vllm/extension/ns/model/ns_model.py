@@ -47,7 +47,9 @@ from vllm.extension.ns.model import _ModelPerf
 
 logger = init_logger(__name__)
 
-_NS_NUM_THREADS = "NS_NUM_THREADS"
+_NS_NUM_THREADS = "NS_NUM_THREADS"  # threads for prompt decoding
+_NS_NUM_THREADS_NEXT = "NS_NUM_THREADS_NEXT"  # threads for next token generation
+_NS_MAX_PROMPT_TOKENS = "NS_MAX_PROMPT_TOKENS"  # to be supported
 
 
 class NSModel(nn.Module):
@@ -104,13 +106,14 @@ class NSModel(nn.Module):
     ):
         # get available cores
         try:
-            max_prompt_tokens = int(os.environ.get("NS_MAX_PROMPT_TOKENS", "8192"))
+            max_prompt_tokens = int(os.environ.get(_NS_MAX_PROMPT_TOKENS, "8192"))
             # cpus_per_work is set to 1 for better ns perf so it's inappropriate to use ray to get available cores
             # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
             physical_cores = psutil.cpu_count(logical=False)
             # reserve one core for non-ns tasks
             physical_cores = physical_cores if physical_cores <= 1 else physical_cores - 1
             threads = int(os.environ.get(_NS_NUM_THREADS, str(physical_cores)))
+            threads_next = int(os.environ.get(_NS_NUM_THREADS_NEXT, str(physical_cores)))
             logger.info("Using %d threads for inference engine", threads)
             self.ie_model = IE_Model(
                 self.config.name_or_path,
@@ -118,6 +121,7 @@ class NSModel(nn.Module):
                 ctx_size=model_config.max_model_len,
                 max_new_tokens=model_config.max_model_len,
                 threads=threads,
+                threads_next=threads_next,
                 max_prompt_tokens=max_prompt_tokens,
             )
         except AssertionError:
