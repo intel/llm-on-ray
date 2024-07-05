@@ -187,13 +187,23 @@ class DataProcessor:
         for s, t in zip(examples[keys[0]], examples[keys[1]]):
             zip_examples.append(s + t)
 
-        tokenized_examples = self.tokenizer(zip_examples, padding=self.padding, truncation=self.truncation,
-                                            return_tensors=None, max_length=self.max_length)
+        tokenized_examples = self.tokenizer(
+            zip_examples,
+            padding=self.padding,
+            truncation=self.truncation,
+            return_tensors=None,
+            max_length=self.max_length,
+        )
         tokenized_examples["labels"] = copy.deepcopy(tokenized_examples["input_ids"])
 
         if self.mask_input or self.mask_response:
-            tokenized_sources = self.tokenizer(examples[keys[0]], padding=False, truncation=self.truncation,
-                                               return_tensors=None, max_length=self.max_length)
+            tokenized_sources = self.tokenizer(
+                examples[keys[0]],
+                padding=False,
+                truncation=self.truncation,
+                return_tensors=None,
+                max_length=self.max_length,
+            )
             for idx in range(len(tokenized_examples["input_ids"])):
                 len1 = len(tokenized_examples["input_ids"][idx])
                 len2 = len(tokenized_sources["input_ids"][idx])
