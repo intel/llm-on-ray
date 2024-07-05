@@ -53,6 +53,8 @@ class General(BaseModel):
     report_to: str = "none"
     resume_from_checkpoint: Optional[str] = None
     save_strategy: str = "no"
+    attn_softmax_bf16: bool = False
+    use_flash_attention: bool = False
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     enable_gradient_checkpointing: bool = False
@@ -104,6 +106,7 @@ class Training(BaseModel):
     mixed_precision: str = PRECISION_NO
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
+    pipelining_fwd_bwd: bool = False
     deepspeed_config_file: str = ""
 
     @validator("device")

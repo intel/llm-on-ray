@@ -116,13 +116,13 @@ def convert_to_training_args(cls, config: Dict):
 
     # set attr for FSDP
     # if accelerate_mode == "FSDP":
-    #     args.updatwe({})
+    #     args.update({})
 
     # set attr for Intel Gaudi
     if device == "hpu":
         args.update({"use_habana": True})
         args.update({"use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy"})
-        args.update({"pipelining_fwd_bwd": True})
+        args.update({"pipelining_fwd_bwd": config["Training"]["pipelining_fwd_bwd"]})
 
     return cls(**args)
 
@@ -274,11 +274,23 @@ def load_model(config: Dict):
         peft_config = LoraConfig(**lora_config)
         model = get_peft_model(model, peft_config)
 
-    egc = config["General"].get("enable_gradient_checkpointing", False)
-    if egc:
+    if config["General"].get("enable_gradient_checkpointing", False):
         model.enable_input_require_grads()
         model.gradient_checkpointing_enable()
         model.config.use_cache = False
+
+    if model.config.model_type == "llama":
+        model.generation_config.pad_token_id = 0
+        model.generation_config.bos_token_id = 1
+        model.generation_config.eos_token_id = 2
+        attn_softmax_bf16 = config["General"]["attn_softmax_bf16"]
+        if attn_softmax_bf16:
+            model.generation_config.attn_softmax_bf16
+        use_flash_attention = config["General"]["use_flash_attention"]
+        if use_flash_attention:
+            model.generation_config.use_flash_attention = True
+            model.generation_config.flash_attention_recompute = False
+            model.generation_config.flash_attention_causal_mask = False
 
     model.to(dtype=model_dtype, device=torch.device(config["Training"]["device"]))
 
