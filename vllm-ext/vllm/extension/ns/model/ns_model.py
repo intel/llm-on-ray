@@ -113,7 +113,7 @@ class NSModel(nn.Module):
             # reserve one core for non-ns tasks
             physical_cores = physical_cores if physical_cores <= 1 else physical_cores - 1
             threads = int(os.environ.get(_NS_NUM_THREADS, str(physical_cores)))
-            threads_next = int(os.environ.get(_NS_NUM_THREADS_NEXT, str(physical_cores)))
+            threads_next = int(os.environ.get(_NS_NUM_THREADS_NEXT, str(threads)))
             logger.info("Using %d threads for inference engine", threads)
             self.ie_model = IE_Model(
                 self.config.name_or_path,
