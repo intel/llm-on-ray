@@ -22,24 +22,9 @@ import ctypes
 from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizer, PretrainedConfig
 from inference_engine.quant import convert_model
 
-_VOCAB_SIZE_MAP = {"llama3": 128256}
 _DEFAULT_QUANT_DIR = "runtime_outs/quantized_models"
 
 _CTYPES_STR_ENCODE = "utf-8"
-
-_TORCH_DTYPE_TO_INT = {
-    "torch.float32": 1,
-    "torch.float": 1,
-    "torch.float64": 2,
-    "torch.int8": 3,
-    "torch.int16": 4,
-    "torch.short": 4,
-    "torch.int32": 5,
-    "torch.int": 5,
-    "torch.int64": 6,
-    "torch.long": 6,
-    "torch.uint8": 7,
-}
 
 
 class Model:
@@ -54,6 +39,7 @@ class Model:
         memory_dtype: str = "auto",  # auto, fp16, fp32
         scratch_size_ratio: float = 1.0,
         threads: int = 56,
+        max_prompt_tokens: int = 1024,
         seed: int = 1234,
     ):
         self.model_id = model_id
@@ -67,6 +53,7 @@ class Model:
         self.generation_args["pad_token"] = pad_token
         self.generation_args["memory_dtype"] = memory_dtype
         self.generation_args["scratch_size_ratio"] = scratch_size_ratio
+        self.generation_args["max_prompt_tokens"] = max_prompt_tokens
 
         self.cpp_module = None
         self.native_model_ptr = None
@@ -193,6 +180,7 @@ class Model:
             memory_dtype,
             self.generation_args["scratch_size_ratio"],
             self.generation_args["threads"],
+            self.generation_args["max_prompt_tokens"],
             self.generation_args["seed"],
         )
         if not ok:

@@ -84,8 +84,9 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
   }
   const int seq_len_sum = std::accumulate(n_tokens.begin(), n_tokens.end(), 0);
   const int infer_bs = 1;
-  const int infer_seq_len = seq_len_sum;
-  const int kv_n_ctx_block = lctx.kv_n_ctx_block;
+  // TODO: set to batch size?
+  // const int kv_n_ctx_block = lctx.kv_n_ctx_block;
+  const int kv_n_ctx_block = batch_size;
   const std::vector<std::vector<int>> infer_groups = split_inputs_into_groups(inputs, n_input);
 
   const auto& model = lctx.model;
@@ -187,15 +188,15 @@ static bool llama_model_eval_internal(model_context* ctx, const model_input* inp
           ne_mul_qkv(ctx0, model.layers[il].attn[0], model.layers[il].attn[1], model.layers[il].attn[2], cur);
       const size_t qkv_size = head_size * n_head * seq_len_sum;
       const size_t qkv_bytes = qkv_size * ne_element_size(QKVcur);
-      Qcur = ne_reshape_4d(ctx0, ne_view_1d(ctx0, QKVcur, qkv_size, 0 * qkv_bytes), head_size, n_head, infer_seq_len,
+      Qcur = ne_reshape_4d(ctx0, ne_view_1d(ctx0, QKVcur, qkv_size, 0 * qkv_bytes), head_size, n_head, seq_len_sum,
                            infer_bs);
-      Kcur = ne_reshape_4d(ctx0, ne_view_1d(ctx0, QKVcur, qkv_size, 1 * qkv_bytes), head_size, n_head_kv, infer_seq_len,
+      Kcur = ne_reshape_4d(ctx0, ne_view_1d(ctx0, QKVcur, qkv_size, 1 * qkv_bytes), head_size, n_head_kv, seq_len_sum,
                            infer_bs);
       Vcur = ne_view_1d(ctx0, QKVcur, qkv_size, 2 * qkv_bytes);
     } else {
-      Qcur = ne_reshape_4d(ctx0, ne_mul_mat(ctx0, model.layers[il].attn[0], cur), head_size, n_head, infer_seq_len,
+      Qcur = ne_reshape_4d(ctx0, ne_mul_mat(ctx0, model.layers[il].attn[0], cur), head_size, n_head, seq_len_sum,
                            infer_bs);
-      Kcur = ne_reshape_4d(ctx0, ne_mul_mat(ctx0, model.layers[il].attn[1], cur), head_size, n_head_kv, infer_seq_len,
+      Kcur = ne_reshape_4d(ctx0, ne_mul_mat(ctx0, model.layers[il].attn[1], cur), head_size, n_head_kv, seq_len_sum,
                            infer_bs);
       Vcur = ne_mul_mat(ctx0, model.layers[il].attn[2], cur);
     }

@@ -55,6 +55,7 @@ def load_engine_lib(model_type: str):
             c_float,
             c_int,
             c_int,
+            c_int,
         ]
         native_lib.init_model.restype = c_bool
 

@@ -58,7 +58,7 @@ using namespace std;
 static std::set<model_archs> cont_batching_model_archs = {MODEL_GPTJ, MODEL_LLAMA};
 void init_model_params(model_params* params, const std::string& model_path, int max_new_tokens = -1, int max_batch_size = 512,
                      int ctx_size = 512, model_vocab::id pad_token = -1, const std::string& memory_dtype = "auto",
-                     const float& scratch_size_ratio = 1.0f, int threads = 8, int seed = -1) {
+                     const float& scratch_size_ratio = 1.0f, int threads = 8, int max_prompt_tokens = 1024, int seed = -1) {
   MODEL_ASSERT(params != nullptr);
 #ifdef MODEL_NAME
   params->model_name = MODEL_NAME;
@@ -70,6 +70,7 @@ void init_model_params(model_params* params, const std::string& model_path, int 
   params->n_ctx = ctx_size;
   params->seed = seed;
   params->n_threads = threads;
+  params->max_prompt_tokens = max_prompt_tokens;
   
   if (memory_dtype == "f32")
     params->memory_type = KV_MEM_TYPE_F32;
@@ -88,7 +89,7 @@ void init_model_params(model_params* params, const std::string& model_path, int 
   params->scratch_size_ratio = scratch_size_ratio;
 
   // TODO(Yi): MHA FOR LONG TOKENS
-  int32_t tokens_length = 6144;
+  int32_t tokens_length = 8192;
   if (params->n_ctx > tokens_length) {
     params->memory_type = KV_MEM_TYPE_F16;
   }
@@ -390,7 +391,7 @@ class Model {
   }
 
   bool init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
-                  const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int seed);
+                  const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int max_prompt_len, int seed);
 
   model_token get_eos_id() { return ctx->vocab.eos_token_id; }
 
@@ -428,10 +429,10 @@ class Model {
 };
 
 bool Model::init_model(const std::string& model_path, int max_new_tokens, int max_batch_size, int ctx_size, model_vocab::id pad_token,
-                       const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int seed) {
+                       const std::string& memory_dtype, const float& scratch_size_ratio, int threads, int max_prompt_tokens, int seed) {
   try {
     init_model_params(&params, model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio,
-                      threads, seed);
+                      threads, max_prompt_tokens, seed);
     ctx = create_model_context(params);
     if (pad_token != -1) ctx->vocab.pad_token_id = pad_token;
 
@@ -575,9 +576,10 @@ extern "C" {
 
   bool init_model(void * model_ptr, char* model_path, int max_new_tokens, int max_batch_size,
                   int ctx_size, int32_t pad_token, char* memory_dtype,
-                  float scratch_size_ratio, int threads, int seed) {
+                  float scratch_size_ratio, int threads, int max_prompt_tokens, int seed) {
     Model* model = static_cast<Model*>(model_ptr);
-    return model->init_model(model_path, max_new_tokens, max_batch_size, ctx_size, pad_token, memory_dtype, scratch_size_ratio, threads, seed);
+    return model->init_model(model_path, max_new_tokens, max_batch_size, ctx_size, pad_token,
+                              memory_dtype, scratch_size_ratio, threads, max_prompt_tokens, seed);
   }
 
   int quantize_model(char* model_path, char * out_path, char * weight_dtype,

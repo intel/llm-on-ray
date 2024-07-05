@@ -39,6 +39,8 @@ struct model_params {
 
   int32_t max_batch_size = 512;     // batch size for prompt processing (must be >=32 to use BLAS)
 
+  int32_t max_prompt_tokens = 8192; // max number of prompt tokens to decode in one run. split if exceeds this length
+
   std::string model = "";  // model path
 
   std::string lora_adapter = "";  // lora adapter path
