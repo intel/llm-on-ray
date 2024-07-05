@@ -111,6 +111,7 @@ python examples/inference/api_server_simple/query_single.py --model_endpoint htt
 
 ## Getting Started With Docker
 This guide will assist you in setting up LLM-on-Ray on With Docker.
+
 Software requirement: Ubuntu and Docker
 ```bash
 git clone https://github.com/intel/llm-on-ray.git
@@ -131,6 +132,7 @@ build_docker
 ```
 
 Change build_docker fuction's args for different environment
+
 Use vllm for llm serving
 ```bash
 build_docker vllm 
@@ -143,6 +145,7 @@ build_docker ipex-llm
 
 #### 3. Start Docker
 Change any settings in `dev/scripts/docker-functions.sh`.
+
 Run docker with cpu and gpt2 serving
 ```bash
 start_docker
@@ -160,6 +163,7 @@ start_docker vllm llama-2-7b-chat-hf
 
 #### 4. Start LLM-on-Ray
 The model serving port in docker container has map to local
+
 Using requests library 
 ```bash
 python examples/inference/api_server_openai/query_http_requests.py
