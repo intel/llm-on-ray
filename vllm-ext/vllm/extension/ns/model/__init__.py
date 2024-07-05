@@ -94,14 +94,17 @@ class RealModelPerf(ModelPerf):
             self._call_cnt_prompt += 1
             perfs = self._perf_stats_prompt
             call_cnt = self._call_cnt_prompt
+            stats = {key: value / call_cnt for key, value in perfs.items()}
+            print(f"===execution_model prompt={True}: {stats}")
+            self.reset(True)
         else:
             self._call_cnt += 1
             perfs = self._perf_stats
             call_cnt = self._call_cnt
-        if call_cnt == self._perf_steps:
-            stats = {key: value / call_cnt for key, value in perfs.items()}
-            print(f"===execution_model prompt={prompt}: {stats}")
-            self.reset(prompt)
+            if call_cnt == self._perf_steps:
+                stats = {key: value / call_cnt for key, value in perfs.items()}
+                print(f"===execution_model prompt={False}: {stats}")
+                self.reset(False)
 
     def _stats(self, metric_idx: int, prompt: bool = False):
         last_tick = self._ticks[len(self._ticks) - 1]

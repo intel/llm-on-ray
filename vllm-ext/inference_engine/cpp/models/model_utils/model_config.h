@@ -34,6 +34,7 @@ struct model_params {
   int n_layers;
   int32_t seed = -1;  // RNG seed
   int32_t n_threads = get_num_physical_cores();
+  int32_t n_threads_next = n_threads;
   int32_t n_predict = -1;  // new tokens to predict
   int32_t n_ctx = 512;     // context size
 

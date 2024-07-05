@@ -39,6 +39,7 @@ class Model:
         memory_dtype: str = "auto",  # auto, fp16, fp32
         scratch_size_ratio: float = 1.0,
         threads: int = 56,
+        threads_next: int = 56,
         max_prompt_tokens: int = 1024,
         seed: int = 1234,
     ):
@@ -50,6 +51,7 @@ class Model:
         self.generation_args["ctx_size"] = ctx_size
         self.generation_args["seed"] = seed
         self.generation_args["threads"] = threads
+        self.generation_args["threads_next"] = threads_next
         self.generation_args["pad_token"] = pad_token
         self.generation_args["memory_dtype"] = memory_dtype
         self.generation_args["scratch_size_ratio"] = scratch_size_ratio
@@ -180,6 +182,7 @@ class Model:
             memory_dtype,
             self.generation_args["scratch_size_ratio"],
             self.generation_args["threads"],
+            self.generation_args["threads_next"],
             self.generation_args["max_prompt_tokens"],
             self.generation_args["seed"],
         )
