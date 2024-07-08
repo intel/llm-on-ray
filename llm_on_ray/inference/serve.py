@@ -44,19 +44,14 @@ def get_deployed_models(args):
                 set(all_models_name)
             ), f"models must be a subset of {all_models_name} predefined by inference/models/*.yaml, but found {models}."
             model_list = {model: all_models[model] for model in models}
-            if args.debug_mode:
-                logger.debug(
-                    f"--config_file is not set while --models is set, serving model(s): {model_list}"
-                )
+            logger.debug(
+                f"--config_file is not set while --models is set, serving model(s): {model_list}"
+            )
         else:
             model_list = all_models
-            if args.debug_mode:
-                logger.debug(
-                    f"--config_file and --models is not set, serving all models: {model_list}"
-                )
+            logger.debug(f"--config_file and --models is not set, serving all models: {model_list}")
     else:
-        if args.debug_mode:
-            print("DEBUG:serve.py: Reading from config file, " + args.config_file)
+        print("DEBUG:serve.py: Reading from config file, " + args.config_file)
         with open(args.config_file, "r") as f:
             infer_conf = parse_yaml_raw_as(InferenceConfig, f)
         model_list = {}
@@ -141,11 +136,6 @@ def main(argv=None):
     parser.add_argument(
         "--max_batch_size", default=None, type=int, help="The max batch size for dynamic batching."
     )
-    parser.add_argument(
-        "--debug_mode",
-        action="store_true",
-        help="If debug mode is enabled, debug logs will be printed",
-    )
 
     # Print help if no arguments were provided
     if len(sys.argv) == 1:
@@ -162,9 +152,8 @@ def main(argv=None):
 
     ray.init(address="auto")
     deployments, model_list = get_deployed_models(args)
-    if args.debug_mode:
-        logger.debug(f"Service is running with deployments: {str(deployments)}")
-        logger.debug(f"Service is running models: {str(model_list)}")
+    logger.debug(f"Service is running with deployments: {str(deployments)}")
+    logger.debug(f"Service is running models: {str(model_list)}")
     if args.simple:
         # provide simple model endpoint
         # models can be served to customed URLs according to configuration files.

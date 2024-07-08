@@ -69,6 +69,9 @@ from llm_on_ray.inference.predictor import (
     MllmPromptInput,
 )
 from llm_on_ray.inference.utils import decide_torch_dtype
+from llm_on_ray.inference.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class HPUPredictor(Predictor):
@@ -79,10 +82,7 @@ class HPUPredictor(Predictor):
         # decide correct torch dtype for loading HF model
         decide_torch_dtype(infer_conf)
 
-        debug_mode = infer_conf.debug_mode
-
-        if debug_mode:
-            print("DEBUG:hpu_predictor:print inference config:", infer_conf)
+        logger.debug(f"Print inference config: {infer_conf}")
 
         self.use_lazy_mode = not infer_conf.hpu_model_config.torch_compile
         self.use_hpu_graphs = infer_conf.hpu_model_config.use_hpu_graphs

@@ -171,7 +171,6 @@ class InferenceConfig(BaseModel):
     ipex: Ipex = Ipex()
     hpu_model_config: HpuModelConfig = HpuModelConfig()
     model_description: ModelDescription = ModelDescription()
-    debug_mode: bool = False
 
     # prevent warning of protected namespaces
     # DO NOT TOUCH
