@@ -81,7 +81,12 @@ class Dataset(BaseModel):
     padding: bool = True
     mask_input: bool = True
     mask_response: bool = True
-    data_preprocess_type: str = "neural_chat"
+    data_preprocess_type: str = "default"
+
+    @validator("data_preprocess_type")
+    def check_data_preprocess_type(cls, v: str):
+        assert v in ["default", "neural_chat"]
+        return v
 
 
 class RayResourceConfig(BaseModel):
