@@ -68,8 +68,17 @@ def set_seed(config: Dict):
         _set_seed(seed)
 
 
-def convert_to_training_args(cls, config: Dict):
+def prepare_training_args(config: Dict):
     device = config["Training"]["device"]
+    if device == "hpu":
+        from optimum.habana.transformers import GaudiTrainingArguments
+
+        cls = GaudiTrainingArguments
+    else:
+        from transformers import TrainingArguments
+
+        cls = TrainingArguments
+
     accelerate_mode = config["Training"]["accelerate_mode"]
     save_strategy = config["General"]["save_strategy"]
 
@@ -279,30 +288,34 @@ def load_model(config: Dict):
         model.gradient_checkpointing_enable()
         model.config.use_cache = False
 
+    device = config["Training"]["device"]
     if model.config.model_type == "llama":
         model.generation_config.pad_token_id = 0
         model.generation_config.bos_token_id = 1
         model.generation_config.eos_token_id = 2
         attn_softmax_bf16 = config["General"]["attn_softmax_bf16"]
-        if attn_softmax_bf16:
+        if attn_softmax_bf16 and device == "hpu":
             model.generation_config.attn_softmax_bf16
         use_flash_attention = config["General"]["use_flash_attention"]
-        if use_flash_attention:
+        if use_flash_attention and device == "hpu":
             model.generation_config.use_flash_attention = True
             model.generation_config.flash_attention_recompute = False
             model.generation_config.flash_attention_causal_mask = False
 
-    model.to(dtype=model_dtype, device=torch.device(config["Training"]["device"]))
+    # model.to(dtype=model_dtype, device=torch.device(device))
 
     return model
 
 
-def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
+def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset):
+    data_collator = transformers.DataCollatorForLanguageModeling(
+        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
+    )
+
     device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
-        from transformers import Trainer, TrainingArguments
+        from transformers import Trainer
 
-        training_args = convert_to_training_args(TrainingArguments, config)
         trainer = Trainer(
             model=model,
             args=training_args,
@@ -313,10 +326,9 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
-        return training_args, trainer
+        return trainer
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
-        from optimum.habana.transformers import GaudiTrainingArguments
         from optimum.habana import GaudiConfig
 
         # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
@@ -328,7 +340,6 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             gaudi_config.use_fused_adam = True
             gaudi_config.use_fused_clip_norm = True
 
-        training_args = convert_to_training_args(GaudiTrainingArguments, config)
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
@@ -340,7 +351,7 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
-        return training_args, trainer
+        return trainer
     return None
 
 
@@ -351,17 +362,17 @@ def train_func(config: Dict[str, Any]):
 
     set_seed(config)
 
+    training_args = prepare_training_args(config)
+
     tokenizer = load_tokenizer(config)
 
     dataset = load_dataset(config)
 
     tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
 
-    data_collator = prepare_data_collator(config, tokenizer)
-
     model = load_model(config)
 
-    training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
+    trainer = get_trainer(config, training_args, model, tokenizer, tokenized_dataset)
 
     common.logger.info("train start")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
