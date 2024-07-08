@@ -78,7 +78,7 @@ class Dataset(BaseModel):
     truncation_side: str = "right"
     max_seq_length: int = 512
     truncation: bool = True
-    padding: bool = True
+    padding: bool = False
     mask_input: bool = True
     mask_response: bool = True
     data_preprocess_type: str = "default"

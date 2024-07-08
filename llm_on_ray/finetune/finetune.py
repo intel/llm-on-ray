@@ -28,6 +28,7 @@ from itertools import chain
 
 import torch
 import datasets
+import evaluate
 import transformers
 
 from peft import get_peft_model, LoraConfig
@@ -340,6 +341,25 @@ def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset
             gaudi_config.use_fused_adam = True
             gaudi_config.use_fused_clip_norm = True
 
+        def preprocess_logits_for_metrics(logits, labels):
+            if isinstance(logits, tuple):
+                # Depending on the model and config, logits may contain extra tensors,
+                # like past_key_values, but logits always come first
+                logits = logits[0]
+            result = logits.argmax(dim=-1)
+            return result
+
+        metric = evaluate.load("accuracy")
+
+        def compute_metrics(eval_preds):
+            preds, labels = eval_preds
+            # preds have the same shape as the labels, after the argmax(-1) has been calculated
+            # by preprocess_logits_for_metrics but we need to shift the labels
+            labels = labels[:, 1:].reshape(-1)
+            preds = preds[:, :-1].reshape(-1)
+            result = metric.compute(predictions=preds, references=labels)
+            return result
+
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
@@ -350,6 +370,10 @@ def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset
             else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
+            compute_metrics=compute_metrics if training_args.do_eval else None,
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics
+            if training_args.do_eval
+            else None,
         )
         return trainer
     return None
