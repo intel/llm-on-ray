@@ -394,13 +394,11 @@ class PredictorDeployment:
         streaming_response = request["stream"]
         input = request["text"]
         config = request["config"]
-        if config.get("debug_mode", False):
-            logger.debug(f"Print config received from json: {config}")
-            logger.debug(f"Print inputs for prompts: {input}")
+        logger.debug(f"Print config received from json: {config}")
+        logger.debug(f"Print inputs for prompts: {input}")
         # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
-        if config.get("debug_mode", False):
-            logger.debug(f"Print prompts from inputs: {prompts}")
+        logger.debug(f"Print prompts from inputs: {prompts}")
 
         # Handle streaming response
         if streaming_response:
@@ -420,17 +418,15 @@ class PredictorDeployment:
         self.use_openai = True
 
         # TODO: Pass down config into preprocess_prompts for more logs.
-        if config.get("debug_mode", False):
-            logger.debug(f"Print config received from query_client: {config}")
-            logger.debug(f"Print inputs for prompts: {input}")
+        logger.debug(f"Print config received from query_client: {config}")
+        logger.debug(f"Print inputs for prompts: {input}")
         # return prompt or list of prompts preprocessed
-        prompts = self.preprocess_prompts(input, tools, tool_choice)
-        if config.get("debug_mode", False):
-            logger.debug(f"Print prompts from inputs: {prompts}")
+        input = self.preprocess_prompts(input, tools, tool_choice)
+        logger.debug(f"Print prompts from inputs: {input}")
 
         # Handle streaming response
         if streaming_response:
-            async for result in self.handle_streaming(prompts, config):
+            async for result in self.handle_streaming(input, config):
                 yield result
         else:
-            yield await self.handle_non_streaming(prompts, config)
+            yield await self.handle_non_streaming(input, config)
