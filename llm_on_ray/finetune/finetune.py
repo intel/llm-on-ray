@@ -374,10 +374,23 @@ def train_func(config: Dict[str, Any]):
 
     trainer = get_trainer(config, training_args, model, tokenizer, tokenized_dataset)
 
-    common.logger.info("train start")
-    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-    trainer.save_model()
-    common.logger.info("train finish")
+    if training_args.do_train:
+        common.logger.info("train start")
+        results = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+        trainer.save_model()
+
+        metrics = results.metrics
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        common.logger.info("train finish")
+
+    if training_args.do_eval:
+        common.logger.info("eval start")
+        metrics = trainer.evaluate()
+
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
+        common.logger.info("eval finish")
 
 
 def get_finetune_config():
