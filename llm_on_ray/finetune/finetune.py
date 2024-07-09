@@ -54,10 +54,7 @@ def adapt_transformers_to_device(config: Dict):
         adapt_transformers_to_gaudi()
 
 
-def set_seed(config: Dict):
-    seed = config["Training"].get("seed", None)
-    if seed is None:
-        return
+def set_seed(config: Dict, seed):
     device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
         from accelerate.utils import set_seed as _set_seed
@@ -265,12 +262,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     return tokenized_dataset
 
 
-def prepare_data_collator(config: Dict, tokenizer):
-    return transformers.DataCollatorForLanguageModeling(
-        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
-    )
-
-
 def load_model(config: Dict):
     model_name = config["General"]["base_model"]
     model_dtype = convert_dtype(config["Training"].get("mixed_precision", "no"))
@@ -332,7 +323,8 @@ def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset
         from optimum.habana.transformers import GaudiTrainer
         from optimum.habana import GaudiConfig
 
-        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
+        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana),
+        # otherwise use default gaudi_config
         gaudi_config_name = config["General"].get("gaudi_config_name", None)
         if gaudi_config_name is not None:
             gaudi_config = GaudiConfig.from_pretrained(gaudi_config_name)
@@ -346,8 +338,7 @@ def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset
                 # Depending on the model and config, logits may contain extra tensors,
                 # like past_key_values, but logits always come first
                 logits = logits[0]
-            result = logits.argmax(dim=-1)
-            return result
+            return logits.argmax(dim=-1)
 
         metric = evaluate.load("accuracy")
 
@@ -357,8 +348,7 @@ def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset
             # by preprocess_logits_for_metrics but we need to shift the labels
             labels = labels[:, 1:].reshape(-1)
             preds = preds[:, :-1].reshape(-1)
-            result = metric.compute(predictions=preds, references=labels)
-            return result
+            return metric.compute(predictions=preds, references=labels)
 
         trainer = GaudiTrainer(
             model=model,
@@ -384,9 +374,9 @@ def train_func(config: Dict[str, Any]):
 
     adapt_transformers_to_device(config)
 
-    set_seed(config)
-
     training_args = prepare_training_args(config)
+
+    set_seed(config, training_args.seed)
 
     tokenizer = load_tokenizer(config)
 
