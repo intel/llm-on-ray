@@ -128,8 +128,15 @@ def prepare_training_args(config: Dict):
     # set attr for Intel Gaudi
     if device == "hpu":
         args.update({"use_habana": True})
-        args.update({"use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy"})
         args.update({"pipelining_fwd_bwd": config["Training"]["pipelining_fwd_bwd"]})
+        hpu_execution_mode = config["Training"]["hpu_execution_mode"]
+        if hpu_execution_mode == "lazy":
+            args.update({"use_lazy_mode": True})
+        else:
+            args.update({"use_lazy_mode": False})
+            if hpu_execution_mode == "eager.compile":
+                args.update({"torch_compile": True})
+                args.update({"torch_compile_backend": "hpu_backend"})
 
     return cls(**args)
 
@@ -448,18 +455,14 @@ def main(external_config=None):
             "accelerate_mode"
         ] = "DDP"  # will use DDP to accelerate if no method specified
 
-    ccl_worker_count = 1
     device = config["Training"]["device"]
     if device != "cpu":
-        ccl_worker_count = num_training_workers
+        pass
 
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
                 "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
-                "CCL_ZE_IPC_EXCHANGE": "sockets",
-                "CCL_WORKER_COUNT": str(ccl_worker_count),
-                "CCL_LOG_LEVEL": "info",
                 "FI_TCP_IFACE": "lo",
                 "FI_PROVIDER": "tcp",
             }
