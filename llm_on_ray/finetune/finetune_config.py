@@ -112,6 +112,10 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     pipelining_fwd_bwd: bool = False
+    adam_epsilon: Optional[float] = None
+    throughput_warmup_steps: Optional[int] = None
+    warmup_ratio: Optional[float] = None
+    max_grad_norm: Optional[float] = None
     deepspeed_config_file: str = ""
 
     @validator("device")

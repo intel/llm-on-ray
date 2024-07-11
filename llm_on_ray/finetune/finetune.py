@@ -99,6 +99,18 @@ def prepare_training_args(config: Dict):
         "do_train": True,
     }
 
+    adam_epsilon = config["Training"]["adam_epsilon"]
+    if adam_epsilon is not None:
+        args.update({"adam_epsilon": adam_epsilon})
+
+    warmup_ratio = config["Training"]["warmup_ratio"]
+    if warmup_ratio is not None:
+        args.update({"warmup_ratio": warmup_ratio})
+
+    max_grad_norm = config["Training"]["max_grad_norm"]
+    if max_grad_norm is not None:
+        args.update({"max_grad_norm": max_grad_norm})
+
     # set attr do_eval
     vf = config["Dataset"].get("validation_file", None)
     vsp = config["Dataset"].get("validation_split_percentage", 0)
@@ -129,6 +141,7 @@ def prepare_training_args(config: Dict):
     if device == "hpu":
         args.update({"use_habana": True})
         args.update({"pipelining_fwd_bwd": config["Training"]["pipelining_fwd_bwd"]})
+
         hpu_execution_mode = config["Training"]["hpu_execution_mode"]
         if hpu_execution_mode == "lazy":
             args.update({"use_lazy_mode": True})
@@ -137,6 +150,10 @@ def prepare_training_args(config: Dict):
             if hpu_execution_mode == "eager.compile":
                 args.update({"torch_compile": True})
                 args.update({"torch_compile_backend": "hpu_backend"})
+
+        throughput_warmup_steps = config["Training"]["throughput_warmup_steps"]
+        if throughput_warmup_steps is not None:
+            args.update({"throughput_warmup_steps": throughput_warmup_steps})
 
     return cls(**args)
 
@@ -456,13 +473,10 @@ def main(external_config=None):
         ] = "DDP"  # will use DDP to accelerate if no method specified
 
     device = config["Training"]["device"]
-    if device != "cpu":
-        pass
 
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
-                "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
                 "FI_TCP_IFACE": "lo",
                 "FI_PROVIDER": "tcp",
             }
