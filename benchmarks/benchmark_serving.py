@@ -157,6 +157,52 @@ def sample_requests_IPEX(
     return sampled_requests
 
 
+def sample_requests_IDC(
+    dataset_path: str,
+    max_new_tokens: int,
+    num_requests: int,
+    tokenizer: PreTrainedTokenizer,
+    config: Dict[str, Union[int, float]]
+) -> List[Tuple[str, int, int]]:
+    """
+    Sample requests from a dataset of IPEX format.
+
+    Args:
+        dataset_path (str): The path to the dataset.
+        input_tokens (str): The input tokens.
+        max_new_tokens (int): The maximum number of new tokens.
+        num_requests (int): The number of requests to sample.
+        tokenizer (PreTrainedTokenizer): The tokenizer.
+
+    Returns:
+        List[Tuple[str, int, int]]: The sampled requests, each represented as a tuple of (prompt, prompt_len, output_len).
+    """
+    with open(dataset_path) as f:
+        input = json.load(f)
+
+    if len(input["messages"]) == 2:
+        prompt = input["messages"][0]["content"] + " " + input["messages"][1]["content"]
+    else:
+        raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
+
+    prompt_len = len(tokenizer(prompt).input_ids)
+    output_len = input["max_tokens"] if "max_tokens" in input else max_new_tokens
+
+    # Duplicate prompt to generate samples
+    sampled_requests = [(prompt, prompt_len, output_len)] * num_requests
+
+    if "max_tokens" in input:
+        config["max_new_tokens"] = int(input["max_tokens"])
+    if "temperature" in input:
+        config["temperature"] = float(input["temperature"])
+    if "top_p" in input:
+        config["top_p"] = float(input["top_p"])
+    if "top_k" in input:
+        config["top_k"] = float(input["top_k"])
+
+    return sampled_requests
+
+
 # Sample requests from synthetic prompts with input and output length following gaussian distribution
 def sample_requests_synthesis(
     tokenizer: PreTrainedTokenizer,
@@ -437,6 +483,8 @@ def main(args: argparse.Namespace):
         tokenizer_name_or_path, trust_remote_code=args.trust_remote_code
     )
 
+    config: Dict[str, Union[int, float]] = {}
+
     if args.dataset_format == "ShareGPT":
         input_requests = sample_requests_ShareGPT(
             args.dataset,
@@ -466,10 +514,16 @@ def main(args: argparse.Namespace):
             args.output_len_stddev,
             args.num_prompts,
         )
+    if args.dataset_format == "IDC":
+        input_requests = sample_requests_IDC(
+            args.dataset,
+            args.max_new_tokens,
+            args.num_prompts,
+            tokenizer,
+            config,
+        )
 
-    config: Dict[str, Union[int, float]] = {}
-
-    if args.max_new_tokens:
+    if args.max_new_tokens and "max_new_tokens" not in config:
         config["max_new_tokens"] = int(args.max_new_tokens)
     if args.temperature:
         config["temperature"] = float(args.temperature)
@@ -614,7 +668,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-format",
         type=str,
-        choices=["ShareGPT", "IPEX", "Synthesis"],
+        choices=["ShareGPT", "IPEX", "Synthesis", "IDC"],
         required=True,
         help="Dataset format, should be one of {ShareGPT, IPEX, Synthesis}.",
     )
@@ -768,3 +822,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     main(args)
+

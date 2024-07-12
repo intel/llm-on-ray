@@ -2,18 +2,19 @@
 set -eo pipefail
 
 CHOICE=${1}
-RUN_MODE=${2}   # "test" or "benchmark", where "test" will only use a small part of the dataset
+RUN_MODE=${2}   # "test", "benchmark" or "benchmark_idc", where "test" will only use a small part of the dataset
 if [ -z "$CHOICE" ]
 then
     echo "Please pass in the value of parameter CHOICE, which can be any subset of 1,2,3,4."
 fi
 if [ -z "$RUN_MODE" ]
 then
-    echo "Please pass in the value of parameter RUN_MODE, which can be 'test' or 'benchmark'."
+    echo "Please pass in the value of parameter RUN_MODE, which can be 'test', 'benchmark' or 'benchmark_idc'."
 fi
 VALUE_INF=2000
 MAX_NUM_SEQS=$VALUE_INF
 DYNAMIC_BATCH_SIZE=0
+PROMPT_TYPE="simple"
 if [ "$#" -gt 2 ]
 then
     MAX_NUM_SEQS=${3}
@@ -22,16 +23,23 @@ if [ "$#" -gt 3 ]
 then
     DYNAMIC_BATCH_SIZE=${4}
 fi
+if [ "$#" -gt 4 ]
+then
+    PROMPT_TYPE=${5}
+fi
 
-MODEL_ENDPOINT="http://localhost:8000/llama-2-7b-chat-hf"
-MODEL_NAME="llama-2-7b-chat-hf"
+
+MODEL_ENDPOINT="http://localhost:8000/llama-3-8b-instruct"
+MODEL_NAME="llama-3-8b-instruct"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 BENCHMARK_SCRIPT=$SHELL_FOLDER"/benchmark_serving.py"
-WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-2-7b-chat-hf-vllm-ns.yaml"
-WO_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-2-7b-chat-hf.yaml"
+#WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-3-8b-instruct-vllm-ns.yaml"
+WITH_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/vllm/llama-3-8b-instruct-vllm.yaml"
+WO_VLLM_CONFIG_FILE=$SHELL_FOLDER"/../llm_on_ray/inference/models/llama-3-8b-instruct.yaml"
 DATASET_PATH=$SHELL_FOLDER"/../dataset"
 DATASET_SHAREGPT_PATH=$SHELL_FOLDER"/../dataset/ShareGPT_V3_unfiltered_cleaned_split.json"
 DATASET_IPEX_PATH=$SHELL_FOLDER"/../dataset/prompt.json"
+DATASET_IDC_PATH_PREFIX=$SHELL_FOLDER"/../dataset/idc_prompt_"
 DATASET_BENCHMARK_NUM=1000
 DATASET_COMPARE_NUM=128
 NUMA_SERVER_COMMAND=""
@@ -50,7 +58,7 @@ if [ $RUN_MODE = "test" ]
 then
     SAVE_DIR=$SHELL_FOLDER"/results_test"
     NUMA_CLIENT_COMMAND=""
-elif [ $RUN_MODE = "benchmark" ]
+elif [ $RUN_MODE = "benchmark" ] || [ $RUN_MODE = "benchmark_idc" ]
 then
     SAVE_DIR=$SHELL_FOLDER"/results"
     NUMA_CLIENT_COMMAND="numactl -N 1 -m 1"
@@ -154,6 +162,53 @@ latency_throughput(){
     echo "CHOICE 3 generation completed"
 }
 
+latency_throughput_idc(){
+    echo "get performance results of llm-on-ray with vllm when responding IDC requests"
+    num_iter=${1}
+    query_num=${2}
+    output_tokens_length=${3}
+    choice_dir=${4}
+    prompt_type=${5}
+    tokens_dir=$choice_dir"/tokens_"${prompt_type}"_"$output_tokens_length
+
+    # server
+    #$numa_server_command llm_on_ray-serve --config_file $with_vllm_config_file --simple --max_concurrent_queries $VALUE_INF --vllm_max_num_seqs $VALUE_INF
+
+    # client
+    for num_prompts in ${query_num}
+    do
+        max_con_q=$VALUE_INF
+        if [ ! "$DYNAMIC_BATCH_SIZE" = "0" ]
+        then
+            if [ "$num_prompts" -lt "$NUM_REPLICA" ] || [ "$num_prompts" -eq "$NUM_REPLICA" ]
+            then
+                max_con_q=1
+            else
+                max_con_q=$((num_prompts/NUM_REPLICA))
+            fi
+        fi
+        echo "Run num_prompts ${num_prompts} ======================="
+        #echo "deploying model with --max_concurrent_queries $max_con_q --vllm_max_num_seqs $MAX_NUM_SEQS ..."
+	echo "deploying model with --max_concurrent_queries 4 --vllm_max_num_seqs $MAX_NUM_SEQS ..."
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests 4 --max_num_seqs $MAX_NUM_SEQS
+        sleep 1
+        for i in $(seq 0 $num_iter)
+        do
+            if [ $i = 0 ]; then
+                iter_dir="$tokens_dir/warmup"
+                echo "Run warmup"
+            else
+                iter_dir=$tokens_dir"/iter_"$i
+                echo "Run iter $i"
+            fi
+            results_dir=$iter_dir"/num_prompts_"$num_prompts
+            echo "results_dir: ${results_dir}"
+            $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset "${DATASET_IDC_PATH_PREFIX}${prompt_type}.json" --num-prompts $num_prompts  --dataset-format IDC --track-token-latency --max-new-tokens $output_tokens_length --vllm-engine --simple --results-dir $results_dir
+        done
+    done
+    echo "CHOICE 3 generation completed"
+}
+
 get_best_latency(){
     echo "get performance results of llm-on-ray with vllm when responding to input tokens of different lengths"
     num_iter=${1}
@@ -240,6 +295,15 @@ then
         input_tokens_length=32
         output_tokens_length=20
         latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
+    elif [ "$RUN_MODE" == "benchmark_idc" ]
+    then
+        iter=10
+        concurrent_query_num=(1 3 6 9 12)
+        #for i in "${!concurrent_query_num[@]}"; do
+        #    concurrent_query_num[$i]=$[${concurrent_query_num[$i]}*$NUM_REPLICA]
+        #done
+        output_tokens_length=512
+        latency_throughput_idc $iter "${concurrent_query_num[*]}" $output_tokens_length $benchmark_dir $PROMPT_TYPE
     fi
 fi
 if [[ "$CHOICE" == *"4"* ]]
@@ -259,3 +323,4 @@ then
     output_tokens_length=32
     get_best_latency $iter "${input_tokens_length[*]}" $output_tokens_length $benchmark_dir
 fi
+
