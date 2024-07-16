@@ -25,7 +25,7 @@ from llm_on_ray.inference.inference_config import (
     InferenceConfig,
     all_models,
     DEVICE_HPU,
-    DEVICE_GPU,
+    DEVICE_CUDA,
 )
 
 
@@ -72,7 +72,7 @@ def get_deployed_models(args):
             infer_conf.dynamic_max_batch_size if not args.max_batch_size else args.max_batch_size
         )
         device = infer_conf.device
-        if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_GPU]:
+        if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_CUDA]:
             tp = infer_conf.vllm.tensor_parallel_size
             if tp > 1:
                 pg_resources = []
@@ -148,7 +148,7 @@ def main(argv=None):
     parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
     parser.add_argument(
         "--max_num_seqs",
-        default=None,
+        default=256,
         type=int,
         help="The batch size for vLLM. Used when vLLM is enabled.",
     )
@@ -183,7 +183,15 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         print("Service is running with deployments:" + str(deployments))
         print("Service is running models:" + str(model_list))
-        openai_serve_run(deployments, model_list, host, "/", args.port, args.max_ongoing_requests)
+        openai_serve_run(
+            deployments,
+            model_list,
+            host,
+            "/",
+            args.port,
+            args.max_ongoing_requests,
+            args.max_num_seqs,
+        )
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:

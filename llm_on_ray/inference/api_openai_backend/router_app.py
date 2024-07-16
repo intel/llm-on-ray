@@ -34,7 +34,7 @@
 #
 
 import os
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Dict
 import uuid
 import async_timeout
 from fastapi import FastAPI, status
@@ -65,6 +65,13 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ModelCard,
     CompletionResponseChoice,
     UsageInfo,
+)
+from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest as vllm_ChatCompletionRequest
+from vllm.entrypoints.openai.protocol import ChatCompletionResponse as vllm_ChatCompletionResponse
+from llm_on_ray.inference.inference_config import (
+    DEVICE_HPU,
+    DEVICE_CUDA,
 )
 
 logger = get_logger(__name__)
@@ -244,8 +251,25 @@ class Router:
     def __init__(
         self,
         query_client: RouterQueryClient,
+        model_configs: Dict,
+        max_num_seqs: int,
     ) -> None:
         self.query_client = query_client
+        self.vllm_openai_serving_chat = {}
+        for infer_name, infer_conf in model_configs.items():
+            if infer_conf.vllm.enabled and infer_conf.device in [DEVICE_HPU, DEVICE_CUDA]:
+                from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
+
+                predictor = VllmPredictor(infer_conf, max_num_seqs)
+                serving_chat = OpenAIServingChat(
+                    predictor.engine,
+                    infer_conf.name,
+                    infer_conf.vllm.response_role,
+                    infer_conf.model_description.chat_template,
+                )
+            else:
+                serving_chat = None
+            self.vllm_openai_serving_chat[infer_name] = serving_chat
 
     @router_app.get("/v1/models", response_model=ModelList)
     async def models(self) -> ModelList:
@@ -333,7 +357,8 @@ class Router:
     @router_app.post("/v1/chat/completions")
     async def chat(
         self,
-        body: ChatCompletionRequest,
+        body: vllm_ChatCompletionRequest,
+        raw_request: Request,
         response: FastAPIResponse,
     ):
         """Given a prompt, the model will return one or more predicted completions,
@@ -342,19 +367,18 @@ class Router:
         Returns:
             A response object with completions.
         """
-        deploy_handle = self.query_client.serve_deployments[body.model]
-        vllm_openai_serving_chat = await deploy_handle.get_vllm_openai_serving_chat.remote()
-        if vllm_openai_serving_chat:
+        serving_chat = self.vllm_openai_serving_chat[body.model]
+        if serving_chat:
             """OpenAI-compatible HTTP endpoint.
 
             API reference:
                 - https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
             """
-            generator = await vllm_openai_serving_chat.create_chat_completion(body)
+            generator = await serving_chat.create_chat_completion(body, raw_request=raw_request)
             if body.stream:
                 return StreamingResponse(content=generator, media_type="text/event-stream")
             else:
-                assert isinstance(generator, ChatCompletionResponse)
+                assert isinstance(generator, vllm_ChatCompletionResponse)
                 return JSONResponse(content=generator.model_dump())
         else:
             prompt = Prompt(

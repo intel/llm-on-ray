@@ -27,7 +27,7 @@ from llm_on_ray.inference.inference_config import (
     ModelGenerateResult,
     PRECISION_BF16,
     DEVICE_HPU,
-    DEVICE_GPU,
+    DEVICE_CUDA,
 )
 
 
@@ -47,17 +47,19 @@ class VllmPredictor(Predictor):
 
         engine_args = AsyncEngineArgs(
             model=model_desc.model_id_or_path,
+            tokenizer=model_desc.tokenizer_name_or_path,
             trust_remote_code=model_config.trust_remote_code,
             device=infer_conf.device,
             dtype=dtype,
             disable_log_requests=True,
             max_num_seqs=max_num_seqs,
             gpu_memory_utilization=infer_conf.vllm.gpu_memory_utilization,
+            tensor_parallel_size=infer_conf.vllm.tensor_parallel_size,
             block_size=infer_conf.vllm.block_size,
             max_seq_len_to_capture=infer_conf.vllm.max_seq_len_to_capture,
             enforce_eager=infer_conf.vllm.enforce_eager,
         )
-        if infer_conf.device in [DEVICE_HPU, DEVICE_GPU]:
+        if infer_conf.device in [DEVICE_HPU, DEVICE_CUDA]:
             engine_args.worker_use_ray = True
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
 
