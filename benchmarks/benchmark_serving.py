@@ -611,16 +611,17 @@ def main(args: argparse.Namespace):
         ]
     )
     print(f"Average latency per Token: {avg_per_token_latency:.3f} s")
-
+    first_token_index = 0 if args.simple else 1
+    next_token_index = 1 if args.simple else 2
     if args.track_token_latency and latency_tracking:
         avg_first_token_latency = np.mean(
-            [latencies[0] for _, _, _, _, _, latencies in latency_tracking if latencies != []]
+            [latencies[first_token_index] for _, _, _, _, _, latencies in latency_tracking if latencies != []]
         )
         avg_next_token_latency = np.mean(
             [
-                np.mean(latencies[1:])
+                np.mean(latencies[next_token_index:])
                 for _, _, _, _, _, latencies in latency_tracking
-                if latencies[1:] != []
+                if latencies[next_token_index:] != []
             ]
         )
 
