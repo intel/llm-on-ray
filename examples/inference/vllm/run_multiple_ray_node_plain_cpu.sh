@@ -23,7 +23,8 @@ sleep 1
 LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4" numactl -N 1 -m 1 -C 56-83 ray start --address='10.0.11.8:6379' --num-cpus 27
 sleep 1
 LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4" numactl -N 1 -m 1 -C 84-111 ray start --address='10.0.11.8:6379' --num-cpus 27
-
+sleep 1
+LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"  ray start  --address='10.0.11.8:6379' --num-cpus 1 --resources='{"app_router": 1}'
 
 sleep 1
 echo 'done'
