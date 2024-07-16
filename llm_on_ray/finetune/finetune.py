@@ -18,7 +18,10 @@
 
 import os
 import argparse
+import re
 import sys
+import copy
+
 from typing import Any, Dict, Union, Optional
 
 from itertools import chain
@@ -37,9 +40,8 @@ from ray.air import RunConfig, FailureConfig
 from pydantic_yaml import parse_yaml_raw_as
 
 from llm_on_ray import common
-from llm_on_ray.finetune import template
+from llm_on_ray.finetune.data_process import DataProcessor
 from llm_on_ray.finetune.finetune_config import FinetuneConfig
-from importlib import util
 
 
 def adapt_transformers_to_device(config: Dict):
@@ -140,7 +142,13 @@ def load_tokenizer(config: Dict):
     else:
         tokenizer_name = config["General"]["base_model"]
     load_config = config["General"].get("config", {})
-    tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name, **load_config)
+    # default padding side is right
+    padding_side = config["Dataset"].get("padding_side", "right")
+    # default truncation side is right
+    truncation_side = config["Dataset"].get("truncation_side", "right")
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        tokenizer_name, padding_side=padding_side, truncation_side=truncation_side, **load_config
+    )
     return tokenizer
 
 
@@ -195,50 +203,27 @@ def load_dataset(config: Dict):
 
 
 def tokenize_dataset(config: Dict, tokenizer, dataset):
-    max_length = config["Dataset"].get("max_length", 512)
     group = config["Dataset"].get("group", True)
     block_size = config["Dataset"].get("block_size", 512)
     tokenizer.pad_token = tokenizer.eos_token
 
-    if isinstance(dataset, datasets.Dataset):
-        column_names = dataset.column_names
+    processor = DataProcessor(config, tokenizer)
 
-    if isinstance(dataset, datasets.DatasetDict):
-        column_names = dataset["train"].column_names
+    for key in dataset:
+        prompts = processor.make_prompt(dataset[key])
+        dataset[key] = datasets.Dataset.from_dict(prompts)
 
-    if column_names and template.TEXT_COLUMN_NAME not in column_names:
-
-        def prompt(rec):
-            instruction = rec["instruction"]
-            response = rec["response"]
-            context = rec.get("context")
-            if not instruction:
-                raise ValueError(f"Expected an instruction in: {rec}")
-            if not response:
-                raise ValueError(f"Expected a response in: {rec}")
-            if context:
-                rec["text"] = template.PROMPT_WITH_INPUT_FORMAT.format(
-                    instruction=instruction, response=response, input=context
-                )
-            else:
-                rec["text"] = template.PROMPT_NO_INPUT_FORMAT.format(
-                    instruction=instruction, response=response
-                )
-            return rec
-
-        dataset = dataset.map(
-            prompt,
-            load_from_cache_file=False,
-            desc="Prompt",
-        )
-        column_names += [template.TEXT_COLUMN_NAME]
-
-    def tokenize_function(examples):
-        return tokenizer(examples[template.TEXT_COLUMN_NAME], max_length=max_length)
+    column_names = list(dataset["train"].features)
+    tokenize_fn = (
+        processor.tokenize_by_neural_chat
+        if config["Dataset"].get("data_preprocess_type", "neural_chat") == "neural_chat"
+        else processor.tokenize
+    )
 
     tokenized_dataset = dataset.map(
-        tokenize_function,
+        tokenize_fn,
         remove_columns=column_names,
+        batched=True,
         load_from_cache_file=False,
         desc="Tokenize dataset",
     )
@@ -258,7 +243,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
                 k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
                 for k, t in concatenated_examples.items()
             }
-            result["labels"] = result["input_ids"].copy()
             return result
 
         tokenized_dataset = tokenized_dataset.map(
