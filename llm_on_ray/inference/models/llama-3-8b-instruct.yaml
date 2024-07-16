@@ -1,7 +1,7 @@
 port: 8000
 name: llama-3-8b-instruct
 route_prefix: /llama-3-8b-instruct
-num_replicas: 1
+num_replicas: 4
 cpus_per_worker: 1
 gpus_per_worker: 0
 deepspeed: false
@@ -22,5 +22,5 @@ model_description:
     bot_id: ''
     stop_words: []
   config:
-    use_auth_token: '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'
+    use_auth_token: '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'
 

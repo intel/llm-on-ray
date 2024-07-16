@@ -28,8 +28,10 @@ then
     PROMPT_TYPE=${5}
 fi
 
-
-MODEL_ENDPOINT="http://localhost:8000/llama-3-8b-instruct"
+# for simple
+#MODEL_ENDPOINT="http://localhost:8000/llama-3-8b-instruct"
+# for openai
+MODEL_ENDPOINT="http://localhost:8000"
 MODEL_NAME="llama-3-8b-instruct"
 SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 BENCHMARK_SCRIPT=$SHELL_FOLDER"/benchmark_serving.py"
@@ -190,7 +192,7 @@ latency_throughput_idc(){
         echo "Run num_prompts ${num_prompts} ======================="
         #echo "deploying model with --max_concurrent_queries $max_con_q --vllm_max_num_seqs $MAX_NUM_SEQS ..."
 	echo "deploying model with --max_concurrent_queries 4 --vllm_max_num_seqs $MAX_NUM_SEQS ..."
-        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --simple --max_ongoing_requests 4 --max_num_seqs $MAX_NUM_SEQS
+        $NUMA_SERVER_COMMAND llm_on_ray-serve --config_file $WITH_VLLM_CONFIG_FILE --max_ongoing_requests 4 --max_num_seqs $MAX_NUM_SEQS
         sleep 1
         for i in $(seq 0 $num_iter)
         do
@@ -203,7 +205,7 @@ latency_throughput_idc(){
             fi
             results_dir=$iter_dir"/num_prompts_"$num_prompts
             echo "results_dir: ${results_dir}"
-            $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset "${DATASET_IDC_PATH_PREFIX}${prompt_type}.json" --num-prompts $num_prompts  --dataset-format IDC --track-token-latency --max-new-tokens $output_tokens_length --vllm-engine --simple --results-dir $results_dir
+            $NUMA_CLIENT_COMMAND python $BENCHMARK_SCRIPT --model-endpoint-base $MODEL_ENDPOINT --model-name $MODEL_NAME --dataset "${DATASET_IDC_PATH_PREFIX}${prompt_type}.json" --num-prompts $num_prompts  --dataset-format IDC --track-token-latency --max-new-tokens $output_tokens_length --vllm-engine  --results-dir $results_dir
         done
     done
     echo "CHOICE 3 generation completed"
@@ -297,7 +299,7 @@ then
         latency_throughput $iter "${concurrent_query_num[*]}" $input_tokens_length $output_tokens_length $benchmark_dir
     elif [ "$RUN_MODE" == "benchmark_idc" ]
     then
-        iter=10
+        iter=3
         concurrent_query_num=(1 3 6 9 12)
         #for i in "${!concurrent_query_num[@]}"; do
         #    concurrent_query_num[$i]=$[${concurrent_query_num[$i]}*$NUM_REPLICA]

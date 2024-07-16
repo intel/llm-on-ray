@@ -62,7 +62,7 @@ def sample_requests_ShareGPT(
     min_output_tokens_len: int,
     max_output_tokens_len: int,
     max_length: int,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from a dataset of ShareGPT format.
 
@@ -94,7 +94,7 @@ def sample_requests_ShareGPT(
     tokenized_dataset = []
     for i in range(len(dataset)):
         output_len = len(completion_token_ids[i])
-        tokenized_dataset.append((prompts[i], prompt_token_ids[i], output_len))
+        tokenized_dataset.append(([prompts[i]], prompt_token_ids[i], output_len))
 
     # Filter out too long sequences.
     filtered_dataset: List[Tuple[str, int, int]] = []
@@ -112,7 +112,7 @@ def sample_requests_ShareGPT(
             continue
         if max_length is not None and prompt_len + output_len > max_length:
             continue
-        filtered_dataset.append((prompt, prompt_len, output_len))
+        filtered_dataset.append(([prompt], prompt_len, output_len))
 
     # Sample the requests.
     sampled_requests = random.sample(filtered_dataset, num_requests)
@@ -126,7 +126,7 @@ def sample_requests_IPEX(
     max_new_tokens: int,
     num_requests: int,
     tokenizer: PreTrainedTokenizer,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from a dataset of IPEX format.
 
@@ -149,10 +149,11 @@ def sample_requests_IPEX(
         raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
 
     prompt_len = len(tokenizer(prompt).input_ids)
+    print("prompt len, ", prompt_len)
     output_len = prompt_len if not max_new_tokens else max_new_tokens
 
     # Duplicate prompt to generate samples
-    sampled_requests = [(prompt, prompt_len, output_len)] * num_requests
+    sampled_requests = [([prompt], prompt_len, output_len)] * num_requests
 
     return sampled_requests
 
@@ -163,7 +164,7 @@ def sample_requests_IDC(
     num_requests: int,
     tokenizer: PreTrainedTokenizer,
     config: Dict[str, Union[int, float]]
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from a dataset of IPEX format.
 
@@ -181,15 +182,16 @@ def sample_requests_IDC(
         input = json.load(f)
 
     if len(input["messages"]) == 2:
-        prompt = input["messages"][0]["content"] + " " + input["messages"][1]["content"]
+        prompts = [input["messages"][0]["content"], input["messages"][1]["content"]]
     else:
         raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
 
-    prompt_len = len(tokenizer(prompt).input_ids)
+    prompt_len = sum([len(input_id) for input_id in tokenizer(prompts).input_ids])
+    print("prompt len, ", prompt_len)
     output_len = input["max_tokens"] if "max_tokens" in input else max_new_tokens
 
     # Duplicate prompt to generate samples
-    sampled_requests = [(prompt, prompt_len, output_len)] * num_requests
+    sampled_requests = [(prompts, prompt_len, output_len)] * num_requests
 
     if "max_tokens" in input:
         config["max_new_tokens"] = int(input["max_tokens"])
@@ -211,7 +213,7 @@ def sample_requests_synthesis(
     output_len_mean: int,
     output_len_stddev: int,
     num_requests: int,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from random generated prompts.
 
@@ -240,7 +242,7 @@ def sample_requests_synthesis(
 
         # Generte random prompt from tokenizer's vocabulary
         prompt = tokenizer.decode(gen_prompt_ids(prompt_len), return_tensors="pt")
-        sampled_requests.append((prompt, prompt_len, output_len))
+        sampled_requests.append(([prompt], prompt_len, output_len))
     return sampled_requests
 
 
@@ -276,7 +278,7 @@ async def get_request(
 async def send_request(
     api_url: str,
     model_name: str,
-    prompt: str,
+    prompts: List[str],
     prompt_len: int,
     output_len: int,
     config: dict,
@@ -308,16 +310,27 @@ async def send_request(
         temp_config["max_new_tokens"] = output_len
     if simple:
         pload = {
-            "text": prompt,
+            "text": prompts[0],
             "config": temp_config,
             "stream": track_token_latency,
         }
+        if vllm_engine:
+            pload.update({"ignore_eos": False})
     else:
+        if len(prompts) == 1:
+            messages = [
+                {"role": "user", "content": f"{prompts[0]}"},
+            ]
+        elif len(prompts) == 2:
+            messages = [
+                {"role": "system", "content": f"{prompts[0]}"},
+                {"role": "user", "content": f"{prompts[1]}"},
+            ]
+        else:
+            raise ValueError("number of prompts should be 1 or 2. Actual ", len(prompts))
         pload = {
             "model": model_name,
-            "messages": [
-                {"role": "user", "content": f"{prompt}"},
-            ],
+            "messages": messages,
             "stream": track_token_latency,
             "max_tokens": temp_config["max_new_tokens"]
             if "max_new_tokens" in temp_config
@@ -326,15 +339,16 @@ async def send_request(
             "top_p": temp_config["top_p"] if "top_p" in temp_config else None,
         }
         if vllm_engine:
-            pload.update({"ignore_eos": True})
+            pload.update({"ignore_eos": False})
 
     token_latencies_per_request: List[float] = []
 
-    timeout = aiohttp.ClientTimeout(total=5 * 3600)
+    timeout = aiohttp.ClientTimeout(total=5 * 3600) 
     async with aiohttp.ClientSession(timeout=timeout) as session:
         while True:
             async with session.post(api_url, headers=headers, json=pload) as response:
                 chunks = []
+                decoded_chunks = []
 
                 start_ts = time.perf_counter()
 
@@ -344,8 +358,11 @@ async def send_request(
                     if track_token_latency:
                         token_latencies_per_request.append(latency)
                     start_ts = end_ts
-                    chunks.append(chunk)
-                    print(chunk.decode("utf-8") + "|", end="", flush=True)
+                    decoded_chunk = chunk.decode("utf-8")
+                    if decoded_chunk:
+                        chunks.append(chunk)
+                        decoded_chunks.append(decoded_chunk)
+                        print(decoded_chunk + "|", end="", flush=True)
                 print("Token Latencies:", token_latencies_per_request)
                 # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
@@ -371,7 +388,13 @@ async def send_request(
                     response_content = chunks[-2].decode("utf-8")
                     response_content = json.loads(response_content.split("data: ")[1])
                     generate_len = response_content["usage"]["completion_tokens"]
-                    response_text = b"".join(chunks).decode("utf-8")
+                    response_text = []
+                    for decoded_chunk in decoded_chunks:
+                        text = decoded_chunk.split("data: ")[1]
+                        if text.startswith("{"):
+                            json_text = json.loads(text)
+                            if "choices" in json_text and "content" in json_text["choices"][0]["delta"]:
+                                response_text.append(json_text["choices"][0]["delta"]["content"])
                 else:
                     response_text = b"".join(chunks).decode("utf-8")
                     try:
@@ -387,6 +410,8 @@ async def send_request(
                 progress_bar.update()
             break
 
+    if args.track_token_latency:
+        print("response: ", "".join(response_text))
     request_end_time = time.perf_counter()
     request_latency = request_end_time - request_start_time
 
@@ -409,7 +434,7 @@ async def send_request(
 async def benchmark(
     api_url: str,
     model_name: str,
-    input_requests: List[Tuple[str, int, int]],
+    input_requests: List[Tuple[List[str], int, int]],
     request_rate: float,
     config: dict,
     tokenizer: PreTrainedTokenizer,
@@ -534,7 +559,7 @@ def main(args: argparse.Namespace):
     config["do_sample"] = args.do_sample
     # In order to align with vllm test parameters
     if args.vllm_engine:
-        config["ignore_eos"] = True
+        config["ignore_eos"] = False
 
     benchmark_start_time = time.perf_counter()
     asyncio.run(

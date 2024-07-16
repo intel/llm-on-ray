@@ -25,7 +25,9 @@ PAT_TOK_LAT     = re.compile(r"Average latency per Token: ([^ ]+) s")
 PAT_FTOK_LAT    = re.compile(r"Average latency for First Tokens: ([^ ]+) s")
 PAT_NTOK_LAT    = re.compile(r"Average latency for Next Tokens: ([^ ]+) s")
 
-nbr_users_perf : Dict[int, List[Dict[str, float]]] = {}
+nbr_users_perf: Dict[int, List[Dict[str, float]]] = {}
+
+token_lengths: List[int] = [] 
 
 state = 0
 current_nbr_user = -1
@@ -49,16 +51,18 @@ for no, line in enumerate(lines):
         m = PAT_ACTUAL_LEN.match(line)
         if m:
             metrics = nbr_users_perf[current_nbr_user][current_iter]
-            metrics["ACT_GEN_TOKENS"] = float(m.group(1))
-            metrics["EXP_GEN_TOKENS"] = float(m.group(2))
-            state = 3
+            print(">>>", line, m.group(1))
+            token_lengths.append(int(m.group(1)))
+            if expected_gen_token_len != int(m.group(2)):
+                raise ValueError("expected token lengths are not equal", expected_gen_token_len, m.group(2))
         else:
             m = PAT_TOTAL_TIME.match(line)
             if m:
                 metrics = nbr_users_perf[current_nbr_user][current_iter]
-                metrics["ACT_GEN_TOKENS"] = float(expected_gen_token_len)
-                metrics["EXP_GEN_TOKENS"] = float(expected_gen_token_len)
+                full_gen_lens = token_lengths + [512] * (current_nbr_user - len(token_lengths))
+                metrics["ACT_GEN_TOKENS"] = float(sum(full_gen_lens))/current_nbr_user
                 metrics["TOTAL_TIME"] = float(m.group(1))
+                token_lengths = []
                 state = 4
     elif state == 3:
         m = PAT_TOTAL_TIME.match(line)
