@@ -66,15 +66,21 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     CompletionResponseChoice,
     UsageInfo,
 )
-from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest as vllm_ChatCompletionRequest
-from vllm.entrypoints.openai.protocol import ChatCompletionResponse as vllm_ChatCompletionResponse
-from llm_on_ray.inference.inference_config import (
-    DEVICE_HPU,
-    DEVICE_CUDA,
-)
 
 logger = get_logger(__name__)
+
+try:
+    from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+    from vllm.entrypoints.openai.protocol import ChatCompletionRequest as vllm_ChatCompletionRequest
+    from vllm.entrypoints.openai.protocol import (
+        ChatCompletionResponse as vllm_ChatCompletionResponse,
+    )
+    from llm_on_ray.inference.inference_config import (
+        DEVICE_HPU,
+        DEVICE_CUDA,
+    )
+except Exception:
+    logger.warning("VLLM package is not installed")
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
 TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 1800))
