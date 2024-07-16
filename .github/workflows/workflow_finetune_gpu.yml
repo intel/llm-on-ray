@@ -8,10 +8,10 @@ on:
         default: '10.1.2.13:5000/llmray-build'
       http_proxy:
         type: string
-        default: 'http://10.24.221.169:912'
+        default: 'http://proxy-prc.intel.com:912'
       https_proxy:
         type: string
-        default: 'http://10.24.221.169:912'
+        default: 'http://proxy-prc.intel.com:912'
 
 jobs:
   finetune-gpu:
