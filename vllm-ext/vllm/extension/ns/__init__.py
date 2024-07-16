@@ -34,7 +34,7 @@ old_verify_quantization = vllm_config.ModelConfig._verify_quantization
 
 
 def _verify_quntization(self):
-    if self.quantization is not None and self.quantization == "ns":
+    if self.quantization == "ns":
         os.environ["NS_QUANTIZATION"] = "1"
         return
     return old_verify_quantization(self)

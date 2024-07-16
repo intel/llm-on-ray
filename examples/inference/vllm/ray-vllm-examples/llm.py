@@ -23,7 +23,7 @@ from starlette.responses import StreamingResponse, JSONResponse
 
 from ray import serve
 
-from vllm.extension import ns as ns
+from vllm.extension import ns
 
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
@@ -58,7 +58,7 @@ class VLLMDeployment:
         lora_modules: Optional[List[LoRAModulePath]] = None,
         chat_template: Optional[str] = None,
     ):
-        from vllm.extension import ns as ns
+        from vllm.extension import ns
 
         logger.info(f"Starting with engine args: {engine_args}")
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)

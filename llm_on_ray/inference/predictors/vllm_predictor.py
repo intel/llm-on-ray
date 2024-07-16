@@ -52,7 +52,7 @@ class VllmPredictor(Predictor):
         if infer_conf.vllm.extension == "ns":
             logger.warn("applying neural speed extension to vllm ...")
             try:
-                from vllm.extension import ns as ns
+                from vllm.extension import ns
 
                 logger.warn("neural speed extension applied to vllm successfully!")
             except Exception as e:
