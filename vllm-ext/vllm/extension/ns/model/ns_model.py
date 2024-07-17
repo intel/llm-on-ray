@@ -105,34 +105,38 @@ class NSModel(nn.Module):
         scheduler_config: SchedulerConfig,
     ):
         # get available cores
+        max_prompt_tokens = int(os.environ.get(_NS_MAX_PROMPT_TOKENS, "8192"))
         try:
-            max_prompt_tokens = int(os.environ.get(_NS_MAX_PROMPT_TOKENS, "8192"))
-            # cpus_per_work is set to 1 for better ns perf so it's inappropriate to use ray to get available cores
-            # threads = ray.runtime_context.get_runtime_context().get_assigned_resources()['CPU']
+            import ray
+
+            cpus_per_worker = ray.runtime_context.get_runtime_context().get_assigned_resources()[
+                "CPU"
+            ]
+            # reserve one core for non-ns tasks
+            cpus_per_worker = cpus_per_worker if cpus_per_worker <= 1 else cpus_per_worker - 1
+            threads = int(os.environ.get(_NS_NUM_THREADS, str(cpus_per_worker)))
+            threads_next = int(os.environ.get(_NS_NUM_THREADS_NEXT, str(threads)))
+        except AssertionError:
+            logger.warn("not inside ray worker")
             physical_cores = psutil.cpu_count(logical=False)
             # reserve one core for non-ns tasks
             physical_cores = physical_cores if physical_cores <= 1 else physical_cores - 1
             threads = int(os.environ.get(_NS_NUM_THREADS, str(physical_cores)))
             threads_next = int(os.environ.get(_NS_NUM_THREADS_NEXT, str(threads)))
-            logger.info("Using %d threads for inference engine", threads)
-            self.ie_model = IE_Model(
-                self.config.name_or_path,
-                max_batch_size=scheduler_config.max_num_seqs,
-                ctx_size=model_config.max_model_len,
-                max_new_tokens=model_config.max_model_len,
-                threads=threads,
-                threads_next=threads_next,
-                max_prompt_tokens=max_prompt_tokens,
-            )
-        except AssertionError:
-            logger.warn("not inside ray worker, using default threads for inference engine")
-            self.ie_model = IE_Model(
-                self.config.name_or_path,
-                max_batch_size=scheduler_config.max_num_seqs,
-                ctx_size=model_config.max_model_len,
-                max_new_tokens=model_config.max_model_len,
-            )
-
+        logger.info(
+            "Using %d threads for prefill and %d threads for next tokens in inference engine",
+            threads,
+            threads_next,
+        )
+        self.ie_model = IE_Model(
+            self.config.name_or_path,
+            max_batch_size=scheduler_config.max_num_seqs,
+            ctx_size=model_config.max_model_len,
+            max_new_tokens=model_config.max_model_len,
+            threads=threads,
+            threads_next=threads_next,
+            max_prompt_tokens=max_prompt_tokens,
+        )
         self.tokenizer = self.ie_model.tokenizer
 
     def load_weights(self, weights):
