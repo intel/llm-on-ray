@@ -20,7 +20,13 @@ VLLM_VERSION=0.4.1
 
 echo Installing vLLM v$VLLM_VERSION ...
 # Install VLLM from source, refer to https://docs.vllm.ai/en/latest/getting_started/cpu-installation.html for details
-# We use this one-liner to install latest vllm-cpu
-MAX_JOBS=8 VLLM_TARGET_DEVICE=cpu pip install -v git+https://github.com/vllm-project/vllm.git@v$VLLM_VERSION \
+is_avx512_available = $(cat /proc/cpuinfo | grep avx512)
+if [ -z "$is_avx512_available" ]; then
+    echo "AVX512 is not available, vLLM CPU backend using other ISA types."
+    MAX_JOBS=8 VLLM_TARGET_DEVICE=cpu VLLM_CPU_DISABLE_AVX512="true" pip install -v git+https://github.com/vllm-project/vllm.git@v$VLLM_VERSION \
     --extra-index-url https://download.pytorch.org/whl/cpu
+else
+    # Install vllm-cpu with AVX512 ISA support
+    MAX_JOBS=8 VLLM_TARGET_DEVICE=cpu pip install -v git+https://github.com/vllm-project/vllm.git@v$VLLM_VERSION \
+        --extra-index-url https://download.pytorch.org/whl/cpu
 echo Done!

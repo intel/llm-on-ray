@@ -59,7 +59,10 @@ class VllmPredictor(Predictor):
             max_seq_len_to_capture=infer_conf.vllm.max_seq_len_to_capture,
             enforce_eager=infer_conf.vllm.enforce_eager,
         )
-        if infer_conf.device in [DEVICE_HPU, DEVICE_CUDA]:
+        if (
+            infer_conf.device in [DEVICE_HPU, DEVICE_CUDA]
+            and infer_conf.vllm.tensor_parallel_size > 1
+        ):
             engine_args.worker_use_ray = True
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
 

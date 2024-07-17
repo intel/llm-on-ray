@@ -114,6 +114,7 @@ jobs:
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
           # Additional libraries required  for pytest
           pip install -r ./tests/requirements.txt
+          bash ./dev/scripts/install-vllm-cpu.sh
 
       - name: Start Ray Cluster
         run: |

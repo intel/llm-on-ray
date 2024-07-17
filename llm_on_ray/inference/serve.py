@@ -57,16 +57,16 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-        depolyment_config = {
+        deployment_config = {
             "ray_actor_options": ray_actor_options,
             "max_ongoing_requests": infer_conf.max_ongoing_requests
             if not args.max_ongoing_requests
             else args.max_ongoing_requests,
         }
         if infer_conf.autoscaling_config:
-            depolyment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
+            deployment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
         elif infer_conf.num_replicas:
-            depolyment_config["num_replicas"] = infer_conf.num_replicas
+            deployment_config["num_replicas"] = infer_conf.num_replicas
         max_num_seqs = infer_conf.vllm.max_num_seqs if not args.max_num_seqs else args.max_num_seqs
         dynamic_max_batch_size = (
             infer_conf.dynamic_max_batch_size if not args.max_batch_size else args.max_batch_size
@@ -90,11 +90,11 @@ def get_deployed_models(args):
                         pg_resources.append(
                             {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
                         )
-                depolyment_config["placement_group_bundles"] = pg_resources
-                depolyment_config["placement_group_strategy"] = "STRICT_PACK"
-                depolyment_config["ray_actor_options"].pop("resources", None)
+                deployment_config["placement_group_bundles"] = pg_resources
+                deployment_config["placement_group_strategy"] = "STRICT_PACK"
+                deployment_config["ray_actor_options"].pop("resources", None)
 
-        deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
+        deployments[model_id] = PredictorDeployment.options(**deployment_config).bind(
             infer_conf, max_num_seqs, dynamic_max_batch_size
         )
 

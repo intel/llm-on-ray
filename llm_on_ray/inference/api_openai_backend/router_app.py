@@ -34,7 +34,7 @@
 #
 
 import os
-from typing import AsyncGenerator, List, Dict
+from typing import AsyncGenerator, List, Dict, Union
 import uuid
 import async_timeout
 from fastapi import FastAPI, status
@@ -71,8 +71,8 @@ logger = get_logger(__name__)
 
 try:
     from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
-    from vllm.entrypoints.openai.protocol import ChatCompletionRequest as vllm_ChatCompletionRequest
     from vllm.entrypoints.openai.protocol import (
+        ChatCompletionRequest as vllm_ChatCompletionRequest,
         ChatCompletionResponse as vllm_ChatCompletionResponse,
     )
     from llm_on_ray.inference.inference_config import (
@@ -363,7 +363,7 @@ class Router:
     @router_app.post("/v1/chat/completions")
     async def chat(
         self,
-        body: vllm_ChatCompletionRequest,
+        body: Union[ChatCompletionRequest, vllm_ChatCompletionRequest],
         raw_request: Request,
         response: FastAPIResponse,
     ):
