@@ -1,0 +1,12 @@
+port: 8000
+name: falcon-7b
+route_prefix: /falcon-7b
+num_replicas: 1
+cpus_per_worker: 8
+hpus_per_worker: 1
+device: hpu
+model_description:
+  model_id_or_path: tiiuae/falcon-7b
+  tokenizer_name_or_path: tiiuae/falcon-7b
+  config:
+    use_auth_token: ''
