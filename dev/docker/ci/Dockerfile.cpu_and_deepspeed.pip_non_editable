@@ -2,7 +2,7 @@
 FROM ubuntu:22.04
 
 ENV LANG C.UTF-8
-
+ENV HF_ENDPOINT "https://hf-mirror.com"
 WORKDIR /root/llm-on-ray
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
