@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:22.04
 
+# Define build arguments
+ARG DOCKER_NAME=default
+ARG PYPJ=default
 ENV LANG C.UTF-8
-ENV HF_ENDPOINT "https://hf-mirror.com"
 
-WORKDIR /root/llm-on-ray
+WORKDIR /root/
 
 RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
     && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
@@ -25,17 +27,23 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     mamba config --add channels intel && \
     mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
-COPY ./pyproject.toml .
-COPY ./MANIFEST.in .
-COPY ./dev/scripts/install-vllm-cpu.sh .
+# Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
+ARG CACHEBUST=1
 
-# Install llm_on_ray
-# Create llm_on_ray package directory to bypass the following 'pip install -e' command
-RUN mkdir ./llm_on_ray
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN git clone https://github.com/intel/llm-on-ray.git
+RUN if [ -d "llm-on-ray" ]; then echo "Clone successful"; else echo "Clone failed" && exit 1; fi
+WORKDIR /root/llm-on-ray
+
+
+RUN ls -la
+
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[${PYPJ}] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
 
-# Install vllm-cpu
-# Activate base first for loading g++ envs ($CONDA_PREFIX/etc/conda/activate.d/*)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    source /opt/conda/bin/activate base && ./install-vllm-cpu.sh
+# Use shell scripting to conditionally install packages
+RUN if [ "${DOCKER_NAME}" = ".cpu_and_deepspeed" ]; then ds_report && ./dev/scripts/install-oneapi.sh;fi
+RUN if [ "${DOCKER_NAME}" = ".ipex-llm" ]; then ./dev/scripts/install-oneapi.sh; fi
+RUN if [ "${DOCKER_NAME}" = ".vllm" ]; then  ./dev/scripts/install-vllm-cpu.sh; fi
+
+
+ENTRYPOINT ["sh", "./dev/scripts/entrypoint_user.sh"]
