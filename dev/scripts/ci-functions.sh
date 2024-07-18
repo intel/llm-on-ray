@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-HTTP_PROXY='http://10.24.221.169:912'
-HTTPS_PROXY='http://10.24.221.169:912'
+HTTP_PROXY='http://proxy-prc.intel.com:912'
+HTTPS_PROXY='http://proxy-prc.intel.com:912'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
