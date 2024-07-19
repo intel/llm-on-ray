@@ -33,7 +33,7 @@ LLM-on-Ray's modular workflow structure is designed to comprehensively cater to 
 ![llm-on-ray](./docs/assets/solution_technical_overview.png)
 
 
-## Getting Started
+## Getting Started Locally With Source code  
 This guide will assist you in setting up LLM-on-Ray on Intel CPU locally, covering the initial setup, finetuning models, and deploying them for serving.
 ### Setup
 
@@ -107,6 +107,70 @@ llm_on_ray-serve --config_file llm_on_ray/inference/models/gpt2.yaml --simple
 After deploying the model endpoint, you can access and test it by using the script below:
 ```bash
 python examples/inference/api_server_simple/query_single.py --model_endpoint http://127.0.0.1:8000/gpt2
+```
+
+## Getting Started With Docker
+This guide will assist you in setting up LLM-on-Ray on With Docker.
+
+```bash
+git clone https://github.com/intel/llm-on-ray.git
+cd llm-on-ray
+```
+The dockerfile for user is in `dev/docker/Dockerfile.user`.
+
+#### 1. Source Docker Functions  
+Detailed parameter can be set up for docker in `dev/scripts/docker-functions.sh`.
+```bash
+source dev/scripts/docker-functions.sh
+```
+
+#### 2. Build Docker Image  
+Default cpu and deepspeed for llm serving.
+```bash
+build_docker 
+```
+
+Change build_docker fuction's args for different environment.
+
+Use vllm for llm serving.
+```bash
+build_docker vllm 
+```
+
+Use ipex-vllm for llm serving.
+```bash
+build_docker ipex-llm 
+```
+
+#### 3. Start Docker
+Change any settings in `dev/scripts/docker-functions.sh`.
+
+Run docker with cpu and gpt2 serving.
+```bash
+start_docker
+```
+
+Run docker with cpu and other support models serving.
+```bash
+start_docker llama-2-7b-chat-hf
+```
+
+Run docker with different environment and other models  `start_docker {environment} {models}` like:
+```bash
+start_docker vllm llama-2-7b-chat-hf
+```
+
+#### 4. Start LLM-on-Ray
+The model serving port in docker container has been mapped to local.
+
+Using requests library.
+```bash
+python examples/inference/api_server_openai/query_http_requests.py
+```
+
+Using OpenAI SDK
+```bash
+python examples/inference/api_server_openai/query_openai_sdk.py
 ```
 
 ## Documents

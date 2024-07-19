@@ -26,10 +26,10 @@ build_and_prune() {
     fi
 
     echo "Build Docker image and perform cleaning operation"
-    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
+    echo "docker build ./ ${docker_args[@]} -f dev/docker/ci/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
 
     # Build Docker image and perform cleaning operation
-    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+    docker build ./ "${docker_args[@]}" -f dev/docker/ci/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
     docker image prune -f
 
 }

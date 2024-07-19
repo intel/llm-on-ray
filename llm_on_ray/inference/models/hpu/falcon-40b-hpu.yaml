@@ -1,0 +1,14 @@
+port: 8000
+name: falcon-40b
+route_prefix: /falcon-40b
+num_replicas: 1
+cpus_per_worker: 8
+hpus_per_worker: 1
+deepspeed: true
+workers_per_group: 8
+device: hpu
+model_description:
+  model_id_or_path: tiiuae/falcon-40b
+  tokenizer_name_or_path: tiiuae/falcon-40b
+  config:
+    use_auth_token: ''
