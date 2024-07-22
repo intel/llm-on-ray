@@ -119,7 +119,6 @@ jobs:
       - name: Start Ray Cluster
         run: |
           ray start --head
-          ray status
 
       - name: Run Tests
         run: |
