@@ -13,3 +13,4 @@ fi
 # Setup Ray cluster
 RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --head --node-ip-address 127.0.0.1 --ray-debugger-external
 RAY_SERVE_ENABLE_EXPERIMENTAL_STREAMING=1 ray start --address='127.0.0.1:6379' --ray-debugger-external
+ray status

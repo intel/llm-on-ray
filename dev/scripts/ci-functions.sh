@@ -75,7 +75,7 @@ install_dependencies(){
     docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
 }
 
-strat_ray(){
+start_ray(){
     local TARGET=$1
 
     # Start Ray Cluster

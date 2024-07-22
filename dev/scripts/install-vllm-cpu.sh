@@ -13,7 +13,7 @@ gcc_version=$(g++ --version | grep -o -E '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
 echo
 echo Current GNU C++ Compiler version: $gcc_version
 echo
-VLLM_VERSION=0.5.1
+VLLM_VERSION=0.5.2
 
 echo Installing vLLM v$VLLM_VERSION ...
 # Install VLLM from source, refer to https://docs.vllm.ai/en/latest/getting_started/cpu-installation.html for details

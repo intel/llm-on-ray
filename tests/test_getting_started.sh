@@ -20,6 +20,7 @@ bash ./dev/scripts/install-vllm-cpu.sh
 
 echo "Step 2: Start ray cluster ..."
 ray start --head
+ray status
 
 # Step 3: Serving
 # take gpt2 for example
