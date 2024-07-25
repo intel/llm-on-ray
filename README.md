@@ -191,6 +191,9 @@ The following are detailed guidelines for pretraining, finetuning and serving LL
 ### Web UI
 * [Finetune and Deploy LLMs through Web UI](docs/web_ui.md)
 
+### CI
+* [CI self-hosted workflow on CPU/Gaudi](docs/ci.md)
+
 ## Disclaimer
 To the extent that any public datasets are referenced by Intel or accessed using tools or code on this site those datasets are provided by the third party indicated as the data source. Intel does not create the data, or datasets, and does not warrant their accuracy or quality. By accessing the public dataset(s), or using a model trained on those datasets, you agree to the terms associated with those datasets and that your use complies with the applicable license.
 
