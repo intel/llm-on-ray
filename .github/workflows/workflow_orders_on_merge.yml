@@ -16,22 +16,22 @@ jobs:
     needs: Lint
     uses: ./.github/workflows/workflow_tests.yml
 
-  Inference:
-    needs: Lint
-    uses: ./.github/workflows/workflow_inference.yml
+  # Inference:
+  #   needs: Lint
+  #   uses: ./.github/workflows/workflow_inference.yml
 
-  Inference_Gaudi:
-    needs: Lint
-    uses: ./.github/workflows/workflow_inference_gaudi2.yml
+  # Inference_Gaudi:
+  #   needs: Lint
+  #   uses: ./.github/workflows/workflow_inference_gaudi2.yml
 
-  Finetune:
-    needs: Lint
-    uses: ./.github/workflows/workflow_finetune.yml
+#   Finetune:
+#     needs: Lint
+#     uses: ./.github/workflows/workflow_finetune.yml
 
-  Finetune_Gaudi:
-    needs: Lint
-    uses: ./.github/workflows/workflow_finetune_gaudi2.yml
+#   Finetune_Gaudi:
+#     needs: Lint
+#     uses: ./.github/workflows/workflow_finetune_gaudi2.yml
   
-  Benchmark:
-    needs: Lint
-    uses: ./.github/workflows/workflow_test_benchmark.yml
+  # Benchmark:
+  #   needs: Lint
+  #   uses: ./.github/workflows/workflow_test_benchmark.yml

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-HTTP_PROXY='http://10.24.221.169:912'
-HTTPS_PROXY='http://10.24.221.169:912'
+HTTP_PROXY='http://proxy-prc.intel.com:912'
+HTTPS_PROXY='http://proxy-prc.intel.com:912'
 MODEL_CACHE_PATH_LOACL='/root/.cache/huggingface/hub'
 CODE_CHECKOUT_PATH_LOCAL='/root/llm-on-ray'
 
@@ -26,10 +26,10 @@ build_and_prune() {
     fi
 
     echo "Build Docker image and perform cleaning operation"
-    echo "docker build ./ ${docker_args[@]} -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
+    echo "docker build ./ ${docker_args[@]} -f dev/docker/ci/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes | docker image prune -f"
 
     # Build Docker image and perform cleaning operation
-    docker build ./ "${docker_args[@]}" -f dev/docker/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
+    docker build ./ "${docker_args[@]}" -f dev/docker/ci/Dockerfile${DF_SUFFIX} -t ${TARGET}:latest && yes | docker container prune && yes
     docker image prune -f
 }
 
