@@ -62,6 +62,7 @@ def router_application(deployments, model_list, max_ongoing_requests):
 
     RouterDeployment = serve.deployment(
         route_prefix="/",
+        ray_actor_options={"resources": {"app_router": 1}},
         max_ongoing_requests=total_num_replica
         * (
             (max_ongoing_requests if max_ongoing_requests else max_num_concurrent_query) + 1

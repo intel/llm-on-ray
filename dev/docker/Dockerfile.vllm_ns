@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:22.04
+
+ENV LANG C.UTF-8
+
+WORKDIR /root/llm-on-ray
+
+RUN --mount=type=cache,target=/var/cache/apt apt-get update -y \
+    && apt-get install -y build-essential cmake wget curl git vim htop ssh net-tools \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge3-Linux-x86_64.sh -O ~/miniforge.sh && \
+    /bin/bash ~/miniforge.sh -b -p /opt/conda
+ENV PATH $CONDA_DIR/bin:$PATH
+
+# setup env
+SHELL ["/bin/bash", "--login", "-c"]
+
+RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
+    unset -f conda && \
+    export PATH=$CONDA_DIR/bin/:${PATH} && \
+    mamba config --add channels intel && \
+    mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
+
+COPY ./pyproject.toml .
+COPY ./MANIFEST.in .
+
+
+# Install llm_on_ray
+# Create llm_on_ray package directory to bypass the following 'pip install -e' command
+RUN mkdir ./llm_on_ray
+RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[vllm-cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+
+# Install vllm-ext
+# We cannot make empty folder here like './llm_on_ray' since vllm-ext has cpp files to be compiled
+COPY ./vllm-ext ./vllm-ext
+COPY ./dev/scripts/check-vllm-cpu-build-env.sh ./dev/scripts/check-vllm-cpu-build-env.sh
+RUN --mount=type=cache,target=/root/.cache/pip \
+    source /opt/conda/bin/activate base && cd vllm-ext && pip install . && pip install --upgrade protobuf
