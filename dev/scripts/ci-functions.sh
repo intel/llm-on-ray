@@ -110,7 +110,7 @@ stop_container(){
 declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]=".ipex-llm"
-    ["llama-2-7b-chat-hf-wo-vllm"]=".cpu_and_deepspeed"
+    ["llama-2-7b-chat-hf-no-vllm"]=".cpu_and_deepspeed"
     ["gpt-j-6b"]=".cpu_vllm_and_deepspeed.pip_non_editable"
 )
 
@@ -127,7 +127,7 @@ get_DF_SUFFIX() {
 declare -A TARGET_SUFFIX_MAPPER
 TARGET_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
-    ["llama-2-7b-chat-hf-wo-vllm"]="_wo_vllm"
+    ["llama-2-7b-chat-hf-no-vllm"]="_wo_vllm"
 )
 
 get_TARGET_SUFFIX() {
@@ -169,7 +169,7 @@ inference_deepspeed_test(){
     local model=$2
     if [[ ${model} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
         echo ${model} is not supported!
-    elif [[ ! ${model} == "llama-2-7b-chat-hf-wo-vllm" ]]; then
+    elif [[ ! ${model} == "llama-2-7b-chat-hf-no-vllm" ]]; then
         echo update_inference_config with deepspeed:
         docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${model}\".yaml --output_file \"${model}\".yaml.deepspeed --deepspeed"
         echo Start deepspeed simple serve :

@@ -375,11 +375,6 @@ class Router:
         """
         serving_chat = self.vllm_openai_serving_chat[body.model]
         if serving_chat:
-            """OpenAI-compatible HTTP endpoint.
-
-            API reference:
-                - https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
-            """
             generator = await serving_chat.create_chat_completion(body, raw_request=raw_request)
             if body.stream:
                 return StreamingResponse(content=generator, media_type="text/event-stream")

@@ -75,24 +75,20 @@ def get_deployed_models(args):
         if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_CUDA]:
             tp = infer_conf.vllm.tensor_parallel_size
             if tp > 1:
+                deployment_config["ray_actor_options"].pop("resources", None)
                 pg_resources = []
                 pg_resources.append(
-                    {"CPU": infer_conf.cpus_per_worker}
-                )  # for the deployment replica
-                for i in range(tp):
-                    if device == DEVICE_HPU:
-                        # for the vLLM actors on HPU
-                        pg_resources.append(
-                            {"CPU": infer_conf.cpus_per_worker, "HPU": infer_conf.hpus_per_worker}
-                        )
-                    else:
+                    {"CPU": 2}
+                )  # One is for PredictorDeployment replica, and the other is for Router replica
+                # When device is HPU, the resources of workers will be allocated in vllm engine.
+                if device == DEVICE_CUDA:
+                    for i in range(tp):
                         # for the vLLM actors on GPU
                         pg_resources.append(
                             {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
                         )
-                deployment_config["placement_group_bundles"] = pg_resources
-                deployment_config["placement_group_strategy"] = "STRICT_PACK"
-                deployment_config["ray_actor_options"].pop("resources", None)
+                    deployment_config["placement_group_bundles"] = pg_resources
+                    deployment_config["placement_group_strategy"] = "STRICT_PACK"
 
         deployments[model_id] = PredictorDeployment.options(**deployment_config).bind(
             infer_conf, max_num_seqs, dynamic_max_batch_size
