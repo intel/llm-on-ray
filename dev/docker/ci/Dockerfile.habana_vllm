@@ -15,7 +15,7 @@ RUN pip install -e . && \
     pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.15.1
 
 # Install vllm habana env
-RUN pip install -v git+https://github.com/HabanaAI/vllm-fork.git@ae3d6121
+RUN pip install -v git+https://github.com/HabanaAI/vllm-fork.git@cf6952d
 # Reinstall ray because vllm downgrades the ray version
 RUN pip install "ray>=2.10" "ray[serve,tune]>=2.10"
 

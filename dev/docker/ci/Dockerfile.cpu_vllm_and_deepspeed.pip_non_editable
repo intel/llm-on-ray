@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:22.04
 
-ARG python_v 
-
 ENV LANG C.UTF-8
 
 WORKDIR /root/llm-on-ray
@@ -24,17 +22,15 @@ RUN --mount=type=cache,target=/opt/conda/pkgs conda init bash && \
     unset -f conda && \
     export PATH=$CONDA_DIR/bin/:${PATH} && \
     mamba config --add channels intel && \
-    mamba install -y -c conda-forge python==${python_v} gxx=12.3 gxx_linux-64=12.3 libxcrypt
+    mamba install -y -c conda-forge python==3.9 gxx=12.3 gxx_linux-64=12.3 libxcrypt
 
-COPY ./pyproject.toml .
-COPY ./MANIFEST.in .
-COPY ./dev/scripts/install-vllm-cpu.sh .
+# copy all checkedout file for later non-editable pip
+COPY . .
 
-# create llm_on_ray package directory to bypass the following 'pip install -e' command
-RUN mkdir ./llm_on_ray
-
-RUN --mount=type=cache,target=/root/.cache/pip pip install -e .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu \
+RUN --mount=type=cache,target=/root/.cache/pip pip install .[cpu,deepspeed] --extra-index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+
+RUN ds_report
 
 # Used to invalidate docker build cache with --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1

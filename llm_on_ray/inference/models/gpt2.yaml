@@ -2,12 +2,9 @@ port: 8000
 name: gpt2
 route_prefix: /gpt2
 num_replicas: 1
-cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
-workers_per_group: 2
 device: cpu
-ipex:
+cpus_per_worker: 24
+vllm:
   enabled: true
   precision: bf16
 model_description:

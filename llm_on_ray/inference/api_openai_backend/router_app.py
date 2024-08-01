@@ -34,13 +34,14 @@
 #
 
 import os
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Dict, Union
 import uuid
 import async_timeout
 from fastapi import FastAPI, status
 from fastapi import Response as FastAPIResponse
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import Response, StreamingResponse
+from starlette.responses import Response, StreamingResponse, JSONResponse
+from starlette.requests import Request
 from llm_on_ray.inference.logger import get_logger
 from llm_on_ray.inference.api_openai_backend.request_handler import (
     OpenAIHTTPException,
@@ -67,6 +68,19 @@ from llm_on_ray.inference.api_openai_backend.openai_protocol import (
 )
 
 logger = get_logger(__name__)
+
+try:
+    from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+    from vllm.entrypoints.openai.protocol import (
+        ChatCompletionRequest as vllm_ChatCompletionRequest,
+        ChatCompletionResponse as vllm_ChatCompletionResponse,
+    )
+    from llm_on_ray.inference.inference_config import (
+        DEVICE_HPU,
+        DEVICE_CUDA,
+    )
+except Exception:
+    logger.warning("VLLM package is not installed")
 
 # timeout in 10 minutes. Streaming can take longer than 3 min
 TIMEOUT = float(os.environ.get("ROUTER_HTTP_TIMEOUT", 1800))
@@ -243,8 +257,25 @@ class Router:
     def __init__(
         self,
         query_client: RouterQueryClient,
+        model_configs: Dict,
+        max_num_seqs: int,
     ) -> None:
         self.query_client = query_client
+        self.vllm_openai_serving_chat = {}
+        for infer_name, infer_conf in model_configs.items():
+            if infer_conf.vllm.enabled and infer_conf.device in [DEVICE_HPU, DEVICE_CUDA]:
+                from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
+
+                predictor = VllmPredictor(infer_conf, max_num_seqs)
+                serving_chat = OpenAIServingChat(
+                    predictor.engine,
+                    infer_conf.name,
+                    infer_conf.vllm.response_role,
+                    infer_conf.model_description.chat_template,
+                )
+            else:
+                serving_chat = None
+            self.vllm_openai_serving_chat[infer_name] = serving_chat
 
     @router_app.get("/v1/models", response_model=ModelList)
     async def models(self) -> ModelList:
@@ -332,7 +363,8 @@ class Router:
     @router_app.post("/v1/chat/completions")
     async def chat(
         self,
-        body: ChatCompletionRequest,
+        body: Union[ChatCompletionRequest, vllm_ChatCompletionRequest],
+        raw_request: Request,
         response: FastAPIResponse,
     ):
         """Given a prompt, the model will return one or more predicted completions,
@@ -341,57 +373,68 @@ class Router:
         Returns:
             A response object with completions.
         """
-        prompt = Prompt(
-            prompt=body.messages,
-            parameters=dict(body),
-            tools=body.tools,
-            tool_choice=body.tool_choice,
-        )
-        request_id = f"chatcmpl-{str(uuid.uuid4().hex)}"
-        if body.stream:
-            return StreamingResponse(
-                _chat_completions_wrapper(
-                    request_id,
-                    body,
-                    response,
-                    self.query_client.query(body.model, prompt, request_id, body.stream),
-                ),
-                media_type="text/event-stream",
-            )
+        serving_chat = self.vllm_openai_serving_chat[body.model]
+        if serving_chat:
+            generator = await serving_chat.create_chat_completion(body, raw_request=raw_request)
+            if body.stream:
+                return StreamingResponse(content=generator, media_type="text/event-stream")
+            else:
+                assert isinstance(generator, vllm_ChatCompletionResponse)
+                return JSONResponse(content=generator.model_dump())
         else:
-            async with async_timeout.timeout(TIMEOUT):
-                results_reponse = self.query_client.query(
-                    body.model, prompt, request_id, body.stream
+            prompt = Prompt(
+                prompt=body.messages,
+                parameters=dict(body),
+                tools=body.tools,
+                tool_choice=body.tool_choice,
+            )
+            request_id = f"chatcmpl-{str(uuid.uuid4().hex)}"
+            if body.stream:
+                return StreamingResponse(
+                    _chat_completions_wrapper(
+                        request_id,
+                        body,
+                        response,
+                        self.query_client.query(body.model, prompt, request_id, body.stream),
+                    ),
+                    media_type="text/event-stream",
                 )
-                async for results in results_reponse:
-                    if results.error:
-                        raise OpenAIHTTPException(
-                            message=results.error.message,
-                            status_code=results.error.code,
-                            type=results.error.type,
-                        )
-
-                    if results.tool_calls is not None:
-                        msg = ChatMessage(role="assistant", tool_calls=results.tool_calls)
-                        # deleting this fields so that they don't appear in the response
-                        del msg.tool_call_id
-                    else:
-                        msg = ChatMessage(role="assistant", content=results.generated_text or "")
-
-                    usage = UsageInfo.from_response(results.dict())
-                    return ChatCompletionResponse(
-                        id=request_id,
-                        object="chat.completion",
-                        model=body.model,
-                        choices=[
-                            ChatCompletionResponseChoice(
-                                index=0,
-                                message=msg,
-                                finish_reason=results.finish_reason,
-                            )
-                        ],
-                        usage=usage,
+            else:
+                async with async_timeout.timeout(TIMEOUT):
+                    results_reponse = self.query_client.query(
+                        body.model, prompt, request_id, body.stream
                     )
+                    async for results in results_reponse:
+                        if results.error:
+                            raise OpenAIHTTPException(
+                                message=results.error.message,
+                                status_code=results.error.code,
+                                type=results.error.type,
+                            )
+
+                        if results.tool_calls is not None:
+                            msg = ChatMessage(role="assistant", tool_calls=results.tool_calls)
+                            # deleting this fields so that they don't appear in the response
+                            del msg.tool_call_id
+                        else:
+                            msg = ChatMessage(
+                                role="assistant", content=results.generated_text or ""
+                            )
+
+                        usage = UsageInfo.from_response(results.dict())
+                        return ChatCompletionResponse(
+                            id=request_id,
+                            object="chat.completion",
+                            model=body.model,
+                            choices=[
+                                ChatCompletionResponseChoice(
+                                    index=0,
+                                    message=msg,
+                                    finish_reason=results.finish_reason,
+                                )
+                            ],
+                            usage=usage,
+                        )
 
     @router_app.get("/v1/health_check")
     async def health_check(self) -> bool:

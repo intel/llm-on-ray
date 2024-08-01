@@ -7,12 +7,17 @@ WORKDIR /root/llm-on-ray
 COPY ./pyproject.toml .
 COPY ./MANIFEST.in .
 
-# create llm_on_ray package directory to bypass the following 'pip install -e' command
+# Create llm_on_ray package directory to bypass the following 'pip install -e' command
 RUN mkdir ./llm_on_ray
 
 RUN pip install -e . && \
     pip install --upgrade-strategy eager optimum[habana] && \
     pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.15.1
+
+# Install vllm habana env
+RUN pip install -v git+https://github.com/HabanaAI/vllm-fork.git@cf6952d
+# Reinstall ray because vllm downgrades the ray version
+RUN pip install "ray>=2.10" "ray[serve,tune]>=2.10"
 
 # Optinal. Comment out if you are not using UI
 COPY ./dev/scripts/install-ui.sh /tmp
@@ -30,3 +35,4 @@ ENV RAY_EXPERIMENTAL_NOSET_HABANA_VISIBLE_MODULES=1
 ENV PT_HPU_LAZY_ACC_PAR_MODE=0
 
 ENV PT_HPU_ENABLE_LAZY_COLLECTIVES=true
+

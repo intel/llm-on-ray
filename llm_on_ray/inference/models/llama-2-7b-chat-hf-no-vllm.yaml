@@ -1,17 +1,10 @@
 port: 8000
-name: llama-2-7b-chat-hf
-route_prefix: /llama-2-7b-chat-hf
+name: llama-2-7b-chat-hf-no-vllm
+route_prefix: /llama-2-7b-chat-hf-no-vllm
 num_replicas: 1
-cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
-vllm:
-  enabled: true
-  max_num_seqs: 256
-  precision: bf16
-workers_per_group: 2
 device: cpu
-ipex:
+cpus_per_worker: 24
+vllm:
   enabled: false
   precision: bf16
 model_description:

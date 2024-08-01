@@ -424,9 +424,8 @@ def main(args: argparse.Namespace):
 
     random.seed(args.seed)
     np.random.seed(args.seed)
-
-    route_prefix = all_models[args.model_name].route_prefix
     if args.simple:
+        route_prefix = all_models[args.model_name].route_prefix
         api_url = args.model_endpoint_base + route_prefix
     else:
         api_url = args.model_endpoint_base + "/v1/chat/completions"
@@ -720,17 +719,20 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--temperature",
+        type=float,
         default=None,
         help="The value used to modulate the next token probabilities.",
     )
     parser.add_argument(
         "--top_p",
+        type=float,
         default=None,
         help="If set to float < 1, only the smallest set of most probable tokens \
             with probabilities that add up to `Top p` or higher are kept for generation.",
     )
     parser.add_argument(
         "--top_k",
+        type=float,
         default=None,
         help="The number of highest probability vocabulary tokens to keep \
             for top-k-filtering.",

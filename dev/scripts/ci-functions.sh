@@ -75,7 +75,7 @@ install_dependencies(){
     docker exec "${TARGET}" bash -c "pip install -r ./tests/requirements.txt"
 }
 
-strat_ray(){
+start_ray(){
     local TARGET=$1
 
     # Start Ray Cluster
@@ -110,8 +110,8 @@ stop_container(){
 declare -A DF_SUFFIX_MAPPER
 DF_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]=".ipex-llm"
-    ["llama-2-7b-chat-hf-vllm"]=".vllm"
-    ["gpt-j-6b"]=".cpu_and_deepspeed.pip_non_editable"
+    ["llama-2-7b-chat-hf-no-vllm"]=".cpu_and_deepspeed"
+    ["gpt-j-6b"]=".cpu_vllm_and_deepspeed.pip_non_editable"
 )
 
 
@@ -120,14 +120,14 @@ get_DF_SUFFIX() {
     if [[ ${DF_SUFFIX_MAPPER[$key]+_} ]]; then
         echo "${DF_SUFFIX_MAPPER[$key]}"
     else
-        echo ".cpu_and_deepspeed"
+        echo ".cpu_vllm_and_deepspeed"
     fi
 }
 
 declare -A TARGET_SUFFIX_MAPPER
 TARGET_SUFFIX_MAPPER=(
     ["mpt-7b-ipex-llm"]="_ipex-llm"
-    ["llama-2-7b-chat-hf-vllm"]="_vllm"
+    ["llama-2-7b-chat-hf-no-vllm"]="_wo_vllm"
 )
 
 get_TARGET_SUFFIX() {
@@ -169,7 +169,7 @@ inference_deepspeed_test(){
     local model=$2
     if [[ ${model} =~ ^(gemma-2b|gpt2|falcon-7b|starcoder|mpt-7b.*)$ ]]; then
         echo ${model} is not supported!
-    elif [[ ! ${model} == "llama-2-7b-chat-hf-vllm" ]]; then
+    elif [[ ! ${model} == "llama-2-7b-chat-hf-no-vllm" ]]; then
         echo update_inference_config with deepspeed:
         docker exec "${TARGET}" bash -c "python .github/workflows/config/update_inference_config.py --config_file llm_on_ray/inference/models/\"${model}\".yaml --output_file \"${model}\".yaml.deepspeed --deepspeed"
         echo Start deepspeed simple serve :
@@ -187,7 +187,7 @@ inference_restapi_test(){
     if [[ ${model} == "mpt-7b-ipex-llm" ]]; then
         echo Start mpt-7b-ipex-llm simple serve :
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --config_file llm_on_ray/inference/models/ipex-llm/mpt-7b-ipex-llm.yaml"
-    elif [[ ! ${model} == "llama-2-7b-chat-hf-vllm" ]]; then
+    else
         echo Start "${TARGET}"  serve :
         docker exec "${TARGET}" bash -c "llm_on_ray-serve --models ${model}"
         echo Http query:

@@ -18,6 +18,7 @@ case $(echo $1 | tr 'a-z' 'A-Z') in
     "CPU")
         hardware=1
         pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
+        bash ./dev/scripts/install-vllm-cpu.sh
         ;;
     "GPU")
         pip install .[gpu] --extra-index-url https://developer.intel.com/ipex-whl-stable-xpu
@@ -31,7 +32,7 @@ case $(echo $1 | tr 'a-z' 'A-Z') in
         ;;
 esac
 
-# Check if it neesd deepspeed
+# Check if it needs deepspeed
 if [ $(echo $2 | tr 'A-Z' 'a-z') == "true" ]
 then
     deepspeed=true

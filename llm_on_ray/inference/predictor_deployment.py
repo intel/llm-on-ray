@@ -28,7 +28,7 @@ from starlette.responses import StreamingResponse, JSONResponse
 from fastapi import HTTPException
 
 from llm_on_ray.inference.chat_template_process import ChatTemplatePreprocess
-from llm_on_ray.inference.inference_config import InferenceConfig
+from llm_on_ray.inference.inference_config import InferenceConfig, DEVICE_HPU, DEVICE_CUDA
 from llm_on_ray.inference.api_openai_backend.openai_protocol import (
     ChatMessage,
     ErrorResponse,
@@ -66,6 +66,7 @@ class PredictorDeployment:
 
         # Used to determine if openai backend is used
         self.use_openai = False
+        self.vllm_openai_serving_chat = None
 
         if infer_conf.device == "hpu" and not self.use_vllm:
             from llm_on_ray.inference.predictors.hpu_predictor import HPUPredictor
@@ -76,9 +77,12 @@ class PredictorDeployment:
 
             self.predictor = DeepSpeedPredictor(infer_conf)
         elif self.use_vllm:
-            from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
+            if infer_conf.device not in [DEVICE_HPU, DEVICE_CUDA]:
+                from llm_on_ray.inference.predictors.vllm_predictor import VllmPredictor
 
-            self.predictor = VllmPredictor(infer_conf, max_num_seqs)
+                self.predictor = VllmPredictor(infer_conf, max_num_seqs)
+            else:
+                self.predictor = None
         elif self.is_mllm:
             from llm_on_ray.inference.predictors.mllm_predictor import MllmPredictor
 
