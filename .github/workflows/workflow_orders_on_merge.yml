@@ -8,6 +8,9 @@ on:
       - '**'
       - '!*.md'
 
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
 jobs:
   Lint:
     uses: ./.github/workflows/workflow_lint.yml
