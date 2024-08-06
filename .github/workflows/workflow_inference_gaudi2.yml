@@ -23,6 +23,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-inf-gaudi2
   cancel-in-progress: true
 
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
 jobs:
   inference:
     name: inference
@@ -81,7 +84,7 @@ jobs:
           echo "target=$target" >> $GITHUB_OUTPUT
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Build Docker Image
         run: |
