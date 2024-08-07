@@ -57,13 +57,33 @@ class Ipex(BaseModel):
 class Vllm(BaseModel):
     enabled: bool = False
     max_num_seqs: int = 256
+    max_batched_tokens: int = 4096
     precision: str = "bf16"
     enforce_eager: bool = False
+    extension: str = None
 
     @validator("precision")
     def _check_precision(cls, v: str):
         if v:
             assert v in [PRECISION_BF16, PRECISION_FP32]
+        return v
+
+    @validator("extension")
+    def _check_extension(cls, v: str):
+        if v:
+            assert v in ["ns"]
+        return v
+
+    @validator("max_num_seqs")
+    def _check_max_num_seqs(cls, v: int):
+        if v:
+            assert v > 0
+        return v
+
+    @validator("max_batched_tokens")
+    def _check_max_batched_tokens(cls, v: int):
+        if v:
+            assert v > 32
         return v
 
 

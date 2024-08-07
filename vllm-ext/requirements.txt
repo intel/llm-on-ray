@@ -1,0 +1,19 @@
+vllm @ git+https://github.com/vllm-project/vllm.git@v0.5.0
+accelerate
+cmake
+datasets
+einops
+gguf
+huggingface_hub
+matplotlib
+numpy
+peft
+protobuf<3.20
+py-cpuinfo
+sentencepiece
+setuptools>=61
+tiktoken
+torch
+transformers
+zipfile38
+ninja

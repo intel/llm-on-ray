@@ -1,0 +1,6 @@
+# graft vllm
+# exclude all pyc and pyo
+prune */__pycache__
+global-exclude *.pyc *.pyo *.pyd *.swp *.bak
+# inlucde python files under vllm
+recursive-include vllm *

@@ -50,7 +50,7 @@ from llm_on_ray.inference.inference_config import all_models
 import copy
 
 # (prompt str, output str, prompt len, output len, request latency, latencies list)
-latency_tracking: List[Tuple[Optional[str], Optional[str], int, int, float, List[float]]] = []
+latency_tracking: List[Tuple[Optional[List[str]], Optional[str], int, int, float, List[float]]] = []
 
 
 def sample_requests_ShareGPT(
@@ -62,7 +62,7 @@ def sample_requests_ShareGPT(
     min_output_tokens_len: int,
     max_output_tokens_len: int,
     max_length: int,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from a dataset of ShareGPT format.
 
@@ -94,11 +94,11 @@ def sample_requests_ShareGPT(
     tokenized_dataset = []
     for i in range(len(dataset)):
         output_len = len(completion_token_ids[i])
-        tokenized_dataset.append((prompts[i], prompt_token_ids[i], output_len))
+        tokenized_dataset.append(([prompts[i]], prompt_token_ids[i], output_len))
 
     # Filter out too long sequences.
-    filtered_dataset: List[Tuple[str, int, int]] = []
-    for prompt, prompt_token_ids, output_len in tokenized_dataset:
+    filtered_dataset: List[Tuple[List[str], int, int]] = []
+    for prompts, prompt_token_ids, output_len in tokenized_dataset:
         prompt_len = len(prompt_token_ids)
         # Prune too short sequences.
         if (min_input_tokens_len is not None and prompt_len < min_input_tokens_len) or (
@@ -112,7 +112,7 @@ def sample_requests_ShareGPT(
             continue
         if max_length is not None and prompt_len + output_len > max_length:
             continue
-        filtered_dataset.append((prompt, prompt_len, output_len))
+        filtered_dataset.append((prompts, prompt_len, output_len))
 
     # Sample the requests.
     sampled_requests = random.sample(filtered_dataset, num_requests)
@@ -126,7 +126,7 @@ def sample_requests_IPEX(
     max_new_tokens: int,
     num_requests: int,
     tokenizer: PreTrainedTokenizer,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from a dataset of IPEX format.
 
@@ -149,10 +149,58 @@ def sample_requests_IPEX(
         raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
 
     prompt_len = len(tokenizer(prompt).input_ids)
+    print("prompt len, ", prompt_len)
     output_len = prompt_len if not max_new_tokens else max_new_tokens
 
     # Duplicate prompt to generate samples
-    sampled_requests = [(prompt, prompt_len, output_len)] * num_requests
+    sampled_requests = [([prompt], prompt_len, output_len)] * num_requests
+
+    return sampled_requests
+
+
+def sample_requests_IDC(
+    dataset_path: str,
+    max_new_tokens: int,
+    num_requests: int,
+    tokenizer: PreTrainedTokenizer,
+    config: Dict[str, Union[int, float]],
+) -> List[Tuple[List[str], int, int]]:
+    """
+    Sample requests from a dataset of IPEX format.
+
+    Args:
+        dataset_path (str): The path to the dataset.
+        input_tokens (str): The input tokens.
+        max_new_tokens (int): The maximum number of new tokens.
+        num_requests (int): The number of requests to sample.
+        tokenizer (PreTrainedTokenizer): The tokenizer.
+
+    Returns:
+        List[Tuple[str, int, int]]: The sampled requests, each represented as a tuple of (prompt, prompt_len, output_len).
+    """
+    with open(dataset_path) as f:
+        input = json.load(f)
+
+    if len(input["messages"]) == 2:
+        prompts = [input["messages"][0]["content"], input["messages"][1]["content"]]
+    else:
+        raise ValueError(f'Invalid input_tokens to index from dataset "{dataset_path}"!')
+
+    prompt_len = sum([len(input_id) for input_id in tokenizer(prompts).input_ids])
+    print("prompt len, ", prompt_len)
+    output_len = input["max_tokens"] if "max_tokens" in input else max_new_tokens
+
+    # Duplicate prompt to generate samples
+    sampled_requests = [(prompts, prompt_len, output_len)] * num_requests
+
+    if "max_tokens" in input:
+        config["max_new_tokens"] = int(input["max_tokens"])
+    if "temperature" in input:
+        config["temperature"] = float(input["temperature"])
+    if "top_p" in input:
+        config["top_p"] = float(input["top_p"])
+    if "top_k" in input:
+        config["top_k"] = float(input["top_k"])
 
     return sampled_requests
 
@@ -165,7 +213,7 @@ def sample_requests_synthesis(
     output_len_mean: int,
     output_len_stddev: int,
     num_requests: int,
-) -> List[Tuple[str, int, int]]:
+) -> List[Tuple[List[str], int, int]]:
     """
     Sample requests from random generated prompts.
 
@@ -194,14 +242,14 @@ def sample_requests_synthesis(
 
         # Generte random prompt from tokenizer's vocabulary
         prompt = tokenizer.decode(gen_prompt_ids(prompt_len), return_tensors="pt")
-        sampled_requests.append((prompt, prompt_len, output_len))
+        sampled_requests.append(([prompt], prompt_len, output_len))
     return sampled_requests
 
 
 async def get_request(
-    input_requests: List[Tuple[str, int, int]],
+    input_requests: List[Tuple[List[str], int, int]],
     request_rate: float,
-) -> AsyncGenerator[Tuple[str, int, int], None]:
+) -> AsyncGenerator[Tuple[List[str], int, int], None]:
     """
     Asynchronously generates requests based on the input_requests and request_rate.
 
@@ -230,7 +278,7 @@ async def get_request(
 async def send_request(
     api_url: str,
     model_name: str,
-    prompt: str,
+    prompts: List[str],
     prompt_len: int,
     output_len: int,
     config: dict,
@@ -262,16 +310,27 @@ async def send_request(
         temp_config["max_new_tokens"] = output_len
     if simple:
         pload = {
-            "text": prompt,
+            "text": prompts[0],
             "config": temp_config,
             "stream": track_token_latency,
         }
+        if vllm_engine:
+            pload.update({"ignore_eos": False})
     else:
+        if len(prompts) == 1:
+            messages = [
+                {"role": "user", "content": f"{prompts[0]}"},
+            ]
+        elif len(prompts) == 2:
+            messages = [
+                {"role": "system", "content": f"{prompts[0]}"},
+                {"role": "user", "content": f"{prompts[1]}"},
+            ]
+        else:
+            raise ValueError("number of prompts should be 1 or 2. Actual ", len(prompts))
         pload = {
             "model": model_name,
-            "messages": [
-                {"role": "user", "content": f"{prompt}"},
-            ],
+            "messages": messages,
             "stream": track_token_latency,
             "max_tokens": temp_config["max_new_tokens"]
             if "max_new_tokens" in temp_config
@@ -280,15 +339,16 @@ async def send_request(
             "top_p": temp_config["top_p"] if "top_p" in temp_config else None,
         }
         if vllm_engine:
-            pload.update({"ignore_eos": True})
+            pload.update({"ignore_eos": False})
 
     token_latencies_per_request: List[float] = []
 
-    timeout = aiohttp.ClientTimeout(total=3 * 3600)
+    timeout = aiohttp.ClientTimeout(total=5 * 3600)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         while True:
             async with session.post(api_url, headers=headers, json=pload) as response:
                 chunks = []
+                decoded_chunks = []
 
                 start_ts = time.perf_counter()
 
@@ -298,8 +358,11 @@ async def send_request(
                     if track_token_latency:
                         token_latencies_per_request.append(latency)
                     start_ts = end_ts
-                    chunks.append(chunk)
-                    print(chunk.decode("utf-8") + "|", end="", flush=True)
+                    decoded_chunk = chunk.decode("utf-8")
+                    if decoded_chunk:
+                        chunks.append(chunk)
+                        decoded_chunks.append(decoded_chunk)
+                        print(decoded_chunk + "|", end="", flush=True)
                 print("Token Latencies:", token_latencies_per_request)
                 # print(len(chunks), len(token_latencies_per_request))
             # Decode the response
@@ -325,7 +388,16 @@ async def send_request(
                     response_content = chunks[-2].decode("utf-8")
                     response_content = json.loads(response_content.split("data: ")[1])
                     generate_len = response_content["usage"]["completion_tokens"]
-                    response_text = b"".join(chunks).decode("utf-8")
+                    response_texts = []
+                    for decoded_chunk in decoded_chunks:
+                        text = decoded_chunk.split("data: ")[1]
+                        if text.startswith("{"):
+                            json_text = json.loads(text)
+                            if (
+                                "choices" in json_text
+                                and "content" in json_text["choices"][0]["delta"]
+                            ):
+                                response_texts.append(json_text["choices"][0]["delta"]["content"])
                 else:
                     response_text = b"".join(chunks).decode("utf-8")
                     try:
@@ -341,10 +413,12 @@ async def send_request(
                 progress_bar.update()
             break
 
+    if args.track_token_latency:
+        print("response: ", "".join(response_texts))
     request_end_time = time.perf_counter()
     request_latency = request_end_time - request_start_time
 
-    prompt_str = prompt if track_input_output else None
+    prompt_str = prompts if track_input_output else None
     output_str = response_text if track_input_output else None
 
     if generate_len is not None:
@@ -363,7 +437,7 @@ async def send_request(
 async def benchmark(
     api_url: str,
     model_name: str,
-    input_requests: List[Tuple[str, int, int]],
+    input_requests: List[Tuple[List[str], int, int]],
     request_rate: float,
     config: dict,
     tokenizer: PreTrainedTokenizer,
@@ -378,7 +452,7 @@ async def benchmark(
 
     Args:
         api_url (str): The URL of the API.
-        input_requests (List[Tuple[str, int, int]]): A list of input requests, where each request is a tuple
+        input_requests (List[Tuple[List[str], int, int]]): A list of input requests, where each request is a tuple
             containing the prompt, prompt length, and output length.
         request_rate (float): The rate at which requests should be sent, in requests per second.
         config (dict): Configuration parameters for sending requests.
@@ -437,6 +511,8 @@ def main(args: argparse.Namespace):
         tokenizer_name_or_path, trust_remote_code=args.trust_remote_code
     )
 
+    config: Dict[str, Union[int, float]] = {}
+
     if args.dataset_format == "ShareGPT":
         input_requests = sample_requests_ShareGPT(
             args.dataset,
@@ -466,10 +542,16 @@ def main(args: argparse.Namespace):
             args.output_len_stddev,
             args.num_prompts,
         )
+    if args.dataset_format == "IDC":
+        input_requests = sample_requests_IDC(
+            args.dataset,
+            args.max_new_tokens,
+            args.num_prompts,
+            tokenizer,
+            config,
+        )
 
-    config: Dict[str, Union[int, float]] = {}
-
-    if args.max_new_tokens:
+    if args.max_new_tokens and "max_new_tokens" not in config:
         config["max_new_tokens"] = int(args.max_new_tokens)
     if args.temperature:
         config["temperature"] = float(args.temperature)
@@ -480,7 +562,7 @@ def main(args: argparse.Namespace):
     config["do_sample"] = args.do_sample
     # In order to align with vllm test parameters
     if args.vllm_engine:
-        config["ignore_eos"] = True
+        config["ignore_eos"] = False
 
     benchmark_start_time = time.perf_counter()
     asyncio.run(
@@ -532,16 +614,21 @@ def main(args: argparse.Namespace):
         ]
     )
     print(f"Average latency per Token: {avg_per_token_latency:.3f} s")
-
+    first_token_index = 0 if args.simple else 1
+    next_token_index = 1 if args.simple else 2
     if args.track_token_latency and latency_tracking:
         avg_first_token_latency = np.mean(
-            [latencies[0] for _, _, _, _, _, latencies in latency_tracking if latencies != []]
+            [
+                latencies[first_token_index]
+                for _, _, _, _, _, latencies in latency_tracking
+                if latencies != []
+            ]
         )
         avg_next_token_latency = np.mean(
             [
-                np.mean(latencies[1:])
+                np.mean(latencies[next_token_index:])
                 for _, _, _, _, _, latencies in latency_tracking
-                if latencies[1:] != []
+                if latencies[next_token_index:] != []
             ]
         )
 
@@ -614,7 +701,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-format",
         type=str,
-        choices=["ShareGPT", "IPEX", "Synthesis"],
+        choices=["ShareGPT", "IPEX", "Synthesis", "IDC"],
         required=True,
         help="Dataset format, should be one of {ShareGPT, IPEX, Synthesis}.",
     )

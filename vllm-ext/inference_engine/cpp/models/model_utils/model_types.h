@@ -1,0 +1,469 @@
+//  Copyright (c) 2023 Intel Corporation
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+#ifndef MODEL_TYPES_H
+#define MODEL_TYPES_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <cinttypes>
+#include <climits>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <initializer_list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <queue>
+#include <random>
+#include <sstream>
+#include <thread>
+#include <unordered_map>
+
+#include "core/ne_layers.h"
+#include "models/model_utils/util.h"
+
+#define MODEL_MAX_NORM 4
+#define MODEL_MAX_ATTN 8
+#define MODEL_MAX_FFN 6
+#define MODEL_MAX_OTHERS 7
+#define MODEL_MAX_EXPERTS 8
+
+#define MODEL_USE_SCRATCH
+#define MODEL_MAX_SCRATCH_BUFFERS 16
+
+#define MODEL_FILE_MAGIC_GGJT 0x67676a74u  // 'ggjt'
+#define MODEL_FILE_MAGIC_GGLA 0x67676c61u  // 'ggla'
+#define MODEL_FILE_MAGIC_GGMF 0x67676d66u  // 'ggmf'
+#define MODEL_FILE_MAGIC_NE 0x67676d6cu    // 'ne'
+#define MODEL_FILE_MAGIC_GGSN 0x6767736eu  // 'ggsn'
+
+#define MODEL_FILE_VERSION 3
+#define MODEL_FILE_MAGIC MODEL_FILE_MAGIC_GGJT
+#define MODEL_FILE_MAGIC_UNVERSIONED MODEL_FILE_MAGIC_NE
+#define MODEL_SESSION_MAGIC MODEL_FILE_MAGIC_GGSN
+#define MODEL_SESSION_VERSION 1
+
+#define MODEL_MAX_REQUEST_NUM 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+enum model_archs {
+  MODEL_UNKNOWN,
+  MODEL_LLAMA,
+  MODEL_GPTJ,
+  MODEL_MPT,
+  MODEL_GPTNEOX,
+  MODEL_STARCODER,
+  MODEL_FALCON,
+  MODEL_OPT,
+  MODEL_BLOOM,
+  MODEL_BAICHUAN,
+  MODEL_CHATGLM3,
+  MODEL_CHATGLM2,
+  MODEL_CHATGLM,
+  MODEL_QWEN,
+  MODEL_PHI,
+  MODEL_GEMMA,
+  MODEL_STABLELM,
+  MODEL_WHISPER
+};
+
+static const size_t MB = 1024 * 1024;
+
+typedef enum KV_MEM_TYPE {  // Memory kv data type
+  KV_MEM_TYPE_AUTO,         // Try with bestla flash attn managed format; fall back to fp16 if failed
+  KV_MEM_TYPE_F16,          // Use F16 for memory kv
+  KV_MEM_TYPE_F32,          // Use F32 for memory kv
+} KV_MEM_TYPE;
+
+struct model_scratch {
+  size_t scratch0;
+  size_t scratch1;
+  size_t eval;
+};
+
+enum model_file_version {
+  MODEL_FILE_VERSION_NE,
+  MODEL_FILE_VERSION_GGMF_V1,  // added version field and scores in vocab
+  MODEL_FILE_VERSION_GGJT_V1,  // added padding
+  MODEL_FILE_VERSION_GGJT_V2,  // changed quantization format
+  MODEL_FILE_VERSION_GGJT_V3,  // changed Q4 and Q8 quantization format
+};
+
+//
+// C interface
+//
+// TODO: show sample usage
+//
+
+// default hparams (LLaMA 7B)
+struct model_hparams {
+  uint32_t n_vocab = 32000;
+  uint32_t n_embd = 4096;
+  uint32_t n_mult = 256;
+  uint32_t n_head = 32;
+  uint32_t n_head_kv = 0;  //  MQA, multi-query attention (default =0 means no MQA)
+  uint32_t n_layer = 32;
+  uint32_t n_rot = 64;
+  enum ne_ftype ftype = NE_FTYPE_MOSTLY_F16;
+  int32_t max_seq_len = 0;            // for mpt
+  float alibi_bias_max = 0;           // for mpt
+  float clip_qkv = 0;                 // for mpt
+  int32_t par_res = 1;                // for neox 1 = true, 0 = false
+  uint32_t word_embed_proj_dim = 0;   // for opt
+  bool do_layer_norm_before = false;  // for opt
+  float norm_eps = 1e-6f;             // rms norm epsilon
+  float freq_base = 10000.0f;         // rope theta
+  float freq_scale = 1.0f;            // rope scale factor
+
+  // ChatGLM-2
+  int32_t multi_query_group_num = 0;
+  int32_t ffn_hidden_size = 0;
+
+  // ChatGLM-1
+  int32_t inner_hidden_size = 0;
+  uint32_t n_experts = 0;
+  uint32_t n_experts_used = 0;
+  uint32_t n_embd_head_k = 0;
+
+  float rope_scaling_factor = 0.0f;
+  int32_t original_max_position_embeddings = 0;
+  int32_t use_yarn = 0;
+
+  bool operator!=(const model_hparams& other) const {
+    return static_cast<bool>(memcmp(this, &other, sizeof(model_hparams)));
+  }
+};
+
+struct model_layer {
+  // normalization
+  struct ne_tensor* norm[MODEL_MAX_NORM];
+
+  // attention
+  struct ne_tensor* attn[MODEL_MAX_ATTN];
+
+  // ff
+  struct ne_tensor* ffn[MODEL_MAX_FFN];
+
+  struct ne_tensor* ffn_gate_inp;
+
+  struct ne_tensor* ffn_gate_exp[MODEL_MAX_EXPERTS];
+
+  struct ne_tensor* ffn_down_exp[MODEL_MAX_EXPERTS];
+
+  struct ne_tensor* ffn_up_exp[MODEL_MAX_EXPERTS];
+
+  struct ne_tensor* k_cache;
+  struct ne_tensor* v_cache;
+
+  bool ffn_fusion = false;
+};
+
+typedef int32_t model_pos;
+typedef int32_t model_seq_id;
+
+struct kv_token_cell {
+  model_pos pos = -1;   // token idx (for rope)
+  model_pos delta = 0;  // token shift delta (pos += delta)
+};
+
+struct kv_seq_cell {
+  std::vector<kv_token_cell> token_cells;
+  model_seq_id seq_id = -1;
+  bool empty = true;
+};
+
+struct model_kv_cache {
+  struct ne_tensor* k = nullptr;
+  struct ne_tensor* v = nullptr;
+  struct ne_tensor* cossin = nullptr;  // cached cos/sin value for shifting RoPE
+
+  struct ne_context* ctx = nullptr;
+
+  model_ctx_buffer buf;
+
+  int n;  // number of tokens currently in the cache
+
+  bool has_shift = false;  // ring-buffer (for too long text generation like streaming-llm)
+  std::vector<kv_seq_cell> seq_cells;
+
+  ~model_kv_cache() {
+    if (ctx) {
+      ne_free(ctx);
+    }
+  }
+};
+
+struct generation_config {
+  uint32_t max_new_tokens;  // n_predict there
+  uint32_t min_new_tokens = 0;
+  // Exponential penalty to the length that is used with beam-based generation. It is applied as an exponent to
+  // the sequence length, which in turn is used to divide the score of the sequence. Since the score is the log
+  // likelihood of the sequence (i.e. negative), `length_penalty` > 0.0 promotes longer sequences, while
+  // `length_penalty` < 0.0 encourages shorter sequences. (default = 1.0)
+  float length_penalty = 1.0f;
+  bool do_early_stopping = false;
+  // sampling parameters
+  bool do_sample = false;
+  int32_t top_k = 40;            // <= 0 to use vocab size
+  float top_p = 0.95f;           // 1.0 = disabled
+  float temp = 0.80f;            // 1.0 = disabled
+  float repeat_penalty = 1.10f;  // 1.0 = disabled
+};
+
+struct model_struct {
+  model_archs arch;
+
+  model_hparams hparams;
+  model_scratch scratchs;
+
+  struct ne_tensor* others[MODEL_MAX_OTHERS];
+  std::vector<model_layer> layers;
+
+  // context
+  struct ne_context* ctx = nullptr;
+
+  // key + value cache for the self attention
+  // TODO: move to model_state
+  struct model_kv_cache kv_self;
+
+  // the model memory buffer
+  model_ctx_buffer buf;
+
+  // model memory mapped file
+  std::unique_ptr<model_mmap> mapping;
+
+  // objects representing data potentially being locked in memory
+  model_mlock mlock_buf;
+  model_mlock mlock_mmap;
+
+  // for quantize-stats only
+  std::vector<std::pair<std::string, struct ne_tensor*>> tensors_by_name;
+
+  ~model_struct() {
+    if (ctx) {
+      ne_free(ctx);
+    }
+  }
+};
+
+struct model_vocab {
+  using id = int32_t;
+  using token = std::string;
+
+  struct token_score {
+    token tok;
+    float score;
+  };
+
+  std::unordered_map<token, id> token_to_id;
+  std::vector<token_score> id_to_token;
+  id bos_token_id = -1;
+  id eos_token_id = -1;
+  id pad_token_id = -1;
+  id sep_token_id = -1;
+};
+
+struct model_context {
+  std::mt19937 rng;
+
+  int64_t t_load_us = 0;
+  int64_t t_start_us = 0;
+  bool has_evaluated_once = false;
+
+  int64_t t_sample_us = 0;
+  int64_t t_eval_us = 0;
+  int64_t t_p_eval_us = 0;
+  std::vector<int64_t> eval_times;
+
+  int32_t n_eval = 0;    // number of eval calls
+  int32_t n_p_eval = 0;  // number of tokens in eval calls for the prompt (with batch size > 1)
+
+  int32_t n_ctx = 512;  // number of tokens to keep as context
+  int32_t batch_size;  // batch size to be dynamically changed for each run
+  int32_t max_batch_size;
+
+  model_struct model;
+  model_vocab vocab;
+  // num of current execution prompts
+  int request_running_bs = 1;
+  // length of current execution tokens list
+  // first token (prefill) generation is equal to `request_running_bs`
+  // next tokens (decoding) generation may be larger than `request_running_bs`(for example, beam search)
+  bool support_bestla_kv = false;  // whether the model graph supports bestla-kvcache
+  int kv_n_ctx_block = 1;
+
+  std::vector<std::vector<std::string>> tensors_name;
+
+  size_t mem_per_token = 0;
+
+  float scratch_size_ratio = 1.0f;  // model memory scratch enlarge scale
+
+  // last hidden states after all decoding layers and normalization. (1-dimensional array: [n_embd * batch_size])
+  std::vector<float> last_hidden_states;
+
+  // memory buffers used to evaluate the model
+  // TODO: move in model_state
+  model_ctx_buffer buf_compute;
+  model_ctx_buffer buf_scratch[MODEL_MAX_SCRATCH_BUFFERS];
+
+  int buf_last = 0;
+  size_t buf_max_size[MODEL_MAX_SCRATCH_BUFFERS] = {0};
+
+  void use_buf(struct ne_context* ctx, int i) {
+#if defined(MODEL_USE_SCRATCH)
+    size_t last_size = 0;
+
+    if (i == -1) {
+      last_size = ne_set_scratch(ctx, {
+                                          0,
+                                          0,
+                                          nullptr,
+                                      });
+    } else {
+      auto& buf = buf_scratch[i];
+      last_size = ne_set_scratch(ctx, {
+                                          0,
+                                          buf.size,
+                                          buf.addr,
+                                      });
+    }
+
+    if (buf_last >= 0) {
+      buf_max_size[buf_last] = std::max(buf_max_size[buf_last], last_size);
+    }
+
+    buf_last = i;
+#else
+    (void)i;
+    (void)ctx;
+#endif
+  }
+
+  size_t get_buf_max_mem(int i) const {
+#if defined(MODEL_USE_SCRATCH)
+    return buf_max_size[i];
+#else
+    (void)i;
+    return 0;
+#endif
+  }
+};
+
+typedef model_vocab::id model_token;
+
+typedef struct model_token_data {
+  model_token id;  // token id
+  float logit;     // log-odds of the token
+  float p;         // probability of the token
+} model_token_data;
+
+typedef struct model_token_data_array {
+  model_token_data* data;
+  size_t size;
+  bool sorted;
+} model_token_data_array;
+
+typedef void (*model_progress_callback)(float progress, void* ctx);
+
+struct model_input {
+  // embd or next token
+  const model_token* tokens = nullptr;
+  // tokens length
+  uint32_t n_tokens = 0;
+  // prompt length
+  uint32_t n_prompt_tokens = 0;
+  // kv cache n_past
+  uint32_t n_past = 0;
+  // text tokens length (prompt + all next tokens)
+  // the number of tokens evaluated so far (including evicted tokens if there is any)
+  uint32_t n_total = 0;
+  // request id
+  int request_idx = -1;
+  // beam id in beam search
+  int beam_idx = 0;
+  // padding related, attention mask
+  // (0: left, 1: right)
+  // only support padding left in decoder only model
+  int padding_side = 0;
+  // padding length
+  uint32_t n_padding = 0;
+  // generation_config gen_conf;
+};
+
+class model_name_to_arch {
+ public:
+  static model_name_to_arch& init() {
+    static model_name_to_arch ins;
+    return ins;
+  }
+
+  void valid_options() {
+    for (auto pair : name2arch_) {
+      printf("%s, ", pair.first.c_str());
+    }
+    printf("\n");
+  }
+
+  model_archs find(const std::string& name) {
+    auto it = name2arch_.find(name);
+    if (it == name2arch_.end()) {
+      printf("%s is not a valid model name, supported model names are: ", name.c_str());
+      valid_options();
+      return MODEL_UNKNOWN;
+    } else {
+      return name2arch_.at(name);
+    }
+  }
+
+ private:
+  model_name_to_arch() {}
+  // update this table if has new cpp model
+  std::unordered_map<std::string, model_archs> name2arch_ = {
+      {"unknown", MODEL_UNKNOWN}, {"llama", MODEL_LLAMA},       {"gptj", MODEL_GPTJ},
+      {"mpt", MODEL_MPT},         {"opt", MODEL_OPT},           {"gptneox", MODEL_GPTNEOX},
+      {"dolly", MODEL_GPTNEOX},   {"polyglot", MODEL_GPTNEOX},  {"starcoder", MODEL_STARCODER},
+      {"falcon", MODEL_FALCON},   {"bloom", MODEL_BLOOM},       {"chatglm2", MODEL_CHATGLM2},
+      {"chatglm", MODEL_CHATGLM}, {"baichuan", MODEL_BAICHUAN}, {"mistral", MODEL_LLAMA},
+      {"qwen", MODEL_QWEN},       {"phi", MODEL_PHI},           {"stablelm", MODEL_STABLELM},
+      {"whisper", MODEL_WHISPER}, {"chatglm3", MODEL_CHATGLM3}, {"mixtral", MODEL_LLAMA},
+      {"gemma", MODEL_GEMMA}};
+};
+
+#ifdef __cplusplus
+}
+#endif
+
+// Internal API to be implemented by model.cpp and used by tests/benchmarks only
+#ifdef MODEL_API_INTERNAL
+
+#include <string>
+#include <vector>
+struct ne_tensor;
+
+std::vector<std::pair<std::string, struct ne_tensor*>>& model_internal_get_tensor_map(struct model_context* ctx);
+
+#endif
+
+#endif  // MODEL_TYPES_H

@@ -15,7 +15,7 @@
 #
 import os
 import pathlib
-from transformers import StoppingCriteria, TextStreamer
+from transformers import StoppingCriteria, TextStreamer, AutoConfig
 from ray.util.queue import Queue
 import torch
 from typing import Dict, Any, List, Optional, Union
@@ -41,14 +41,17 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
             metadata_thp:auto,dirty_decay_ms:9000000000,muzzy_decay_ms:9000000000",
     }
     runtime_env: Dict[str, Any] = {_ray_env_key: {}}
+    ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
+
     if infer_conf.ipex.enabled:
         runtime_env[_ray_env_key].update(_predictor_runtime_env_ipex)
     if infer_conf.deepspeed:
         runtime_env[_ray_env_key]["DS_ACCELERATOR"] = infer_conf.device
     if infer_conf.vllm.enabled:
         runtime_env[_ray_env_key]["OMP_PROC_BIND"] = "true"
+        if infer_conf.vllm.extension == "ns":
+            ray_actor_options["resources"] = {"inference_engine": 1}
     # now PredictorDeployment itself is a worker, we should require resources for it
-    ray_actor_options: Dict[str, Any] = {"runtime_env": runtime_env}
     if infer_conf.device == "cpu":
         ray_actor_options["num_cpus"] = infer_conf.cpus_per_worker
     elif infer_conf.device == "cuda":
@@ -60,6 +63,34 @@ def get_deployment_actor_options(infer_conf: InferenceConfig):
         # TODO add xpu
         pass
     return ray_actor_options
+
+
+def get_max_seq_length(config: AutoConfig):
+    config = config.to_dict()
+    # chatglm2, bloom, chatglm3
+    if "seq_length" in config:
+        return config["seq_length"]
+    # qwen2, llama-2, llama, dolly, gptneox, qwen, qwen1.5, opt, phi
+    if "max_position_embeddings" in config:
+        return config["max_position_embeddings"]
+    # baichuan, baichuan2
+    if "model_max_length" in config:
+        return config["model_max_length"]
+    # gptj
+    if "n_positions" in config:
+        return config["n_positions"]
+    # mpt
+    if "max_seq_len" in config:
+        return config["max_seq_len"]
+    # chatglm
+    if "max_sequence_length" in config:
+        return config["max_sequence_length"]
+    # whisper
+    if "max_length" in config:
+        return config["max_length"]
+
+    print("Not found max seq length, setting to default 512")
+    return 512
 
 
 class RayTextIteratorStreamer(TextStreamer):

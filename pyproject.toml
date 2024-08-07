@@ -46,6 +46,13 @@ cpu = [
     "oneccl_bind_pt==2.2.0"
 ]
 
+vllm-cpu = [
+    "pydantic==2.7.1",
+    "pydantic_core==2.18.2",
+    "transformers",
+    "torch"
+]
+
 gpu = [
     "transformers>=4.35.0",
     "torch==2.1.0a0",
