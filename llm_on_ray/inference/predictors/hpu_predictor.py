@@ -69,6 +69,9 @@ from llm_on_ray.inference.predictor import (
     MllmPromptInput,
 )
 from llm_on_ray.inference.utils import decide_torch_dtype
+from llm_on_ray.inference.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class HPUPredictor(Predictor):
@@ -79,8 +82,15 @@ class HPUPredictor(Predictor):
         # decide correct torch dtype for loading HF model
         decide_torch_dtype(infer_conf)
 
+        logger.debug(f"Print inference config: {infer_conf}")
+
         self.use_lazy_mode = not infer_conf.hpu_model_config.torch_compile
         self.use_hpu_graphs = infer_conf.hpu_model_config.use_hpu_graphs
+
+        # optimize transformers for gaudi
+        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
+
+        adapt_transformers_to_gaudi()
 
         if infer_conf.deepspeed:
             # DeepSpeed is enabled, start worker group
@@ -104,13 +114,6 @@ class HPUPredictor(Predictor):
                 import habana_frameworks.torch.core as htcore
 
                 htcore.hpu_set_env()
-
-            # Tweak transformer to optimize performance on Gaudi
-            from optimum.habana.transformers.modeling_utils import (
-                adapt_transformers_to_gaudi,
-            )
-
-            adapt_transformers_to_gaudi()
 
             self.device = torch.device("hpu")
             model = AutoModelForCausalLM.from_pretrained(
@@ -219,6 +222,7 @@ class HPUPredictor(Predictor):
 
     def streaming_generate(self, prompt, streamer, **config):
         self._process_config(config)
+        # Q1: Why it is handled here when using both deepspeed and hpu?
         if self.infer_conf.deepspeed:
             self.deepspeed_workers[0].streaming_generate.remote(prompt, streamer, **config)
             for worker in self.deepspeed_workers[1:]:
@@ -284,10 +288,6 @@ class HPUDeepSpeedWorker(TorchDistributedWorker):
         self.world_size = int(os.environ["WORLD_SIZE"])
         self.local_rank = int(os.environ["LOCAL_RANK"])
         self.device = torch.device("hpu")
-        # optimize transformers for gaudi
-        from optimum.habana.transformers.modeling_utils import adapt_transformers_to_gaudi
-
-        adapt_transformers_to_gaudi()
         self.load_model()
         model_desc = self.infer_conf.model_description
         self.tokenizer = load_tokenizer(self.model, model_desc.tokenizer_name_or_path)

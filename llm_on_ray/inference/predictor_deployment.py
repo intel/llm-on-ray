@@ -394,8 +394,11 @@ class PredictorDeployment:
         streaming_response = request["stream"]
         input = request["text"]
         config = request["config"]
-
+        logger.debug(f"Print config received from json: {config}")
+        logger.debug(f"Print inputs for prompts: {input}")
+        # return prompt or list of prompts preprocessed
         prompts = self.preprocess_prompts(input)
+        logger.debug(f"Print prompts from inputs: {prompts}")
 
         # Handle streaming response
         if streaming_response:
@@ -414,8 +417,12 @@ class PredictorDeployment:
     ):
         self.use_openai = True
 
+        # TODO: Pass down config into preprocess_prompts for more logs.
+        logger.debug(f"Print config received from query_client: {config}")
+        logger.debug(f"Print inputs for prompts: {input}")
         # return prompt or list of prompts preprocessed
         input = self.preprocess_prompts(input, tools, tool_choice)
+        logger.debug(f"Print prompts from inputs: {input}")
 
         # Handle streaming response
         if streaming_response:
