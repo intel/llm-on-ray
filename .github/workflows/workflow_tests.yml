@@ -7,6 +7,9 @@ on:
         type: string
         default: 'pr'
 
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
 jobs:
   setup-test:
 
@@ -26,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
         with:
           python-version: ${{matrix.python-version}}
           architecture: 'x64'
@@ -60,10 +63,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
         with:
           python-version: ${{matrix.python-version}}
           architecture: 'x64'
@@ -94,10 +97,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
         with:
           python-version: ${{matrix.python-version}}
           architecture: 'x64'
@@ -141,7 +144,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Determine Target
         id: "target"
@@ -165,7 +168,7 @@ jobs:
           code_checkout_path=${{ github.workspace }}
           source dev/scripts/ci-functions.sh
           start_docker ${TARGET} ${code_checkout_path}
-      
+
       - name: Install Dependencies for Tests
         run: |
           TARGET=${{steps.target.outputs.target}}
@@ -189,4 +192,4 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          stop_container ${TARGET} 
+          stop_container ${TARGET}

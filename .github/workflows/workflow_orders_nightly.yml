@@ -4,6 +4,9 @@ on: []
   # schedule:
   #   - cron: "0 16 * * *"
 
+permissions:  # added using https://github.com/step-security/secure-repo
+  contents: read
+
 jobs:
 
   call-inference:
