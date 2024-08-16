@@ -1,13 +1,10 @@
 port: 8000
 name: sqlcoder-7b-2
 route_prefix: /sqlcoder-7b-2
-cpus_per_worker: 22
-gpus_per_worker: 0
-deepspeed: false
-workers_per_group: 2
 device: cpu
-ipex:
-  enabled: false
+cpus_per_worker: 24
+vllm:
+  enabled: true
   precision: bf16
 model_description:
   model_id_or_path: defog/sqlcoder-7b-2

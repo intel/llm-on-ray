@@ -117,6 +117,7 @@ jobs:
           source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
           # Additional libraries required  for pytest
           pip install -r ./tests/requirements.txt
+          bash ./dev/scripts/install-vllm-cpu.sh
 
       - name: Start Ray Cluster
         run: |
@@ -179,7 +180,7 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          strat_ray ${TARGET}
+          start_ray ${TARGET}
 
       - name: Run Tests
         run: |

@@ -9,17 +9,11 @@ autoscaling_config:
     target_ongoing_requests: 24
     downscale_delay_s: 30
     upscale_delay_s: 10
+device: cpu
 cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
 vllm:
   enabled: true
   max_num_seqs: 64
-  precision: bf16
-workers_per_group: 2
-device: cpu
-ipex:
-  enabled: false
   precision: bf16
 model_description:
   model_id_or_path: NousResearch/Llama-2-7b-chat-hf
