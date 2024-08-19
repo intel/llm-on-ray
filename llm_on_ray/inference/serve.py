@@ -24,6 +24,8 @@ from llm_on_ray.inference.inference_config import (
     ModelDescription,
     InferenceConfig,
     all_models,
+    DEVICE_HPU,
+    DEVICE_CUDA,
 )
 
 
@@ -55,21 +57,40 @@ def get_deployed_models(args):
     deployments = {}
     for model_id, infer_conf in model_list.items():
         ray_actor_options = get_deployment_actor_options(infer_conf)
-        depolyment_config = {
+        deployment_config = {
             "ray_actor_options": ray_actor_options,
             "max_ongoing_requests": infer_conf.max_ongoing_requests
             if not args.max_ongoing_requests
             else args.max_ongoing_requests,
         }
         if infer_conf.autoscaling_config:
-            depolyment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
+            deployment_config["autoscaling_config"] = infer_conf.autoscaling_config.dict()
         elif infer_conf.num_replicas:
-            depolyment_config["num_replicas"] = infer_conf.num_replicas
+            deployment_config["num_replicas"] = infer_conf.num_replicas
         max_num_seqs = infer_conf.vllm.max_num_seqs if not args.max_num_seqs else args.max_num_seqs
         dynamic_max_batch_size = (
             infer_conf.dynamic_max_batch_size if not args.max_batch_size else args.max_batch_size
         )
-        deployments[model_id] = PredictorDeployment.options(**depolyment_config).bind(
+        device = infer_conf.device
+        if infer_conf.vllm.enabled and (not args.simple) and device in [DEVICE_HPU, DEVICE_CUDA]:
+            tp = infer_conf.vllm.tensor_parallel_size
+            if tp > 1:
+                deployment_config["ray_actor_options"].pop("resources", None)
+                pg_resources = []
+                pg_resources.append(
+                    {"CPU": 2}
+                )  # One is for PredictorDeployment replica, and the other is for Router replica
+                # When device is HPU, the resources of workers will be allocated in vllm engine.
+                if device == DEVICE_CUDA:
+                    for i in range(tp):
+                        # for the vLLM actors on GPU
+                        pg_resources.append(
+                            {"CPU": infer_conf.cpus_per_worker, "GPU": infer_conf.gpus_per_worker}
+                        )
+                    deployment_config["placement_group_bundles"] = pg_resources
+                    deployment_config["placement_group_strategy"] = "STRICT_PACK"
+
+        deployments[model_id] = PredictorDeployment.options(**deployment_config).bind(
             infer_conf, max_num_seqs, dynamic_max_batch_size
         )
 
@@ -123,7 +144,7 @@ def main(argv=None):
     parser.add_argument("--port", default=8000, type=int, help="The port of deployment address.")
     parser.add_argument(
         "--max_num_seqs",
-        default=None,
+        default=256,
         type=int,
         help="The batch size for vLLM. Used when vLLM is enabled.",
     )
@@ -164,10 +185,25 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         print("Service is running with deployments:" + str(deployments))
         print("Service is running models:" + str(model_list))
+
         if args.openai_route_prefix:
-            openai_serve_run(deployments, model_list, host, "/" + args.openai_route_prefix, args.port, args.max_ongoing_requests)
+            openai_serve_run(
+              deployments, 
+              model_list, 
+              host, 
+              "/" + args.openai_route_prefix, 
+              args.port, 
+              args.max_ongoing_requests, 
+              args.max_num_seqs,)
         else:    
-            openai_serve_run(deployments, model_list, host, "/", args.port, args.max_ongoing_requests)
+            openai_serve_run(
+              deployments, 
+              model_list, 
+              host, 
+              "/", 
+              args.port, 
+              args.max_ongoing_requests, 
+              args.max_num_seqs,
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:

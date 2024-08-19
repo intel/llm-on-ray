@@ -2,13 +2,10 @@ port: 8000
 name: CodeLlama-7b-hf
 route_prefix: /CodeLlama-7b-hf
 num_replicas: 1
-cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
-workers_per_group: 2
 device: cpu
-ipex:
-  enabled: false
+cpus_per_worker: 24
+vllm:
+  enabled: true
   precision: bf16
 model_description:
   model_id_or_path: codellama/CodeLlama-7b-hf

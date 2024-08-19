@@ -37,7 +37,7 @@ jobs:
     name: inference
     strategy:
       matrix:
-        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-vllm, gemma-2b, deepseek-coder-33b-instruct]
+        model: [ gpt-j-6b, gpt2, bloom-560m, opt-125m, mpt-7b, mistral-7b-v0.1, mpt-7b-ipex-llm, neural-chat-7b-v3-1, CodeLlama-7b-hf, falcon-7b, starcoder, llama-2-7b-chat-hf, llama-2-7b-chat-hf-no-vllm, deepseek-coder-33b-instruct]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -48,8 +48,7 @@ jobs:
           - { model: "gpt-j-6b"}
           - { model: "mistral-7b-v0.1"}
           - { model: "mpt-7b-ipex-llm"}
-          - { model: "llama-2-7b-chat-hf-vllm"}
-          - { model: "gemma-2b"}
+          - { model: "llama-2-7b-chat-hf-no-vllm"}
 
     runs-on: self-hosted
 
@@ -100,7 +99,7 @@ jobs:
         run: |
           TARGET=${{steps.target.outputs.target}}
           source dev/scripts/ci-functions.sh
-          strat_ray ${TARGET}
+          start_ray ${TARGET}
 
       - name: Run Inference Test
         run: |

@@ -15,6 +15,9 @@ pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu --extr
 # Dynamic link oneCCL and Intel MPI libraries
 source $(python -c "import oneccl_bindings_for_pytorch as torch_ccl; print(torch_ccl.cwd)")/env/setvars.sh
 
+# Install vllm from source
+bash ./dev/scripts/install-vllm-cpu.sh
+
 echo "Step 2: Start ray cluster ..."
 ray start --head
 

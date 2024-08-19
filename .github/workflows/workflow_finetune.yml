@@ -37,7 +37,7 @@ jobs:
     name: finetune
     strategy:
       matrix:
-        model: [ EleutherAI/gpt-j-6b, NousResearch/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, NousResearch/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
+        model: [ EleutherAI/gpt-j-6b, NousResearch/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, NousResearch/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1]
         isPR:
           - ${{inputs.ci_type == 'pr'}}
 
@@ -47,7 +47,6 @@ jobs:
           - { model: "EleutherAI/gpt-j-6b"}
           - { model: "NousResearch/Llama-2-7b-chat-hf"}
           - { model: "mistralai/Mistral-7B-v0.1"}
-          - { model: "google/gemma-2b"}
 
     runs-on: self-hosted
 

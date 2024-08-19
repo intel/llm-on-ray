@@ -2,14 +2,10 @@ port: 8000
 name: llama-2-7b-chat-hf
 route_prefix: /llama-2-7b-chat-hf
 num_replicas: 1
-dynamic_max_batch_size: 8
-cpus_per_worker: 24
-gpus_per_worker: 0
-deepspeed: false
-workers_per_group: 2
 device: cpu
-ipex:
-  enabled: false
+cpus_per_worker: 24
+vllm:
+  enabled: true
   precision: bf16
 model_description:
   model_id_or_path: NousResearch/Llama-2-7b-chat-hf
