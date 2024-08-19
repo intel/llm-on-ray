@@ -133,7 +133,8 @@ def main(argv=None):
     )
     parser.add_argument(
         "--openai_route_prefix",
-        action="store_true",
+        default=None,
+        type=str,
         help="Whether to use default '/' route prefix or deploy at new route prefix.",
     )
 
