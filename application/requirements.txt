@@ -2,10 +2,10 @@ langchain==0.1.16
 langchain_community==0.0.32
 faiss-cpu==1.8.0
 openai==1.17.0
-streamlit==1.30.0
+streamlit==1.37.0
 duckduckgo-search==3.8.3
 pypdf==3.17.0
-sentence-transformers==2.2.2 --no-deps
+sentence-transformers==2.2.2
 docarray==0.32.1
 streamlit-code-editor
-torchvision==0.16.2 --no-deps
+torchvision==0.16.2
