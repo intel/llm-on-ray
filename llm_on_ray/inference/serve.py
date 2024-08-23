@@ -152,6 +152,12 @@ def main(argv=None):
     parser.add_argument(
         "--max_batch_size", default=None, type=int, help="The max batch size for dynamic batching."
     )
+    parser.add_argument(
+        "--openai_route_prefix",
+        default="/",
+        type=str,
+        help="The openai_route_prefix must start with a forward slash ('/')",
+    )
 
     # Print help if no arguments were provided
     if len(sys.argv) == 1:
@@ -179,11 +185,12 @@ def main(argv=None):
         host = "127.0.0.1" if args.serve_local_only else "0.0.0.0"
         print("Service is running with deployments:" + str(deployments))
         print("Service is running models:" + str(model_list))
+
         openai_serve_run(
             deployments,
             model_list,
             host,
-            "/",
+            args.openai_route_prefix,
             args.port,
             args.max_ongoing_requests,
             args.max_num_seqs,
