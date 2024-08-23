@@ -154,9 +154,9 @@ def main(argv=None):
     )
     parser.add_argument(
         "--openai_route_prefix",
-        default=None,
+        default="/",
         type=str,
-        help="Whether to use default '/' route prefix or deploy at new route prefix.",
+        help="The openai_route_prefix must start with a forward slash ('/')",
     )
 
     # Print help if no arguments were provided
@@ -186,24 +186,15 @@ def main(argv=None):
         print("Service is running with deployments:" + str(deployments))
         print("Service is running models:" + str(model_list))
 
-        if args.openai_route_prefix:
-            openai_serve_run(
-              deployments, 
-              model_list, 
-              host, 
-              "/" + args.openai_route_prefix, 
-              args.port, 
-              args.max_ongoing_requests, 
-              args.max_num_seqs,)
-        else:    
-            openai_serve_run(
-              deployments, 
-              model_list, 
-              host, 
-              "/", 
-              args.port, 
-              args.max_ongoing_requests, 
-              args.max_num_seqs,
+        openai_serve_run(
+            deployments,
+            model_list,
+            host,
+            args.openai_route_prefix,
+            args.port,
+            args.max_ongoing_requests,
+            args.max_num_seqs,
+        )
 
     msg = "Service is deployed successfully."
     if args.keep_serve_terminal:
