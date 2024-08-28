@@ -158,6 +158,12 @@ def main(argv=None):
         type=str,
         help="The openai_route_prefix must start with a forward slash ('/')",
     )
+    parser.add_argument(
+        "--openai_application_name",
+        default="router",
+        type=str,
+        help="If not specified, the application name will be 'router'.",
+    )
 
     # Print help if no arguments were provided
     if len(sys.argv) == 1:
@@ -191,6 +197,7 @@ def main(argv=None):
             model_list,
             host,
             args.openai_route_prefix,
+            args.openai_application_name,
             args.port,
             args.max_ongoing_requests,
             args.max_num_seqs,
