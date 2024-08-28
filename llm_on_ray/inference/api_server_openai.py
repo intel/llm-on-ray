@@ -72,7 +72,14 @@ def router_application(deployments, model_list, max_ongoing_requests, max_num_se
 
 
 def openai_serve_run(
-    deployments, model_list, host, route_prefix, application_name, port, max_ongoing_requests, max_num_seqs
+    deployments,
+    model_list,
+    host,
+    route_prefix,
+    application_name,
+    port,
+    max_ongoing_requests,
+    max_num_seqs,
 ):
     router_app = router_application(deployments, model_list, max_ongoing_requests, max_num_seqs)
 
