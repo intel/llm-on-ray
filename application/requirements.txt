@@ -1,5 +1,5 @@
 langchain==0.1.16
-langchain_community==0.0.32
+langchain_community==0.2.9
 faiss-cpu==1.8.0
 openai==1.17.0
 streamlit==1.37.0
