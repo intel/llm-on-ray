@@ -1,4 +1,4 @@
-langchain==0.1.16
+langchain==0.2.10
 langchain_community==0.2.9
 faiss-cpu==1.8.0
 openai==1.17.0
