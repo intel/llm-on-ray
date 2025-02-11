@@ -4,7 +4,7 @@ numpy==1.24.4
 https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 torchvision==0.14.1
 torch==2.2.0
-transformers==4.38.0
+transformers==4.48.0
 typing==3.7.4.3
 tabulate
 ray[tune]
