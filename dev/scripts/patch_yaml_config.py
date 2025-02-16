@@ -24,6 +24,8 @@ def patch_yaml_config():
     parser.add_argument("--conf_path", type=str)
     parser.add_argument("--models", type=str)
     parser.add_argument("--peft_lora", action="store_true", default=False)
+    parser.add_argument("--dpo", action="store_true", default=False)
+
     args = parser.parse_args()
 
     conf_path = args.conf_path
@@ -69,6 +71,12 @@ def patch_yaml_config():
                 result["General"]["lora_config"]["target_modules"] = None
         else:
             result["General"]["lora_config"] = None
+        if args.dpo:
+            if "finetuning_model" not in result["Training"]:
+                result["Training"]["finetuning_model"] = {}
+            result["Dataset"]["train_file"] = "examples/data/sample_dpo_data.jsonl"
+            result["Training"]["beta"] = 0.1
+            result["Training"]["finetuning_model"]["dpo"] = True
 
     with open(conf_path, "w") as output:
         yaml.dump(result, output, sort_keys=False)
