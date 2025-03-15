@@ -1,0 +1,102 @@
+name: Finetune
+
+on:
+  workflow_call:
+    inputs:
+      ci_type:
+        type: string
+        default: 'pr'
+      runner_container_image:
+        type: string
+        default: '127.0.0.1:5000/llmray-build'
+      runner_config_path:
+        type: string
+        default: '/home/ci/llm-ray-actions-runner'
+      code_checkout_path:
+        type: string
+        default: '/home/ci/actions-runner/_work/llm-on-ray/llm-on-ray'
+      model_cache_path:
+        type: string
+        default: '/scratch-2/huggingface/cache'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ft-gaudi2
+  cancel-in-progress: true
+
+jobs:
+  finetune:
+    name: finetune
+    strategy:
+      matrix:
+        model: [ EleutherAI/gpt-j-6b, meta-llama/Llama-2-7b-chat-hf, gpt2, bigscience/bloom-560m, facebook/opt-125m, mosaicml/mpt-7b, meta-llama/Llama-2-7b-hf, mistralai/Mistral-7B-v0.1, google/gemma-2b]
+        isPR:
+          - ${{inputs.ci_type == 'pr'}}
+
+        exclude:
+          - { isPR: true }
+        include:
+          - { model: "EleutherAI/gpt-j-6b"}
+          - { model: "meta-llama/Llama-2-7b-chat-hf"}
+          - { model: "mistralai/Mistral-7B-v0.1"}
+          - { model: "google/gemma-2b"}
+
+    runs-on: gaudi2
+
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ${{ inputs.runner_container_image }}
+      env:
+        http_proxy:
+        https_proxy:
+        SHELL: bash -eo pipefail
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - ${{ inputs.runner_config_path }}:/root/actions-runner-config
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load environment variables
+        run: cat /root/actions-runner-config/.env >> $GITHUB_ENV
+
+      - name: Build Docker Image
+        run: |
+          DF_SUFFIX=".habana"
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          build_and_prune_gaudi ${TARGET} ${DF_SUFFIX}
+
+      - name: Start Docker Container
+        run: |
+          TARGET="finetune"
+          code_checkout_path=${{ inputs.code_checkout_path }}
+          model_cache_path=${{ inputs.model_cache_path }}
+          source dev/scripts/ci-functions.sh
+          start_docker_gaudi ${TARGET} ${code_checkout_path} ${model_cache_path} ${{env.HF_ACCESS_TOKEN}}
+
+      - name: Run Finetune Test
+        run: |
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          finetune_test_gaudi ${{ matrix.model }}
+
+      - name: Run PEFT-LoRA Test
+        run: |
+          source dev/scripts/ci-functions.sh
+          peft_lora_test_gaudi ${{ matrix.model }}
+
+      - name: Stop Ray
+        run: |
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          stop_ray ${TARGET}
+
+      - name: Stop Container
+        if: success() || failure()
+        run: |
+          TARGET="finetune"
+          source dev/scripts/ci-functions.sh
+          stop_container ${TARGET}
