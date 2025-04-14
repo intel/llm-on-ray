@@ -183,38 +183,32 @@ class DataProcessor:
         if len(keys) != 2:
             raise ValueError("Unsupported dataset format")
 
-        examples["input_ids"] = []
-        examples["labels"] = []
-        examples["attention_mask"] = []
+        zip_examples = []
         for s, t in zip(examples[keys[0]], examples[keys[1]]):
-            results = self.tokenizer(
-                s + t,
-                padding=self.padding,
+            zip_examples.append(s + t)
+
+        tokenized_examples = self.tokenizer(
+            zip_examples,
+            padding=self.padding,
+            truncation=self.truncation,
+            return_tensors=None,
+            max_length=self.max_length,
+        )
+        tokenized_examples["labels"] = copy.deepcopy(tokenized_examples["input_ids"])
+
+        if self.mask_input or self.mask_response:
+            tokenized_sources = self.tokenizer(
+                examples[keys[0]],
+                padding=False,
                 truncation=self.truncation,
                 return_tensors=None,
                 max_length=self.max_length,
             )
-
-            input_ids = results["input_ids"]
-            input_len = len(input_ids)
-            labels = copy.deepcopy(input_ids)
-            if self.mask_input or self.mask_response:
-                sources_tokenized = self.tokenizer(
-                    s,
-                    padding=False,
-                    truncation=True,
-                    return_tensors=None,
-                    max_length=self.max_length,
-                )
-                input_id_len = len(sources_tokenized["input_ids"])
+            for idx in range(len(tokenized_examples["input_ids"])):
+                len1 = len(tokenized_examples["input_ids"][idx])
+                len2 = len(tokenized_sources["input_ids"][idx])
                 # mask input
-                if self.mask_input:
-                    labels[:input_id_len] = [IGNORE_INDEX] * input_id_len
+                tokenized_examples["labels"][idx][:len2] = [IGNORE_INDEX] * len2
                 # mask response
-                if self.mask_response:
-                    labels[input_id_len:input_len] = [IGNORE_INDEX] * (input_len - input_id_len)
-
-            examples["input_ids"].append(results["input_ids"])
-            examples["labels"].append(labels)
-            examples["attention_mask"].append(results["attention_mask"])
-        return examples
+                tokenized_examples["labels"][idx][len2:len1] = [IGNORE_INDEX] * (len1 - len2)
+        return tokenized_examples
