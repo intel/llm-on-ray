@@ -68,6 +68,19 @@ start_docker() {
     docker run -tid  "${docker_args[@]}" "${TARGET}:latest"   
 }
 
+start_gaudi_docker() {
+    local TARGET=$1
+    local code_checkout_path=$2
+    local model_cache_path=$3
+
+    cid=$(docker ps -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then docker stop $cid && docker rm $cid; fi
+    # check and remove exited container
+    cid=$(docker ps -a -q --filter "name=${TARGET}")
+    if [[ ! -z "$cid" ]]; then docker rm $cid; fi
+    docker run -tid --name="${TARGET}" --hostname="${TARGET}-container" --runtime=habana -v /home/yizhong/Model-References:/root/Model-References -v ${code_checkout_path}:/root/llm-on-ray -v ${model_cache_path}:/root/.cache/huggingface/hub/ -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --cap-add sys_ptrace --net=host --ipc=host ${TARGET}:habana
+}
+
 install_dependencies(){
     local TARGET=$1
 
