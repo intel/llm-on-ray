@@ -53,6 +53,8 @@ class General(BaseModel):
     report_to: str = "none"
     resume_from_checkpoint: Optional[str] = None
     save_strategy: str = "no"
+    attn_softmax_bf16: bool = False
+    use_flash_attention: bool = False
     config: GeneralConfig
     lora_config: Optional[LoraConfig] = None
     enable_gradient_checkpointing: bool = False
@@ -76,10 +78,15 @@ class Dataset(BaseModel):
     truncation_side: str = "right"
     max_seq_length: int = 512
     truncation: bool = True
-    padding: bool = True
+    padding: bool = False
     mask_input: bool = True
     mask_response: bool = True
-    data_preprocess_type: str = "neural_chat"
+    data_preprocess_type: str = "default"
+
+    @validator("data_preprocess_type")
+    def check_data_preprocess_type(cls, v: str):
+        assert v in ["default", "neural_chat"]
+        return v
 
 
 class RayResourceConfig(BaseModel):
@@ -104,6 +111,11 @@ class Training(BaseModel):
     mixed_precision: str = PRECISION_NO
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
+    pipelining_fwd_bwd: bool = False
+    adam_epsilon: Optional[float] = None
+    throughput_warmup_steps: Optional[int] = None
+    warmup_ratio: Optional[float] = None
+    max_grad_norm: Optional[float] = None
     deepspeed_config_file: str = ""
 
     @validator("device")

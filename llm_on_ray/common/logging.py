@@ -27,7 +27,7 @@ logger_name = "common"
 logging_config = {
     "version": 1,
     "loggers": {
-        "root": {"level": "INFO", "handlers": ["consoleHandler"]},
+        # "root": {"level": "INFO", "handlers": ["consoleHandler"]},
         "common": {
             "level": "INFO",
             "handlers": ["consoleHandler"],
