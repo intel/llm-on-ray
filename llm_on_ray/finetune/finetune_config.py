@@ -45,6 +45,7 @@ class LoraConfig(BaseModel):
 
 
 class General(BaseModel):
+    trainer_type: str = "general"
     base_model: str
     tokenizer_name: Optional[str] = None
     gaudi_config_name: Optional[str] = None
@@ -80,12 +81,20 @@ class Dataset(BaseModel):
     mask_input: bool = True
     mask_response: bool = True
     data_preprocess_type: str = "neural_chat"
+    pad_max: bool = False
+    torch_dtype: str = "bfloat16"
+    max_prompt_length: int = 512
 
 
 class RayResourceConfig(BaseModel):
     CPU: int
     GPU: int = 0
     HPU: int = 0
+
+
+class FinetuningModel(BaseModel):
+    dpo: bool = False
+    ppo: bool = False
 
 
 class Training(BaseModel):
@@ -105,6 +114,8 @@ class Training(BaseModel):
     gradient_accumulation_steps: int = 1
     logging_steps: int = 10
     deepspeed_config_file: str = ""
+    finetuning_model: Optional[FinetuningModel] = None
+    beta: Optional[float] = 0.1
 
     @validator("device")
     def check_device(cls, v: str):
