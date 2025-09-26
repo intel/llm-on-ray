@@ -28,6 +28,7 @@ from itertools import chain
 
 import torch
 import datasets
+import evaluate
 import transformers
 
 from peft import get_peft_model, LoraConfig
@@ -53,10 +54,7 @@ def adapt_transformers_to_device(config: Dict):
         adapt_transformers_to_gaudi()
 
 
-def set_seed(config: Dict):
-    seed = config["Training"].get("seed", None)
-    if seed is None:
-        return
+def set_seed(config: Dict, seed):
     device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
         from accelerate.utils import set_seed as _set_seed
@@ -68,8 +66,17 @@ def set_seed(config: Dict):
         _set_seed(seed)
 
 
-def convert_to_training_args(cls, config: Dict):
+def prepare_training_args(config: Dict):
     device = config["Training"]["device"]
+    if device == "hpu":
+        from optimum.habana.transformers import GaudiTrainingArguments
+
+        cls = GaudiTrainingArguments
+    else:
+        from transformers import TrainingArguments
+
+        cls = TrainingArguments
+
     accelerate_mode = config["Training"]["accelerate_mode"]
     save_strategy = config["General"]["save_strategy"]
 
@@ -91,6 +98,18 @@ def convert_to_training_args(cls, config: Dict):
         "gradient_accumulation_steps": config["Training"]["gradient_accumulation_steps"],
         "do_train": True,
     }
+
+    adam_epsilon = config["Training"]["adam_epsilon"]
+    if adam_epsilon is not None:
+        args.update({"adam_epsilon": adam_epsilon})
+
+    warmup_ratio = config["Training"]["warmup_ratio"]
+    if warmup_ratio is not None:
+        args.update({"warmup_ratio": warmup_ratio})
+
+    max_grad_norm = config["Training"]["max_grad_norm"]
+    if max_grad_norm is not None:
+        args.update({"max_grad_norm": max_grad_norm})
 
     # set attr do_eval
     vf = config["Dataset"].get("validation_file", None)
@@ -116,13 +135,25 @@ def convert_to_training_args(cls, config: Dict):
 
     # set attr for FSDP
     # if accelerate_mode == "FSDP":
-    #     args.updatwe({})
+    #     args.update({})
 
     # set attr for Intel Gaudi
     if device == "hpu":
         args.update({"use_habana": True})
-        args.update({"use_lazy_mode": config["Training"]["hpu_execution_mode"] == "lazy"})
-        args.update({"pipelining_fwd_bwd": True})
+        args.update({"pipelining_fwd_bwd": config["Training"]["pipelining_fwd_bwd"]})
+
+        hpu_execution_mode = config["Training"]["hpu_execution_mode"]
+        if hpu_execution_mode == "lazy":
+            args.update({"use_lazy_mode": True})
+        else:
+            args.update({"use_lazy_mode": False})
+            if hpu_execution_mode == "eager.compile":
+                args.update({"torch_compile": True})
+                args.update({"torch_compile_backend": "hpu_backend"})
+
+        throughput_warmup_steps = config["Training"]["throughput_warmup_steps"]
+        if throughput_warmup_steps is not None:
+            args.update({"throughput_warmup_steps": throughput_warmup_steps})
 
     return cls(**args)
 
@@ -255,12 +286,6 @@ def tokenize_dataset(config: Dict, tokenizer, dataset):
     return tokenized_dataset
 
 
-def prepare_data_collator(config: Dict, tokenizer):
-    return transformers.DataCollatorForLanguageModeling(
-        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
-    )
-
-
 def load_model(config: Dict):
     model_name = config["General"]["base_model"]
     model_dtype = convert_dtype(config["Training"].get("mixed_precision", "no"))
@@ -274,23 +299,37 @@ def load_model(config: Dict):
         peft_config = LoraConfig(**lora_config)
         model = get_peft_model(model, peft_config)
 
-    egc = config["General"].get("enable_gradient_checkpointing", False)
-    if egc:
+    if config["General"].get("enable_gradient_checkpointing", False):
         model.enable_input_require_grads()
         model.gradient_checkpointing_enable()
         model.config.use_cache = False
 
-    model.to(dtype=model_dtype, device=torch.device(config["Training"]["device"]))
+    device = config["Training"]["device"]
+    if model.config.model_type == "llama":
+        model.generation_config.pad_token_id = 0
+        model.generation_config.bos_token_id = 1
+        model.generation_config.eos_token_id = 2
+        if device == "hpu" and config["General"]["attn_softmax_bf16"]:
+            model.generation_config.attn_softmax_bf16 = True
+        if device == "hpu" and config["General"]["use_flash_attention"]:
+            model.generation_config.use_flash_attention = True
+            model.generation_config.flash_attention_recompute = False
+            model.generation_config.flash_attention_causal_mask = False
+
+    # model.to(dtype=model_dtype, device=torch.device(device))
 
     return model
 
 
-def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator):
+def get_trainer(config: Dict, training_args, model, tokenizer, tokenized_dataset):
+    data_collator = transformers.DataCollatorForLanguageModeling(
+        tokenizer=tokenizer, mlm=False, return_tensors="pt", pad_to_multiple_of=8
+    )
+
     device = config["Training"]["device"]
     if device in ["cpu", "gpu"]:
-        from transformers import Trainer, TrainingArguments
+        from transformers import Trainer
 
-        training_args = convert_to_training_args(TrainingArguments, config)
         trainer = Trainer(
             model=model,
             args=training_args,
@@ -301,13 +340,13 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             tokenizer=tokenizer,
             data_collator=data_collator,
         )
-        return training_args, trainer
+        return trainer
     elif device in ["hpu"]:
         from optimum.habana.transformers import GaudiTrainer
-        from optimum.habana.transformers import GaudiTrainingArguments
         from optimum.habana import GaudiConfig
 
-        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana), otherwise use default gaudi_config
+        # If gaudi_config_name is provided, load gaudi_config from huggingface model hub(https://huggingface.co/Habana),
+        # otherwise use default gaudi_config
         gaudi_config_name = config["General"].get("gaudi_config_name", None)
         if gaudi_config_name is not None:
             gaudi_config = GaudiConfig.from_pretrained(gaudi_config_name)
@@ -316,7 +355,23 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             gaudi_config.use_fused_adam = True
             gaudi_config.use_fused_clip_norm = True
 
-        training_args = convert_to_training_args(GaudiTrainingArguments, config)
+        def preprocess_logits_for_metrics(logits, labels):
+            if isinstance(logits, tuple):
+                # Depending on the model and config, logits may contain extra tensors,
+                # like past_key_values, but logits always come first
+                logits = logits[0]
+            return logits.argmax(dim=-1)
+
+        metric = evaluate.load("accuracy")
+
+        def compute_metrics(eval_preds):
+            preds, labels = eval_preds
+            # preds have the same shape as the labels, after the argmax(-1) has been calculated
+            # by preprocess_logits_for_metrics but we need to shift the labels
+            labels = labels[:, 1:].reshape(-1)
+            preds = preds[:, :-1].reshape(-1)
+            return metric.compute(predictions=preds, references=labels)
+
         trainer = GaudiTrainer(
             model=model,
             args=training_args,
@@ -327,8 +382,12 @@ def get_trainer(config: Dict, model, tokenizer, tokenized_dataset, data_collator
             else None,
             tokenizer=tokenizer,
             data_collator=data_collator,
+            compute_metrics=compute_metrics if training_args.do_eval else None,
+            preprocess_logits_for_metrics=preprocess_logits_for_metrics
+            if training_args.do_eval
+            else None,
         )
-        return training_args, trainer
+        return trainer
     return None
 
 
@@ -337,7 +396,9 @@ def train_func(config: Dict[str, Any]):
 
     adapt_transformers_to_device(config)
 
-    set_seed(config)
+    training_args = prepare_training_args(config)
+
+    set_seed(config, training_args.seed)
 
     tokenizer = load_tokenizer(config)
 
@@ -345,16 +406,27 @@ def train_func(config: Dict[str, Any]):
 
     tokenized_dataset = tokenize_dataset(config, tokenizer, dataset)
 
-    data_collator = prepare_data_collator(config, tokenizer)
-
     model = load_model(config)
 
-    training_args, trainer = get_trainer(config, model, tokenizer, tokenized_dataset, data_collator)
+    trainer = get_trainer(config, training_args, model, tokenizer, tokenized_dataset)
 
-    common.logger.info("train start")
-    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
-    trainer.save_model()
-    common.logger.info("train finish")
+    if training_args.do_train:
+        common.logger.info("train start")
+        results = trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+        trainer.save_model()
+
+        metrics = results.metrics
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        common.logger.info("train finish")
+
+    if training_args.do_eval:
+        common.logger.info("eval start")
+        metrics = trainer.evaluate()
+
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
+        common.logger.info("eval finish")
 
 
 def get_finetune_config():
@@ -398,18 +470,11 @@ def main(external_config=None):
             "accelerate_mode"
         ] = "DDP"  # will use DDP to accelerate if no method specified
 
-    ccl_worker_count = 1
     device = config["Training"]["device"]
-    if device != "cpu":
-        ccl_worker_count = num_training_workers
 
     if not ray.is_initialized():
         runtime_env = {
             "env_vars": {
-                "OMP_NUM_THREADS": str(resources_per_worker["CPU"]),
-                "CCL_ZE_IPC_EXCHANGE": "sockets",
-                "CCL_WORKER_COUNT": str(ccl_worker_count),
-                "CCL_LOG_LEVEL": "info",
                 "FI_TCP_IFACE": "lo",
                 "FI_PROVIDER": "tcp",
             }
