@@ -18,7 +18,7 @@ import openai
 import pytest
 import os
 from openai import OpenAI
-from tests.basic_set import start_serve
+from basic_set import start_serve
 
 os.environ["no_proxy"] = "localhost,127.0.0.1"
 os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"

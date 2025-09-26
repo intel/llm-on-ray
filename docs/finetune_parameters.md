@@ -38,6 +38,9 @@ The following are the parameters supported in the finetuning workflow.
 | mask_input                  |True| mask the input part in lables                                                                                                                                         |
 | mask_response               |True| mask the response part in lables                                                                                                                                         |
 | data_preprocess_type        |neural_chat| The type of the encode input                                                                                                                              |
+|pad_max|False|Whether to pad the data to the max length of the batch|
+|max_source_length|512|Maximum source sequence length. Sequences will be right padded|
+|torch_dtype|bfloat16|Override the default `torch.dtype` and load the model under this dtype|
 
 
 ## Training Parameters
